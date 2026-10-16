@@ -623,10 +623,13 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
     const { x, y } = getCanvasCoords(e);
     const dist = Math.sqrt((x - slingshotAnchor.x) ** 2 + (y - slingshotAnchor.y) ** 2);
-    if (dist < 60) {
+    if (dist < 75) {
       isDraggingRef.current = true;
       dragPosRef.current = { x, y };
       sound.tap();
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {}
     }
   };
 
@@ -647,9 +650,12 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     sound.slingshotStretch(dist / maxPullRadius);
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
 
     const pull = dragPosRef.current;
     const dx = slingshotAnchor.x - pull.x;
@@ -674,6 +680,15 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     } else {
       dragPosRef.current = { x: slingshotAnchor.x, y: slingshotAnchor.y };
     }
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    dragPosRef.current = { x: slingshotAnchor.x, y: slingshotAnchor.y };
   };
 
   const handleBrag = () => {
@@ -729,6 +744,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
           className="w-full h-auto cursor-crosshair touch-none select-none block aspect-[2/1]"
         />
 

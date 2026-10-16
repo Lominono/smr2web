@@ -11,7 +11,7 @@ import { AuthModal } from '@/components/AuthModal';
 import { UserProfile, ChatMessage, LeaderboardEntry } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import { createClient } from '@/lib/supabase/client';
-import { Target, TrendingUp, AlertCircle } from 'lucide-react';
+import { Target, TrendingUp, AlertCircle, MessageSquare } from 'lucide-react';
 
 export default function Home() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -337,6 +337,18 @@ export default function Home() {
             >
               <TrendingUp className="w-3.5 h-3.5 text-rose-500" />
               <span>Crash</span>
+            </button>
+
+            {/* Mobile-only Chat tab */}
+            <button
+              onClick={() => {
+                setIsChatDrawerOpen(true);
+                sound.tap();
+              }}
+              className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium text-zinc-400 hover:text-white transition-all cursor-pointer"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Chat</span>
             </button>
           </div>
 
