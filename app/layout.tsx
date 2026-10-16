@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'RECREO // Casino & Chat de Clase',
-  description: 'Espacio de apuestas y chat de amigos de clase. Angry Birds dopamínico, Crash multiplicador y piques en directo.',
+  title: 'RECREO // ARCADE & CHAT',
+  description: 'Plataforma de minijuegos con físicas y chat en tiempo real para compañeros de clase.',
   icons: {
-    icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>',
+    icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2225%22 fill=%22%2310b981%22/><path d=%22M30 50 L70 50 M50 30 L50 70%22 stroke=%22white%22 stroke-width=%2212%22 stroke-linecap=%22round%22/></svg>',
   },
 };
 

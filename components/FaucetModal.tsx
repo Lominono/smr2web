@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Coins, Sparkles, X, Gift, RefreshCw, Zap } from 'lucide-react';
+import { Coins, X, Gift, RotateCcw, Dices } from 'lucide-react';
 import { sound } from '@/lib/audio';
 import confetti from 'canvas-confetti';
 
@@ -55,16 +55,16 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
         sound.jackpot();
 
         confetti({
-          particleCount: 90,
+          particleCount: 80,
           spread: 70,
           origin: { y: 0.6 },
         });
 
         setTimeout(() => {
           onClose();
-        }, 1800);
+        }, 1600);
       }
-    }, 80);
+    }, 75);
   };
 
   return (
@@ -73,15 +73,15 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
         {/* Header */}
         <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Gift className="w-5 h-5" />
+            <div className="p-2 rounded-2xl bg-white/[0.06] text-white border border-white/10">
+              <Gift className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white tracking-tight font-sans">
-                LA BECA DEL RECREO
+              <h3 className="text-base font-bold text-white tracking-tight font-mono">
+                RECARGA DE FICHAS
               </h3>
               <p className="text-xs text-zinc-400">
-                Rescate de emergencia para que sigas apostando
+                Fondo de rescate si te has quedado sin saldo
               </p>
             </div>
           </div>
@@ -90,45 +90,43 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
             onClick={onClose}
             className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
         <div className="p-6 space-y-4">
-          <p className="text-xs text-zinc-300 leading-relaxed">
-            ¿Te has quedado a dos velas por apostar al rojo o por un tiro fallido? El fondo de rescate del aula te cubre.
+          <p className="text-xs text-zinc-300 font-mono leading-relaxed">
+            Selecciona la modalidad de recarga para continuar en las partidas.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            {/* Standard 500 Claim */}
             <button
               onClick={handleStandardClaim}
               className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-left transition-all group cursor-pointer"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-mono font-bold text-emerald-400">FIJO SEGURO</span>
+                <span className="text-xs font-mono font-bold text-emerald-400">ASIGNACIÓN FIJA</span>
                 <Coins className="w-4 h-4 text-amber-400" />
               </div>
-              <div className="text-xl font-bold font-mono text-white mb-1">+500 🪙</div>
-              <p className="text-[11px] text-zinc-400">Sin sorteos. Directo a tu bolsillo.</p>
+              <div className="text-xl font-bold font-mono text-white mb-1">+500</div>
+              <p className="text-[11px] text-zinc-500 font-mono">Acreditación directa inmediata.</p>
             </button>
 
-            {/* Lucky Roulette 200 - 2000 */}
             <button
               onClick={handleSpinRoulette}
               disabled={isSpinning}
-              className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-indigo-500/10 hover:from-purple-500/20 hover:to-indigo-500/20 border border-purple-500/30 text-left transition-all group cursor-pointer"
+              className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-left transition-all group cursor-pointer"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-mono font-bold text-purple-400">RULETA DE LA SUERTE</span>
-                <Sparkles className="w-4 h-4 text-purple-400" />
+                <span className="text-xs font-mono font-bold text-white">ALEATORIO</span>
+                <Dices className="w-4 h-4 text-white" />
               </div>
-              <div className="text-xl font-bold font-mono text-purple-300 mb-1">
-                {isSpinning && spinResult ? `${spinResult} 🪙` : 'Hasta 2.000 🪙'}
+              <div className="text-xl font-bold font-mono text-white mb-1">
+                {isSpinning && spinResult ? `${spinResult}` : '200 - 2000'}
               </div>
-              <p className="text-[11px] text-zinc-400">
-                {isSpinning ? '¡Girando...' : 'Arriésgate a sacar el bote gordo.'}
+              <p className="text-[11px] text-zinc-500 font-mono">
+                {isSpinning ? 'Calculando...' : 'Resultado al azar.'}
               </p>
             </button>
           </div>
