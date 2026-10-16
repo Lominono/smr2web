@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: '2º SMR // La Intranet de Clase - Marrones, Chuletas y Risas',
-  description: 'Portal de clase para 2º de Sistemas Microinformáticos y Redes. Calendario de exámenes, chuletas de comandos de Linux y Windows Server, y frases de profesores.',
+  title: 'RECREO // Casino & Chat de Clase',
+  description: 'Espacio de apuestas y chat de amigos de clase. Angry Birds dopamínico, Crash multiplicador y piques en directo.',
   icons: {
-    icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>',
+    icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>',
   },
 };
 
@@ -30,7 +30,7 @@ export default function RootLayout({
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-[#090d16] text-slate-100 font-sans">
+      <body className="min-h-full flex flex-col bg-black text-white font-sans">
         {children}
       </body>
     </html>

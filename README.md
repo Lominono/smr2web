@@ -1,101 +1,62 @@
-# 💻 2º SMR // La Intranet de Clase
+# 🎮 RECREO // Casino & Chat de Clase
 
-Portal web colaborativo para estudiantes de **2º de SMR (Sistemas Microinformáticos y Redes)**.
-Pensado para organizar los exámenes, compartir comandos y chuletas sin buscar 80 veces en WhatsApp, inmortalizar las frases de los profesores y sobrevivir al curso con buen humor.
+Plataforma social y minijuegos dopamínicos para amigos de clase.
+Sin deberes ni listas de tareas: solo chat en directo, apuestas de fichas virtuales, piques sanos y juegos adictivos diseñados con estética **Apple Dark Titanium** (ultra limpia, minimalista y cero estilo IA).
 
-Diseñado con **Next.js 16 (App Router)**, **Tailwind CSS**, **Lucide Icons** y preparado para **Supabase** y despliegue instantáneo en **Vercel**.
-
----
-
-## 🚀 Características Principales
-
-1. **🔥 El Calendario de Marrones (Exámenes y Entregas):**
-   - Cuenta atrás visual por días y horas.
-   - Nivel de pánico configurado por la clase: *🟢 Paseo en barca*, *🔵 Renta mirárselo*, *🟠 Se viene marrón*, *🔴 F en el chat (Rezar al ping)*.
-   - Filtro por asignatura (SR, SOR, SI, AW, EIE, FCT) y buscador.
-   - Botón individual *"Yo ya lo tengo hecho"* con efecto de confeti.
-
-2. **⚡ ¿Qué toca ahora? (Widget en Vivo):**
-   - Detecta la hora y día actual del sistema y te dice qué clase toca en directo, el aula y cuánto falta para terminar.
-   - Aviso especial de **🥪 RECREO / BOCATA TIME** (11:15 - 11:45).
-   - Modal con el **horario semanal completo**.
-
-3. **🛠️ El Baúl de Chuletas & Scripts:**
-   - Comandos salvavidas de Linux (Debian, BIND9, iptables), Windows Server (Active Directory, PowerShell) y Cisco.
-   - Botón de **Copiar al portapapeles en 1 clic** (`¡Copiado, crack!`).
-   - Botón de voto *"Me ha salvado la vida"* con contador.
-   - Formulario para compartir nuevos scripts o enlaces a Google Drive.
-
-4. **💬 Frases Célebres del Claustro ("Quotes Míticas"):**
-   - Tablón de perlas que sueltan los profesores durante las clases.
-   - Ranking por votos de la clase (+1 JAJAJA).
-   - Formulario para inmortalizar la frase del día.
-
-5. **🎲 La Ruleta del Cable Cruzado (Sorteos de Clase):**
-   - Ruleta interactiva para sortear quién pregunta dudas al profe, quién baja a por los cafés o quién expone primero.
-   - Lista personalizable de compañeros de clase y confeti al salir el ganador.
-
-6. **📢 El Ping de Clase (Muro de Avisos):**
-   - Mensajes rápidos con etiquetas: `#Aviso`, `#Duda`, `#Meme`, `#Drama/Queja`.
-
-7. **👤 Rangos de Sysadmin:**
-   - De *Script Kiddie* hasta *Root Supremo del Aula* según los puntos y la actividad.
+Desarrollada con **Next.js 16 (App Router)**, **Tailwind CSS**, **HTML5 Physics Canvas**, **Web Audio API** (efectos de sonido procedurales sin archivos externos) y preparada para **Supabase** y **Vercel**.
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## ⚡ Minijuegos y Funcionalidades
 
-- **Framework:** [Next.js 16](https://nextjs.org) (App Router con Turbopack)
-- **Lenguaje:** TypeScript
-- **Estilos:** Tailwind CSS v4 con paleta oscura techie
-- **Iconos:** [Lucide React](https://lucide.dev)
-- **Base de Datos & Auth:** [Supabase](https://supabase.com) (PostgreSQL + RLS + Auth)
-- **Efectos:** Canvas Confetti
+1. **🏹 Angry Cable (Slingshot Dopamínico):**
+   - Tirachinas físico en HTML5 Canvas con arrastre, cálculo de vector de fuerza y puntos de trayectoria parabólica.
+   - Torre de racks de servidores y cajas destructibles con físicas de impacto, rebote, gravedad y fricción.
+   - **Cajas Multiplicadoras:** `x2`, `x5`, `x10` y **Jackpot Dorado `x25`**.
+   - **Barriles de TNT:** Explosiones en cadena que mandan los bloques por los aires.
+   - **Efectos Dopamínicos:** Temblor de pantalla (*screen shake*), cámara lenta (*slow-mo*) en impactos críticos, explosión de partículas de colores y confeti.
+   - Botón directo para fardar en el chat de clase al sacar un bote gordo.
 
----
+2. **📈 Kernel Crash (El Servidor va a Petar):**
+   - El clásico juego de multiplicador en curva ascendente (`1.00x` hasta `50.00x`).
+   - Tensión creciente con sonido acelerado a medida que el multiplicador se dispara.
+   - Cobra a tiempo antes de que el servidor sufra un *Kernel Panic* y colapse.
 
-## ⚙️ Cómo Ejecutar en Local
+3. **💬 El Chat del Fondo (Classroom Chat):**
+   - Chat en tiempo real con estética Apple Messages.
+   - Avisos automáticos destacados en dorado cuando algún compañero gana un gran premio.
+   - Sistema de propinas: pasa fichas a cualquier colega en 1 clic.
+   - Reacciones rápidas con emojis sonoros.
 
-1. Instala las dependencias (si no lo has hecho ya):
-   ```bash
-   npm install
-   ```
+4. **🪙 Economía de Clase & La Beca del Recreo:**
+   - Monedas virtuales del aula para apostar sin dinero real.
+   - Si te arruinas, pulsa en **Beca** para recargar 500 🪙 fijas o arriesgarte en la ruleta de la suerte (hasta 2.000 🪙).
 
-2. Arranca el servidor de desarrollo:
-   ```bash
-   npm run dev
-   ```
-
-3. Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
-
-> [!NOTE]
-> La aplicación incluye datos de demostración locales completos. Puedes usarla y probarla al instante sin necesidad de configurar Supabase primero.
-
----
-
-## 🗄️ Conexión con Supabase (Paso a Paso)
-
-Para que toda la clase comparta la misma base de datos en tiempo real:
-
-1. Ve a [supabase.com](https://supabase.com) y crea un proyecto nuevo (es gratis).
-2. Entra en el apartado **SQL Editor** de tu panel de Supabase.
-3. Abre el archivo [`supabase_schema.sql`](./supabase_schema.sql) de este repositorio, cópialo entero y pégalo en el editor de Supabase. Dale a **Run**.
-4. Ve a **Project Settings -> API** en Supabase y copia tu **Project URL** y tu **anon public key**.
-5. Crea un archivo `.env.local` en la raíz del proyecto (tienes de referencia el [`.env.example`](./.env.example)):
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-public-key
-   ```
-6. ¡Listo! La web se sincronizará automáticamente con tu base de datos en la nube.
+5. **🏆 Clasificación ("Los Millonarios del Aula"):**
+   - Podio de honor con los que más monedas tienen acumuladas y sus rangos (*Banquero del Recreo*, *Lobo de Wall Street*, etc.).
 
 ---
 
-## 🚀 Despliegue en Vercel (En 1 Clic)
+## 🛠️ Cómo Ejecutar en Local
 
-1. Sube este proyecto a un repositorio en tu **GitHub** (`git push`).
-2. Entra en [vercel.com](https://vercel.com) e inicia sesión con GitHub.
-3. Haz clic en **Add New -> Project** e importa tu repositorio `smr2`.
-4. En el apartado **Environment Variables**, añade:
-   - `NEXT_PUBLIC_SUPABASE_URL` = tu URL de Supabase
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = tu clave anónima de Supabase
-5. Haz clic en **Deploy**. ¡En 60 segundos tu clase tendrá su propia web activa con HTTPS gratis!
+```bash
+npm install
+npm run dev
+```
+
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
+
+---
+
+## 🗄️ Conexión con Supabase & Despliegue en Vercel
+
+1. **Supabase:**
+   - En tu proyecto de Supabase, abre el **SQL Editor**.
+   - Pega el contenido de [`supabase_schema.sql`](./supabase_schema.sql) y dale a **Run**.
+2. **Vercel:**
+   - Sube este proyecto a tu GitHub (`git push`).
+   - Importa el repositorio en Vercel.
+   - Agrega tus variables de entorno:
+     - `NEXT_PUBLIC_SUPABASE_URL`
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - Pulsa **Deploy** y pásale el link a tus amigos de clase.

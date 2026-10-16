@@ -1,294 +1,255 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Navbar } from '@/components/Navbar';
-import { ScheduleWidget } from '@/components/ScheduleWidget';
-import { DeadlinesTab } from '@/components/DeadlinesTab';
-import { CheatsheetsTab } from '@/components/CheatsheetsTab';
-import { QuotesTab } from '@/components/QuotesTab';
-import { SwitchRouletteTab } from '@/components/SwitchRouletteTab';
-import { WallTab } from '@/components/WallTab';
-import { AuthModal } from '@/components/AuthModal';
-import {
-  INITIAL_USER,
-  INITIAL_DEADLINES,
-  INITIAL_RESOURCES,
-  INITIAL_QUOTES,
-  INITIAL_WALL,
-} from '@/lib/mock-data';
-import { Deadline, Resource, Quote, WallMessage, Profile } from '@/lib/types';
-import { Flame, Terminal, MessageSquareQuote, Dices, Radio, Sparkles, ExternalLink, Heart } from 'lucide-react';
+import { AppleNavbar } from '@/components/AppleNavbar';
+import { AngryCableGame } from '@/components/AngryCableGame';
+import { CrashGame } from '@/components/CrashGame';
+import { LiveChat } from '@/components/LiveChat';
+import { LeaderboardModal } from '@/components/LeaderboardModal';
+import { FaucetModal } from '@/components/FaucetModal';
+import { INITIAL_USER, INITIAL_CHAT, INITIAL_LEADERBOARD } from '@/lib/mock-data';
+import { UserProfile, ChatMessage, LeaderboardEntry } from '@/lib/types';
+import { sound } from '@/lib/audio';
 import { createClient } from '@/lib/supabase/client';
+import { Zap, TrendingUp, MessageCircle, Trophy, Sparkles } from 'lucide-react';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'marrones' | 'chuletas' | 'quotes' | 'ruleta' | 'muro'>('marrones');
-  const [user, setUser] = useState<Profile | null>(INITIAL_USER);
-  const [deadlines, setDeadlines] = useState<Deadline[]>(INITIAL_DEADLINES);
-  const [resources, setResources] = useState<Resource[]>(INITIAL_RESOURCES);
-  const [quotes, setQuotes] = useState<Quote[]>(INITIAL_QUOTES);
-  const [wall, setWall] = useState<WallMessage[]>(INITIAL_WALL);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(false);
+  const [user, setUser] = useState<UserProfile>(INITIAL_USER);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(INITIAL_CHAT);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(INITIAL_LEADERBOARD);
+  const [activeGame, setActiveGame] = useState<'angry' | 'crash'>('angry');
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isFaucetOpen, setIsFaucetOpen] = useState(false);
+  const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Check Supabase connection on mount
-  useEffect(() => {
-    const supabase = createClient();
-    if (supabase) {
-      setIsSupabaseConfigured(true);
-      // Try to load dynamic data from Supabase if tables exist
-      const fetchData = async () => {
-        try {
-          const { data: dbDeadlines } = await supabase.from('deadlines').select('*').order('due_date', { ascending: true });
-          if (dbDeadlines && dbDeadlines.length > 0) setDeadlines(dbDeadlines);
+  // Sync sound setting
+  const handleToggleSound = () => {
+    const nextState = !soundEnabled;
+    setSoundEnabled(nextState);
+    sound.enabled = nextState;
+  };
 
-          const { data: dbResources } = await supabase.from('resources').select('*').order('upvotes', { ascending: false });
-          if (dbResources && dbResources.length > 0) setResources(dbResources);
+  // Update user coins & update leaderboard entry
+  const handleUpdateCoins = (delta: number) => {
+    setUser((prev) => {
+      const nextCoins = Math.max(0, prev.coins + delta);
+      const isWin = delta > 0;
+      const nextBiggestWin = isWin && delta > prev.biggest_win ? delta : prev.biggest_win;
 
-          const { data: dbQuotes } = await supabase.from('quotes').select('*').order('upvotes', { ascending: false });
-          if (dbQuotes && dbQuotes.length > 0) setQuotes(dbQuotes);
+      // Update current user in leaderboard
+      setLeaderboard((lPrev) =>
+        lPrev.map((entry) =>
+          entry.is_current_user
+            ? { ...entry, coins: nextCoins, biggest_win: nextBiggestWin }
+            : entry
+        )
+      );
 
-          const { data: dbWall } = await supabase.from('wall_messages').select('*').order('created_at', { ascending: false });
-          if (dbWall && dbWall.length > 0) setWall(dbWall);
-        } catch (err) {
-          console.warn('Error fetching Supabase data, using default local data:', err);
-        }
+      return {
+        ...prev,
+        coins: nextCoins,
+        net_profit: prev.net_profit + delta,
+        biggest_win: nextBiggestWin,
+        bankrupt_count: nextCoins === 0 ? prev.bankrupt_count + 1 : prev.bankrupt_count,
       };
-      fetchData();
-    }
-  }, []);
+    });
+  };
 
-  // Handlers for state updates
-  const handleAddDeadline = (newDeadline: Omit<Deadline, 'id'>) => {
-    const item: Deadline = {
-      ...newDeadline,
-      id: `d-${Date.now()}`,
+  // Send message to chat
+  const handleSendMessage = (text: string) => {
+    const newMsg: ChatMessage = {
+      id: `c-${Date.now()}`,
+      user_id: user.id,
+      username: user.username,
+      avatar_url: user.avatar_url,
+      text,
+      created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-    setDeadlines((prev) => [item, ...prev]);
 
-    // Persist to Supabase if available
+    setChatMessages((prev) => [...prev, newMsg]);
+
+    // Send to Supabase if configured
     const supabase = createClient();
     if (supabase) {
-      supabase.from('deadlines').insert([item]).then();
+      supabase.from('chat_messages').insert([newMsg]).then();
     }
   };
 
-  const handleAddResource = (newRes: Omit<Resource, 'id'>) => {
-    const item: Resource = {
-      ...newRes,
-      id: `r-${Date.now()}`,
+  // Broadcast big win to the classroom chat
+  const handleBroadcastWin = (game: 'angry' | 'crash', multiplier: number, winAmount: number) => {
+    const gameName = game === 'angry' ? 'Angry Cable' : 'Kernel Crash';
+    const broadcastMsg: ChatMessage = {
+      id: `sys-${Date.now()}`,
+      user_id: 'sys',
+      username: 'SISTEMA',
+      avatar_url: '',
+      text: `🔥 ¡@${user.username} acaba de ganar ${winAmount.toLocaleString()} 🪙 (x${multiplier.toFixed(2)}) en ${gameName}!`,
+      created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      is_system_win: true,
+      win_amount: winAmount,
+      multiplier,
+      game,
     };
-    setResources((prev) => [item, ...prev]);
 
-    const supabase = createClient();
-    if (supabase) {
-      supabase.from('resources').insert([item]).then();
-    }
+    setChatMessages((prev) => [...prev, broadcastMsg]);
   };
 
-  const handleUpvoteResource = (id: string) => {
-    setResources((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, upvotes: r.upvotes + 1 } : r))
-    );
-
-    const supabase = createClient();
-    if (supabase) {
-      supabase.rpc('increment_resource_upvote', { resource_row_id: id }).then();
+  // Tip classmate coins
+  const handleTipUser = (targetUsername: string, amount: number) => {
+    if (user.coins < amount) {
+      sound.broke();
+      alert('No tienes suficientes monedas para dar esa propina.');
+      return;
     }
-  };
 
-  const handleAddQuote = (newQuote: Omit<Quote, 'id'>) => {
-    const item: Quote = {
-      ...newQuote,
-      id: `q-${Date.now()}`,
+    handleUpdateCoins(-amount);
+    sound.coinWin();
+
+    const tipMsg: ChatMessage = {
+      id: `tip-${Date.now()}`,
+      user_id: 'sys',
+      username: 'SISTEMA',
+      avatar_url: '',
+      text: `💸 @${user.username} le ha pasado ${amount} 🪙 de propina a @${targetUsername}`,
+      created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      is_system_win: true,
+      win_amount: amount,
     };
-    setQuotes((prev) => [item, ...prev]);
 
-    const supabase = createClient();
-    if (supabase) {
-      supabase.from('quotes').insert([item]).then();
-    }
-  };
-
-  const handleUpvoteQuote = (id: string) => {
-    setQuotes((prev) =>
-      prev.map((q) => (q.id === id ? { ...q, upvotes: q.upvotes + 1 } : q))
-    );
-
-    const supabase = createClient();
-    if (supabase) {
-      supabase.rpc('increment_quote_upvote', { quote_row_id: id }).then();
-    }
-  };
-
-  const handleAddWallMessage = (newMsg: Omit<WallMessage, 'id'>) => {
-    const item: WallMessage = {
-      ...newMsg,
-      id: `w-${Date.now()}`,
-    };
-    setWall((prev) => [item, ...prev]);
-
-    const supabase = createClient();
-    if (supabase) {
-      supabase.from('wall_messages').insert([item]).then();
-    }
+    setChatMessages((prev) => [...prev, tipMsg]);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#090d16] text-slate-100 selection:bg-emerald-500 selection:text-black">
-      {/* Top navigation */}
-      <Navbar
+    <div className="min-h-screen flex flex-col bg-black text-white selection:bg-emerald-500 selection:text-black">
+      {/* Apple Frosted Navbar */}
+      <AppleNavbar
         user={user}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        isSupabaseConfigured={isSupabaseConfigured}
+        onOpenFaucet={() => setIsFaucetOpen(true)}
+        onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+        onToggleChat={() => setIsChatDrawerOpen(!isChatDrawerOpen)}
+        isChatOpen={isChatDrawerOpen}
+        soundEnabled={soundEnabled}
+        onToggleSound={handleToggleSound}
       />
 
-      {/* Main container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Real-time schedule ticker */}
-        <ScheduleWidget />
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Apple Segmented Game Switcher */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="inline-flex p-1 rounded-2xl bg-white/[0.05] border border-white/[0.08] backdrop-blur-xl">
+            <button
+              onClick={() => {
+                setActiveGame('angry');
+                sound.tap();
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold tracking-tight transition-all cursor-pointer ${
+                activeGame === 'angry'
+                  ? 'bg-white text-black shadow-lg font-bold'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Zap className="w-4 h-4 text-emerald-500" />
+              <span>Angry Cable (Tirachinas)</span>
+            </button>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-zinc-800">
-          <button
-            onClick={() => setActiveTab('marrones')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
-              activeTab === 'marrones'
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                : 'bg-zinc-900/60 text-zinc-400 hover:text-white hover:bg-zinc-800/80 border border-transparent'
-            }`}
-          >
-            <Flame className="w-4 h-4 text-rose-400" />
-            <span>Marrones & Exámenes</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500/30 text-rose-200">
-              {deadlines.length}
-            </span>
-          </button>
+            <button
+              onClick={() => {
+                setActiveGame('crash');
+                sound.tap();
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold tracking-tight transition-all cursor-pointer ${
+                activeGame === 'crash'
+                  ? 'bg-white text-black shadow-lg font-bold'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4 text-rose-500" />
+              <span>Kernel Crash (Multiplicador)</span>
+            </button>
+          </div>
 
-          <button
-            onClick={() => setActiveTab('chuletas')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
-              activeTab === 'chuletas'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                : 'bg-zinc-900/60 text-zinc-400 hover:text-white hover:bg-zinc-800/80 border border-transparent'
-            }`}
-          >
-            <Terminal className="w-4 h-4 text-emerald-400" />
-            <span>Chuletas & Scripts</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-200">
-              {resources.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('quotes')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
-              activeTab === 'quotes'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                : 'bg-zinc-900/60 text-zinc-400 hover:text-white hover:bg-zinc-800/80 border border-transparent'
-            }`}
-          >
-            <MessageSquareQuote className="w-4 h-4 text-amber-400" />
-            <span>Frases Célebres</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/30 text-amber-200">
-              {quotes.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('ruleta')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
-              activeTab === 'ruleta'
-                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm'
-                : 'bg-zinc-900/60 text-zinc-400 hover:text-white hover:bg-zinc-800/80 border border-transparent'
-            }`}
-          >
-            <Dices className="w-4 h-4 text-purple-400" />
-            <span>Ruleta del Switch</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('muro')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
-              activeTab === 'muro'
-                ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
-                : 'bg-zinc-900/60 text-zinc-400 hover:text-white hover:bg-zinc-800/80 border border-transparent'
-            }`}
-          >
-            <Radio className="w-4 h-4 text-sky-400" />
-            <span>El Ping de Clase</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-sky-500/30 text-sky-200">
-              {wall.length}
-            </span>
-          </button>
+          <div className="text-xs text-zinc-500 font-mono hidden md:block">
+            Apuestas 100% ficticias para el recreo · Piques entre amigos
+          </div>
         </div>
 
-        {/* Tab content */}
-        <div className="py-2">
-          {activeTab === 'marrones' && (
-            <DeadlinesTab
-              deadlines={deadlines}
-              onAddDeadline={handleAddDeadline}
-              currentUsername={user?.username}
-            />
-          )}
+        {/* 2-Column Responsive Layout: Game + Chat */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Game Area */}
+          <div className="lg:col-span-8 space-y-4">
+            {activeGame === 'angry' ? (
+              <AngryCableGame
+                userCoins={user.coins}
+                onUpdateCoins={handleUpdateCoins}
+                onBroadcastWin={handleBroadcastWin}
+              />
+            ) : (
+              <CrashGame
+                userCoins={user.coins}
+                onUpdateCoins={handleUpdateCoins}
+                onBroadcastWin={handleBroadcastWin}
+              />
+            )}
+          </div>
 
-          {activeTab === 'chuletas' && (
-            <CheatsheetsTab
-              resources={resources}
-              onAddResource={handleAddResource}
-              onUpvoteResource={handleUpvoteResource}
-              currentUsername={user?.username}
+          {/* Right Column: Live Chat (Desktop) */}
+          <div className="hidden lg:block lg:col-span-4 sticky top-24">
+            <LiveChat
+              messages={chatMessages}
+              currentUser={user}
+              onSendMessage={handleSendMessage}
+              onTipUser={handleTipUser}
             />
-          )}
-
-          {activeTab === 'quotes' && (
-            <QuotesTab
-              quotes={quotes}
-              onAddQuote={handleAddQuote}
-              onUpvoteQuote={handleUpvoteQuote}
-              currentUsername={user?.username}
-            />
-          )}
-
-          {activeTab === 'ruleta' && <SwitchRouletteTab />}
-
-          {activeTab === 'muro' && (
-            <WallTab
-              messages={wall}
-              onAddMessage={handleAddWallMessage}
-              currentUsername={user?.username}
-              currentUserRank={user?.rank}
-            />
-          )}
+          </div>
         </div>
       </main>
 
+      {/* Mobile Floating / Drawer Chat Modal */}
+      {isChatDrawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="flex-1 max-w-lg w-full mx-auto flex flex-col">
+            <LiveChat
+              messages={chatMessages}
+              currentUser={user}
+              onSendMessage={handleSendMessage}
+              onTipUser={handleTipUser}
+              onClose={() => setIsChatDrawerOpen(false)}
+              isDrawer={true}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Leaderboard Modal */}
+      <LeaderboardModal
+        isOpen={isLeaderboardOpen}
+        onClose={() => setIsLeaderboardOpen(false)}
+        entries={leaderboard}
+      />
+
+      {/* Faucet / Beca Modal */}
+      <FaucetModal
+        isOpen={isFaucetOpen}
+        onClose={() => setIsFaucetOpen(false)}
+        onClaimCoins={(amount) => handleUpdateCoins(amount)}
+      />
+
       {/* Footer */}
-      <footer className="border-t border-zinc-800/80 bg-zinc-950/60 py-6 mt-12 text-center text-xs text-zinc-500 font-mono">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>
-            Portal de 2º SMR · Diseñado para sobrevivir a las prácticas de servidores y redes.
-          </p>
-          <div className="flex items-center gap-4 text-zinc-400">
+      <footer className="border-t border-white/[0.06] bg-black py-6 mt-12 text-center text-xs text-zinc-500 font-mono">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>RECREO // ARCADE & CHAT DE CLASE</span>
+          <div className="flex items-center gap-3 text-zinc-400">
             <span>Next.js 16</span>
             <span>·</span>
-            <span>Tailwind CSS</span>
+            <span>Web Audio API</span>
             <span>·</span>
-            <span>Supabase</span>
+            <span>HTML5 Physics Canvas</span>
             <span>·</span>
-            <span className="text-emerald-400 font-semibold">Listo para Vercel</span>
+            <span className="text-emerald-400">Listo para Vercel</span>
           </div>
         </div>
       </footer>
-
-      {/* Auth / Profile Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentUser={user}
-        onSetCustomUser={setUser}
-        isSupabaseConfigured={isSupabaseConfigured}
-      />
     </div>
   );
 }
