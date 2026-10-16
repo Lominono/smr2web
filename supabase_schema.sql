@@ -1,6 +1,6 @@
 -- ==============================================================
 -- SCHEMA SUPABASE: RECREO // ARCADE & CHAT DE CLASE
--- Ejecuta este script en el SQL Editor de tu proyecto de Supabase
+-- Totalmente idempotente: puedes ejecutarlo cuantas veces quieras sin errores.
 -- ==============================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -51,19 +51,31 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. HABILITAR REALTIME EN CHAT
-ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+-- 3. HABILITAR REALTIME EN CHAT (De forma segura si ya estaba añadido)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' 
+    AND schemaname = 'public' 
+    AND tablename = 'chat_messages'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+  END IF;
+END $$;
 
 -- 4. POLÍTICAS RLS (Row Level Security)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 
--- Lectura pública para que todos los compañeros vean el chat y el ranking
+-- Limpieza de políticas previas si ya existían para evitar errores de duplicado
+DROP POLICY IF EXISTS "Lectura pública de perfiles" ON public.profiles;
+DROP POLICY IF EXISTS "Lectura pública de chat" ON public.chat_messages;
+DROP POLICY IF EXISTS "Creación de mensajes" ON public.chat_messages;
+DROP POLICY IF EXISTS "Actualizar saldo de usuario" ON public.profiles;
+
+-- Creación de políticas limpias
 CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Lectura pública de chat" ON public.chat_messages FOR SELECT USING (true);
-
--- Inserción de mensajes
 CREATE POLICY "Creación de mensajes" ON public.chat_messages FOR INSERT WITH CHECK (true);
-
--- Actualización de fichas del propio usuario
 CREATE POLICY "Actualizar saldo de usuario" ON public.profiles FOR UPDATE USING (true);

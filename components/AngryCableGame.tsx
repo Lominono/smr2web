@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { sound } from '@/lib/audio';
-import { RotateCcw, Coins, Trophy, Zap, AlertTriangle, Share2 } from 'lucide-react';
+import { RotateCcw, Coins, Trophy, Zap, AlertTriangle, Share2, Target } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface AngryCableGameProps {
@@ -57,7 +57,9 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
   const [lastWin, setLastWin] = useState<{ amount: number; multiplier: number } | null>(null);
   const [bragged, setBragged] = useState(false);
 
-  // Physics constants
+  // Logical coordinate space
+  const LOGICAL_WIDTH = 840;
+  const LOGICAL_HEIGHT = 420;
   const groundY = 380;
   const slingshotAnchor = { x: 130, y: groundY - 80 };
   const maxPullRadius = 85;
@@ -79,7 +81,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     y: slingshotAnchor.y,
     vx: 0,
     vy: 0,
-    radius: 14,
+    radius: 13,
     active: false,
     hasLanded: false,
     restTimer: 0,
@@ -92,30 +94,30 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
   const slowMoRef = useRef(0);
   const hitMultipliersRef = useRef<number[]>([]);
 
-  const resetLevel = () => {
+  const resetLevel = useCallback(() => {
     const blocks: Block[] = [];
     const baseStartX = 520;
 
-    // Tower 1
-    blocks.push({ x: baseStartX, y: groundY - 40, w: 70, h: 40, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-    blocks.push({ x: baseStartX, y: groundY - 80, w: 70, h: 40, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-    blocks.push({ x: baseStartX + 10, y: groundY - 120, w: 50, h: 40, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
+    // Tower 1 (Industrial rack)
+    blocks.push({ x: baseStartX, y: groundY - 42, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+    blocks.push({ x: baseStartX, y: groundY - 84, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+    blocks.push({ x: baseStartX + 12, y: groundY - 126, w: 48, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
 
-    // Tower 2: Multipliers & TNT
-    const col2X = baseStartX + 95;
-    blocks.push({ x: col2X, y: groundY - 45, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
-    blocks.push({ x: col2X, y: groundY - 90, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
-    blocks.push({ x: col2X, y: groundY - 135, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_5x', destroyed: false });
+    // Tower 2 (Hazard core)
+    const col2X = baseStartX + 96;
+    blocks.push({ x: col2X, y: groundY - 45, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
+    blocks.push({ x: col2X, y: groundY - 90, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
+    blocks.push({ x: col2X, y: groundY - 135, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_5x', destroyed: false });
 
-    // Tower 3: Golden Vault
-    const col3X = baseStartX + 160;
-    blocks.push({ x: col3X, y: groundY - 40, w: 70, h: 40, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-    blocks.push({ x: col3X, y: groundY - 80, w: 70, h: 40, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-    blocks.push({ x: col3X + 10, y: groundY - 125, w: 50, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
+    // Tower 3 (Server stack)
+    const col3X = baseStartX + 162;
+    blocks.push({ x: col3X, y: groundY - 42, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+    blocks.push({ x: col3X, y: groundY - 84, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+    blocks.push({ x: col3X + 12, y: groundY - 128, w: 48, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
 
-    // Crossbeam and Top Jackpot Box
-    blocks.push({ x: baseStartX + 40, y: groundY - 165, w: 140, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
-    blocks.push({ x: baseStartX + 85, y: groundY - 215, w: 50, h: 50, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_25x', destroyed: false });
+    // Roof & High Vault
+    blocks.push({ x: baseStartX + 36, y: groundY - 168, w: 146, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
+    blocks.push({ x: baseStartX + 84, y: groundY - 220, w: 50, h: 52, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_25x', destroyed: false });
 
     blocksRef.current = blocks;
     hitMultipliersRef.current = [];
@@ -129,7 +131,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
       y: slingshotAnchor.y,
       vx: 0,
       vy: 0,
-      radius: 14,
+      radius: 13,
       active: false,
       hasLanded: false,
       restTimer: 0,
@@ -139,13 +141,13 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     setGameState('aiming');
     setLastWin(null);
     setBragged(false);
-  };
+  }, [slingshotAnchor.x, slingshotAnchor.y]);
 
   useEffect(() => {
     resetLevel();
-  }, []);
+  }, [resetLevel]);
 
-  // Main canvas animation loop
+  // High-DPI canvas loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -154,10 +156,27 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
     let animId: number;
 
-    const loop = () => {
+    const render = () => {
+      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+      
+      // Ensure canvas internal resolution matches display aspect ratio
+      const rect = canvas.getBoundingClientRect();
+      const targetWidth = Math.floor(rect.width * dpr);
+      const targetHeight = Math.floor((rect.width * (LOGICAL_HEIGHT / LOGICAL_WIDTH)) * dpr);
+
+      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+      }
+
+      ctx.save();
+      const scaleX = canvas.width / LOGICAL_WIDTH;
+      const scaleY = canvas.height / LOGICAL_HEIGHT;
+      ctx.scale(scaleX, scaleY);
+
       let timeStep = 1;
       if (slowMoRef.current > 0) {
-        timeStep = 0.25;
+        timeStep = 0.28;
         slowMoRef.current--;
       }
 
@@ -167,82 +186,87 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
         offsetX = (Math.random() - 0.5) * shakeRef.current;
         offsetY = (Math.random() - 0.5) * shakeRef.current;
         shakeRef.current *= 0.88;
-        if (shakeRef.current < 0.5) shakeRef.current = 0;
+        if (shakeRef.current < 0.3) shakeRef.current = 0;
       }
 
-      ctx.save();
       ctx.translate(offsetX, offsetY);
 
-      // Clean background
-      ctx.fillStyle = '#08090e';
-      ctx.fillRect(-20, -20, canvas.width + 40, canvas.height + 40);
+      // 1. Solid matte graphite background
+      ctx.fillStyle = '#0a0a0d';
+      ctx.fillRect(-20, -20, LOGICAL_WIDTH + 40, LOGICAL_HEIGHT + 40);
 
-      // Grid
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      // 2. Precision technical grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
       ctx.lineWidth = 1;
-      const gridSize = 32;
-      for (let x = 0; x < canvas.width; x += gridSize) {
+      for (let x = 0; x < LOGICAL_WIDTH; x += 35) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
+        ctx.lineTo(x, LOGICAL_HEIGHT);
         ctx.stroke();
       }
-      for (let y = 0; y < canvas.height; y += gridSize) {
+      for (let y = 0; y < LOGICAL_HEIGHT; y += 35) {
         ctx.beginPath();
         ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
+        ctx.lineTo(LOGICAL_WIDTH, y);
         ctx.stroke();
       }
 
-      // Ground
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-      ctx.lineWidth = 2;
+      // Ground plane
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(0, groundY);
-      ctx.lineTo(canvas.width, groundY);
+      ctx.lineTo(LOGICAL_WIDTH, groundY);
       ctx.stroke();
 
-      // Slingshot Post
-      ctx.strokeStyle = '#383842';
-      ctx.lineWidth = 7;
+      // Slingshot fork structure
+      ctx.strokeStyle = '#27272a';
+      ctx.lineWidth = 6;
       ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.beginPath();
       ctx.moveTo(slingshotAnchor.x, groundY);
-      ctx.lineTo(slingshotAnchor.x, slingshotAnchor.y + 15);
+      ctx.lineTo(slingshotAnchor.x, slingshotAnchor.y + 18);
       ctx.lineTo(slingshotAnchor.x - 14, slingshotAnchor.y - 12);
-      ctx.moveTo(slingshotAnchor.x, slingshotAnchor.y + 15);
+      ctx.moveTo(slingshotAnchor.x, slingshotAnchor.y + 18);
       ctx.lineTo(slingshotAnchor.x + 14, slingshotAnchor.y - 12);
       ctx.stroke();
 
       const proj = projectileRef.current;
 
-      // Slingshot Bands & Projectile when aiming
+      // Slingshot Bands & Aiming
       if (!proj.active && !proj.hasLanded) {
         const pullPos = isDraggingRef.current ? dragPosRef.current : slingshotAnchor;
 
-        ctx.strokeStyle = '#d97706';
-        ctx.lineWidth = 3;
+        // Back elastic band
+        ctx.strokeStyle = '#71717a';
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.moveTo(slingshotAnchor.x - 12, slingshotAnchor.y - 10);
         ctx.lineTo(pullPos.x, pullPos.y);
         ctx.stroke();
 
+        // Projectile ball with rim highlight
         ctx.fillStyle = '#10b981';
         ctx.beginPath();
         ctx.arc(pullPos.x, pullPos.y, proj.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#34d399';
+        // Inner specular gleam
+        ctx.fillStyle = '#a7f3d0';
         ctx.beginPath();
-        ctx.arc(pullPos.x, pullPos.y, proj.radius * 0.45, 0, Math.PI * 2);
+        ctx.arc(pullPos.x - 3, pullPos.y - 3, proj.radius * 0.35, 0, Math.PI * 2);
         ctx.fill();
 
+        // Front elastic band
+        ctx.strokeStyle = '#71717a';
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.moveTo(slingshotAnchor.x + 12, slingshotAnchor.y - 10);
         ctx.lineTo(pullPos.x, pullPos.y);
         ctx.stroke();
 
-        // Trajectory dots
+        // Trajectory arc dots
         if (isDraggingRef.current) {
           const launchVx = (slingshotAnchor.x - pullPos.x) * 0.22;
           const launchVy = (slingshotAnchor.y - pullPos.y) * 0.22;
@@ -251,7 +275,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           let simVx = launchVx;
           let simVy = launchVy;
 
-          ctx.fillStyle = 'rgba(52, 211, 153, 0.6)';
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.7)';
           for (let step = 0; step < 26; step++) {
             simX += simVx * 1.5;
             simY += simVy * 1.5;
@@ -260,14 +284,14 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
             if (step % 2 === 0) {
               ctx.beginPath();
-              ctx.arc(simX, simY, Math.max(1.5, 3.5 - step * 0.1), 0, Math.PI * 2);
+              ctx.arc(simX, simY, Math.max(1.2, 3 - step * 0.08), 0, Math.PI * 2);
               ctx.fill();
             }
           }
         }
       }
 
-      // Flying Projectile
+      // Flying projectile
       if (proj.active) {
         proj.vx *= 0.995;
         proj.vy += 0.35 * timeStep;
@@ -278,18 +302,19 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           particlesRef.current.push({
             x: proj.x,
             y: proj.y,
-            vx: (Math.random() - 0.5) * 1.5 - proj.vx * 0.1,
-            vy: (Math.random() - 0.5) * 1.5 - proj.vy * 0.1,
+            vx: (Math.random() - 0.5) * 1.2 - proj.vx * 0.08,
+            vy: (Math.random() - 0.5) * 1.2 - proj.vy * 0.08,
             life: 1,
-            maxLife: 20 + Math.random() * 10,
+            maxLife: 18 + Math.random() * 8,
             color: '#10b981',
-            size: 3 + Math.random() * 2,
+            size: 2.5 + Math.random() * 2,
           });
         }
 
+        // Floor collision
         if (proj.y + proj.radius >= groundY) {
           proj.y = groundY - proj.radius;
-          proj.vy = -proj.vy * 0.45;
+          proj.vy = -proj.vy * 0.42;
           proj.vx *= 0.8;
           if (Math.abs(proj.vy) < 0.5) {
             proj.vy = 0;
@@ -301,32 +326,33 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           proj.x = proj.radius;
           proj.vx = -proj.vx * 0.5;
         }
-        if (proj.x + proj.radius > canvas.width) {
+        if (proj.x + proj.radius > LOGICAL_WIDTH) {
           proj.restTimer = 100;
         }
 
-        // Draw projectile with clean glow
-        ctx.save();
-        ctx.shadowColor = '#10b981';
-        ctx.shadowBlur = 10;
+        // Projectile rendering
         ctx.fillStyle = '#10b981';
         ctx.beginPath();
         ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
+
+        ctx.fillStyle = '#a7f3d0';
+        ctx.beginPath();
+        ctx.arc(proj.x - 3, proj.y - 3, proj.radius * 0.35, 0, Math.PI * 2);
+        ctx.fill();
 
         if (Math.abs(proj.vx) < 0.3 && Math.abs(proj.vy) < 0.3 && proj.y + proj.radius >= groundY - 2) {
           proj.restTimer += 1;
         }
 
-        if (proj.restTimer > 50 && !proj.hasLanded) {
+        if (proj.restTimer > 45 && !proj.hasLanded) {
           proj.active = false;
           proj.hasLanded = true;
           handleRoundEnd();
         }
       }
 
-      // Blocks
+      // Blocks rendering & physics
       blocksRef.current.forEach((block) => {
         if (block.destroyed) return;
 
@@ -345,7 +371,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           }
         }
 
-        // Collision Check
+        // Collision check
         if (proj.active) {
           const nearestX = Math.max(block.x, Math.min(proj.x, block.x + block.w));
           const nearestY = Math.max(block.y, Math.min(proj.y, block.y + block.h));
@@ -353,12 +379,12 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
           if (distSq < proj.radius ** 2) {
             const impactSpeed = Math.sqrt(proj.vx ** 2 + proj.vy ** 2);
-            shakeRef.current = Math.min(20, impactSpeed * 2.2);
-            sound.impact(Math.min(1.4, impactSpeed * 0.2));
+            shakeRef.current = Math.min(18, impactSpeed * 2);
+            sound.impact(Math.min(1.3, impactSpeed * 0.2));
 
             block.vx = proj.vx * 0.45;
             block.vy = proj.vy * 0.35 - 1.5;
-            block.vAngle = (Math.random() - 0.5) * 0.15;
+            block.vAngle = (Math.random() - 0.5) * 0.12;
 
             proj.vx *= 0.45;
             proj.vy *= 0.45;
@@ -367,31 +393,31 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
             if (block.hp <= 0) {
               block.destroyed = true;
 
-              for (let i = 0; i < 16; i++) {
+              for (let i = 0; i < 14; i++) {
                 particlesRef.current.push({
                   x: block.x + block.w / 2,
                   y: block.y + block.h / 2,
-                  vx: (Math.random() - 0.5) * 8,
-                  vy: (Math.random() - 0.5) * 8 - 2,
+                  vx: (Math.random() - 0.5) * 7,
+                  vy: (Math.random() - 0.5) * 7 - 2,
                   life: 1,
-                  maxLife: 25 + Math.random() * 20,
-                  color: block.type.includes('multiplier') ? '#f59e0b' : '#64748b',
-                  size: 2.5 + Math.random() * 3,
+                  maxLife: 24 + Math.random() * 16,
+                  color: block.type.includes('multiplier') ? '#eab308' : '#71717a',
+                  size: 2 + Math.random() * 2.5,
                 });
               }
 
               if (block.type === 'tnt') {
                 sound.crashExplode();
-                shakeRef.current = 26;
-                slowMoRef.current = 15;
+                shakeRef.current = 24;
+                slowMoRef.current = 14;
                 blocksRef.current.forEach((other) => {
                   if (!other.destroyed) {
                     const dx = other.x - block.x;
                     const dy = other.y - block.y;
                     const d = Math.sqrt(dx * dx + dy * dy);
                     if (d < 160) {
-                      other.vx += (dx / d) * 10;
-                      other.vy -= 7;
+                      other.vx += (dx / d) * 9;
+                      other.vy -= 6;
                       other.hp -= 2;
                       if (other.hp <= 0) other.destroyed = true;
                     }
@@ -409,60 +435,68 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                 hitMultipliersRef.current.push(mult);
                 if (mult >= 10) {
                   sound.jackpot();
-                  slowMoRef.current = 20;
+                  slowMoRef.current = 18;
                 } else {
                   sound.coinWin();
                 }
 
                 floatingTextsRef.current.push({
                   x: block.x + block.w / 2,
-                  y: block.y - 15,
+                  y: block.y - 12,
                   text: `x${mult}`,
                   color: '#fbbf24',
-                  life: 40,
+                  life: 38,
                 });
               }
             }
           }
         }
 
-        // Draw Block
+        // Draw individual block with clean craftsmanship
         ctx.save();
         ctx.translate(block.x + block.w / 2, block.y + block.h / 2);
         ctx.rotate(block.angle);
 
         if (block.type === 'server') {
-          ctx.fillStyle = '#1c1e24';
-          ctx.strokeStyle = '#2e323b';
-          ctx.lineWidth = 1.5;
+          // Dark titanium hardware unit
+          ctx.fillStyle = '#18181b';
+          ctx.strokeStyle = '#27272a';
+          ctx.lineWidth = 1;
           ctx.fillRect(-block.w / 2, -block.h / 2, block.w, block.h);
           ctx.strokeRect(-block.w / 2, -block.h / 2, block.w, block.h);
 
+          // Subtle hardware vent lines
+          ctx.strokeStyle = '#27272a';
+          ctx.beginPath();
+          ctx.moveTo(-block.w / 2 + 10, -2);
+          ctx.lineTo(block.w / 2 - 10, -2);
+          ctx.moveTo(-block.w / 2 + 10, 4);
+          ctx.lineTo(block.w / 2 - 10, 4);
+          ctx.stroke();
+
+          // Small LED
           ctx.fillStyle = block.hp > 1 ? '#10b981' : '#f43f5e';
           ctx.beginPath();
           ctx.arc(-block.w / 2 + 8, -block.h / 2 + 8, 2, 0, Math.PI * 2);
           ctx.fill();
-
-          ctx.fillStyle = '#64748b';
-          ctx.font = '9px monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText('SERVER', 3, 3);
         } else if (block.type === 'tnt') {
-          ctx.fillStyle = '#991b1b';
+          // Tactical red block
+          ctx.fillStyle = '#7f1d1d';
           ctx.strokeStyle = '#ef4444';
           ctx.lineWidth = 1.5;
           ctx.fillRect(-block.w / 2, -block.h / 2, block.w, block.h);
           ctx.strokeRect(-block.w / 2, -block.h / 2, block.w, block.h);
 
           ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 11px monospace';
+          ctx.font = 'bold 10px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('TNT', 0, 0);
         } else if (block.type.includes('multiplier') || block.type === 'jackpot_25x') {
-          ctx.fillStyle = '#78350f';
-          ctx.strokeStyle = '#f59e0b';
-          ctx.lineWidth = 2;
+          // Precision amber/gold vault
+          ctx.fillStyle = '#291e0a';
+          ctx.strokeStyle = '#d97706';
+          ctx.lineWidth = 1.5;
           ctx.fillRect(-block.w / 2, -block.h / 2, block.w, block.h);
           ctx.strokeRect(-block.w / 2, -block.h / 2, block.w, block.h);
 
@@ -480,8 +514,9 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               : 'x2';
           ctx.fillText(label, 0, 0);
         } else {
-          ctx.fillStyle = '#27272a';
-          ctx.strokeStyle = '#3f3f46';
+          // Standard dark crate
+          ctx.fillStyle = '#202024';
+          ctx.strokeStyle = '#323238';
           ctx.lineWidth = 1;
           ctx.fillRect(-block.w / 2, -block.h / 2, block.w, block.h);
           ctx.strokeRect(-block.w / 2, -block.h / 2, block.w, block.h);
@@ -514,7 +549,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
       // Floating Texts
       for (let i = floatingTextsRef.current.length - 1; i >= 0; i--) {
         const ft = floatingTextsRef.current[i];
-        ft.y -= 1;
+        ft.y -= 0.8;
         ft.life--;
 
         ctx.fillStyle = ft.color;
@@ -530,10 +565,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
       }
 
       ctx.restore();
-      animId = requestAnimationFrame(loop);
+      animId = requestAnimationFrame(render);
     };
 
-    animId = requestAnimationFrame(loop);
+    animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
   }, []);
 
@@ -542,12 +577,8 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     const cratesMults = hitMultipliersRef.current.reduce((sum, m) => sum + m, 0);
 
     let totalMult = cratesMults;
-    if (destroyedCount >= 3 && cratesMults === 0) {
-      totalMult = 1.5;
-    }
-    if (destroyedCount >= 6 && cratesMults === 0) {
-      totalMult = 3.0;
-    }
+    if (destroyedCount >= 3 && cratesMults === 0) totalMult = 1.5;
+    if (destroyedCount >= 6 && cratesMults === 0) totalMult = 3.0;
 
     if (totalMult > 0) {
       const winAmount = Math.round(bet * totalMult);
@@ -557,8 +588,8 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
       if (totalMult >= 5) {
         confetti({
-          particleCount: 90,
-          spread: 70,
+          particleCount: 80,
+          spread: 60,
           origin: { y: 0.6 },
         });
       }
@@ -570,34 +601,38 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     setGameState('resolved');
   };
 
+  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = LOGICAL_WIDTH / rect.width;
+    const scaleY = LOGICAL_HEIGHT / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  };
+
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (gameState !== 'aiming') return;
     if (userCoins < bet) {
       sound.broke();
-      alert('Saldo insuficiente. Solicita la Beca arriba a la derecha.');
+      alert('Saldo insuficiente. Solicita una recarga arriba a la derecha.');
       return;
     }
 
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const clientX = e.clientX - rect.left;
-    const clientY = e.clientY - rect.top;
-
-    const dist = Math.sqrt((clientX - slingshotAnchor.x) ** 2 + (clientY - slingshotAnchor.y) ** 2);
+    const { x, y } = getCanvasCoords(e);
+    const dist = Math.sqrt((x - slingshotAnchor.x) ** 2 + (y - slingshotAnchor.y) ** 2);
     if (dist < 60) {
       isDraggingRef.current = true;
-      dragPosRef.current = { x: clientX, y: clientY };
+      dragPosRef.current = { x, y };
       sound.tap();
     }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDraggingRef.current) return;
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    let x = e.clientX - rect.left;
-    let y = e.clientY - rect.top;
+    let { x, y } = getCanvasCoords(e);
 
     const dx = x - slingshotAnchor.x;
     const dy = y - slingshotAnchor.y;
@@ -631,7 +666,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
         y: slingshotAnchor.y,
         vx: dx * 0.22,
         vy: dy * 0.22,
-        radius: 14,
+        radius: 13,
         active: true,
         hasLanded: false,
         restTimer: 0,
@@ -649,30 +684,23 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
   };
 
   return (
-    <div className="bg-[#0b0c10] border border-white/[0.08] rounded-3xl p-5 sm:p-6 shadow-2xl relative overflow-hidden flex flex-col items-center">
-      {/* Header */}
-      <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 mb-2 border-b border-white/[0.08]">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Zap className="w-4 h-4" />
-            </span>
-            <h2 className="text-base sm:text-lg font-bold tracking-tight text-white font-mono">
-              ANGRY CABLE // SLINGSHOT
-            </h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
-              JACKPOT x25
-            </span>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Arrastra el tirachinas, apunta a la torre del servidor y derriba las cajas multiplicadoras.
-          </p>
+    <div className="bg-[#121215] border border-white/[0.08] rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.4)] flex flex-col items-center">
+      {/* Top Header */}
+      <div className="w-full flex items-center justify-between pb-3.5 mb-2 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2">
+          <Target className="w-4 h-4 text-emerald-400" />
+          <h2 className="text-sm font-semibold tracking-tight text-white font-mono">
+            SLINGSHOT
+          </h2>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
+            x25
+          </span>
         </div>
 
-        {/* Bet presets */}
-        <div className="flex items-center gap-1.5 bg-white/[0.04] p-1 rounded-2xl border border-white/[0.08]">
-          <span className="text-[11px] font-mono text-zinc-400 px-2 flex items-center gap-1">
-            <Coins className="w-3.5 h-3.5 text-amber-400" /> Apuesta:
+        {/* Bet Switcher */}
+        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/[0.06]">
+          <span className="text-[11px] font-mono text-zinc-500 px-2 flex items-center gap-1">
+            <Coins className="w-3 h-3 text-amber-400" /> Apuesta
           </span>
           {[50, 100, 250, 500, 1000].map((amount) => (
             <button
@@ -682,10 +710,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                 setBet(amount);
                 sound.tap();
               }}
-              className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`px-2.5 py-0.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
                 bet === amount
-                  ? 'bg-white text-black shadow-md'
-                  : 'text-zinc-400 hover:text-white hover:bg-white/[0.05]'
+                  ? 'bg-zinc-200 text-black font-semibold'
+                  : 'text-zinc-400 hover:text-white'
               }`}
             >
               {amount}
@@ -694,79 +722,70 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
         </div>
       </div>
 
-      {/* Canvas */}
-      <div className="relative w-full overflow-hidden rounded-2xl border border-white/[0.08] shadow-inner bg-[#08090e]">
+      {/* Canvas Area */}
+      <div className="relative w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0d]">
         <canvas
           ref={canvasRef}
-          width={820}
-          height={400}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          className="w-full h-auto cursor-crosshair touch-none select-none block"
+          className="w-full h-auto cursor-crosshair touch-none select-none block aspect-[2/1]"
         />
 
         {gameState === 'aiming' && (
-          <div className="absolute top-4 left-4 pointer-events-none bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-xs text-zinc-300 font-mono flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            <span>Arrastra el núcleo verde y suelta para disparar</span>
+          <div className="absolute top-3 left-3 pointer-events-none bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-[11px] text-zinc-400 font-mono">
+            Arrastra el núcleo para ajustar fuerza y dirección
           </div>
         )}
 
         {/* Resolution Banner */}
         {gameState === 'resolved' && lastWin && (
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in zoom-in-95 duration-200">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-150">
             {lastWin.multiplier > 0 ? (
               <>
-                <div className="p-3 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 mb-3 shadow-[0_0_20px_rgba(251,191,36,0.2)]">
-                  <Trophy className="w-8 h-8" />
-                </div>
-                <span className="text-xs font-mono font-bold text-amber-300 uppercase tracking-widest">
-                  IMPACTO CONFIRMADO
+                <span className="text-xs font-mono text-amber-400 uppercase tracking-widest">
+                  Resultado
                 </span>
-                <h3 className="text-3xl sm:text-5xl font-black text-white font-mono mt-1">
-                  +{lastWin.amount.toLocaleString()} FICHAS
+                <h3 className="text-3xl sm:text-4xl font-bold text-white font-mono mt-1">
+                  +{lastWin.amount.toLocaleString()} fichas
                 </h3>
                 <p className="text-xs text-zinc-400 mt-1 font-mono">
-                  Multiplicador conseguido: x{lastWin.multiplier.toFixed(2)}
+                  Multiplicador x{lastWin.multiplier.toFixed(2)}
                 </p>
 
-                <div className="flex items-center gap-3 mt-6">
+                <div className="flex items-center gap-2 mt-5">
                   <button
                     onClick={() => {
                       resetLevel();
                       sound.tap();
                     }}
-                    className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-mono text-xs font-bold border border-white/10 transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-mono text-xs font-medium border border-white/10 transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Tirar de Nuevo</span>
+                    <span>Reiniciar</span>
                   </button>
 
                   <button
                     onClick={handleBrag}
                     disabled={bragged}
-                    className={`px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-4 py-2 rounded-xl font-mono text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                       bragged
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                        : 'bg-white hover:bg-zinc-200 text-black shadow-lg active:scale-95'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-white hover:bg-zinc-200 text-black font-semibold'
                     }`}
                   >
                     <Share2 className="w-3.5 h-3.5" />
-                    <span>{bragged ? 'Publicado en Chat' : 'Publicar en Chat'}</span>
+                    <span>{bragged ? 'Compartido' : 'Enviar a chat'}</span>
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <div className="p-3 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 mb-3">
-                  <AlertTriangle className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white font-mono">
-                  Sin impacto suficiente (0 fichas)
+                <h3 className="text-lg font-semibold text-white font-mono">
+                  Tiro sin impacto
                 </h3>
-                <p className="text-xs text-zinc-400 mt-1 max-w-sm font-mono">
-                  Ajusta la parábola para derribar las cajas multiplicadoras.
+                <p className="text-xs text-zinc-400 mt-1 font-mono">
+                  No se alcanzaron objetivos multiplicadores.
                 </p>
 
                 <button
@@ -774,10 +793,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                     resetLevel();
                     sound.tap();
                   }}
-                  className="mt-5 px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-mono text-xs font-bold border border-white/10 transition-all cursor-pointer flex items-center gap-1.5"
+                  className="mt-4 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-mono text-xs font-medium border border-white/10 transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reintentar (-{bet} fichas)</span>
+                  <span>Intentar de nuevo</span>
                 </button>
               </>
             )}
@@ -785,10 +804,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
         )}
       </div>
 
-      {/* Footer hint */}
+      {/* Technical Footer */}
       <div className="w-full flex items-center justify-between text-[11px] text-zinc-500 font-mono mt-3 px-1">
-        <span>TNT causa deflagración en área</span>
-        <span>Cajas multiplicadoras directas (x2, x5, x10, x25)</span>
+        <span>TNT genera onda expansiva</span>
+        <span>Módulos dorados multiplican la apuesta</span>
       </div>
     </div>
   );

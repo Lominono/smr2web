@@ -11,7 +11,7 @@ import { AuthModal } from '@/components/AuthModal';
 import { UserProfile, ChatMessage, LeaderboardEntry } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import { createClient } from '@/lib/supabase/client';
-import { Zap, TrendingUp, MessageSquare, AlertCircle } from 'lucide-react';
+import { Target, TrendingUp, AlertCircle } from 'lucide-react';
 
 export default function Home() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -25,20 +25,18 @@ export default function Home() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
 
-  // Sync sound
   const handleToggleSound = () => {
     const nextState = !soundEnabled;
     setSoundEnabled(nextState);
     sound.enabled = nextState;
   };
 
-  // Fetch user profile from Supabase
   const fetchUserProfile = async (userId: string, email?: string) => {
     const supabase = createClient();
     if (!supabase) return;
 
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -54,7 +52,6 @@ export default function Home() {
           created_at: data.created_at,
         });
       } else {
-        // If profile row doesn't exist yet, create it
         const fallbackUsername = email ? email.split('@')[0] : `user_${userId.slice(0, 5)}`;
         const newProfile = {
           id: userId,
@@ -70,7 +67,6 @@ export default function Home() {
     }
   };
 
-  // Fetch real chat messages
   const fetchMessages = async () => {
     const supabase = createClient();
     if (!supabase) return;
@@ -91,7 +87,6 @@ export default function Home() {
     }
   };
 
-  // Fetch real leaderboard
   const fetchLeaderboard = async () => {
     const supabase = createClient();
     if (!supabase) return;
@@ -115,7 +110,6 @@ export default function Home() {
     }
   };
 
-  // Initial load & real-time setup
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) {
@@ -123,14 +117,12 @@ export default function Home() {
       return;
     }
 
-    // Check active session
     supabase.auth.getUser().then(({ data: { user: authUser } }) => {
       if (authUser) {
         fetchUserProfile(authUser.id, authUser.email);
       }
     });
 
-    // Listen to Auth State Changes
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         fetchUserProfile(session.user.id, session.user.email);
@@ -139,11 +131,9 @@ export default function Home() {
       }
     });
 
-    // Fetch initial chat & leaderboard
     fetchMessages();
     fetchLeaderboard();
 
-    // Subscribe to Realtime Chat Messages
     const channel = supabase
       .channel('chat_realtime')
       .on(
@@ -168,7 +158,6 @@ export default function Home() {
     };
   }, []);
 
-  // Refresh leaderboard when user changes or opens modal
   useEffect(() => {
     if (isLeaderboardOpen) {
       fetchLeaderboard();
@@ -183,7 +172,6 @@ export default function Home() {
     setUser(null);
   };
 
-  // Update coins in state and persist to Supabase
   const handleUpdateCoins = async (delta: number) => {
     if (!user) {
       setIsAuthOpen(true);
@@ -194,7 +182,6 @@ export default function Home() {
     const isWin = delta > 0;
     const nextBiggestWin = isWin && delta > user.biggest_win ? delta : user.biggest_win;
 
-    // Optimistic UI update
     setUser((prev) =>
       prev
         ? {
@@ -205,7 +192,6 @@ export default function Home() {
         : null
     );
 
-    // Sync to Supabase
     const supabase = createClient();
     if (supabase) {
       await supabase
@@ -215,7 +201,6 @@ export default function Home() {
     }
   };
 
-  // Send message to Supabase chat
   const handleSendMessage = async (text: string) => {
     if (!user) {
       setIsAuthOpen(true);
@@ -234,10 +219,9 @@ export default function Home() {
     ]);
   };
 
-  // Broadcast big win to chat
   const handleBroadcastWin = async (game: 'angry' | 'crash', multiplier: number, winAmount: number) => {
     if (!user) return;
-    const gameLabel = game === 'angry' ? 'Angry Cable' : 'Kernel Crash';
+    const gameLabel = game === 'angry' ? 'Slingshot' : 'Crash';
 
     const supabase = createClient();
     if (!supabase) return;
@@ -255,7 +239,6 @@ export default function Home() {
     ]);
   };
 
-  // Tip user coins in Supabase
   const handleTipUser = async (targetUsername: string, amount: number) => {
     if (!user) {
       setIsAuthOpen(true);
@@ -271,10 +254,8 @@ export default function Home() {
     const supabase = createClient();
     if (!supabase) return;
 
-    // Deduct from sender
     await handleUpdateCoins(-amount);
 
-    // Increment receiver
     const { data: receiver } = await supabase
       .from('profiles')
       .select('id, coins')
@@ -288,12 +269,11 @@ export default function Home() {
         .eq('id', receiver.id);
     }
 
-    // Insert tip notification in chat
     await supabase.from('chat_messages').insert([
       {
         user_id: user.id,
         username: 'SISTEMA',
-        text: `@${user.username} ha transferido ${amount} fichas a @${targetUsername}`,
+        text: `@${user.username} transfirió ${amount} fichas a @${targetUsername}`,
         is_system_win: true,
         win_amount: amount,
       },
@@ -303,8 +283,8 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-black text-white selection:bg-white selection:text-black">
-      {/* Top Bar */}
+    <div className="min-h-screen flex flex-col bg-[#09090b] text-zinc-100 selection:bg-white selection:text-black">
+      {/* Top Navbar */}
       <AppleNavbar
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
@@ -317,34 +297,31 @@ export default function Home() {
         onToggleSound={handleToggleSound}
       />
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Warning if Supabase is not configured */}
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
         {!supabaseConfigured && (
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs font-mono text-amber-300 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>Para sincronizar usuarios reales, añade NEXT_PUBLIC_SUPABASE_URL y ANON_KEY en tu .env.local y Vercel.</span>
-            </div>
+          <div className="p-3.5 rounded-2xl bg-amber-500/[0.08] border border-amber-500/20 text-xs font-mono text-amber-300 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>Configura NEXT_PUBLIC_SUPABASE_URL y ANON_KEY en tu .env.local para sincronizar la base de datos.</span>
           </div>
         )}
 
-        {/* Game Switcher */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="inline-flex p-1 rounded-2xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl">
+        {/* Tactile Mode Switcher */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="inline-flex p-1 rounded-xl bg-black/40 border border-white/[0.08]">
             <button
               onClick={() => {
                 setActiveGame('angry');
                 sound.tap();
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold tracking-tight transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
                 activeGame === 'angry'
-                  ? 'bg-white text-black font-bold shadow-md'
+                  ? 'bg-zinc-200 text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              <Zap className="w-4 h-4 text-emerald-500" />
-              <span>Angry Cable</span>
+              <Target className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Slingshot</span>
             </button>
 
             <button
@@ -352,25 +329,24 @@ export default function Home() {
                 setActiveGame('crash');
                 sound.tap();
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold tracking-tight transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
                 activeGame === 'crash'
-                  ? 'bg-white text-black font-bold shadow-md'
+                  ? 'bg-zinc-200 text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              <TrendingUp className="w-4 h-4 text-rose-500" />
-              <span>Kernel Crash</span>
+              <TrendingUp className="w-3.5 h-3.5 text-rose-500" />
+              <span>Crash</span>
             </button>
           </div>
 
-          <div className="text-xs text-zinc-500 font-mono hidden md:block">
-            {user ? `Sesión iniciada como @${user.username}` : 'Modo invitado · Inicia sesión para guardar fichas'}
+          <div className="text-[11px] text-zinc-500 font-mono hidden md:block">
+            {user ? `@${user.username} conectado` : 'Sesión de invitado'}
           </div>
         </div>
 
         {/* 2-Column Responsive Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Game Area */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           <div className="lg:col-span-8 space-y-4">
             {activeGame === 'angry' ? (
               <AngryCableGame
@@ -387,8 +363,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* Realtime Chat (Desktop) */}
-          <div className="hidden lg:block lg:col-span-4 sticky top-24">
+          <div className="hidden lg:block lg:col-span-4 sticky top-20">
             <LiveChat
               messages={chatMessages}
               currentUser={user}
@@ -402,7 +377,7 @@ export default function Home() {
 
       {/* Mobile Drawer Chat */}
       {isChatDrawerOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex flex-col bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-150">
           <div className="flex-1 max-w-lg w-full mx-auto flex flex-col">
             <LiveChat
               messages={chatMessages}
@@ -417,21 +392,19 @@ export default function Home() {
         </div>
       )}
 
-      {/* Real Leaderboard Modal */}
+      {/* Modals */}
       <LeaderboardModal
         isOpen={isLeaderboardOpen}
         onClose={() => setIsLeaderboardOpen(false)}
         entries={leaderboard}
       />
 
-      {/* Faucet Modal */}
       <FaucetModal
         isOpen={isFaucetOpen}
         onClose={() => setIsFaucetOpen(false)}
         onClaimCoins={(amount) => handleUpdateCoins(amount)}
       />
 
-      {/* Supabase Auth Modal */}
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
@@ -448,17 +421,15 @@ export default function Home() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-white/[0.06] bg-black py-6 mt-12 text-center text-xs text-zinc-500 font-mono">
+      <footer className="border-t border-white/[0.06] bg-black py-4 mt-8 text-center text-[11px] text-zinc-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>RECREO // ARCADE & CHAT</span>
+          <span>RECREO</span>
           <div className="flex items-center gap-3 text-zinc-400">
             <span>Next.js 16</span>
             <span>·</span>
             <span>Supabase Realtime</span>
             <span>·</span>
-            <span>Web Audio</span>
-            <span>·</span>
-            <span className="text-emerald-400">Despliegue Vercel</span>
+            <span>Web Audio API</span>
           </div>
         </div>
       </footer>
