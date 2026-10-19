@@ -698,38 +698,43 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
   };
 
   return (
-    <div className="bg-[#121215] border border-white/[0.08] rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.4)] flex flex-col items-center">
+    <div className="glass-panel rounded-3xl p-4 sm:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border border-white/[0.08]">
       {/* Top Header */}
-      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3.5 mb-2 border-b border-white/[0.06]">
-        <div className="flex items-center justify-between sm:justify-start gap-2">
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-emerald-400" />
-            <h2 className="text-sm font-semibold tracking-tight text-white font-mono">
-              SLINGSHOT
-            </h2>
+      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between sm:justify-start gap-3">
+          <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <Target className="w-4 h-4" />
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
-              Bote x25
-            </span>
-            <button
-              onClick={() => {
-                resetLevel();
-                sound.tap();
-              }}
-              title="Reiniciar torre"
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold tracking-tight text-white font-mono uppercase">
+                SLINGSHOT // FÍSICA DE RACKS
+              </h2>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+                Bote x25
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-500 font-mono">
+              Lanza el núcleo contra la torre de servidores
+            </p>
           </div>
+          <button
+            onClick={() => {
+              resetLevel();
+              sound.tap();
+            }}
+            title="Reiniciar torre de servidores"
+            className="p-1.5 rounded-xl text-zinc-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] transition-all cursor-pointer ml-auto sm:ml-2 active:scale-95"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* Bet Switcher */}
-        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1 bg-black/40 p-1.5 rounded-2xl border border-white/[0.06] overflow-x-auto scrollbar-none">
-          <span className="text-[11px] font-mono text-zinc-500 px-1.5 flex items-center gap-1 shrink-0">
-            <Coins className="w-3 h-3 text-amber-400" />
-            <span className="hidden xs:inline">Apuesta</span>
+        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1 bg-black/50 p-2 rounded-2xl border border-white/[0.08] overflow-x-auto scrollbar-none shadow-inner">
+          <span className="text-xs font-mono text-zinc-400 px-1.5 flex items-center gap-1.5 shrink-0 font-medium">
+            <Coins className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden xs:inline">Apuesta:</span>
           </span>
           <div className="flex items-center gap-1">
             <button

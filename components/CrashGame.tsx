@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { sound } from '@/lib/audio';
 import { CrashHistoryItem } from '@/lib/types';
-import { TrendingUp, AlertTriangle, Coins, RotateCcw } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Coins, Zap, Trophy, ShieldAlert } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface CrashGameProps {
@@ -19,7 +19,12 @@ export const CrashGame: React.FC<CrashGameProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [history, setHistory] = useState<CrashHistoryItem[]>([]);
+  const [history, setHistory] = useState<CrashHistoryItem[]>([
+    { id: 'init-1', crashPoint: 2.14, timestamp: '1m' },
+    { id: 'init-2', crashPoint: 1.38, timestamp: '2m' },
+    { id: 'init-3', crashPoint: 5.72, timestamp: '4m' },
+    { id: 'init-4', crashPoint: 1.12, timestamp: '5m' },
+  ]);
   const [bet, setBet] = useState<number>(100);
   const [gameState, setGameState] = useState<'idle' | 'running' | 'crashed'>('idle');
   const [currentMultiplier, setCurrentMultiplier] = useState<number>(1.0);
@@ -32,7 +37,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
   const startTimeRef = useRef<number>(0);
 
   const LOGICAL_WIDTH = 840;
-  const LOGICAL_HEIGHT = 320;
+  const LOGICAL_HEIGHT = 340;
 
   const generateCrashPoint = () => {
     if (Math.random() < 0.08) {
@@ -48,7 +53,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
   const startGame = () => {
     if (userCoins < bet) {
       sound.broke();
-      alert('Saldo insuficiente. Solicita una recarga arriba a la derecha.');
+      alert('Saldo insuficiente. Pulsa el botón + arriba a la derecha para recargar.');
       return;
     }
 
@@ -76,7 +81,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
 
         setHistory((prev) => [
           { id: `h-${Date.now()}`, crashPoint: Number(finalCrash.toFixed(2)), timestamp: 'Ahora' },
-          ...prev.slice(0, 6),
+          ...prev.slice(0, 7),
         ]);
         return;
       }
@@ -105,9 +110,9 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     onUpdateCoins(win);
     sound.coinWin();
 
-    if (mult >= 3.0) {
+    if (mult >= 2.5) {
       confetti({
-        particleCount: 70,
+        particleCount: 80,
         spread: 60,
         origin: { y: 0.6 },
       });
@@ -140,41 +145,61 @@ export const CrashGame: React.FC<CrashGameProps> = ({
       const scaleY = canvas.height / LOGICAL_HEIGHT;
       ctx.scale(scaleX, scaleY);
 
-      ctx.fillStyle = '#0a0a0d';
+      // Deep matte obsidian canvas background
+      ctx.fillStyle = '#08080c';
       ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
-      // Fine grid
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      // Technical oscilloscope grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
       ctx.lineWidth = 1;
-      for (let x = 0; x < LOGICAL_WIDTH; x += 40) {
+      for (let x = 0; x < LOGICAL_WIDTH; x += 45) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, LOGICAL_HEIGHT);
         ctx.stroke();
       }
-      for (let y = 0; y < LOGICAL_HEIGHT; y += 40) {
+      for (let y = 0; y < LOGICAL_HEIGHT; y += 45) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(LOGICAL_WIDTH, y);
         ctx.stroke();
       }
 
-      const padding = 35;
-      const startX = padding;
-      const startY = LOGICAL_HEIGHT - padding;
+      const paddingLeft = 45;
+      const paddingBottom = 40;
+      const startX = paddingLeft;
+      const startY = LOGICAL_HEIGHT - paddingBottom;
+
+      // Axis lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(startX, 15);
+      ctx.lineTo(startX, startY);
+      ctx.lineTo(LOGICAL_WIDTH - 20, startY);
+      ctx.stroke();
+
+      // Axis labels
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.font = '10px monospace';
+      ctx.fillText('1.0x', 12, startY + 3);
+      ctx.fillText('2.0x', 12, startY - 60);
+      ctx.fillText('5.0x', 12, startY - 140);
+      ctx.fillText('10x+', 12, startY - 220);
 
       if (gameState === 'running' || gameState === 'crashed') {
         const progress = Math.min((currentMultiplier - 1.0) / 10.0, 1.0);
-        const endX = startX + progress * (LOGICAL_WIDTH - padding * 2.5);
-        const endY = startY - Math.sqrt(progress) * (LOGICAL_HEIGHT - padding * 2.5);
+        const endX = startX + progress * (LOGICAL_WIDTH - startX - 40);
+        const endY = startY - Math.sqrt(progress) * (startY - 35);
 
-        // Area fill
+        // Gradient under the curve
         const areaGrad = ctx.createLinearGradient(0, endY, 0, startY);
         if (gameState === 'crashed') {
-          areaGrad.addColorStop(0, 'rgba(239, 68, 68, 0.2)');
+          areaGrad.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
           areaGrad.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
         } else {
-          areaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
+          areaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
+          areaGrad.addColorStop(0.7, 'rgba(16, 185, 129, 0.08)');
           areaGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
         }
 
@@ -186,7 +211,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         ctx.closePath();
         ctx.fill();
 
-        // Stroke line
+        // High intensity neon line
         ctx.strokeStyle = gameState === 'crashed' ? '#ef4444' : '#10b981';
         ctx.lineWidth = 3.5;
         ctx.lineCap = 'round';
@@ -195,20 +220,33 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         ctx.quadraticCurveTo((startX + endX) / 2, startY, endX, endY);
         ctx.stroke();
 
-        // Glow ring around tip
+        // Tip effects
         if (gameState === 'running') {
-          ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+          // Glow halo
+          ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
+          ctx.lineWidth = 8;
+          ctx.beginPath();
+          ctx.arc(endX, endY, 8, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Core circle
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(endX, endY, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Crash explosion ring
+          ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
           ctx.lineWidth = 6;
           ctx.beginPath();
-          ctx.arc(endX, endY, 7, 0, Math.PI * 2);
+          ctx.arc(endX, endY, 10, 0, Math.PI * 2);
           ctx.stroke();
-        }
 
-        // Tip circle
-        ctx.fillStyle = gameState === 'crashed' ? '#ef4444' : '#ffffff';
-        ctx.beginPath();
-        ctx.arc(endX, endY, 5, 0, Math.PI * 2);
-        ctx.fill();
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(endX, endY, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       ctx.restore();
@@ -226,77 +264,96 @@ export const CrashGame: React.FC<CrashGameProps> = ({
   }, []);
 
   return (
-    <div className="bg-[#121215] border border-white/[0.08] rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.4)] flex flex-col items-center">
-      {/* Header */}
-      <div className="w-full flex items-center justify-between pb-3.5 mb-2 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-emerald-400" />
-          <h2 className="text-sm font-semibold tracking-tight text-white font-mono">
-            CRASH
-          </h2>
+    <div className="glass-panel rounded-3xl p-4 sm:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border border-white/[0.08]">
+      {/* Header telemetry & history */}
+      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+            <TrendingUp className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold tracking-tight text-white font-mono uppercase">
+                CRASH // TELEMETRÍA
+              </h2>
+              <span className="px-1.5 py-0.2 text-[9px] font-mono font-bold bg-white/[0.06] text-zinc-400 rounded border border-white/[0.08]">
+                RT
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-500 font-mono">
+              Curva exponencial con colapso aleatorio
+            </p>
+          </div>
         </div>
 
-        {/* History Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto max-w-full">
-          {history.length === 0 ? (
-            <span className="text-[11px] font-mono text-zinc-500">Sin registros</span>
-          ) : (
-            history.map((item) => (
-              <span
-                key={item.id}
-                className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded-md border shrink-0 ${
-                  item.crashPoint >= 2.0
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                    : 'bg-zinc-900 text-zinc-400 border-zinc-800'
-                }`}
-              >
-                {item.crashPoint.toFixed(2)}x
-              </span>
-            ))
-          )}
+        {/* History Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0 scrollbar-none">
+          <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider shrink-0 mr-1">
+            Historial:
+          </span>
+          {history.map((item) => (
+            <span
+              key={item.id}
+              className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg border shrink-0 tabular-nums transition-all ${
+                item.crashPoint >= 2.0
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  : item.crashPoint >= 1.5
+                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                  : 'bg-zinc-900/80 text-zinc-500 border-white/[0.06]'
+              }`}
+            >
+              {item.crashPoint.toFixed(2)}x
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* Canvas */}
-      <div className="relative w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0d] flex items-center justify-center">
-        <canvas ref={canvasRef} className="w-full h-auto block aspect-[2/1] sm:aspect-[2.6/1]" />
+      {/* Screen Canvas Area */}
+      <div className="relative w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#08080c] flex items-center justify-center shadow-inner">
+        <canvas ref={canvasRef} className="w-full h-auto block aspect-[2/1] sm:aspect-[2.5/1]" />
 
+        {/* Dynamic HUD Center Overlay */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
           {gameState === 'crashed' ? (
-            <div className="text-center animate-in fade-in duration-150">
-              <span className="text-[11px] font-mono font-semibold text-rose-500 uppercase tracking-widest flex items-center justify-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" /> Colapso
-              </span>
-              <h3 className="text-4xl sm:text-5xl font-bold text-rose-500 font-mono tracking-tight mt-1">
+            <div className="text-center animate-in zoom-in-95 duration-150">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-mono font-bold mb-1 shadow-lg shadow-rose-950/50">
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>COLAPSO DETECTADO</span>
+              </div>
+              <h3 className="text-5xl sm:text-7xl font-black text-rose-500 font-mono tracking-tight tabular-nums drop-shadow-[0_0_25px_rgba(239,68,68,0.4)]">
                 {currentMultiplier.toFixed(2)}x
               </h3>
             </div>
           ) : gameState === 'running' ? (
             <div className="text-center">
-              <h3 className="text-5xl sm:text-6xl font-bold text-white font-mono tracking-tight">
+              <h3 className="text-6xl sm:text-8xl font-black text-white font-mono tracking-tight tabular-nums drop-shadow-[0_0_30px_rgba(16,185,129,0.35)]">
                 {currentMultiplier.toFixed(2)}x
               </h3>
               {hasCashedOut && cashedAmount && (
-                <div className="mt-1 px-3 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-medium">
-                  Cobrado en {cashedMultiplier?.toFixed(2)}x (+{cashedAmount})
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold shadow-lg shadow-emerald-950/60 animate-in fade-in">
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Cobrado en {cashedMultiplier?.toFixed(2)}x (+{cashedAmount.toLocaleString()} fichas)</span>
                 </div>
               )}
             </div>
           ) : (
             <div className="text-center text-zinc-500">
-              <p className="text-xs font-mono text-zinc-400">Selecciona apuesta e inicia la curva</p>
+              <Zap className="w-8 h-8 mx-auto mb-2 opacity-30 text-emerald-400 animate-pulse" />
+              <p className="text-xs font-mono text-zinc-400 font-medium">Ajusta tu apuesta e inicia la curva</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="w-full flex flex-col sm:grid sm:grid-cols-3 gap-2.5 mt-3 pt-1">
-        <div className="sm:col-span-2 flex items-center justify-between gap-1.5 bg-black/40 p-1.5 sm:p-2 rounded-2xl border border-white/[0.06] overflow-x-auto scrollbar-none">
-          <span className="text-xs font-mono text-zinc-500 pl-1.5 flex items-center gap-1 shrink-0">
+      {/* Cockpit Bet Console */}
+      <div className="w-full flex flex-col sm:grid sm:grid-cols-12 gap-3 mt-4">
+        {/* Quick Bet Buttons */}
+        <div className="sm:col-span-7 flex items-center justify-between gap-1.5 bg-black/50 p-2 rounded-2xl border border-white/[0.08] overflow-x-auto scrollbar-none shadow-inner">
+          <span className="text-xs font-mono text-zinc-400 pl-1.5 flex items-center gap-1.5 shrink-0 font-medium">
             <Coins className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden xs:inline">Apuesta</span>
+            <span className="hidden xs:inline">Apuesta:</span>
           </span>
+
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -305,8 +362,8 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                 setBet((prev) => Math.max(10, Math.floor(prev / 2)));
                 sound.tap();
               }}
-              title="Dividir apuesta"
-              className="min-h-[38px] px-2 py-1 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.06] active:scale-95 cursor-pointer"
+              title="Dividir apuesta entre 2"
+              className="min-h-[40px] px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.08] hover:border-white/20 active:scale-95 cursor-pointer disabled:opacity-40"
             >
               ½
             </button>
@@ -317,8 +374,8 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                 setBet((prev) => Math.min(Math.min(userCoins, 10000), prev * 2));
                 sound.tap();
               }}
-              title="Doblar apuesta"
-              className="min-h-[38px] px-2 py-1 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.06] active:scale-95 cursor-pointer"
+              title="Duplicar apuesta"
+              className="min-h-[40px] px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.08] hover:border-white/20 active:scale-95 cursor-pointer disabled:opacity-40"
             >
               2×
             </button>
@@ -330,10 +387,10 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                   setBet(amt);
                   sound.tap();
                 }}
-                className={`min-h-[38px] px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer shrink-0 active:scale-95 ${
+                className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 disabled:opacity-40 ${
                   bet === amt
-                    ? 'bg-zinc-200 text-black font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.04]'
+                    ? 'bg-white text-black shadow-md shadow-white/20 font-black'
+                    : 'text-zinc-400 hover:text-white bg-white/[0.03] border border-white/[0.06]'
                 }`}
               >
                 {amt}
@@ -346,10 +403,10 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                 setBet(Math.min(userCoins > 0 ? userCoins : 1000, 2500));
                 sound.tap();
               }}
-              className={`min-h-[38px] px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 ${
+              className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-mono font-black transition-all cursor-pointer shrink-0 active:scale-95 disabled:opacity-40 ${
                 bet >= 2500 || bet === userCoins
-                  ? 'bg-amber-400 text-black shadow-sm'
-                  : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/20'
+                  ? 'bg-amber-400 text-black shadow-md shadow-amber-400/30'
+                  : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/25'
               }`}
             >
               MÁX
@@ -357,28 +414,34 @@ export const CrashGame: React.FC<CrashGameProps> = ({
           </div>
         </div>
 
-        {gameState === 'running' ? (
-          <button
-            onClick={cashOut}
-            disabled={hasCashedOut}
-            className={`w-full min-h-[48px] py-3.5 px-4 rounded-2xl font-mono text-sm font-bold tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] ${
-              hasCashedOut
-                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/20'
-            }`}
-          >
-            <span>
-              {hasCashedOut ? 'Cobrado' : `Cobrar ${(bet * currentMultiplier).toFixed(0)} fichas`}
-            </span>
-          </button>
-        ) : (
-          <button
-            onClick={startGame}
-            className="w-full min-h-[48px] py-3.5 px-4 rounded-2xl font-mono text-sm font-bold tracking-wider bg-white hover:bg-zinc-200 text-black shadow-lg active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
-          >
-            <span>Iniciar (-{bet} fichas)</span>
-          </button>
-        )}
+        {/* Primary Action Button */}
+        <div className="sm:col-span-5">
+          {gameState === 'running' ? (
+            <button
+              onClick={cashOut}
+              disabled={hasCashedOut}
+              className={`w-full min-h-[52px] py-3.5 px-4 rounded-2xl font-mono text-sm font-black tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xl active:scale-[0.98] ${
+                hasCashedOut
+                  ? 'bg-zinc-800 text-zinc-500 border border-white/[0.06] cursor-not-allowed'
+                  : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/30 ring-2 ring-emerald-400/50'
+              }`}
+            >
+              <span>
+                {hasCashedOut
+                  ? 'COBRADO'
+                  : `COBRAR ${(bet * currentMultiplier).toFixed(0)} FICHAS`}
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={startGame}
+              className="w-full min-h-[52px] py-3.5 px-4 rounded-2xl font-mono text-sm font-black tracking-wider bg-white hover:bg-zinc-100 text-black shadow-xl shadow-white/10 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Zap className="w-4 h-4 fill-black" />
+              <span>INICIAR (-{bet} FICHAS)</span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

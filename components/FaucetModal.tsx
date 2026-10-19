@@ -68,8 +68,8 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-[#0e0f15] border border-white/10 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2.5">

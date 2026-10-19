@@ -378,7 +378,10 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#09090b] text-zinc-100 selection:bg-white selection:text-black">
+    <div className="min-h-screen relative flex flex-col bg-[#070709] bg-dot-matrix text-zinc-100 selection:bg-white selection:text-black overflow-x-hidden">
+      {/* Ambient Lighting Gradients */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[350px] bg-gradient-to-b from-emerald-500/8 via-blue-500/5 to-transparent blur-3xl pointer-events-none" />
+
       {/* Top Navbar */}
       <AppleNavbar
         user={user}
@@ -392,10 +395,12 @@ export default function Home() {
         isChatOpen={isChatDrawerOpen}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
+        activeTab={activeGame}
+        onSelectTab={(tab) => setActiveGame(tab)}
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5 pb-28 lg:pb-8">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-28 lg:pb-8">
         {!supabaseConfigured && (
           <div className="p-3.5 rounded-2xl bg-amber-500/[0.08] border border-amber-500/20 text-xs font-mono text-amber-300 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
@@ -403,17 +408,32 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tactile Mode Switcher (Desktop and Tablet) */}
-        <div className="hidden sm:flex items-center justify-between flex-wrap gap-2">
-          <div className="inline-flex p-1 rounded-2xl bg-black/40 border border-white/[0.08]">
+        {/* Mobile/Tablet Sub-Header for quick switching */}
+        <div className="flex md:hidden items-center justify-between gap-2">
+          <div className="inline-flex p-1 rounded-2xl bg-black/60 border border-white/[0.08] shadow-inner w-full">
+            <button
+              onClick={() => {
+                setActiveGame('calendar');
+                sound.tap();
+              }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+                activeGame === 'calendar'
+                  ? 'bg-white text-black font-bold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5 text-blue-400" />
+              <span>Horario</span>
+            </button>
+
             <button
               onClick={() => {
                 setActiveGame('angry');
                 sound.tap();
               }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
                 activeGame === 'angry'
-                  ? 'bg-zinc-200 text-black font-semibold shadow-sm'
+                  ? 'bg-white text-black font-bold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
@@ -426,34 +446,15 @@ export default function Home() {
                 setActiveGame('crash');
                 sound.tap();
               }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
                 activeGame === 'crash'
-                  ? 'bg-zinc-200 text-black font-semibold shadow-sm'
+                  ? 'bg-white text-black font-bold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
               <TrendingUp className="w-3.5 h-3.5 text-rose-500" />
               <span>Crash</span>
             </button>
-
-            <button
-              onClick={() => {
-                setActiveGame('calendar');
-                sound.tap();
-              }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-                activeGame === 'calendar'
-                  ? 'bg-zinc-200 text-black font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5 text-blue-400" />
-              <span>Horario SMR2</span>
-            </button>
-          </div>
-
-          <div className="text-[11px] text-zinc-500 font-mono hidden md:block">
-            {user ? `@${user.username} conectado` : 'Sesión de invitado'}
           </div>
         </div>
 

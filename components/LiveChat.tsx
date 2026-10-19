@@ -46,20 +46,20 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   };
 
   return (
-    <div className={`flex flex-col bg-[#121215] border border-white/[0.08] rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.4)] ${
-      isDrawer ? 'h-full' : 'h-[580px]'
+    <div className={`flex flex-col glass-panel border border-white/[0.08] rounded-3xl overflow-hidden shadow-[0_16px_50px_rgba(0,0,0,0.6)] ${
+      isDrawer ? 'h-full' : 'h-[600px]'
     }`}>
       {/* Drawer drag indicator on mobile */}
       {isDrawer && (
-        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mt-2.5 mb-0.5" />
+        <div className="w-12 h-1.5 rounded-full bg-white/20 mx-auto mt-3 mb-1" />
       )}
 
       {/* Header */}
-      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between bg-black/30">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <h3 className="text-xs font-semibold text-white tracking-tight font-mono uppercase">
-            Canal General
+      <div className="px-4 py-3.5 border-b border-white/[0.06] flex items-center justify-between bg-black/40">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+          <h3 className="text-xs font-bold text-white tracking-tight font-mono uppercase">
+            CANAL DE CLASE // GENERAL
           </h3>
         </div>
 

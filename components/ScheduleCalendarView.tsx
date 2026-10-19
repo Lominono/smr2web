@@ -263,10 +263,10 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
       {/* Top Banner Card: Horario SMR2 Title + Live Status */}
-      <div className="relative overflow-hidden rounded-3xl bg-[#121215] border border-white/[0.08] p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.5)]">
+      <div className="relative overflow-hidden rounded-3xl glass-panel border border-white/[0.08] p-5 sm:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.6)]">
         {/* Glow backdrop */}
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -474,7 +474,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
           </div>
 
           {/* Desktop Full Weekly Grid */}
-          <div className="hidden md:block overflow-hidden rounded-3xl bg-[#121215] border border-white/[0.08] shadow-[0_8px_30px_rgb(0,0,0,0.4)]">
+          <div className="hidden md:block overflow-hidden rounded-3xl glass-panel border border-white/[0.08] shadow-[0_16px_50px_rgba(0,0,0,0.6)]">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left font-mono text-xs">
                 <thead>
@@ -621,7 +621,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               return (
                 <div
                   key={day.key}
-                  className="rounded-3xl bg-[#121215] border border-white/[0.08] overflow-hidden"
+                  className="rounded-3xl glass-panel-subtle border border-white/[0.08] overflow-hidden shadow-lg"
                 >
                   <div className="px-4 py-3 bg-black/40 border-b border-white/[0.06] flex items-center justify-between">
                     <span className="text-xs font-bold font-mono text-white tracking-wider">
