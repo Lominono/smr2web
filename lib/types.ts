@@ -32,3 +32,17 @@ export interface CrashHistoryItem {
   crashPoint: number;
   timestamp: string;
 }
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  subject: string;
+  event_type: 'exam' | 'homework' | 'reminder' | 'class';
+  event_date: string;
+  start_time?: string;
+  end_time?: string;
+  description?: string;
+  created_by?: string;
+  created_by_name?: string;
+  created_at?: string;
+}

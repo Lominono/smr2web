@@ -8,16 +8,20 @@ import { LiveChat } from '@/components/LiveChat';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { FaucetModal } from '@/components/FaucetModal';
 import { AuthModal } from '@/components/AuthModal';
+import { AuthGate } from '@/components/AuthGate';
+import { ScheduleCalendarView } from '@/components/ScheduleCalendarView';
+import { MobileTabBar } from '@/components/MobileTabBar';
 import { UserProfile, ChatMessage, LeaderboardEntry } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import { createClient } from '@/lib/supabase/client';
-import { Target, TrendingUp, AlertCircle, MessageSquare } from 'lucide-react';
+import { Target, TrendingUp, AlertCircle, MessageSquare, Calendar } from 'lucide-react';
 
 export default function Home() {
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [activeGame, setActiveGame] = useState<'angry' | 'crash'>('angry');
+  const [activeGame, setActiveGame] = useState<'angry' | 'crash' | 'calendar'>('calendar');
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
@@ -25,10 +29,25 @@ export default function Home() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
 
+  // Load sound preference on mount
+  useEffect(() => {
+    try {
+      const savedAudio = localStorage.getItem('smr2_sound_enabled');
+      if (savedAudio !== null) {
+        const isEnabled = savedAudio === 'true';
+        setSoundEnabled(isEnabled);
+        sound.enabled = isEnabled;
+      }
+    } catch {}
+  }, []);
+
   const handleToggleSound = () => {
     const nextState = !soundEnabled;
     setSoundEnabled(nextState);
     sound.enabled = nextState;
+    try {
+      localStorage.setItem('smr2_sound_enabled', String(nextState));
+    } catch {}
   };
 
   const fetchUserProfile = async (userId: string, email?: string) => {
@@ -114,20 +133,27 @@ export default function Home() {
     const supabase = createClient();
     if (!supabase) {
       setSupabaseConfigured(false);
+      setAuthLoading(false);
       return;
     }
 
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
-      if (authUser) {
-        fetchUserProfile(authUser.id, authUser.email);
-      }
-    });
+    supabase.auth
+      .getUser()
+      .then(({ data: { user: authUser } }) => {
+        if (authUser) {
+          fetchUserProfile(authUser.id, authUser.email).finally(() => setAuthLoading(false));
+        } else {
+          setAuthLoading(false);
+        }
+      })
+      .catch(() => setAuthLoading(false));
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        fetchUserProfile(session.user.id, session.user.email);
+        fetchUserProfile(session.user.id, session.user.email).finally(() => setAuthLoading(false));
       } else {
         setUser(null);
+        setAuthLoading(false);
       }
     });
 
@@ -157,6 +183,44 @@ export default function Home() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Realtime subscription for current user's coins balance
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    if (!supabase) return;
+
+    const profileChannel = supabase
+      .channel(`profile_realtime_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as any;
+          if (updated) {
+            setUser((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    coins: Number(updated.coins),
+                    biggest_win: Number(updated.biggest_win),
+                  }
+                : null
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileChannel);
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (isLeaderboardOpen) {
@@ -282,6 +346,37 @@ export default function Home() {
     sound.coinWin();
   };
 
+  // 1. Loading splash screen while checking session
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center p-4 selection:bg-white selection:text-black">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <span className="text-base font-bold tracking-tight text-white font-mono">
+            RECREO
+          </span>
+          <span className="text-xs font-mono text-zinc-500">/ 2º SMR</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Mandatory Authentication Gate
+  if (!user) {
+    return (
+      <AuthGate
+        onAuthSuccess={(profile) => {
+          setUser(profile);
+          fetchMessages();
+          fetchLeaderboard();
+        }}
+        supabaseConfigured={supabaseConfigured}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#09090b] text-zinc-100 selection:bg-white selection:text-black">
       {/* Top Navbar */}
@@ -291,6 +386,8 @@ export default function Home() {
         onSignOut={handleSignOut}
         onOpenFaucet={() => (user ? setIsFaucetOpen(true) : setIsAuthOpen(true))}
         onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+        onOpenSchedule={() => setActiveGame('calendar')}
+        isScheduleActive={activeGame === 'calendar'}
         onToggleChat={() => setIsChatDrawerOpen(!isChatDrawerOpen)}
         isChatOpen={isChatDrawerOpen}
         soundEnabled={soundEnabled}
@@ -298,7 +395,7 @@ export default function Home() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5 pb-28 lg:pb-8">
         {!supabaseConfigured && (
           <div className="p-3.5 rounded-2xl bg-amber-500/[0.08] border border-amber-500/20 text-xs font-mono text-amber-300 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
@@ -306,15 +403,15 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tactile Mode Switcher */}
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="inline-flex p-1 rounded-xl bg-black/40 border border-white/[0.08]">
+        {/* Tactile Mode Switcher (Desktop and Tablet) */}
+        <div className="hidden sm:flex items-center justify-between flex-wrap gap-2">
+          <div className="inline-flex p-1 rounded-2xl bg-black/40 border border-white/[0.08]">
             <button
               onClick={() => {
                 setActiveGame('angry');
                 sound.tap();
               }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
                 activeGame === 'angry'
                   ? 'bg-zinc-200 text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
@@ -329,7 +426,7 @@ export default function Home() {
                 setActiveGame('crash');
                 sound.tap();
               }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
                 activeGame === 'crash'
                   ? 'bg-zinc-200 text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
@@ -339,16 +436,19 @@ export default function Home() {
               <span>Crash</span>
             </button>
 
-            {/* Mobile-only Chat tab */}
             <button
               onClick={() => {
-                setIsChatDrawerOpen(true);
+                setActiveGame('calendar');
                 sound.tap();
               }}
-              className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium text-zinc-400 hover:text-white transition-all cursor-pointer"
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+                activeGame === 'calendar'
+                  ? 'bg-zinc-200 text-black font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
             >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Chat</span>
+              <Calendar className="w-3.5 h-3.5 text-blue-400" />
+              <span>Horario SMR2</span>
             </button>
           </div>
 
@@ -366,11 +466,16 @@ export default function Home() {
                 onUpdateCoins={handleUpdateCoins}
                 onBroadcastWin={handleBroadcastWin}
               />
-            ) : (
+            ) : activeGame === 'crash' ? (
               <CrashGame
                 userCoins={user ? user.coins : 1000}
                 onUpdateCoins={handleUpdateCoins}
                 onBroadcastWin={handleBroadcastWin}
+              />
+            ) : (
+              <ScheduleCalendarView
+                currentUser={user}
+                onOpenAuth={() => setIsAuthOpen(true)}
               />
             )}
           </div>
@@ -387,10 +492,19 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Mobile Drawer Chat */}
+      {/* Mobile Bottom Dock */}
+      <MobileTabBar
+        activeTab={activeGame}
+        onSelectTab={(tab) => setActiveGame(tab)}
+        isChatOpen={isChatDrawerOpen}
+        onToggleChat={() => setIsChatDrawerOpen(!isChatDrawerOpen)}
+        onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+      />
+
+      {/* Mobile Drawer Chat (Bottom Sheet) */}
       {isChatDrawerOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex flex-col bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-150">
-          <div className="flex-1 max-w-lg w-full mx-auto flex flex-col">
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end bg-black/85 backdrop-blur-xl animate-in fade-in duration-150">
+          <div className="w-full max-w-lg mx-auto h-[88vh] flex flex-col p-2 sm:p-4">
             <LiveChat
               messages={chatMessages}
               currentUser={user}
@@ -433,7 +547,7 @@ export default function Home() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-white/[0.06] bg-black py-4 mt-8 text-center text-[11px] text-zinc-500 font-mono">
+      <footer className="border-t border-white/[0.06] bg-black py-4 mt-8 mb-16 lg:mb-0 text-center text-[11px] text-zinc-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>RECREO</span>
           <div className="flex items-center gap-3 text-zinc-400">

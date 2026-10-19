@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Volume2, VolumeX, Coins, Plus, Trophy, MessageSquare, LogIn, LogOut, User } from 'lucide-react';
+import { Volume2, VolumeX, Coins, Plus, Trophy, MessageSquare, LogIn, LogOut, User, Calendar } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { sound } from '@/lib/audio';
 
@@ -11,6 +11,8 @@ interface AppleNavbarProps {
   onSignOut: () => void;
   onOpenFaucet: () => void;
   onOpenLeaderboard: () => void;
+  onOpenSchedule: () => void;
+  isScheduleActive: boolean;
   onToggleChat: () => void;
   isChatOpen: boolean;
   soundEnabled: boolean;
@@ -23,6 +25,8 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
   onSignOut,
   onOpenFaucet,
   onOpenLeaderboard,
+  onOpenSchedule,
+  isScheduleActive,
   onToggleChat,
   isChatOpen,
   soundEnabled,
@@ -58,32 +62,49 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-zinc-600" />}
           </button>
 
-          {/* Ranking */}
+          {/* Horario (Desktop only - mobile has bottom dock) */}
+          <button
+            onClick={() => {
+              onOpenSchedule();
+              sound.tap();
+            }}
+            title="Horario y Agenda SMR2"
+            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors cursor-pointer ${
+              isScheduleActive
+                ? 'bg-white text-black font-semibold'
+                : 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Horario</span>
+          </button>
+
+          {/* Ranking (Desktop only) */}
           <button
             onClick={() => {
               onOpenLeaderboard();
               sound.tap();
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-zinc-300 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-zinc-300 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
           >
             <Trophy className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Top</span>
+            <span>Top</span>
           </button>
 
-          {/* Chat mobile toggle */}
+          {/* Chat (Desktop only) */}
           <button
             onClick={() => {
               onToggleChat();
               sound.tap();
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors cursor-pointer ${
+            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors cursor-pointer ${
               isChatOpen
                 ? 'bg-white text-black font-semibold'
                 : 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Chat</span>
+            <span>Chat</span>
           </button>
 
           {/* User state */}

@@ -250,7 +250,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
 
       {/* Canvas */}
       <div className="relative w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0d] flex items-center justify-center">
-        <canvas ref={canvasRef} className="w-full h-auto block aspect-[2.6/1]" />
+        <canvas ref={canvasRef} className="w-full h-auto block aspect-[2/1] sm:aspect-[2.6/1]" />
 
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
           {gameState === 'crashed' ? (
@@ -268,7 +268,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                 {currentMultiplier.toFixed(2)}x
               </h3>
               {hasCashedOut && cashedAmount && (
-                <div className="mt-1 px-3 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-medium">
+                <div className="mt-1 px-3 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-medium">
                   Cobrado en {cashedMultiplier?.toFixed(2)}x (+{cashedAmount})
                 </div>
               )}
@@ -282,12 +282,13 @@ export const CrashGame: React.FC<CrashGameProps> = ({
       </div>
 
       {/* Controls */}
-      <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-1">
-        <div className="sm:col-span-2 flex items-center justify-between gap-2 bg-black/40 p-2 rounded-xl border border-white/[0.06]">
-          <span className="text-xs font-mono text-zinc-500 pl-2 flex items-center gap-1 shrink-0">
-            <Coins className="w-3.5 h-3.5 text-amber-400" /> Apuesta
+      <div className="w-full flex flex-col sm:grid sm:grid-cols-3 gap-2.5 mt-3 pt-1">
+        <div className="sm:col-span-2 flex items-center justify-between gap-1.5 bg-black/40 p-1.5 sm:p-2 rounded-2xl border border-white/[0.06] overflow-x-auto scrollbar-none">
+          <span className="text-xs font-mono text-zinc-500 pl-1.5 flex items-center gap-1 shrink-0">
+            <Coins className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden xs:inline">Apuesta</span>
           </span>
-          <div className="flex items-center gap-1 overflow-x-auto">
+          <div className="flex items-center gap-1">
             {[50, 100, 250, 500, 1000].map((amt) => (
               <button
                 key={amt}
@@ -296,10 +297,10 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                   setBet(amt);
                   sound.tap();
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+                className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer shrink-0 active:scale-95 ${
                   bet === amt
-                    ? 'bg-zinc-200 text-black font-semibold'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-zinc-200 text-black font-semibold shadow-sm'
+                    : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.04]'
                 }`}
               >
                 {amt}
@@ -312,10 +313,10 @@ export const CrashGame: React.FC<CrashGameProps> = ({
           <button
             onClick={cashOut}
             disabled={hasCashedOut}
-            className={`w-full py-3 rounded-xl font-mono text-xs sm:text-sm font-semibold tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            className={`w-full min-h-[48px] py-3.5 px-4 rounded-2xl font-mono text-sm font-bold tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] ${
               hasCashedOut
                 ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                : 'bg-emerald-500 hover:bg-emerald-400 text-black active:scale-95'
+                : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/20'
             }`}
           >
             <span>
@@ -325,7 +326,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         ) : (
           <button
             onClick={startGame}
-            className="w-full py-3 rounded-xl font-mono text-xs sm:text-sm font-semibold tracking-wider bg-white hover:bg-zinc-200 text-black shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+            className="w-full min-h-[48px] py-3.5 px-4 rounded-2xl font-mono text-sm font-bold tracking-wider bg-white hover:bg-zinc-200 text-black shadow-lg active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             <span>Iniciar (-{bet} fichas)</span>
           </button>

@@ -701,39 +701,44 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
   return (
     <div className="bg-[#121215] border border-white/[0.08] rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.4)] flex flex-col items-center">
       {/* Top Header */}
-      <div className="w-full flex items-center justify-between pb-3.5 mb-2 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2">
-          <Target className="w-4 h-4 text-emerald-400" />
-          <h2 className="text-sm font-semibold tracking-tight text-white font-mono">
-            SLINGSHOT
-          </h2>
+      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3.5 mb-2 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between sm:justify-start gap-2">
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-emerald-400" />
+            <h2 className="text-sm font-semibold tracking-tight text-white font-mono">
+              SLINGSHOT
+            </h2>
+          </div>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
-            x25
+            Bote x25
           </span>
         </div>
 
         {/* Bet Switcher */}
-        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/[0.06]">
-          <span className="text-[11px] font-mono text-zinc-500 px-2 flex items-center gap-1">
-            <Coins className="w-3 h-3 text-amber-400" /> Apuesta
+        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1 bg-black/40 p-1.5 rounded-2xl border border-white/[0.06] overflow-x-auto scrollbar-none">
+          <span className="text-[11px] font-mono text-zinc-500 px-2 flex items-center gap-1 shrink-0">
+            <Coins className="w-3 h-3 text-amber-400" />
+            <span className="hidden xs:inline">Apuesta</span>
           </span>
-          {[50, 100, 250, 500, 1000].map((amount) => (
-            <button
-              key={amount}
-              disabled={gameState === 'flying'}
-              onClick={() => {
-                setBet(amount);
-                sound.tap();
-              }}
-              className={`px-2.5 py-0.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
-                bet === amount
-                  ? 'bg-zinc-200 text-black font-semibold'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              {amount}
-            </button>
-          ))}
+          <div className="flex items-center gap-1">
+            {[50, 100, 250, 500, 1000].map((amount) => (
+              <button
+                key={amount}
+                disabled={gameState === 'flying'}
+                onClick={() => {
+                  setBet(amount);
+                  sound.tap();
+                }}
+                className={`min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer shrink-0 active:scale-95 ${
+                  bet === amount
+                    ? 'bg-zinc-200 text-black font-semibold shadow-sm'
+                    : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.04]'
+                }`}
+              >
+                {amount}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
