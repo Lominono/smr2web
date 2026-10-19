@@ -266,7 +266,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
         ctx.lineTo(pullPos.x, pullPos.y);
         ctx.stroke();
 
-        // Trajectory arc dots
+        // Trajectory arc dots with dynamic fade
         if (isDraggingRef.current) {
           const launchVx = (slingshotAnchor.x - pullPos.x) * 0.22;
           const launchVy = (slingshotAnchor.y - pullPos.y) * 0.22;
@@ -275,18 +275,17 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           let simVx = launchVx;
           let simVy = launchVy;
 
-          ctx.fillStyle = 'rgba(16, 185, 129, 0.7)';
-          for (let step = 0; step < 26; step++) {
+          for (let step = 0; step < 32; step++) {
             simX += simVx * 1.5;
             simY += simVy * 1.5;
             simVy += 0.35 * 1.5;
             if (simY > groundY) break;
 
-            if (step % 2 === 0) {
-              ctx.beginPath();
-              ctx.arc(simX, simY, Math.max(1.2, 3 - step * 0.08), 0, Math.PI * 2);
-              ctx.fill();
-            }
+            const alpha = Math.max(0.15, 0.85 - step * 0.024);
+            ctx.fillStyle = `rgba(52, 211, 153, ${alpha})`;
+            ctx.beginPath();
+            ctx.arc(simX, simY, Math.max(1.4, 3.2 - step * 0.07), 0, Math.PI * 2);
+            ctx.fill();
           }
         }
       }
@@ -709,19 +708,53 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               SLINGSHOT
             </h2>
           </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
-            Bote x25
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
+              Bote x25
+            </span>
+            <button
+              onClick={() => {
+                resetLevel();
+                sound.tap();
+              }}
+              title="Reiniciar torre"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Bet Switcher */}
         <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1 bg-black/40 p-1.5 rounded-2xl border border-white/[0.06] overflow-x-auto scrollbar-none">
-          <span className="text-[11px] font-mono text-zinc-500 px-2 flex items-center gap-1 shrink-0">
+          <span className="text-[11px] font-mono text-zinc-500 px-1.5 flex items-center gap-1 shrink-0">
             <Coins className="w-3 h-3 text-amber-400" />
             <span className="hidden xs:inline">Apuesta</span>
           </span>
           <div className="flex items-center gap-1">
-            {[50, 100, 250, 500, 1000].map((amount) => (
+            <button
+              type="button"
+              disabled={gameState === 'flying'}
+              onClick={() => {
+                setBet((prev) => Math.max(10, Math.floor(prev / 2)));
+                sound.tap();
+              }}
+              className="min-h-[36px] px-2 py-1 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.06] active:scale-95 cursor-pointer"
+            >
+              ½
+            </button>
+            <button
+              type="button"
+              disabled={gameState === 'flying'}
+              onClick={() => {
+                setBet((prev) => Math.min(Math.min(userCoins, 10000), prev * 2));
+                sound.tap();
+              }}
+              className="min-h-[36px] px-2 py-1 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.06] active:scale-95 cursor-pointer"
+            >
+              2×
+            </button>
+            {[50, 100, 250, 500].map((amount) => (
               <button
                 key={amount}
                 disabled={gameState === 'flying'}
@@ -738,6 +771,21 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                 {amount}
               </button>
             ))}
+            <button
+              type="button"
+              disabled={gameState === 'flying'}
+              onClick={() => {
+                setBet(Math.min(userCoins > 0 ? userCoins : 1000, 2500));
+                sound.tap();
+              }}
+              className={`min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 ${
+                bet >= 2500 || bet === userCoins
+                  ? 'bg-amber-400 text-black shadow-sm'
+                  : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/20'
+              }`}
+            >
+              MÁX
+            </button>
           </div>
         </div>
       </div>

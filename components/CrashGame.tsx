@@ -171,10 +171,10 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         // Area fill
         const areaGrad = ctx.createLinearGradient(0, endY, 0, startY);
         if (gameState === 'crashed') {
-          areaGrad.addColorStop(0, 'rgba(239, 68, 68, 0.15)');
+          areaGrad.addColorStop(0, 'rgba(239, 68, 68, 0.2)');
           areaGrad.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
         } else {
-          areaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.15)');
+          areaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
           areaGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
         }
 
@@ -188,17 +188,26 @@ export const CrashGame: React.FC<CrashGameProps> = ({
 
         // Stroke line
         ctx.strokeStyle = gameState === 'crashed' ? '#ef4444' : '#10b981';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 3.5;
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.quadraticCurveTo((startX + endX) / 2, startY, endX, endY);
         ctx.stroke();
 
+        // Glow ring around tip
+        if (gameState === 'running') {
+          ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.arc(endX, endY, 7, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
         // Tip circle
-        ctx.fillStyle = gameState === 'crashed' ? '#ef4444' : '#34d399';
+        ctx.fillStyle = gameState === 'crashed' ? '#ef4444' : '#ffffff';
         ctx.beginPath();
-        ctx.arc(endX, endY, 4.5, 0, Math.PI * 2);
+        ctx.arc(endX, endY, 5, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -289,7 +298,31 @@ export const CrashGame: React.FC<CrashGameProps> = ({
             <span className="hidden xs:inline">Apuesta</span>
           </span>
           <div className="flex items-center gap-1">
-            {[50, 100, 250, 500, 1000].map((amt) => (
+            <button
+              type="button"
+              disabled={gameState === 'running'}
+              onClick={() => {
+                setBet((prev) => Math.max(10, Math.floor(prev / 2)));
+                sound.tap();
+              }}
+              title="Dividir apuesta"
+              className="min-h-[38px] px-2 py-1 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.06] active:scale-95 cursor-pointer"
+            >
+              ½
+            </button>
+            <button
+              type="button"
+              disabled={gameState === 'running'}
+              onClick={() => {
+                setBet((prev) => Math.min(Math.min(userCoins, 10000), prev * 2));
+                sound.tap();
+              }}
+              title="Doblar apuesta"
+              className="min-h-[38px] px-2 py-1 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.06] active:scale-95 cursor-pointer"
+            >
+              2×
+            </button>
+            {[50, 100, 250, 500].map((amt) => (
               <button
                 key={amt}
                 disabled={gameState === 'running'}
@@ -297,7 +330,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                   setBet(amt);
                   sound.tap();
                 }}
-                className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer shrink-0 active:scale-95 ${
+                className={`min-h-[38px] px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer shrink-0 active:scale-95 ${
                   bet === amt
                     ? 'bg-zinc-200 text-black font-semibold shadow-sm'
                     : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.04]'
@@ -306,6 +339,21 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                 {amt}
               </button>
             ))}
+            <button
+              type="button"
+              disabled={gameState === 'running'}
+              onClick={() => {
+                setBet(Math.min(userCoins > 0 ? userCoins : 1000, 2500));
+                sound.tap();
+              }}
+              className={`min-h-[38px] px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 ${
+                bet >= 2500 || bet === userCoins
+                  ? 'bg-amber-400 text-black shadow-sm'
+                  : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/20'
+              }`}
+            >
+              MÁX
+            </button>
           </div>
         </div>
 
