@@ -78,10 +78,10 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-white tracking-tight font-mono">
-                RECARGA DE FICHAS
+                Recarga
               </h3>
-              <p className="text-xs text-zinc-400">
-                Fondo de rescate si te has quedado sin saldo
+              <p className="text-xs text-zinc-500 font-mono">
+                Fichas gratuitas
               </p>
             </div>
           </div>
@@ -95,38 +95,34 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-4">
-          <p className="text-xs text-zinc-300 font-mono leading-relaxed">
-            Selecciona la modalidad de recarga para continuar en las partidas.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+        <div className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               onClick={handleStandardClaim}
-              className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-left transition-all group cursor-pointer"
+              className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-left transition-all cursor-pointer"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-mono font-bold text-emerald-400">ASIGNACIÓN FIJA</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-mono font-bold text-emerald-400">FIJO</span>
                 <Coins className="w-4 h-4 text-amber-400" />
               </div>
-              <div className="text-xl font-bold font-mono text-white mb-1">+500</div>
-              <p className="text-[11px] text-zinc-500 font-mono">Acreditación directa inmediata.</p>
+              <div className="text-xl font-bold font-mono text-white mb-0.5">+500</div>
+              <p className="text-[11px] text-zinc-500 font-mono">Saldo directo</p>
             </button>
 
             <button
               onClick={handleSpinRoulette}
               disabled={isSpinning}
-              className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-left transition-all group cursor-pointer"
+              className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-left transition-all cursor-pointer"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-mono font-bold text-white">ALEATORIO</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-mono font-bold text-white">AZAR</span>
                 <Dices className="w-4 h-4 text-white" />
               </div>
-              <div className="text-xl font-bold font-mono text-white mb-1">
-                {isSpinning && spinResult ? `${spinResult}` : '200 - 2000'}
+              <div className="text-xl font-bold font-mono text-white mb-0.5">
+                {isSpinning && spinResult ? `${spinResult}` : '200 — 2000'}
               </div>
               <p className="text-[11px] text-zinc-500 font-mono">
-                {isSpinning ? 'Calculando...' : 'Resultado al azar.'}
+                {isSpinning ? 'Girando...' : 'Tirada aleatoria'}
               </p>
             </button>
           </div>

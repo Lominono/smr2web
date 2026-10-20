@@ -272,16 +272,11 @@ export const CrashGame: React.FC<CrashGameProps> = ({
             <TrendingUp className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold tracking-tight text-white font-mono uppercase">
-                CRASH // TELEMETRÍA
-              </h2>
-              <span className="px-1.5 py-0.2 text-[9px] font-mono font-bold bg-white/[0.06] text-zinc-400 rounded border border-white/[0.08]">
-                RT
-              </span>
-            </div>
+            <h2 className="text-sm font-bold tracking-tight text-white font-mono">
+              Crash
+            </h2>
             <p className="text-[11px] text-zinc-500 font-mono">
-              Curva exponencial con colapso aleatorio
+              Multiplicador en tiempo real
             </p>
           </div>
         </div>
@@ -316,10 +311,9 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
           {gameState === 'crashed' ? (
             <div className="text-center animate-in zoom-in-95 duration-150">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-mono font-bold mb-1 shadow-lg shadow-rose-950/50">
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>COLAPSO DETECTADO</span>
-              </div>
+              <span className="text-xs font-mono font-bold text-rose-400 tracking-wider uppercase">
+                Crash
+              </span>
               <h3 className="text-5xl sm:text-7xl font-black text-rose-500 font-mono tracking-tight tabular-nums drop-shadow-[0_0_25px_rgba(239,68,68,0.4)]">
                 {currentMultiplier.toFixed(2)}x
               </h3>
@@ -330,16 +324,15 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                 {currentMultiplier.toFixed(2)}x
               </h3>
               {hasCashedOut && cashedAmount && (
-                <div className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold shadow-lg shadow-emerald-950/60 animate-in fade-in">
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold shadow-lg">
                   <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Cobrado en {cashedMultiplier?.toFixed(2)}x (+{cashedAmount.toLocaleString()} fichas)</span>
+                  <span>+{cashedAmount.toLocaleString()} fichas</span>
                 </div>
               )}
             </div>
           ) : (
             <div className="text-center text-zinc-500">
-              <Zap className="w-8 h-8 mx-auto mb-2 opacity-30 text-emerald-400 animate-pulse" />
-              <p className="text-xs font-mono text-zinc-400 font-medium">Ajusta tu apuesta e inicia la curva</p>
+              <p className="text-xs font-mono text-zinc-400 font-medium">Selecciona apuesta e inicia</p>
             </div>
           )}
         </div>

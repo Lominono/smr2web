@@ -18,14 +18,15 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#09090b',
+  themeColor: '#070709',
 };
 
 export const metadata: Metadata = {
-  title: 'RECREO // ARCADE & CHAT',
-  description: 'Plataforma de minijuegos con físicas y chat en tiempo real para compañeros de clase.',
+  title: 'SMR2',
+  description: 'Horario lectivo y portal de clase de 2º SMR',
   icons: {
-    icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2225%22 fill=%22%2310b981%22/><path d=%22M30 50 L70 50 M50 30 L50 70%22 stroke=%22white%22 stroke-width=%2212%22 stroke-linecap=%22round%22/></svg>',
+    icon: '/logo.png',
+    apple: '/logo.png',
   },
 };
 
@@ -39,7 +40,7 @@ export default function RootLayout({
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-[#09090b] text-white font-sans overscroll-none select-none">
+      <body className="min-h-full flex flex-col bg-[#070709] text-white font-sans overscroll-none select-none">
         {children}
       </body>
     </html>

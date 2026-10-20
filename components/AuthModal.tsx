@@ -93,15 +93,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Header */}
         <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-2xl bg-white/[0.06] text-white border border-white/10">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-            </div>
+            <img src="/logo.png" alt="SMR2" className="w-8 h-8 rounded-xl object-cover border border-white/10" />
             <div>
-              <h3 className="text-base font-bold text-white tracking-tight font-sans">
-                {mode === 'login' ? 'INICIAR SESIÓN' : 'CREAR CUENTA'}
+              <h3 className="text-sm font-bold text-white tracking-tight font-mono">
+                {mode === 'login' ? 'Entrar' : 'Registro'}
               </h3>
-              <p className="text-xs text-zinc-400">
-                Tu cuenta real para chat, apuestas y clasificación
+              <p className="text-xs text-zinc-500 font-mono">
+                2º SMR
               </p>
             </div>
           </div>

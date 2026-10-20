@@ -275,16 +275,16 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                 <CalendarIcon className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white font-mono">
-                    HORARIO SMR2
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white font-mono">
+                    Horario SMR2
                   </h2>
-                  <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white rounded-md shadow-sm transform -rotate-2">
+                  <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-rose-600/90 text-white rounded shadow-sm">
                     PROVISIONAL
                   </span>
                 </div>
-                <p className="text-xs text-zinc-400 font-mono mt-0.5">
-                  2º Sistemas Microinformáticos y Redes · Curso Lectivo
+                <p className="text-xs text-zinc-500 font-mono mt-0.5">
+                  Curso 2024–2025
                 </p>
               </div>
             </div>
@@ -304,21 +304,21 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               }`}
             >
               <CalendarDays className="w-3.5 h-3.5" />
-              <span>Horario Semanal</span>
+              <span>Semana</span>
             </button>
             <button
               onClick={() => {
                 setActiveSubTab('agenda');
                 sound.tap();
               }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
                 activeSubTab === 'agenda'
-                  ? 'bg-zinc-200 text-black font-semibold shadow-sm'
+                  ? 'bg-white text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
               <ListTodo className="w-3.5 h-3.5" />
-              <span>Agenda & Exámenes</span>
+              <span>Exámenes</span>
               {events.length > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   {events.length}

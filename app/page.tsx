@@ -349,15 +349,16 @@ export default function Home() {
   // 1. Loading splash screen while checking session
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center p-4 selection:bg-white selection:text-black">
-        <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center animate-pulse">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-          </div>
-          <span className="text-base font-bold tracking-tight text-white font-mono">
-            RECREO
+      <div className="min-h-screen bg-[#070709] bg-dot-matrix flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-2.5 animate-pulse">
+          <img
+            src="/logo.png"
+            alt="SMR2 Logo"
+            className="w-14 h-14 rounded-2xl object-cover border border-white/10 shadow-lg"
+          />
+          <span className="text-sm font-bold tracking-tight text-white font-mono">
+            SMR2
           </span>
-          <span className="text-xs font-mono text-zinc-500">/ 2º SMR</span>
         </div>
       </div>
     );
@@ -548,15 +549,14 @@ export default function Home() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-white/[0.06] bg-black py-4 mt-8 mb-16 lg:mb-0 text-center text-[11px] text-zinc-500 font-mono">
+      <footer className="border-t border-white/[0.06] bg-black/60 py-4 mt-8 mb-16 lg:mb-0 text-center text-[11px] text-zinc-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>RECREO</span>
-          <div className="flex items-center gap-3 text-zinc-400">
-            <span>Next.js 16</span>
-            <span>·</span>
-            <span>Supabase Realtime</span>
-            <span>·</span>
-            <span>Web Audio API</span>
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="SMR2" className="w-4 h-4 rounded object-cover" />
+            <span>SMR2 · 2º Sistemas Microinformáticos y Redes</span>
+          </div>
+          <div className="text-zinc-600">
+            Curso 2024–2025
           </div>
         </div>
       </footer>

@@ -30,10 +30,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-white tracking-tight font-mono">
-                CLASIFICACIÓN GENERAL
+                Clasificación
               </h3>
-              <p className="text-xs text-zinc-400">
-                Usuarios reales registrados en la base de datos
+              <p className="text-xs text-zinc-500 font-mono">
+                Ranking de 2º SMR
               </p>
             </div>
           </div>

@@ -173,7 +173,7 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
       nextSubjectCode: 'SR',
       nextSubject: SMR2_SUBJECTS['SR'],
       minutesRemaining: 0,
-      message: 'Fin de semana libre. El lunes a las 8:15 arranca Servicios en Red (SR).',
+      message: 'Fin de semana · Próxima clase: Lunes 8:15 (SR)',
     };
   }
 
@@ -203,7 +203,7 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
       nextSubjectCode: firstSubjectCode,
       nextSubject: SMR2_SUBJECTS[firstSubjectCode] || null,
       minutesRemaining: diff,
-      message: `Las clases comienzan en ${diff} min a las 8:15 con ${SMR2_SUBJECTS[firstSubjectCode]?.name || firstSubjectCode}.`,
+      message: `Empieza en ${diff} min (${firstSubjectCode} a las 8:15)`,
     };
   }
 
@@ -219,7 +219,7 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
       nextSubjectCode,
       nextSubject: SMR2_SUBJECTS[nextSubjectCode] || null,
       minutesRemaining: 0,
-      message: `Jornada finalizada por hoy. ${day === 5 ? '¡Buen fin de semana!' : `Mañana empieza con ${nextSubjectCode} a las 8:15.`}`,
+      message: `Clases finalizadas por hoy · Próxima: ${nextSubjectCode} a las 8:15`,
     };
   }
 
@@ -242,18 +242,16 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
           nextSubjectCode,
           nextSubject: nextSubjectCode ? SMR2_SUBJECTS[nextSubjectCode] : null,
           minutesRemaining: remaining,
-          message: `🥪 ¡ESTAMOS EN EL RECREO! Quedan ${remaining} min para volver a clase (${nextSubjectCode}).`,
+          message: `Recreo · Restan ${remaining} min · Próxima: ${nextSubjectCode}`,
         };
       }
 
-      // Si la siguiente hora es el recreo
-      const isNextRecreo = nextSlot?.isRecreo;
       const timeToRecreo =
         currentMinutes < 10 * 60 + 55 ? 10 * 60 + 55 - currentMinutes : null;
 
-      let msg = `En clase: ${subject?.name || subjectCode} (${subjectCode}). Quedan ${remaining} min para finalizar la hora.`;
-      if (timeToRecreo !== null && timeToRecreo > 0 && timeToRecreo <= 110) {
-        msg += ` · Faltan ${timeToRecreo} min para el RECREO.`;
+      let msg = `En clase: ${subjectCode} · Quedan ${remaining} min`;
+      if (timeToRecreo !== null && timeToRecreo > 0 && timeToRecreo <= 90) {
+        msg += ` · Recreo en ${timeToRecreo}m`;
       }
 
       return {

@@ -56,10 +56,10 @@ export const LiveChat: React.FC<LiveChatProps> = ({
 
       {/* Header */}
       <div className="px-4 py-3.5 border-b border-white/[0.06] flex items-center justify-between bg-black/40">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-          <h3 className="text-xs font-bold text-white tracking-tight font-mono uppercase">
-            CANAL DE CLASE // GENERAL
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <h3 className="text-xs font-semibold text-white tracking-tight font-mono">
+            Chat
           </h3>
         </div>
 
@@ -77,9 +77,8 @@ export const LiveChat: React.FC<LiveChatProps> = ({
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-500 font-mono text-xs">
-            <MessageSquare className="w-6 h-6 mb-2 opacity-30 text-zinc-400" />
-            <p>Canal sin actividad</p>
-            <p className="text-[11px] text-zinc-600 mt-0.5">Envía un mensaje para comenzar.</p>
+            <MessageSquare className="w-5 h-5 mb-2 opacity-30 text-zinc-400" />
+            <p>Sin mensajes aún</p>
           </div>
         ) : (
           messages.map((msg) => {

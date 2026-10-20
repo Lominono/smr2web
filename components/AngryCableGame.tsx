@@ -707,15 +707,15 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold tracking-tight text-white font-mono uppercase">
-                SLINGSHOT // FÍSICA DE RACKS
+              <h2 className="text-sm font-bold tracking-tight text-white font-mono">
+                Slingshot
               </h2>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
                 Bote x25
               </span>
             </div>
             <p className="text-[11px] text-zinc-500 font-mono">
-              Lanza el núcleo contra la torre de servidores
+              Apunta y suelta para disparar
             </p>
           </div>
           <button
@@ -878,11 +878,6 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
         )}
       </div>
 
-      {/* Technical Footer */}
-      <div className="w-full flex items-center justify-between text-[11px] text-zinc-500 font-mono mt-3 px-1">
-        <span>TNT genera onda expansiva</span>
-        <span>Módulos dorados multiplican la apuesta</span>
-      </div>
     </div>
   );
 };
