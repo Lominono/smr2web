@@ -59,7 +59,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
           <h3 className="text-xs font-semibold text-white tracking-tight font-mono">
-            Chat
+            Chat de clase
           </h3>
         </div>
 

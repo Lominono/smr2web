@@ -1,13 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Download, ExternalLink, Sparkles, Copy, Check, Gamepad2, Shield } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Download, ExternalLink, Copy, Check, Gamepad2, X } from 'lucide-react';
 import { sound } from '@/lib/audio';
 
 const MINECRAFT_URL = 'https://nightverixclient.netlify.app/download-alpha';
+const STORAGE_KEY = 'smr2_mc_banner_dismissed';
 
 export const MinecraftBanner: React.FC = () => {
   const [copied, setCopied] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    try {
+      const isDismissed = localStorage.getItem(STORAGE_KEY) === 'true';
+      setDismissed(isDismissed);
+    } catch {}
+  }, []);
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    sound.tap();
+    try {
+      localStorage.setItem(STORAGE_KEY, 'true');
+    } catch {}
+  };
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -16,50 +33,42 @@ export const MinecraftBanner: React.FC = () => {
       setCopied(true);
       sound.tap();
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback
-    }
+    } catch {}
   };
 
-  return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950/40 via-zinc-900/90 to-blue-950/30 border border-emerald-500/20 p-4 sm:p-5 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-      {/* Decorative subtle ambient lights */}
-      <div className="absolute -top-12 -right-12 w-36 h-36 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+  if (dismissed) return null;
 
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Left column: Info & description */}
-        <div className="flex items-start gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 shadow-inner text-emerald-400">
-            <Gamepad2 className="w-6 h-6 animate-pulse" />
+  return (
+    <div className="relative rounded-2xl bg-[#0e1217] border border-emerald-500/25 px-4 py-3 sm:px-5 sm:py-3.5 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Info */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <Gamepad2 className="w-5 h-5" />
           </div>
 
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-bold text-white font-mono tracking-tight flex items-center gap-1.5">
-                NightVerix Client · Minecraft Alpha
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs sm:text-sm font-semibold text-white font-sans">
+                Cliente Minecraft de la clase
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Proyecto de Marco Antonio
-              </span>
-              <span className="hidden sm:inline-flex px-1.5 py-0.2 rounded text-[10px] font-mono bg-white/[0.06] text-zinc-400 border border-white/10">
-                vAlpha
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                Por Marco Antonio
               </span>
             </div>
-
-            <p className="text-xs text-zinc-300 font-sans leading-relaxed max-w-2xl">
-              Descarga el cliente de Minecraft para jugar con la clase y apoyar el desarrollo de <strong className="text-emerald-400 font-medium">Marco Antonio</strong>. Optimizado para alto rendimiento y cero lag.
+            <p className="text-[11px] text-zinc-400 truncate">
+              Descarga NightVerix Alpha para jugar en los descansos con el grupo.
             </p>
           </div>
         </div>
 
-        {/* Right column: Actions */}
-        <div className="flex items-center gap-2 shrink-0 self-stretch sm:self-auto justify-end">
+        {/* Actions */}
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
           <button
             type="button"
             onClick={handleCopy}
-            title="Copiar enlace de descarga"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-mono text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
+            title="Copiar enlace"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-mono text-zinc-300 hover:text-white transition-colors cursor-pointer"
           >
             {copied ? (
               <>
@@ -79,12 +88,22 @@ export const MinecraftBanner: React.FC = () => {
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => sound.tap()}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-mono font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transition-all cursor-pointer active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-mono font-semibold transition-colors cursor-pointer"
           >
-            <Download className="w-4 h-4" />
-            <span>Descargar Minecraft</span>
-            <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+            <Download className="w-3.5 h-3.5" />
+            <span>Descargar</span>
+            <ExternalLink className="w-3 h-3 opacity-60" />
           </a>
+
+          <button
+            type="button"
+            onClick={handleDismiss}
+            aria-label="Cerrar aviso"
+            title="Ocultar aviso"
+            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.06] transition-colors cursor-pointer ml-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>

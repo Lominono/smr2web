@@ -229,9 +229,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({
 
   return (
     <div className="min-h-screen relative flex flex-col justify-center items-center bg-[#070709] bg-dot-matrix text-white p-4 selection:bg-white selection:text-black">
-      {/* Subtle ambient light */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-emerald-500/5 blur-3xl pointer-events-none" />
-
       {/* Auth Card */}
       <div className="relative z-10 w-full max-w-sm">
         <div className="glass-panel rounded-3xl p-7 shadow-2xl border border-white/[0.08]">
@@ -240,14 +237,13 @@ export const AuthGate: React.FC<AuthGateProps> = ({
             <img
               src="/logo.png"
               alt="SMR2"
-              className="w-24 h-24 object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.6)] mb-2 select-none"
+              className="w-20 h-20 object-contain drop-shadow-md mb-2 select-none"
             />
-            <h1 className="text-xl font-bold font-mono tracking-tight text-white flex items-center gap-1.5">
-              <span>SMR2 Hub</span>
-              <Sparkles className="w-4 h-4 text-amber-400" />
+            <h1 className="text-xl font-bold font-mono tracking-tight text-white">
+              2º SMR
             </h1>
-            <p className="text-xs text-zinc-500 font-mono mt-0.5">
-              Acceso a la plataforma · 2º SMR
+            <p className="text-xs text-zinc-400 font-sans mt-0.5">
+              Horario de clase, tareas y minijuegos de recreo
             </p>
           </div>
 
@@ -586,9 +582,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({
           </form>
         </div>
 
-        <p className="text-center text-[11px] text-zinc-600 font-mono mt-4 flex items-center justify-center gap-1.5">
-          <Cookie className="w-3 h-3 text-amber-400/70" />
-          <span>Sesión persistente mediante cookies y almacenamiento local seguro</span>
+        <p className="text-center text-[11px] text-zinc-500 font-mono mt-4">
+          2º Sistemas Microinformáticos y Redes
         </p>
       </div>
     </div>

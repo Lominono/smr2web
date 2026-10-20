@@ -520,9 +520,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen relative flex flex-col bg-[#070709] bg-dot-matrix text-zinc-100 selection:bg-white selection:text-black overflow-x-hidden">
-      {/* Ambient Lighting Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[350px] bg-gradient-to-b from-emerald-500/8 via-blue-500/5 to-transparent blur-3xl pointer-events-none" />
-
       {/* Top Navbar */}
       <AppleNavbar
         user={user}
@@ -541,103 +538,63 @@ export default function Home() {
       />
 
       {/* Main Container */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-28 lg:pb-8">
-        {/* Marco Antonio's Minecraft Client Promo Banner */}
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 pb-28 lg:pb-8">
+        {/* Community Minecraft Project (dismissible) */}
         <MinecraftBanner />
 
-        {!supabaseConfigured && (
-          <div className="p-3 rounded-2xl bg-emerald-500/[0.08] border border-emerald-500/20 text-xs font-mono text-emerald-300 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Cookie className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>Modo Local Activo: tu cuenta, sesión y saldo quedan guardados en cookies locales en este equipo.</span>
+        {/* If in Recreo / Games mode, show sleek game navigation bar */}
+        {activeGame !== 'calendar' && (
+          <div className="flex items-center justify-between gap-2 p-1.5 rounded-2xl bg-[#0c0e12] border border-white/[0.08]">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none w-full">
+              {[
+                { id: 'russian_roulette', label: 'Ruleta Rusa', icon: CircleDot, tag: 'Multijugador' },
+                { id: 'crash', label: 'Crash', icon: TrendingUp },
+                { id: 'mines', label: 'Minas', icon: Server },
+                { id: 'angry', label: 'Slingshot', icon: Target },
+                { id: 'roulette', label: 'Ruleta', icon: CircleDot },
+              ].map((g) => {
+                const isActive = activeGame === g.id;
+                const IconComponent = g.icon;
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => {
+                      setActiveGame(g.id as any);
+                      sound.tap();
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                      isActive
+                        ? 'bg-amber-400 text-black font-bold shadow-sm'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <IconComponent className="w-3.5 h-3.5" />
+                    <span>{g.label}</span>
+                    {g.tag && (
+                      <span
+                        className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+                          isActive
+                            ? 'bg-black/20 text-black font-semibold'
+                            : 'bg-amber-400/15 text-amber-300'
+                        }`}
+                      >
+                        {g.tag}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-            <span className="hidden sm:inline-block text-[10px] text-zinc-500 font-mono">Cookies: 365 días</span>
           </div>
         )}
 
-        {/* Mobile/Tablet Sub-Header for quick switching */}
-        <div className="flex md:hidden items-center justify-between gap-2">
-          <div className="inline-flex p-1 rounded-2xl bg-black/60 border border-white/[0.08] shadow-inner w-full">
-            <button
-              onClick={() => {
-                setActiveGame('calendar');
-                sound.tap();
-              }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-                activeGame === 'calendar'
-                  ? 'bg-white text-black font-bold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5 text-blue-400" />
-              <span>Horario</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveGame('angry');
-                sound.tap();
-              }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-                activeGame === 'angry'
-                  ? 'bg-white text-black font-bold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Target className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Slingshot</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveGame('crash');
-                sound.tap();
-              }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-                activeGame === 'crash'
-                  ? 'bg-white text-black font-bold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5 text-rose-500" />
-              <span>Crash</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveGame('mines');
-                sound.tap();
-              }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-                activeGame === 'mines'
-                  ? 'bg-white text-black font-bold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Server className="w-3.5 h-3.5 text-amber-500" />
-              <span>Minas</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveGame('roulette');
-                sound.tap();
-              }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-                activeGame === 'roulette'
-                  ? 'bg-white text-black font-bold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <CircleDot className="w-3.5 h-3.5 text-yellow-400" />
-              <span>Ruleta</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 2-Column Responsive Layout */}
+        {/* Main Workspace: expands to full width when chat is closed */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          <div className="lg:col-span-8 space-y-4">
+          <div
+            className={`space-y-4 transition-all duration-200 ${
+              isChatDrawerOpen ? 'lg:col-span-8' : 'lg:col-span-12'
+            }`}
+          >
             {activeGame === 'angry' ? (
               <AngryCableGame
                 userCoins={user ? user.coins : 1000}
@@ -677,15 +634,19 @@ export default function Home() {
             )}
           </div>
 
-          <div className="hidden lg:block lg:col-span-4 sticky top-20">
-            <LiveChat
-              messages={chatMessages}
-              currentUser={user}
-              onOpenAuth={() => setIsAuthOpen(true)}
-              onSendMessage={handleSendMessage}
-              onTipUser={handleTipUser}
-            />
-          </div>
+          {/* Desktop Live Chat (only rendered when chat is open) */}
+          {isChatDrawerOpen && (
+            <div className="hidden lg:block lg:col-span-4 sticky top-20">
+              <LiveChat
+                messages={chatMessages}
+                currentUser={user}
+                onOpenAuth={() => setIsAuthOpen(true)}
+                onSendMessage={handleSendMessage}
+                onTipUser={handleTipUser}
+                onClose={() => setIsChatDrawerOpen(false)}
+              />
+            </div>
+          )}
         </div>
       </main>
 

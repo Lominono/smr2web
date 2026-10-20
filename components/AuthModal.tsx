@@ -206,12 +206,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white tracking-tight font-sans flex items-center gap-1.5">
-                <span>{mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}</span>
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <h3 className="text-sm font-semibold text-white tracking-tight font-sans">
+                {mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
               </h3>
               <p className="text-[11px] text-zinc-400 font-mono">
-                SMR2 Hub · Tu progreso queda guardado
+                2º SMR · Guarda tus fichas y progreso
               </p>
             </div>
           </div>
