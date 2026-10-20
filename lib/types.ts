@@ -20,7 +20,7 @@ export interface ChatMessage {
   is_system_win?: boolean;
   win_amount?: number;
   multiplier?: number;
-  game?: 'angry' | 'crash' | 'mines';
+  game?: 'angry' | 'crash' | 'mines' | 'roulette';
 }
 
 export interface LeaderboardEntry {

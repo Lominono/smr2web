@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Target, TrendingUp, Calendar, MessageSquare, Trophy, Server } from 'lucide-react';
+import { Target, TrendingUp, Calendar, MessageSquare, Trophy, Server, CircleDot } from 'lucide-react';
 import { sound } from '@/lib/audio';
 
 interface MobileTabBarProps {
-  activeTab: 'angry' | 'crash' | 'mines' | 'calendar';
-  onSelectTab: (tab: 'angry' | 'crash' | 'mines' | 'calendar') => void;
+  activeTab: 'angry' | 'crash' | 'mines' | 'roulette' | 'calendar';
+  onSelectTab: (tab: 'angry' | 'crash' | 'mines' | 'roulette' | 'calendar') => void;
   isChatOpen: boolean;
   onToggleChat: () => void;
   onOpenLeaderboard: () => void;
@@ -27,6 +27,33 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#09090b]/90 backdrop-blur-2xl border-t border-white/[0.08] px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_25px_rgba(0,0,0,0.6)]"
     >
       <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5 items-center">
+        {/* Horario */}
+        <button
+          onClick={() => {
+            onSelectTab('calendar');
+            sound.tap();
+          }}
+          className={`relative flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'calendar'
+              ? 'text-white'
+              : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <div
+            className={`relative p-1 rounded-lg transition-all ${
+              activeTab === 'calendar' ? 'bg-blue-500/15 text-blue-400' : ''
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            {isLiveActive && (
+              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-1 ring-black animate-pulse" />
+            )}
+          </div>
+          <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
+            Horario
+          </span>
+        </button>
+
         {/* Slingshot */}
         <button
           onClick={() => {
@@ -99,30 +126,27 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
           </span>
         </button>
 
-        {/* Horario */}
+        {/* Ruleta */}
         <button
           onClick={() => {
-            onSelectTab('calendar');
+            onSelectTab('roulette');
             sound.tap();
           }}
-          className={`relative flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'calendar'
+          className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'roulette'
               ? 'text-white'
               : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
           <div
-            className={`relative p-1 rounded-lg transition-all ${
-              activeTab === 'calendar' ? 'bg-blue-500/15 text-blue-400' : ''
+            className={`p-1 rounded-lg transition-all ${
+              activeTab === 'roulette' ? 'bg-yellow-500/15 text-yellow-400' : ''
             }`}
           >
-            <Calendar className="w-4 h-4" />
-            {isLiveActive && (
-              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-1 ring-black animate-pulse" />
-            )}
+            <CircleDot className="w-4 h-4" />
           </div>
           <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
-            Horario
+            Ruleta
           </span>
         </button>
 
@@ -147,22 +171,6 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
           </div>
           <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
             Chat
-          </span>
-        </button>
-
-        {/* Top Leaderboard */}
-        <button
-          onClick={() => {
-            onOpenLeaderboard();
-            sound.tap();
-          }}
-          className="flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer text-zinc-500 hover:text-zinc-300"
-        >
-          <div className="p-1 rounded-lg">
-            <Trophy className="w-4 h-4 text-amber-400/80" />
-          </div>
-          <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
-            Top
           </span>
         </button>
       </div>

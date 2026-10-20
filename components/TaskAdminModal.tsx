@@ -59,6 +59,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
   const isDirectAuthorized = currentUser?.role === 'admin' || currentUser?.role === 'delegado';
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pinInput, setPinInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
@@ -87,6 +88,21 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
     }
   }, [initialSubject]);
 
+  // Load persistent lockout state
+  useEffect(() => {
+    try {
+      const storedLock = localStorage.getItem('smr2_admin_lockout_until');
+      if (storedLock) {
+        const lockTime = Number(storedLock);
+        if (Date.now() < lockTime) {
+          setLockedUntil(lockTime);
+        } else {
+          localStorage.removeItem('smr2_admin_lockout_until');
+        }
+      }
+    } catch {}
+  }, [isOpen]);
+
   // Check if session previously unlocked admin in localStorage
   useEffect(() => {
     if (isDirectAuthorized) {
@@ -107,7 +123,13 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
     e.preventDefault();
     if (lockedUntil && Date.now() < lockedUntil) {
       const remainingSec = Math.ceil((lockedUntil - Date.now()) / 1000);
-      setPinError(`Bloqueado por seguridad. Espera ${remainingSec} segundos.`);
+      const minutes = Math.floor(remainingSec / 60);
+      const seconds = remainingSec % 60;
+      setPinError(
+        `Terminal bloqueado por seguridad anti-fuerza bruta. Espera ${
+          minutes > 0 ? `${minutes}m ` : ''
+        }${seconds}s.`
+      );
       sound.broke();
       return;
     }
@@ -117,26 +139,44 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
       setIsUnlocked(true);
       setPinError(null);
       setPinInput('');
+      setAttempts(0);
       sound.coinWin();
       try {
         sessionStorage.setItem('smr2_delegado_unlocked', 'true');
+        localStorage.removeItem('smr2_admin_lockout_until');
       } catch {}
     } else {
       const nextAttempts = attempts + 1;
       setAttempts(nextAttempts);
       sound.broke();
-      if (nextAttempts >= 4) {
-        const lockoutTime = Date.now() + 30000;
+
+      if (nextAttempts >= 6) {
+        // 15-minute persistent lockout
+        const lockoutTime = Date.now() + 15 * 60 * 1000;
         setLockedUntil(lockoutTime);
-        setPinError('Demasiados intentos fallidos. Bloqueado durante 30 segundos.');
+        try {
+          localStorage.setItem('smr2_admin_lockout_until', String(lockoutTime));
+        } catch {}
+        setPinError('Acceso denegado: Demasiados intentos fallidos. Terminal bloqueado 15 minutos.');
+      } else if (nextAttempts >= 3) {
+        // 60-second lockout
+        const lockoutTime = Date.now() + 60 * 1000;
+        setLockedUntil(lockoutTime);
+        try {
+          localStorage.setItem('smr2_admin_lockout_until', String(lockoutTime));
+        } catch {}
+        setPinError('Clave incorrecta. Bloqueado temporalmente durante 60 segundos.');
       } else {
-        setPinError(`Clave incorrecta. Intentos restantes: ${4 - nextAttempts}`);
+        setPinError(`Clave de seguridad incorrecta. Intentos restantes antes del bloqueo: ${3 - nextAttempts}`);
       }
     }
   };
 
-  const handleAutoFillPin = () => {
-    setPinInput(DEFAULT_ADMIN_PASS);
+  const handleLockSession = () => {
+    setIsUnlocked(false);
+    try {
+      sessionStorage.removeItem('smr2_delegado_unlocked');
+    } catch {}
     sound.tap();
   };
 
@@ -324,45 +364,49 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
             )}
 
             <form onSubmit={handleUnlockPin} className="w-full max-w-xs space-y-3">
-              <input
-                type="password"
-                required
-                autoFocus
-                placeholder="Clave de delegado"
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                className="w-full text-center px-4 py-2.5 bg-black/50 border border-white/15 rounded-xl text-sm font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-400/50 tracking-widest"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoFocus
+                  placeholder="Clave Maestra de Delegado"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  className="w-full text-center px-4 py-2.5 pr-10 bg-black/50 border border-white/15 rounded-xl text-sm font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-400/50 tracking-wider"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-1 cursor-pointer"
+                  title={showPassword ? 'Ocultar' : 'Mostrar'}
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
+              </div>
 
               <button
                 type="submit"
                 className="w-full py-2.5 rounded-xl font-mono text-xs font-bold bg-white hover:bg-zinc-200 text-black shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                <span>Desbloquear panel</span>
+                <span>Verificar y Desbloquear</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
 
-            {/* Classmate Hint Pill */}
-            <div className="mt-5 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.06] max-w-xs w-full flex items-center justify-between text-left">
-              <div>
-                <span className="text-[10px] font-mono text-zinc-500 uppercase block">Clave por defecto:</span>
-                <span className="text-xs font-mono font-bold text-amber-400">smr2root</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleAutoFillPin}
-                className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/10 text-white text-[11px] font-mono transition-all cursor-pointer"
-              >
-                Autocompletar
-              </button>
+            <div className="mt-6 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.06] max-w-xs w-full text-center space-y-1">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase block font-bold">
+                Seguridad de Delegación
+              </span>
+              <p className="text-[11px] font-sans text-zinc-400 leading-normal">
+                Si eres delegado oficial, pide al administrador de Supabase que asigne tu rol para tener acceso automático por cuenta.
+              </p>
             </div>
           </div>
         ) : (
           /* UNLOCKED ADMIN PANEL */
           <div className="flex-1 overflow-y-auto">
-            {/* Tab switchers */}
-            <div className="px-6 pt-4 pb-2 border-b border-white/[0.06] flex items-center justify-between gap-2">
+            {/* Tab switchers & Session Security Header */}
+            <div className="px-6 pt-4 pb-2 border-b border-white/[0.06] flex items-center justify-between gap-2 flex-wrap">
               <div className="inline-flex p-1 rounded-2xl bg-black/40 border border-white/[0.08]">
                 <button
                   type="button"
@@ -395,10 +439,25 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
                 </button>
               </div>
 
-              <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Modo Delegado</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>
+                    {isDirectAuthorized ? 'Rol Oficial Verificado' : 'Sesión Desbloqueada'}
+                  </span>
+                </span>
+
+                {!isDirectAuthorized && (
+                  <button
+                    type="button"
+                    onClick={handleLockSession}
+                    title="Bloquear terminal al salir"
+                    className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-zinc-400 hover:text-rose-400 border border-white/10 transition-all cursor-pointer"
+                  >
+                    Bloquear
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* TAB 1: CREATE TASK FORM */}

@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Gamepad2,
   Server,
+  CircleDot,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -32,8 +33,8 @@ interface AppleNavbarProps {
   isChatOpen: boolean;
   soundEnabled: boolean;
   onToggleSound: () => void;
-  activeTab?: 'angry' | 'crash' | 'mines' | 'calendar';
-  onSelectTab?: (tab: 'angry' | 'crash' | 'mines' | 'calendar') => void;
+  activeTab?: 'angry' | 'crash' | 'mines' | 'roulette' | 'calendar';
+  onSelectTab?: (tab: 'angry' | 'crash' | 'mines' | 'roulette' | 'calendar') => void;
 }
 
 export const AppleNavbar: React.FC<AppleNavbarProps> = ({
@@ -152,6 +153,22 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             >
               <Server className="w-3.5 h-3.5 text-amber-400" />
               <span>Minas</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onSelectTab('roulette');
+                sound.tap();
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+                activeTab === 'roulette'
+                  ? 'bg-white text-black font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <CircleDot className="w-3.5 h-3.5 text-yellow-400" />
+              <span>Ruleta</span>
             </button>
           </nav>
         )}

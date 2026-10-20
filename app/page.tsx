@@ -5,6 +5,7 @@ import { AppleNavbar } from '@/components/AppleNavbar';
 import { AngryCableGame } from '@/components/AngryCableGame';
 import { CrashGame } from '@/components/CrashGame';
 import { MinesGame } from '@/components/MinesGame';
+import { RouletteGame } from '@/components/RouletteGame';
 import { LiveChat } from '@/components/LiveChat';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { FaucetModal } from '@/components/FaucetModal';
@@ -24,14 +25,14 @@ import {
   clearUserSession,
   updateSessionCoins,
 } from '@/lib/authSession';
-import { Target, TrendingUp, AlertCircle, MessageSquare, Calendar, Cookie, Server } from 'lucide-react';
+import { Target, TrendingUp, AlertCircle, MessageSquare, Calendar, Cookie, Server, CircleDot } from 'lucide-react';
 
 export default function Home() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [activeGame, setActiveGame] = useState<'angry' | 'crash' | 'mines' | 'calendar'>('calendar');
+  const [activeGame, setActiveGame] = useState<'angry' | 'crash' | 'mines' | 'roulette' | 'calendar'>('calendar');
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
@@ -386,12 +387,19 @@ export default function Home() {
   };
 
   const handleBroadcastWin = async (
-    game: 'angry' | 'crash' | 'mines',
+    game: 'angry' | 'crash' | 'mines' | 'roulette',
     multiplier: number,
     winAmount: number
   ) => {
     if (!user) return;
-    const gameLabel = game === 'angry' ? 'Slingshot' : game === 'crash' ? 'Crash' : 'Minas';
+    const gameLabel =
+      game === 'angry'
+        ? 'Slingshot'
+        : game === 'crash'
+        ? 'Crash'
+        : game === 'mines'
+        ? 'Minas'
+        : 'Ruleta';
 
     const supabase = createClient();
     if (!supabase) return;
@@ -583,6 +591,21 @@ export default function Home() {
               <Server className="w-3.5 h-3.5 text-amber-500" />
               <span>Minas</span>
             </button>
+
+            <button
+              onClick={() => {
+                setActiveGame('roulette');
+                sound.tap();
+              }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+                activeGame === 'roulette'
+                  ? 'bg-white text-black font-bold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <CircleDot className="w-3.5 h-3.5 text-yellow-400" />
+              <span>Ruleta</span>
+            </button>
           </div>
         </div>
 
@@ -603,6 +626,12 @@ export default function Home() {
               />
             ) : activeGame === 'mines' ? (
               <MinesGame
+                userCoins={user ? user.coins : 1000}
+                onUpdateCoins={handleUpdateCoins}
+                onBroadcastWin={handleBroadcastWin}
+              />
+            ) : activeGame === 'roulette' ? (
+              <RouletteGame
                 userCoins={user ? user.coins : 1000}
                 onUpdateCoins={handleUpdateCoins}
                 onBroadcastWin={handleBroadcastWin}
