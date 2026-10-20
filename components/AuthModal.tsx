@@ -32,6 +32,21 @@ interface AuthModalProps {
   onAuthSuccess: (user: UserProfile) => void;
 }
 
+async function sendAuthAuditLog(
+  eventType: 'user_register' | 'user_login_success' | 'user_login_failed' | 'user_logout',
+  userId?: string,
+  username?: string,
+  details?: Record<string, any>
+) {
+  try {
+    await fetch('/api/auth/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType, userId, username, details }),
+    });
+  } catch {}
+}
+
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
@@ -162,6 +177,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               } catch {}
 
               saveUserSession(profile, rememberMe);
+              sendAuthAuditLog('user_register', profile.id, profile.username, {
+                email: cleanEmail,
+                provider: 'supabase',
+              });
               sound.coinWin();
               onAuthSuccess(profile);
               onClose();
@@ -177,6 +196,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         // Local registration fallback
         const localProfile = await registerLocalUser(cleanUsername, cleanEmail, password, rememberMe);
+        sendAuthAuditLog('user_register', localProfile.id, localProfile.username, {
+          email: cleanEmail,
+          provider: 'local',
+        });
         sound.coinWin();
         onAuthSuccess(localProfile);
         onClose();
@@ -236,6 +259,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               };
 
               saveUserSession(profile, rememberMe);
+              sendAuthAuditLog('user_login_success', profile.id, profile.username, {
+                provider: 'supabase',
+              });
               sound.coinWin();
               onAuthSuccess(profile);
               onClose();
@@ -249,11 +275,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         // Local fallback
         try {
           const localProfile = await loginLocalUser(cleanIdentifier, password, rememberMe);
+          saveUserSession(localProfile, rememberMe);
+          sendAuthAuditLog('user_login_success', localProfile.id, localProfile.username, {
+            provider: 'local',
+          });
           sound.coinWin();
           onAuthSuccess(localProfile);
           onClose();
           return;
         } catch (localErr: any) {
+          sendAuthAuditLog('user_login_failed', undefined, cleanIdentifier, {
+            error: localErr?.message || 'Contraseña incorrecta',
+          });
           if (hasSupabase && cleanIdentifier.includes('@')) {
             throw new Error('Correo o contraseña incorrectos.');
           } else {

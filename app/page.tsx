@@ -6,6 +6,7 @@ import { AngryCableGame } from '@/components/AngryCableGame';
 import { CrashGame } from '@/components/CrashGame';
 import { MinesGame } from '@/components/MinesGame';
 import { RouletteGame } from '@/components/RouletteGame';
+import { RussianRouletteGame } from '@/components/RussianRouletteGame';
 import { LiveChat } from '@/components/LiveChat';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { FaucetModal } from '@/components/FaucetModal';
@@ -32,7 +33,7 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [activeGame, setActiveGame] = useState<'angry' | 'crash' | 'mines' | 'roulette' | 'calendar'>('calendar');
+  const [activeGame, setActiveGame] = useState<'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar'>('calendar');
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
@@ -280,6 +281,19 @@ export default function Home() {
   }, [isLeaderboardOpen, user]);
 
   const handleSignOut = async () => {
+    if (user) {
+      try {
+        fetch('/api/auth/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventType: 'user_logout',
+            userId: user.id,
+            username: user.username,
+          }),
+        }).catch(() => {});
+      } catch {}
+    }
     clearUserSession();
     const supabase = createClient();
     if (supabase) {
@@ -635,6 +649,12 @@ export default function Home() {
                 userCoins={user ? user.coins : 1000}
                 onUpdateCoins={handleUpdateCoins}
                 onBroadcastWin={handleBroadcastWin}
+              />
+            ) : activeGame === 'russian_roulette' ? (
+              <RussianRouletteGame
+                user={user}
+                onOpenAuth={() => setIsAuthOpen(true)}
+                onUpdateCoins={handleUpdateCoins}
               />
             ) : (
               <ScheduleCalendarView

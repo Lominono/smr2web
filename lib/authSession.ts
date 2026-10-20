@@ -15,21 +15,36 @@ interface StoredLocalAccount {
   passwordHash: string;
   coins: number;
   biggest_win: number;
+  streak_count?: number;
+  last_claim_date?: string;
+  role?: 'admin' | 'delegado' | 'student';
   created_at: string;
 }
 
 /**
- * Hash password securely in the browser using SHA-256
+ * Hash password securely in the browser using SHA-256 with safe UTF-8 fallback
  */
 async function hashPassword(password: string): Promise<string> {
-  if (typeof window === 'undefined' || !window.crypto?.subtle) {
-    // Fallback simple checksum if Web Crypto is unavailable (rare)
-    return btoa(password);
+  if (typeof window !== 'undefined' && window.crypto?.subtle) {
+    try {
+      const msgBuffer = new TextEncoder().encode(password);
+      const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    } catch {
+      // Fallback below
+    }
   }
-  const msgBuffer = new TextEncoder().encode(password);
-  const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
+  // Safe fallback for environments where Web Crypto Subtle is unavailable
+  try {
+    const encoded = encodeURIComponent(password).replace(/%([0-9A-F]{2})/g, (_, p1) =>
+      String.fromCharCode(parseInt(p1, 16))
+    );
+    return btoa(encoded);
+  } catch {
+    return btoa(password.slice(0, 32));
+  }
 }
 
 /**
@@ -115,7 +130,7 @@ export function updateSessionCoins(
   saveUserSession(updated, getCookie(COOKIE_REMEMBER) !== 'false');
 
   // If it's a local account, update in local accounts DB too
-  updateLocalAccountBalance(current.id, coins, nextWin);
+  updateLocalAccountBalance(current.id, coins, nextWin, updated.streak_count, updated.last_claim_date);
 
   return updated;
 }
@@ -170,12 +185,20 @@ function saveLocalAccounts(accounts: StoredLocalAccount[]): void {
   } catch {}
 }
 
-function updateLocalAccountBalance(userId: string, coins: number, biggestWin: number): void {
+function updateLocalAccountBalance(
+  userId: string,
+  coins: number,
+  biggestWin?: number,
+  streakCount?: number,
+  lastClaimDate?: string
+): void {
   const accounts = getLocalAccounts();
   const index = accounts.findIndex((a) => a.id === userId);
   if (index !== -1) {
     accounts[index].coins = coins;
-    accounts[index].biggest_win = biggestWin;
+    if (biggestWin !== undefined) accounts[index].biggest_win = biggestWin;
+    if (streakCount !== undefined) accounts[index].streak_count = streakCount;
+    if (lastClaimDate !== undefined) accounts[index].last_claim_date = lastClaimDate;
     saveLocalAccounts(accounts);
   }
 }
@@ -193,18 +216,20 @@ export async function registerLocalUser(
   const cleanUsername = username.trim().toLowerCase().replace(/\s+/g, '_');
   const cleanEmail = email.trim().toLowerCase();
 
-  const existingEmail = accounts.find((a) => a.email === cleanEmail);
+  const existingEmail = accounts.find((a) => a.email.toLowerCase() === cleanEmail);
   if (existingEmail) {
-    throw new Error('Ya existe una cuenta local registrada con este correo electrónico.');
+    throw new Error('Ya existe una cuenta con este correo electrónico. Inicia sesión con tus credenciales.');
   }
 
-  const existingName = accounts.find((a) => a.username === cleanUsername);
+  const existingName = accounts.find((a) => a.username.toLowerCase() === cleanUsername);
   if (existingName) {
-    throw new Error('El nombre de usuario ya está en uso. Elige otro apodo.');
+    throw new Error(`El nombre de usuario "${cleanUsername}" ya está en uso. Por favor, elige otro apodo.`);
   }
 
   const passwordHash = await hashPassword(password);
   const now = new Date().toISOString();
+  const role: 'admin' | 'delegado' | 'student' = cleanUsername === 'admin' ? 'admin' : 'student';
+
   const newAccount: StoredLocalAccount = {
     id: 'local_' + Math.random().toString(36).substring(2, 9),
     username: cleanUsername,
@@ -212,6 +237,8 @@ export async function registerLocalUser(
     passwordHash,
     coins: 1000,
     biggest_win: 0,
+    streak_count: 1,
+    role,
     created_at: now,
   };
 
@@ -224,6 +251,8 @@ export async function registerLocalUser(
     email: newAccount.email,
     coins: newAccount.coins,
     biggest_win: newAccount.biggest_win,
+    streak_count: 1,
+    role: newAccount.role,
     created_at: newAccount.created_at,
     auth_provider: 'local',
   };
@@ -245,15 +274,15 @@ export async function loginLocalUser(
   const passwordHash = await hashPassword(password);
 
   const account = accounts.find(
-    (a) => a.email === cleanId || a.username === cleanId
+    (a) => a.email.toLowerCase() === cleanId || a.username.toLowerCase() === cleanId
   );
 
   if (!account) {
-    throw new Error('No se encontró ninguna cuenta local con ese correo o usuario.');
+    throw new Error(`No se encontró ninguna cuenta con el usuario o correo "${identifier}".`);
   }
 
   if (account.passwordHash !== passwordHash) {
-    throw new Error('Contraseña incorrecta. Por favor, compruébala.');
+    throw new Error('Contraseña incorrecta. Por favor, compruébala e inténtalo de nuevo.');
   }
 
   const profile: UserProfile = {
@@ -262,6 +291,9 @@ export async function loginLocalUser(
     email: account.email,
     coins: account.coins,
     biggest_win: account.biggest_win,
+    streak_count: account.streak_count || 1,
+    last_claim_date: account.last_claim_date,
+    role: account.role || (account.username === 'admin' ? 'admin' : 'student'),
     created_at: account.created_at,
     auth_provider: 'local',
   };
@@ -279,22 +311,28 @@ export function translateAuthError(error: any): string {
   const message = typeof error === 'string' ? error : error?.message || '';
 
   if (message.includes('Invalid login credentials') || message.includes('invalid_grant')) {
-    return 'Correo o contraseña incorrectos. Revisa tus credenciales.';
+    return 'Correo o contraseña incorrectos. Revisa tus datos e inténtalo de nuevo.';
   }
   if (message.includes('User already registered') || message.includes('already exists')) {
-    return 'Ya existe una cuenta con este correo electrónico. Inicia sesión.';
+    return 'Ya existe una cuenta con este correo electrónico. Por favor, inicia sesión.';
   }
   if (message.includes('Password should be at least') || message.includes('weak_password')) {
     return 'La contraseña debe tener un mínimo de 6 caracteres.';
   }
-  if (message.includes('rate limit') || message.includes('Too many requests')) {
-    return 'Demasiados intentos. Espera unos segundos antes de volver a intentar.';
+  if (message.includes('rate limit') || message.includes('Too many requests') || message.includes('over_email_send_rate_limit')) {
+    return 'Demasiados intentos seguidos. Espera unos momentos antes de reintentar.';
   }
   if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
-    return 'No se pudo conectar con el servidor. Se utilizará el modo local.';
+    return 'No se pudo conectar con el servidor. Revisa tu conexión a internet.';
   }
   if (message.includes('Email not confirmed')) {
-    return 'Correo no confirmado en Supabase. Puedes entrar en modo local.';
+    return 'Tu correo electrónico aún no ha sido confirmado. Revisa tu bandeja de entrada o spam para activar tu cuenta.';
+  }
+  if (message.includes('unique constraint') || message.includes('duplicate key')) {
+    return 'El usuario o correo ya está en uso. Por favor, elige otro.';
+  }
+  if (message.includes('Signup is disabled') || message.includes('signups not allowed')) {
+    return 'El registro público está desactivado temporalmente en este servidor.';
   }
 
   return message || 'Error al autenticar. Inténtalo de nuevo.';

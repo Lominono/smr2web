@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Target, TrendingUp, Calendar, MessageSquare, Trophy, Server, CircleDot } from 'lucide-react';
+import { Target, TrendingUp, Calendar, MessageSquare, Trophy, Server, CircleDot, Zap } from 'lucide-react';
 import { sound } from '@/lib/audio';
 
 interface MobileTabBarProps {
-  activeTab: 'angry' | 'crash' | 'mines' | 'roulette' | 'calendar';
-  onSelectTab: (tab: 'angry' | 'crash' | 'mines' | 'roulette' | 'calendar') => void;
+  activeTab: 'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar';
+  onSelectTab: (tab: 'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar') => void;
   isChatOpen: boolean;
   onToggleChat: () => void;
   onOpenLeaderboard: () => void;
@@ -26,7 +26,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
       aria-label="Navegación móvil"
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#09090b]/90 backdrop-blur-2xl border-t border-white/[0.08] px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_25px_rgba(0,0,0,0.6)]"
     >
-      <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5 items-center">
+      <div className="max-w-md mx-auto grid grid-cols-7 gap-0.5 items-center">
         {/* Horario */}
         <button
           onClick={() => {
@@ -147,6 +147,30 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
           </div>
           <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
             Ruleta
+          </span>
+        </button>
+
+        {/* Ruleta Rusa */}
+        <button
+          onClick={() => {
+            onSelectTab('russian_roulette');
+            sound.tap();
+          }}
+          className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'russian_roulette'
+              ? 'text-white'
+              : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <div
+            className={`p-1 rounded-lg transition-all ${
+              activeTab === 'russian_roulette' ? 'bg-amber-400/20 text-amber-400' : ''
+            }`}
+          >
+            <Zap className="w-4 h-4" />
+          </div>
+          <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
+            R. Rusa
           </span>
         </button>
 

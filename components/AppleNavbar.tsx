@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   Volume2,
   VolumeX,
@@ -16,6 +17,8 @@ import {
   Gamepad2,
   Server,
   CircleDot,
+  Zap,
+  ShieldCheck,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -33,8 +36,8 @@ interface AppleNavbarProps {
   isChatOpen: boolean;
   soundEnabled: boolean;
   onToggleSound: () => void;
-  activeTab?: 'angry' | 'crash' | 'mines' | 'roulette' | 'calendar';
-  onSelectTab?: (tab: 'angry' | 'crash' | 'mines' | 'roulette' | 'calendar') => void;
+  activeTab?: 'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar';
+  onSelectTab?: (tab: 'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar') => void;
 }
 
 export const AppleNavbar: React.FC<AppleNavbarProps> = ({
@@ -161,7 +164,7 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                 onSelectTab('roulette');
                 sound.tap();
               }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
                 activeTab === 'roulette'
                   ? 'bg-white text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
@@ -169,6 +172,22 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             >
               <CircleDot className="w-3.5 h-3.5 text-yellow-400" />
               <span>Ruleta</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onSelectTab('russian_roulette');
+                sound.tap();
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+                activeTab === 'russian_roulette'
+                  ? 'bg-amber-400 text-black font-bold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>R. Rusa</span>
             </button>
           </nav>
         )}
@@ -256,6 +275,16 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
 
               {/* User Avatar & Logout */}
               <div className="flex items-center gap-1.5">
+                {(user.role === 'admin' || user.role === 'delegado') && (
+                  <Link
+                    href="/admin"
+                    title="Panel de Administración y Auditoría"
+                    className="p-1.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-400 border border-amber-400/20 flex items-center justify-center transition-all cursor-pointer active:scale-95"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  </Link>
+                )}
+
                 <div
                   title={`@${user.username} (${user.role === 'admin' || user.role === 'delegado' ? 'Delegado / Admin' : rank?.name || 'Alumno'})`}
                   className="relative w-7 h-7 rounded-xl bg-white/[0.08] border border-white/10 flex items-center justify-center font-mono font-bold text-xs text-zinc-200 select-none uppercase"
