@@ -86,6 +86,29 @@ class SoundFX {
     osc.stop(this.ctx.currentTime + 0.18);
   }
 
+  // Turbo boost in-flight
+  turboBoost() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(920, this.ctx.currentTime + 0.18);
+
+    gain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.18);
+  }
+
   // Deep destruction impact
   impact(intensity: number = 1) {
     if (!this.enabled) return;

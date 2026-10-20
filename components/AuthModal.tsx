@@ -143,6 +143,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 email: data.user.email || cleanEmail,
                 coins: 1000,
                 biggest_win: 0,
+                streak_count: 1,
                 created_at: new Date().toISOString(),
                 auth_provider: 'supabase',
               };
@@ -152,8 +153,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   {
                     id: profile.id,
                     username: profile.username,
+                    email: profile.email,
                     coins: profile.coins,
                     biggest_win: profile.biggest_win,
+                    streak_count: 1,
                   },
                 ]);
               } catch {}
@@ -187,11 +190,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           throw new Error('Introduce tu contraseña.');
         }
 
-        // If Supabase is available and identifier is email
-        if (hasSupabase && supabase && cleanIdentifier.includes('@')) {
+        // If Supabase is available
+        let targetEmail = cleanIdentifier.toLowerCase();
+        if (!cleanIdentifier.includes('@') && hasSupabase && supabase) {
+          try {
+            const { data: pData } = await supabase
+              .from('profiles')
+              .select('email')
+              .eq('username', cleanIdentifier.toLowerCase())
+              .maybeSingle();
+            if (pData?.email) {
+              targetEmail = pData.email;
+            }
+          } catch {}
+        }
+
+        if (hasSupabase && supabase && targetEmail.includes('@')) {
           try {
             const { data, error: signInError } = await supabase.auth.signInWithPassword({
-              email: cleanIdentifier.toLowerCase(),
+              email: targetEmail,
               password,
             });
 
@@ -212,6 +229,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 email: data.user.email,
                 coins: Number(profileData?.coins ?? 1000),
                 biggest_win: Number(profileData?.biggest_win ?? 0),
+                streak_count: profileData?.streak_count ? Number(profileData.streak_count) : 1,
+                last_claim_date: profileData?.last_claim_date || undefined,
                 created_at: profileData?.created_at,
                 auth_provider: 'supabase',
               };

@@ -275,16 +275,11 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                 <CalendarIcon className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white font-mono">
-                    Horario SMR2
-                  </h2>
-                  <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-rose-600/90 text-white rounded shadow-sm">
-                    PROVISIONAL
-                  </span>
-                </div>
-                <p className="text-xs text-zinc-500 font-mono mt-0.5">
-                  Curso 2024–2025
+                <h2 className="text-base sm:text-lg font-semibold tracking-tight text-white font-sans">
+                  Horario lectivo
+                </h2>
+                <p className="text-xs text-zinc-400 font-mono mt-0.5">
+                  2º Sistemas Microinformáticos y Redes · Turno de mañana
                 </p>
               </div>
             </div>
@@ -299,7 +294,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               }}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
                 activeSubTab === 'grid'
-                  ? 'bg-zinc-200 text-black font-semibold shadow-sm'
+                  ? 'bg-white text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
@@ -311,14 +306,14 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                 setActiveSubTab('agenda');
                 sound.tap();
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
                 activeSubTab === 'agenda'
                   ? 'bg-white text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
               <ListTodo className="w-3.5 h-3.5" />
-              <span>Exámenes</span>
+              <span>Tareas y exámenes</span>
               {events.length > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   {events.length}
@@ -331,7 +326,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         {/* Live Status Widget */}
         <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2.5 text-xs font-mono">
-            <span className="relative flex h-2.5 w-2.5">
+            <span className="relative flex h-2 w-2">
               <span
                 className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
                   liveStatus.status === 'recreo'
@@ -342,7 +337,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                 }`}
               ></span>
               <span
-                className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                className={`relative inline-flex rounded-full h-2 w-2 ${
                   liveStatus.status === 'recreo'
                     ? 'bg-emerald-500'
                     : liveStatus.status === 'in_class'
@@ -352,14 +347,14 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               ></span>
             </span>
 
-            <span className="text-zinc-300 leading-relaxed">
+            <span className="text-zinc-300 leading-relaxed font-sans text-xs">
               {liveStatus.message}
             </span>
           </div>
 
           <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-500">
             <Clock className="w-3.5 h-3.5 text-zinc-400" />
-            <span>8:15 — 14:05 (Lunes a Viernes)</span>
+            <span>08:15 — 14:05 · Aula 204</span>
           </div>
         </div>
       </div>
@@ -479,23 +474,24 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               <table className="w-full border-collapse text-left font-mono text-xs">
                 <thead>
                   <tr className="border-b border-white/[0.08] bg-black/40">
-                    <th className="py-3 px-4 text-zinc-400 font-semibold w-28 uppercase text-[11px]">
-                      Horas
+                    <th className="py-3 px-4 text-zinc-400 font-medium w-28 text-[11px] font-mono">
+                      Horario
                     </th>
                     {DAYS.map((day) => {
                       const isToday = currentDayIndex === day.dayIndex;
+                      const formattedName = day.label.charAt(0).toUpperCase() + day.label.slice(1).toLowerCase();
                       return (
                         <th
                           key={day.key}
-                          className={`py-3 px-4 font-semibold text-[11px] uppercase tracking-wider ${
-                            isToday ? 'text-emerald-400 bg-emerald-500/[0.04]' : 'text-zinc-300'
+                          className={`py-3 px-4 font-semibold text-xs tracking-tight ${
+                            isToday ? 'text-emerald-400 bg-emerald-500/[0.04]' : 'text-zinc-200'
                           }`}
                         >
                           <div className="flex items-center gap-1.5">
-                            <span>{day.label}</span>
+                            <span>{formattedName}</span>
                             {isToday && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                HOY
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                Hoy
                               </span>
                             )}
                           </div>
@@ -573,13 +569,13 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                                   subject ? subject.cardBg : 'bg-white/[0.02]'
                                 } ${subject ? subject.border : 'border-white/[0.06]'} ${
                                   isNowActive
-                                    ? 'ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                                    ? 'ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)] border-emerald-400'
                                     : 'hover:border-white/20'
                                 }`}
                               >
                                 <div className="flex items-center justify-between gap-1">
                                   <span
-                                    className={`font-black text-sm tracking-tight ${
+                                    className={`font-mono font-bold text-sm tracking-tight ${
                                       subject ? subject.text : 'text-white'
                                     }`}
                                   >
@@ -587,8 +583,8 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                                   </span>
 
                                   {isNowActive && (
-                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500 text-black animate-pulse">
-                                      EN CURSO
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500 text-black animate-pulse">
+                                      En curso
                                     </span>
                                   )}
                                 </div>
@@ -607,9 +603,10 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               </table>
             </div>
 
-            {/* Bottom SMR2 Footer Quote from Image */}
-            <div className="py-3 px-4 border-t border-white/[0.06] bg-black/40 text-center text-xs font-mono font-bold tracking-wider text-zinc-400">
-              BUEN CURSO PARA TODOS
+            {/* Bottom SMR2 Footer Quote */}
+            <div className="py-2.5 px-4 border-t border-white/[0.06] bg-black/40 flex items-center justify-between text-[11px] font-mono text-zinc-500">
+              <span>SMR2 · Aula 204</span>
+              <span>Curso académico 2024–2025</span>
             </div>
           </div>
 
@@ -656,14 +653,14 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                           >
                             <div className="flex items-center gap-2">
                               <Coffee className="w-4 h-4 text-emerald-400" />
-                              <span className="font-bold">RECREO</span>
+                              <span className="font-semibold text-emerald-300">Recreo</span>
                               {isToday && liveStatus.status === 'recreo' && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-400 text-black animate-pulse">
-                                  ¡AHORA!
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-400 text-black animate-pulse">
+                                  En curso
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] text-emerald-400/90 font-semibold">{slot.label}</span>
+                            <span className="text-[11px] text-emerald-400/90 font-medium font-mono">{slot.label}</span>
                           </div>
                         );
                       }
@@ -673,7 +670,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                           key={slot.index}
                           className="pt-2 flex items-center justify-between gap-2.5 font-mono text-xs"
                         >
-                          <span className="text-zinc-500 text-[11px] w-20 shrink-0">
+                          <span className="text-zinc-500 text-[11px] w-20 shrink-0 font-mono">
                             {slot.label}
                           </span>
 
@@ -695,17 +692,17 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                             }`}
                           >
                             <div className="flex items-center gap-2 truncate">
-                              <span className={`font-black text-sm ${subject ? subject.text : 'text-white'}`}>
+                              <span className={`font-mono font-bold text-sm ${subject ? subject.text : 'text-white'}`}>
                                 {subjectCode}
                               </span>
-                              <span className="text-[11px] text-zinc-400 truncate max-w-[150px]">
+                              <span className="text-[11px] font-sans text-zinc-400 truncate max-w-[150px]">
                                 {subject?.name}
                               </span>
                             </div>
 
                             {isNowActive && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500 text-black animate-pulse shrink-0">
-                                EN CURSO
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500 text-black animate-pulse shrink-0">
+                                En curso
                               </span>
                             )}
                           </div>

@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { sound } from '@/lib/audio';
-import { RotateCcw, Coins, Trophy, Zap, AlertTriangle, Share2, Target } from 'lucide-react';
+import { RotateCcw, Coins, Trophy, Zap, AlertTriangle, Share2, Target, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface AngryCableGameProps {
@@ -22,7 +22,7 @@ interface Block {
   vAngle: number;
   hp: number;
   maxHp: number;
-  type: 'server' | 'crate' | 'multiplier_2x' | 'multiplier_5x' | 'multiplier_10x' | 'jackpot_25x' | 'tnt';
+  type: 'server' | 'crate' | 'multiplier_2x' | 'multiplier_5x' | 'multiplier_10x' | 'jackpot_25x' | 'jackpot_50x' | 'tnt';
   destroyed: boolean;
 }
 
@@ -54,7 +54,9 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
   const [bet, setBet] = useState<number>(100);
   const [gameState, setGameState] = useState<'aiming' | 'flying' | 'resolved'>('aiming');
-  const [lastWin, setLastWin] = useState<{ amount: number; multiplier: number } | null>(null);
+  const [currentLevel, setCurrentLevel] = useState<number>(1);
+  const [hasBoosted, setHasBoosted] = useState<boolean>(false);
+  const [lastWin, setLastWin] = useState<{ amount: number; multiplier: number; comboBonus?: boolean } | null>(null);
   const [bragged, setBragged] = useState(false);
 
   // Logical coordinate space
@@ -94,30 +96,68 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
   const slowMoRef = useRef(0);
   const hitMultipliersRef = useRef<number[]>([]);
 
-  const resetLevel = useCallback(() => {
+  const resetLevel = useCallback((targetLevel?: number) => {
+    const lvl = targetLevel !== undefined ? targetLevel : currentLevel;
     const blocks: Block[] = [];
-    const baseStartX = 520;
+    const baseStartX = 510;
 
-    // Tower 1 (Industrial rack)
-    blocks.push({ x: baseStartX, y: groundY - 42, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-    blocks.push({ x: baseStartX, y: groundY - 84, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-    blocks.push({ x: baseStartX + 12, y: groundY - 126, w: 48, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
+    if (lvl === 1) {
+      // Nivel 1: Bastidor Central
+      blocks.push({ x: baseStartX, y: groundY - 42, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+      blocks.push({ x: baseStartX, y: groundY - 84, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+      blocks.push({ x: baseStartX + 12, y: groundY - 126, w: 48, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
 
-    // Tower 2 (Hazard core)
-    const col2X = baseStartX + 96;
-    blocks.push({ x: col2X, y: groundY - 45, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
-    blocks.push({ x: col2X, y: groundY - 90, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
-    blocks.push({ x: col2X, y: groundY - 135, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_5x', destroyed: false });
+      const col2X = baseStartX + 96;
+      blocks.push({ x: col2X, y: groundY - 45, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
+      blocks.push({ x: col2X, y: groundY - 90, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
+      blocks.push({ x: col2X, y: groundY - 135, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_5x', destroyed: false });
 
-    // Tower 3 (Server stack)
-    const col3X = baseStartX + 162;
-    blocks.push({ x: col3X, y: groundY - 42, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-    blocks.push({ x: col3X, y: groundY - 84, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-    blocks.push({ x: col3X + 12, y: groundY - 128, w: 48, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
+      const col3X = baseStartX + 162;
+      blocks.push({ x: col3X, y: groundY - 42, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+      blocks.push({ x: col3X, y: groundY - 84, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+      blocks.push({ x: col3X + 12, y: groundY - 128, w: 48, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
 
-    // Roof & High Vault
-    blocks.push({ x: baseStartX + 36, y: groundY - 168, w: 146, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
-    blocks.push({ x: baseStartX + 84, y: groundY - 220, w: 50, h: 52, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_25x', destroyed: false });
+      blocks.push({ x: baseStartX + 36, y: groundY - 168, w: 146, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
+      blocks.push({ x: baseStartX + 84, y: groundY - 220, w: 50, h: 52, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_25x', destroyed: false });
+    } else if (lvl === 2) {
+      // Nivel 2: Puente Cortafuegos de Doble Bastión
+      const leftX = baseStartX - 30;
+      blocks.push({ x: leftX, y: groundY - 45, w: 60, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+      blocks.push({ x: leftX, y: groundY - 90, w: 60, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_5x', destroyed: false });
+      blocks.push({ x: leftX + 8, y: groundY - 135, w: 44, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
+
+      const midX = leftX + 88;
+      blocks.push({ x: midX, y: groundY - 45, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
+      blocks.push({ x: midX, y: groundY - 90, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
+
+      const rightX = leftX + 160;
+      blocks.push({ x: rightX, y: groundY - 45, w: 60, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+      blocks.push({ x: rightX, y: groundY - 90, w: 60, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+      blocks.push({ x: rightX + 6, y: groundY - 135, w: 48, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
+
+      blocks.push({ x: leftX + 10, y: groundY - 170, w: 195, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
+      blocks.push({ x: leftX + 82, y: groundY - 222, w: 52, h: 52, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_25x', destroyed: false });
+    } else {
+      // Nivel 3: Fortaleza SysAdmin (Bóveda Suprema x50)
+      const start = baseStartX - 45;
+      blocks.push({ x: start, y: groundY - 44, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+      blocks.push({ x: start, y: groundY - 88, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_5x', destroyed: false });
+      blocks.push({ x: start + 5, y: groundY - 132, w: 44, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
+
+      const c2 = start + 78;
+      blocks.push({ x: c2, y: groundY - 45, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
+      blocks.push({ x: c2, y: groundY - 90, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
+      blocks.push({ x: c2, y: groundY - 135, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
+
+      const c3 = start + 148;
+      blocks.push({ x: c3, y: groundY - 44, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+      blocks.push({ x: c3, y: groundY - 88, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
+      blocks.push({ x: c3, y: groundY - 132, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
+
+      blocks.push({ x: start + 8, y: groundY - 165, w: 184, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
+      blocks.push({ x: start + 38, y: groundY - 198, w: 124, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
+      blocks.push({ x: start + 72, y: groundY - 254, w: 56, h: 56, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_50x', destroyed: false });
+    }
 
     blocksRef.current = blocks;
     hitMultipliersRef.current = [];
@@ -139,9 +179,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
     dragPosRef.current = { x: slingshotAnchor.x, y: slingshotAnchor.y };
     setGameState('aiming');
+    setHasBoosted(false);
     setLastWin(null);
     setBragged(false);
-  }, [slingshotAnchor.x, slingshotAnchor.y]);
+  }, [currentLevel, slingshotAnchor.x, slingshotAnchor.y]);
 
   useEffect(() => {
     resetLevel();
@@ -238,35 +279,50 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
       if (!proj.active && !proj.hasLanded) {
         const pullPos = isDraggingRef.current ? dragPosRef.current : slingshotAnchor;
 
+        // Dynamic tension color
+        const pullDist = Math.sqrt((pullPos.x - slingshotAnchor.x) ** 2 + (pullPos.y - slingshotAnchor.y) ** 2);
+        const tensionRatio = Math.min(pullDist / maxPullRadius, 1);
+        const bandColor = tensionRatio > 0.8 ? '#f43f5e' : tensionRatio > 0.5 ? '#f59e0b' : '#10b981';
+
         // Back elastic band
-        ctx.strokeStyle = '#71717a';
+        ctx.strokeStyle = bandColor;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.moveTo(slingshotAnchor.x - 12, slingshotAnchor.y - 10);
         ctx.lineTo(pullPos.x, pullPos.y);
         ctx.stroke();
 
-        // Projectile ball with rim highlight
-        ctx.fillStyle = '#10b981';
-        ctx.beginPath();
-        ctx.arc(pullPos.x, pullPos.y, proj.radius, 0, Math.PI * 2);
-        ctx.fill();
+        // Projectile RJ-45 body
+        ctx.save();
+        ctx.translate(pullPos.x, pullPos.y);
+        const aimAngle = isDraggingRef.current
+          ? Math.atan2(slingshotAnchor.y - pullPos.y, slingshotAnchor.x - pullPos.x)
+          : 0;
+        ctx.rotate(aimAngle);
 
-        // Inner specular gleam
-        ctx.fillStyle = '#a7f3d0';
+        ctx.fillStyle = '#059669';
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(pullPos.x - 3, pullPos.y - 3, proj.radius * 0.35, 0, Math.PI * 2);
+        ctx.roundRect(-13, -8, 26, 16, 3);
         ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fbbf24';
+        for (let pIdx = -5; pIdx <= 5; pIdx += 2) {
+          ctx.fillRect(9, pIdx - 0.5, 3.5, 1);
+        }
+        ctx.restore();
 
         // Front elastic band
-        ctx.strokeStyle = '#71717a';
+        ctx.strokeStyle = bandColor;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.moveTo(slingshotAnchor.x + 12, slingshotAnchor.y - 10);
         ctx.lineTo(pullPos.x, pullPos.y);
         ctx.stroke();
 
-        // Trajectory arc dots with dynamic fade
+        // Trajectory arc dots with landing prediction ring
         if (isDraggingRef.current) {
           const launchVx = (slingshotAnchor.x - pullPos.x) * 0.22;
           const launchVy = (slingshotAnchor.y - pullPos.y) * 0.22;
@@ -274,19 +330,32 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           let simY = pullPos.y;
           let simVx = launchVx;
           let simVy = launchVy;
+          let impactX = simX;
+          let impactY = groundY;
 
-          for (let step = 0; step < 32; step++) {
+          for (let step = 0; step < 36; step++) {
             simX += simVx * 1.5;
             simY += simVy * 1.5;
             simVy += 0.35 * 1.5;
-            if (simY > groundY) break;
+            if (simY >= groundY) {
+              impactX = simX;
+              impactY = groundY;
+              break;
+            }
 
-            const alpha = Math.max(0.15, 0.85 - step * 0.024);
+            const alpha = Math.max(0.12, 0.85 - step * 0.022);
             ctx.fillStyle = `rgba(52, 211, 153, ${alpha})`;
             ctx.beginPath();
-            ctx.arc(simX, simY, Math.max(1.4, 3.2 - step * 0.07), 0, Math.PI * 2);
+            ctx.arc(simX, simY, Math.max(1.5, 3.2 - step * 0.06), 0, Math.PI * 2);
             ctx.fill();
           }
+
+          // Target landing ring on the ground
+          ctx.strokeStyle = 'rgba(52, 211, 153, 0.45)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(impactX, impactY - 2, 10, 4, 0, 0, Math.PI * 2);
+          ctx.stroke();
         }
       }
 
@@ -329,16 +398,56 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           proj.restTimer = 100;
         }
 
-        // Projectile rendering
-        ctx.fillStyle = '#10b981';
+        // Projectile RJ-45 connector rendering
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        const heading = Math.atan2(proj.vy, proj.vx);
+        ctx.rotate(heading);
+
+        // Turbo exhaust trail
+        if (hasBoosted) {
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.moveTo(-14, -6);
+          ctx.lineTo(-30 - Math.random() * 8, 0);
+          ctx.lineTo(-14, 6);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // RJ-45 crystal housing
+        ctx.fillStyle = hasBoosted ? '#0284c7' : '#059669';
+        ctx.strokeStyle = hasBoosted ? '#38bdf8' : '#34d399';
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
+        ctx.roundRect(-13, -8, 26, 16, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        // 8 Gold Contact Pins
+        ctx.fillStyle = '#fbbf24';
+        for (let pIdx = -5; pIdx <= 5; pIdx += 2) {
+          ctx.fillRect(9, pIdx - 0.5, 3.5, 1);
+        }
+
+        // Locking Tab clip
+        ctx.fillStyle = hasBoosted ? '#bae6fd' : '#a7f3d0';
+        ctx.beginPath();
+        ctx.moveTo(-6, -8);
+        ctx.lineTo(4, -12);
+        ctx.lineTo(5, -8);
+        ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = '#a7f3d0';
+        // Wire jacket out the back
+        ctx.strokeStyle = '#27272a';
+        ctx.lineWidth = 3.5;
         ctx.beginPath();
-        ctx.arc(proj.x - 3, proj.y - 3, proj.radius * 0.35, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(-13, 0);
+        ctx.lineTo(-24, 0);
+        ctx.stroke();
+
+        ctx.restore();
 
         if (Math.abs(proj.vx) < 0.3 && Math.abs(proj.vy) < 0.3 && proj.y + proj.radius >= groundY - 2) {
           proj.restTimer += 1;
@@ -429,6 +538,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               if (block.type === 'multiplier_5x') mult = 5;
               if (block.type === 'multiplier_10x') mult = 10;
               if (block.type === 'jackpot_25x') mult = 25;
+              if (block.type === 'jackpot_50x') mult = 50;
 
               if (mult > 0) {
                 hitMultipliersRef.current.push(mult);
@@ -491,20 +601,23 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('TNT', 0, 0);
-        } else if (block.type.includes('multiplier') || block.type === 'jackpot_25x') {
+        } else if (block.type.includes('multiplier') || block.type.includes('jackpot')) {
           // Precision amber/gold vault
-          ctx.fillStyle = '#291e0a';
-          ctx.strokeStyle = '#d97706';
-          ctx.lineWidth = 1.5;
+          const isJ50 = block.type === 'jackpot_50x';
+          ctx.fillStyle = isJ50 ? '#381604' : '#291e0a';
+          ctx.strokeStyle = isJ50 ? '#f59e0b' : '#d97706';
+          ctx.lineWidth = isJ50 ? 2 : 1.5;
           ctx.fillRect(-block.w / 2, -block.h / 2, block.w, block.h);
           ctx.strokeRect(-block.w / 2, -block.h / 2, block.w, block.h);
 
-          ctx.fillStyle = '#fbbf24';
-          ctx.font = 'bold 11px monospace';
+          ctx.fillStyle = isJ50 ? '#fef08a' : '#fbbf24';
+          ctx.font = isJ50 ? 'bold 12px monospace' : 'bold 11px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           const label =
-            block.type === 'jackpot_25x'
+            block.type === 'jackpot_50x'
+              ? '★ x50'
+              : block.type === 'jackpot_25x'
               ? 'x25'
               : block.type === 'multiplier_10x'
               ? 'x10'
@@ -519,6 +632,17 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           ctx.lineWidth = 1;
           ctx.fillRect(-block.w / 2, -block.h / 2, block.w, block.h);
           ctx.strokeRect(-block.w / 2, -block.h / 2, block.w, block.h);
+        }
+
+        // Damage stress cracks if partially damaged
+        if (block.hp < block.maxHp && !block.destroyed) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(-block.w * 0.25, -block.h * 0.3);
+          ctx.lineTo(block.w * 0.08, -block.h * 0.05);
+          ctx.lineTo(-block.w * 0.1, block.h * 0.25);
+          ctx.stroke();
         }
 
         ctx.restore();
@@ -576,24 +700,29 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     const cratesMults = hitMultipliersRef.current.reduce((sum, m) => sum + m, 0);
 
     let totalMult = cratesMults;
+    const isCombo = hitMultipliersRef.current.length >= 2;
+    if (isCombo) {
+      // Combo multiplier reward +25%
+      totalMult = Math.round(totalMult * 1.25 * 10) / 10;
+    }
     if (destroyedCount >= 3 && cratesMults === 0) totalMult = 1.5;
     if (destroyedCount >= 6 && cratesMults === 0) totalMult = 3.0;
 
     if (totalMult > 0) {
       const winAmount = Math.round(bet * totalMult);
       onUpdateCoins(winAmount);
-      setLastWin({ amount: winAmount, multiplier: totalMult });
+      setLastWin({ amount: winAmount, multiplier: totalMult, comboBonus: isCombo });
       sound.coinWin();
 
       if (totalMult >= 5) {
         confetti({
-          particleCount: 80,
-          spread: 60,
+          particleCount: 90,
+          spread: 70,
           origin: { y: 0.6 },
         });
       }
     } else {
-      setLastWin({ amount: 0, multiplier: 0 });
+      setLastWin({ amount: 0, multiplier: 0, comboBonus: false });
       sound.broke();
     }
 
@@ -613,16 +742,49 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    // 1. In-flight Turbo Boost ability
+    if (gameState === 'flying') {
+      const proj = projectileRef.current;
+      if (proj.active && !hasBoosted) {
+        setHasBoosted(true);
+        proj.vx *= 1.4;
+        proj.vy = Math.min(proj.vy * 0.7, -2.4);
+        sound.turboBoost();
+        shakeRef.current = 14;
+
+        for (let i = 0; i < 24; i++) {
+          particlesRef.current.push({
+            x: proj.x,
+            y: proj.y,
+            vx: (Math.random() - 0.5) * 8 - proj.vx * 0.15,
+            vy: (Math.random() - 0.5) * 8 - proj.vy * 0.15,
+            life: 1,
+            maxLife: 22 + Math.random() * 10,
+            color: Math.random() > 0.4 ? '#38bdf8' : '#fbbf24',
+            size: 3 + Math.random() * 3,
+          });
+        }
+
+        floatingTextsRef.current.push({
+          x: proj.x,
+          y: proj.y - 20,
+          text: '¡TURBO IMPULSO!',
+          color: '#38bdf8',
+          life: 34,
+        });
+      }
+      return;
+    }
+
     if (gameState !== 'aiming') return;
     if (userCoins < bet) {
       sound.broke();
-      alert('Saldo insuficiente. Solicita una recarga arriba a la derecha.');
       return;
     }
 
     const { x, y } = getCanvasCoords(e);
     const dist = Math.sqrt((x - slingshotAnchor.x) ** 2 + (y - slingshotAnchor.y) ** 2);
-    if (dist < 75) {
+    if (dist < 80) {
       isDraggingRef.current = true;
       dragPosRef.current = { x, y };
       sound.tap();
@@ -701,29 +863,55 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     <div className="glass-panel rounded-3xl p-4 sm:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border border-white/[0.08]">
       {/* Top Header */}
       <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3 border-b border-white/[0.06]">
-        <div className="flex items-center justify-between sm:justify-start gap-3">
-          <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-            <Target className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold tracking-tight text-white font-mono">
-                Slingshot
-              </h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
-                Bote x25
-              </span>
+        <div className="flex items-center justify-between sm:justify-start gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+              <Target className="w-4 h-4" />
             </div>
-            <p className="text-[11px] text-zinc-500 font-mono">
-              Apunta y suelta para disparar
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold tracking-tight text-white font-mono">
+                  Slingshot
+                </h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+                  {currentLevel === 3 ? 'Bote x50' : 'Bote x25'}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500 font-mono">
+                {currentLevel === 1 ? 'Nivel 1: Bastidor Rack' : currentLevel === 2 ? 'Nivel 2: Doble Búnker' : 'Nivel 3: Fortaleza SysAdmin'}
+              </p>
+            </div>
           </div>
+
+          {/* Level Switcher */}
+          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/[0.06]">
+            {[1, 2, 3].map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                disabled={gameState === 'flying'}
+                onClick={() => {
+                  setCurrentLevel(lvl);
+                  resetLevel(lvl);
+                  sound.tap();
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+                  currentLevel === lvl
+                    ? 'bg-white text-black font-bold shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Nivel {lvl}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={() => {
               resetLevel();
               sound.tap();
             }}
-            title="Reiniciar torre de servidores"
+            title="Reiniciar torre"
             className="p-1.5 rounded-xl text-zinc-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] transition-all cursor-pointer ml-auto sm:ml-2 active:scale-95"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -807,27 +995,42 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
         />
 
         {gameState === 'aiming' && (
-          <div className="absolute top-3 left-3 pointer-events-none bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-[11px] text-zinc-400 font-mono">
-            Arrastra el núcleo para ajustar fuerza y dirección
+          <div className="absolute top-3 left-3 pointer-events-none bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-[11px] text-zinc-400 font-mono flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Arrastra el conector RJ-45 hacia atrás para disparar</span>
+          </div>
+        )}
+
+        {gameState === 'flying' && (
+          <div className="absolute top-3 left-3 pointer-events-none bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/15 text-xs text-amber-300 font-mono flex items-center gap-2 animate-bounce">
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span>{!hasBoosted ? '¡Toca la pantalla para activar el Turbo en vuelo!' : '¡Turbo activado!'}</span>
           </div>
         )}
 
         {/* Resolution Banner */}
         {gameState === 'resolved' && lastWin && (
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-150">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-150">
             {lastWin.multiplier > 0 ? (
               <>
-                <span className="text-xs font-mono text-amber-400 uppercase tracking-widest">
-                  Resultado
-                </span>
-                <h3 className="text-3xl sm:text-4xl font-bold text-white font-mono mt-1">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-xs font-mono text-amber-400 uppercase tracking-widest font-bold">
+                    Impacto exitoso
+                  </span>
+                  {lastWin.comboBonus && (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-mono font-bold">
+                      ¡COMBO x1.25!
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-3xl sm:text-4xl font-bold text-white font-mono mt-0.5">
                   +{lastWin.amount.toLocaleString()} fichas
                 </h3>
                 <p className="text-xs text-zinc-400 mt-1 font-mono">
-                  Multiplicador x{lastWin.multiplier.toFixed(2)}
+                  Multiplicador x{lastWin.multiplier.toFixed(1)} en Nivel {currentLevel}
                 </p>
 
-                <div className="flex items-center gap-2 mt-5">
+                <div className="flex items-center gap-2 mt-5 flex-wrap justify-center">
                   <button
                     onClick={() => {
                       resetLevel();
@@ -836,8 +1039,23 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                     className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-mono text-xs font-medium border border-white/10 transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reiniciar</span>
+                    <span>Repetir nivel</span>
                   </button>
+
+                  {currentLevel < 3 && (
+                    <button
+                      onClick={() => {
+                        const nextLvl = currentLevel + 1;
+                        setCurrentLevel(nextLvl);
+                        resetLevel(nextLvl);
+                        sound.coinWin();
+                      }}
+                      className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-mono text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
+                    >
+                      <span>Avanzar a Nivel {currentLevel + 1}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
 
                   <button
                     onClick={handleBrag}
@@ -859,7 +1077,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                   Tiro sin impacto
                 </h3>
                 <p className="text-xs text-zinc-400 mt-1 font-mono">
-                  No se alcanzaron objetivos multiplicadores.
+                  No se alcanzaron multiplicadores en este tiro.
                 </p>
 
                 <button
