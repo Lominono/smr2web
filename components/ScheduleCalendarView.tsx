@@ -15,6 +15,8 @@ import {
   Filter,
   CalendarDays,
   ListTodo,
+  ShieldCheck,
+  Link as LinkIcon,
 } from 'lucide-react';
 import {
   SMR2_SUBJECTS,
@@ -28,36 +30,26 @@ import {
 import { CalendarEvent, UserProfile } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { sound } from '@/lib/audio';
+import { TaskAdminModal } from '@/components/TaskAdminModal';
 
 interface ScheduleCalendarViewProps {
   currentUser: UserProfile | null;
   onOpenAuth: () => void;
+  onBroadcastToChat?: (text: string) => void;
 }
 
 export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   currentUser,
   onOpenAuth,
+  onBroadcastToChat,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'grid' | 'agenda'>('grid');
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [mobileDay, setMobileDay] = useState<DayKey | 'all'>('all');
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [isTaskAdminOpen, setIsTaskAdminOpen] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
-
-  // Form states for new event
-  const [newEventTitle, setNewEventTitle] = useState('');
-  const [newEventSubject, setNewEventSubject] = useState('SOR');
-  const [newEventType, setNewEventType] = useState<'exam' | 'homework' | 'reminder'>('exam');
-  const [newEventDate, setNewEventDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
-  });
-  const [newEventTime, setNewEventTime] = useState('09:00');
-  const [newEventDescription, setNewEventDescription] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Update live status every 15 seconds
   useEffect(() => {
@@ -164,67 +156,6 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
       supabase.removeChannel(channel);
     };
   }, []);
-
-  const handleCreateEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEventTitle.trim()) return;
-
-    setIsSubmitting(true);
-    const newEvent: CalendarEvent = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `event_${Date.now()}`,
-      title: newEventTitle.trim(),
-      subject: newEventSubject,
-      event_type: newEventType,
-      event_date: newEventDate,
-      start_time: newEventTime,
-      description: newEventDescription.trim() || undefined,
-      created_by: currentUser?.id,
-      created_by_name: currentUser ? currentUser.username : 'Compañero SMR2',
-      created_at: new Date().toISOString(),
-    };
-
-    const supabase = createClient();
-    if (supabase) {
-      try {
-        const { error } = await supabase.from('calendar_events').insert([
-          {
-            title: newEvent.title,
-            subject: newEvent.subject,
-            event_type: newEvent.event_type,
-            event_date: newEvent.event_date,
-            start_time: newEvent.start_time,
-            description: newEvent.description,
-            created_by: currentUser?.id || null,
-            created_by_name: newEvent.created_by_name,
-          },
-        ]);
-        if (!error) {
-          sound.coinWin();
-          setIsAddEventOpen(false);
-          setNewEventTitle('');
-          setNewEventDescription('');
-          fetchEvents();
-          setIsSubmitting(false);
-          return;
-        }
-      } catch (err) {
-        console.warn('Error al guardar en Supabase:', err);
-      }
-    }
-
-    // Local storage fallback
-    const updated = [...events, newEvent].sort((a, b) => a.event_date.localeCompare(b.event_date));
-    setEvents(updated);
-    try {
-      localStorage.setItem('smr2_calendar_events', JSON.stringify(updated));
-    } catch {}
-
-    sound.coinWin();
-    setIsAddEventOpen(false);
-    setNewEventTitle('');
-    setNewEventDescription('');
-    setIsSubmitting(false);
-  };
 
   const handleDeleteEvent = async (id: string) => {
     sound.tap();
@@ -730,13 +661,13 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
             <button
               onClick={() => {
-                setIsAddEventOpen(true);
+                setIsTaskAdminOpen(true);
                 sound.tap();
               }}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-mono font-bold transition-all cursor-pointer shadow-md active:scale-95"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Añadir Examen / Tarea</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
+              <span>Gestionar tareas (Delegado)</span>
             </button>
           </div>
 
@@ -744,23 +675,24 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
           {loadingEvents ? (
             <div className="p-12 text-center text-zinc-500 font-mono text-xs">
               <Clock className="w-6 h-6 mx-auto mb-2 animate-spin text-zinc-400" />
-              <span>Sincronizando eventos...</span>
+              <span>Sincronizando tareas y eventos...</span>
             </div>
           ) : events.length === 0 ? (
             <div className="rounded-3xl bg-[#121215] border border-white/[0.08] p-12 text-center font-mono">
               <CalendarIcon className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
               <h4 className="text-sm font-bold text-white mb-1">No hay exámenes ni tareas anotadas</h4>
               <p className="text-xs text-zinc-500 max-w-sm mx-auto mb-4">
-                Sé el primero en apuntar una entrega o examen de SMR2 para que todo el grupo esté al tanto.
+                Usa el panel de delegado para añadir fechas de exámenes, entregas de Moodle o avisos importantes.
               </p>
               <button
                 onClick={() => {
-                  setIsAddEventOpen(true);
+                  setIsTaskAdminOpen(true);
                   sound.tap();
                 }}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-mono font-medium transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-mono font-medium transition-colors cursor-pointer inline-flex items-center gap-1.5"
               >
-                Crear primer evento
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span>Abrir panel de tareas</span>
               </button>
             </div>
           ) : (
@@ -776,17 +708,21 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                 };
 
                 const typeLabels: Record<string, { label: string; color: string }> = {
-                  exam: { label: 'EXAMEN', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
-                  homework: { label: 'ENTREGA', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-                  reminder: { label: 'AVISO', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-                  class: { label: 'CLASE', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+                  exam: { label: 'Examen', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+                  homework: { label: 'Entrega', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+                  reminder: { label: 'Aviso', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+                  class: { label: 'Clase', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
                 };
-                const badge = typeLabels[ev.event_type] || typeLabels.exam;
+                const badge = typeLabels[ev.event_type] || typeLabels.homework;
 
                 return (
                   <div
                     key={ev.id}
-                    className="p-4 rounded-3xl bg-[#121215] border border-white/[0.08] hover:border-white/20 transition-all flex flex-col justify-between group shadow-sm"
+                    className={`p-4 rounded-3xl border transition-all flex flex-col justify-between group shadow-sm ${
+                      ev.is_completed
+                        ? 'bg-[#121215]/50 border-white/[0.04] opacity-60'
+                        : 'bg-[#121215] border-white/[0.08] hover:border-white/20'
+                    }`}
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
@@ -801,25 +737,48 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                           >
                             {ev.subject} · {sub.name}
                           </span>
+                          {ev.priority === 'high' && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold">
+                              Urgente
+                            </span>
+                          )}
                         </div>
 
-                        <button
-                          onClick={() => handleDeleteEvent(ev.id)}
-                          title="Eliminar evento"
-                          className="p-1 rounded-lg text-zinc-600 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {currentUser && (currentUser.role === 'admin' || currentUser.role === 'delegado' || ev.created_by === currentUser.id) && (
+                          <button
+                            onClick={() => handleDeleteEvent(ev.id)}
+                            title="Eliminar evento"
+                            className="p-1 rounded-lg text-zinc-600 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
 
-                      <h4 className="text-sm font-bold text-white font-mono leading-snug mb-1">
+                      <h4
+                        className={`text-sm font-semibold font-sans leading-snug mb-1 ${
+                          ev.is_completed ? 'line-through text-zinc-500' : 'text-white'
+                        }`}
+                      >
                         {ev.title}
                       </h4>
 
                       {ev.description && (
-                        <p className="text-xs text-zinc-400 font-sans leading-relaxed mb-3">
+                        <p className="text-xs text-zinc-400 font-sans leading-relaxed mb-2">
                           {ev.description}
                         </p>
+                      )}
+
+                      {ev.delivery_url && (
+                        <a
+                          href={ev.delivery_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-mono text-blue-400 hover:underline mb-2"
+                        >
+                          <LinkIcon className="w-3 h-3" />
+                          <span>Ver enlace de entrega</span>
+                        </a>
                       )}
                     </div>
 
@@ -843,145 +802,15 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         </div>
       )}
 
-      {/* Modal: Añadir Examen o Tarea */}
-      {isAddEventOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[#0e0f15] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
-            <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-2xl bg-white/[0.06] text-white border border-white/10">
-                  <CalendarIcon className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white tracking-tight font-mono">
-                    AÑADIR A LA AGENDA DE SMR2
-                  </h3>
-                  <p className="text-xs text-zinc-400">
-                    Sincronizado con Supabase para toda la clase
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setIsAddEventOpen(false)}
-                className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateEvent} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-mono text-zinc-400 mb-1">
-                  Título de la prueba o tarea *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="ej: Examen UD3 - Enrutamiento y VLANs"
-                  value={newEventTitle}
-                  onChange={(e) => setNewEventTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs sm:text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-mono text-zinc-400 mb-1">
-                    Módulo / Asignatura
-                  </label>
-                  <select
-                    value={newEventSubject}
-                    onChange={(e) => setNewEventSubject(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[#16171d] border border-white/[0.08] rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-white/30 font-mono"
-                  >
-                    {Object.keys(SMR2_SUBJECTS).map((code) => {
-                      if (code === 'RECREO') return null;
-                      return (
-                        <option key={code} value={code}>
-                          {code} - {SMR2_SUBJECTS[code].name}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono text-zinc-400 mb-1">
-                    Tipo de evento
-                  </label>
-                  <select
-                    value={newEventType}
-                    onChange={(e) => setNewEventType(e.target.value as any)}
-                    className="w-full px-3 py-2.5 bg-[#16171d] border border-white/[0.08] rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-white/30 font-mono"
-                  >
-                    <option value="exam">Examen / Control</option>
-                    <option value="homework">Entrega de Práctica</option>
-                    <option value="reminder">Aviso / Recordatorio</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-mono text-zinc-400 mb-1">
-                    Fecha *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={newEventDate}
-                    onChange={(e) => setNewEventDate(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[#16171d] border border-white/[0.08] rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-white/30 font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono text-zinc-400 mb-1">
-                    Hora prevista
-                  </label>
-                  <input
-                    type="time"
-                    value={newEventTime}
-                    onChange={(e) => setNewEventTime(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[#16171d] border border-white/[0.08] rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-white/30 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-zinc-400 mb-1">
-                  Detalles / Contenido (opcional)
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Temas que entran, formato de entrega en el aula virtual, etc."
-                  value={newEventDescription}
-                  onChange={(e) => setNewEventDescription(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs sm:text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30 resize-none font-sans"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddEventOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-mono font-bold transition-all cursor-pointer shadow-md disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Guardando...' : 'Publicar Evento'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modal Seguro: Panel de Delegado y Gestión de Tareas */}
+      <TaskAdminModal
+        isOpen={isTaskAdminOpen}
+        onClose={() => setIsTaskAdminOpen(false)}
+        currentUser={currentUser}
+        events={events}
+        onRefreshEvents={fetchEvents}
+        onBroadcastToChat={onBroadcastToChat}
+      />
     </div>
   );
 };

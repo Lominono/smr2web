@@ -76,6 +76,7 @@ export default function Home() {
           biggest_win: Number(data.biggest_win),
           streak_count: data.streak_count ? Number(data.streak_count) : 1,
           last_claim_date: data.last_claim_date || undefined,
+          role: data.role || 'student',
           created_at: data.created_at,
           auth_provider: 'supabase',
         };
@@ -90,6 +91,7 @@ export default function Home() {
           coins: 1000,
           biggest_win: 0,
           streak_count: 1,
+          role: 'student',
           auth_provider: 'supabase',
         };
         await supabase.from('profiles').insert([newProfile]);
@@ -576,6 +578,7 @@ export default function Home() {
               <ScheduleCalendarView
                 currentUser={user}
                 onOpenAuth={() => setIsAuthOpen(true)}
+                onBroadcastToChat={handleSendMessage}
               />
             )}
           </div>

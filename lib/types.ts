@@ -8,6 +8,7 @@ export interface UserProfile {
   last_claim_date?: string;
   created_at?: string;
   auth_provider?: 'supabase' | 'local';
+  role?: 'admin' | 'delegado' | 'student';
 }
 
 export interface ChatMessage {
@@ -45,6 +46,9 @@ export interface CalendarEvent {
   start_time?: string;
   end_time?: string;
   description?: string;
+  priority?: 'high' | 'normal' | 'low';
+  delivery_url?: string;
+  is_completed?: boolean;
   created_by?: string;
   created_by_name?: string;
   created_at?: string;

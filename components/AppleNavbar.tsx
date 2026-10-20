@@ -210,10 +210,16 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
               {/* User Avatar & Logout */}
               <div className="flex items-center gap-1.5">
                 <div
-                  title={`@${user.username} (${rank?.name || 'Usuario'})`}
-                  className="w-7 h-7 rounded-xl bg-white/[0.08] border border-white/10 flex items-center justify-center font-mono font-bold text-xs text-zinc-200 select-none uppercase"
+                  title={`@${user.username} (${user.role === 'admin' || user.role === 'delegado' ? 'Delegado / Admin' : rank?.name || 'Alumno'})`}
+                  className="relative w-7 h-7 rounded-xl bg-white/[0.08] border border-white/10 flex items-center justify-center font-mono font-bold text-xs text-zinc-200 select-none uppercase"
                 >
                   {user.username.charAt(0)}
+                  {(user.role === 'admin' || user.role === 'delegado') && (
+                    <span
+                      title="Delegado de clase"
+                      className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-black"
+                    />
+                  )}
                 </div>
 
                 <button
