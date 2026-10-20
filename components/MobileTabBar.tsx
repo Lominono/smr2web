@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Target, TrendingUp, Calendar, MessageSquare, Trophy } from 'lucide-react';
+import { Target, TrendingUp, Calendar, MessageSquare, Trophy, Server } from 'lucide-react';
 import { sound } from '@/lib/audio';
 
 interface MobileTabBarProps {
-  activeTab: 'angry' | 'crash' | 'calendar';
-  onSelectTab: (tab: 'angry' | 'crash' | 'calendar') => void;
+  activeTab: 'angry' | 'crash' | 'mines' | 'calendar';
+  onSelectTab: (tab: 'angry' | 'crash' | 'mines' | 'calendar') => void;
   isChatOpen: boolean;
   onToggleChat: () => void;
   onOpenLeaderboard: () => void;
@@ -24,16 +24,16 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   return (
     <nav
       aria-label="Navegación móvil"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#09090b]/90 backdrop-blur-2xl border-t border-white/[0.08] px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_25px_rgba(0,0,0,0.6)]"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#09090b]/90 backdrop-blur-2xl border-t border-white/[0.08] px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_25px_rgba(0,0,0,0.6)]"
     >
-      <div className="max-w-md mx-auto grid grid-cols-5 gap-1 items-center">
+      <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5 items-center">
         {/* Slingshot */}
         <button
           onClick={() => {
             onSelectTab('angry');
             sound.tap();
           }}
-          className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all cursor-pointer ${
+          className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer ${
             activeTab === 'angry'
               ? 'text-white'
               : 'text-zinc-500 hover:text-zinc-300'
@@ -44,9 +44,9 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               activeTab === 'angry' ? 'bg-emerald-500/15 text-emerald-400' : ''
             }`}
           >
-            <Target className="w-5 h-5" />
+            <Target className="w-4 h-4" />
           </div>
-          <span className="text-[10px] font-mono tracking-tight font-medium mt-0.5">
+          <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
             Slingshot
           </span>
         </button>
@@ -57,7 +57,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
             onSelectTab('crash');
             sound.tap();
           }}
-          className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all cursor-pointer ${
+          className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer ${
             activeTab === 'crash'
               ? 'text-white'
               : 'text-zinc-500 hover:text-zinc-300'
@@ -68,10 +68,34 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               activeTab === 'crash' ? 'bg-rose-500/15 text-rose-400' : ''
             }`}
           >
-            <TrendingUp className="w-5 h-5" />
+            <TrendingUp className="w-4 h-4" />
           </div>
-          <span className="text-[10px] font-mono tracking-tight font-medium mt-0.5">
+          <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
             Crash
+          </span>
+        </button>
+
+        {/* Minas */}
+        <button
+          onClick={() => {
+            onSelectTab('mines');
+            sound.tap();
+          }}
+          className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'mines'
+              ? 'text-white'
+              : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <div
+            className={`p-1 rounded-lg transition-all ${
+              activeTab === 'mines' ? 'bg-amber-500/15 text-amber-400' : ''
+            }`}
+          >
+            <Server className="w-4 h-4" />
+          </div>
+          <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
+            Minas
           </span>
         </button>
 
@@ -81,7 +105,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
             onSelectTab('calendar');
             sound.tap();
           }}
-          className={`relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all cursor-pointer ${
+          className={`relative flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer ${
             activeTab === 'calendar'
               ? 'text-white'
               : 'text-zinc-500 hover:text-zinc-300'
@@ -92,12 +116,12 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               activeTab === 'calendar' ? 'bg-blue-500/15 text-blue-400' : ''
             }`}
           >
-            <Calendar className="w-5 h-5" />
+            <Calendar className="w-4 h-4" />
             {isLiveActive && (
-              <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-black animate-pulse" />
+              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-1 ring-black animate-pulse" />
             )}
           </div>
-          <span className="text-[10px] font-mono tracking-tight font-medium mt-0.5">
+          <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
             Horario
           </span>
         </button>
@@ -108,7 +132,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
             onToggleChat();
             sound.tap();
           }}
-          className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all cursor-pointer ${
+          className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer ${
             isChatOpen
               ? 'text-white'
               : 'text-zinc-500 hover:text-zinc-300'
@@ -119,9 +143,9 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               isChatOpen ? 'bg-white/15 text-white' : ''
             }`}
           >
-            <MessageSquare className="w-5 h-5" />
+            <MessageSquare className="w-4 h-4" />
           </div>
-          <span className="text-[10px] font-mono tracking-tight font-medium mt-0.5">
+          <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
             Chat
           </span>
         </button>
@@ -132,12 +156,12 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
             onOpenLeaderboard();
             sound.tap();
           }}
-          className="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all cursor-pointer text-zinc-500 hover:text-zinc-300"
+          className="flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer text-zinc-500 hover:text-zinc-300"
         >
           <div className="p-1 rounded-lg">
-            <Trophy className="w-5 h-5 text-amber-400/80" />
+            <Trophy className="w-4 h-4 text-amber-400/80" />
           </div>
-          <span className="text-[10px] font-mono tracking-tight font-medium mt-0.5">
+          <span className="text-[9px] font-mono tracking-tight font-medium mt-0.5">
             Top
           </span>
         </button>

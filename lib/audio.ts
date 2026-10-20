@@ -230,6 +230,32 @@ class SoundFX {
     osc.stop(this.ctx.currentTime + 0.45);
   }
 
+  // Gem / Server reveal chime with rising pitch
+  gemPing(step: number = 0) {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const baseFreq = 523.25; // C5
+    const freq = baseFreq * Math.pow(1.06, Math.min(step, 20));
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.5, this.ctx.currentTime + 0.08);
+
+    gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.14);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.14);
+  }
+
   // Broke / bankrupt
   broke() {
     if (!this.enabled) return;

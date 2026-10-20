@@ -14,6 +14,7 @@ import {
   Target,
   TrendingUp,
   Gamepad2,
+  Server,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -31,8 +32,8 @@ interface AppleNavbarProps {
   isChatOpen: boolean;
   soundEnabled: boolean;
   onToggleSound: () => void;
-  activeTab?: 'angry' | 'crash' | 'calendar';
-  onSelectTab?: (tab: 'angry' | 'crash' | 'calendar') => void;
+  activeTab?: 'angry' | 'crash' | 'mines' | 'calendar';
+  onSelectTab?: (tab: 'angry' | 'crash' | 'mines' | 'calendar') => void;
 }
 
 export const AppleNavbar: React.FC<AppleNavbarProps> = ({
@@ -135,6 +136,22 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             >
               <TrendingUp className="w-3.5 h-3.5 text-rose-400" />
               <span>Crash</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onSelectTab('mines');
+                sound.tap();
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+                activeTab === 'mines'
+                  ? 'bg-white text-black font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Server className="w-3.5 h-3.5 text-amber-400" />
+              <span>Minas</span>
             </button>
           </nav>
         )}
