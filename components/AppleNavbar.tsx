@@ -15,6 +15,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
+import { getUserRank } from '@/lib/economy';
 import { sound } from '@/lib/audio';
 
 interface AppleNavbarProps {
@@ -48,24 +49,35 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
   activeTab = 'calendar',
   onSelectTab,
 }) => {
+  const rank = user ? getUserRank(user.coins) : null;
+
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#070709]/85 backdrop-blur-2xl transition-all">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-3">
-        {/* Brand Lockup with New Logo */}
+        {/* Brand Lockup with PNG Logo */}
         <div className="flex items-center gap-3">
           <div
             onClick={() => onSelectTab && onSelectTab('calendar')}
-            className="flex items-center gap-2.5 cursor-pointer group select-none"
+            className="flex items-center gap-2.5 cursor-pointer select-none"
           >
             <img
               src="/logo.png"
               alt="SMR2"
-              className="w-8 h-8 rounded-xl object-cover border border-white/10 shadow-sm"
+              className="w-8 h-8 object-contain drop-shadow-sm"
             />
             <div className="flex flex-col">
-              <span className="text-sm font-bold tracking-tight text-white font-mono leading-none">
-                SMR2
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-bold tracking-tight text-white font-mono leading-none">
+                  SMR2
+                </span>
+                {rank && (
+                  <span
+                    className={`text-[9px] font-mono px-1 py-0.2 rounded border font-semibold ${rank.bg} ${rank.color} ${rank.border}`}
+                  >
+                    {rank.name}
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] text-zinc-500 font-mono leading-tight mt-0.5">
                 2º Sistemas y Redes
               </span>
@@ -188,7 +200,7 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                     onOpenFaucet();
                     sound.tap();
                   }}
-                  title="Recargar"
+                  title="Fondo de rescate y recargas"
                   className="ml-1 w-4 h-4 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 flex items-center justify-center text-[10px] font-bold transition-all cursor-pointer active:scale-90"
                 >
                   <Plus className="w-2.5 h-2.5" />
@@ -198,7 +210,7 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
               {/* User Avatar & Logout */}
               <div className="flex items-center gap-1.5">
                 <div
-                  title={`@${user.username}`}
+                  title={`@${user.username} (${rank?.name || 'Usuario'})`}
                   className="w-7 h-7 rounded-xl bg-white/[0.08] border border-white/10 flex items-center justify-center font-mono font-bold text-xs text-zinc-200 select-none uppercase"
                 >
                   {user.username.charAt(0)}
@@ -209,7 +221,7 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                     onSignOut();
                     sound.tap();
                   }}
-                  title="Salir"
+                  title="Cerrar sesión"
                   className="w-7 h-7 rounded-xl text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 flex items-center justify-center transition-all cursor-pointer active:scale-95"
                 >
                   <LogOut className="w-3.5 h-3.5" />

@@ -1,17 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  Lock,
-  Mail,
-  User,
-  ArrowRight,
-  AlertCircle,
-  Zap,
-} from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { sound } from '@/lib/audio';
 import { UserProfile } from '@/lib/types';
+import {
+  saveUserSession,
+  registerLocalUser,
+  loginLocalUser,
+  translateAuthError,
+} from '@/lib/authSession';
 
 interface AuthGateProps {
   onAuthSuccess: (user: UserProfile) => void;
@@ -34,17 +33,14 @@ export const AuthGate: React.FC<AuthGateProps> = ({
     setError(null);
     setLoading(true);
 
+    const hasSupabase = isSupabaseConfigured();
     const supabase = createClient();
-
-    if (!supabase) {
-      setLoading(false);
-      setError('Falta configurar las variables de Supabase en .env.local');
-      return;
-    }
 
     try {
       if (mode === 'register') {
         const cleanUsername = username.trim().toLowerCase().replace(/\s+/g, '_');
+        const cleanEmail = email.trim().toLowerCase();
+
         if (cleanUsername.length < 3) {
           setError('El usuario debe tener al menos 3 caracteres');
           setLoading(false);
@@ -52,130 +48,136 @@ export const AuthGate: React.FC<AuthGateProps> = ({
           return;
         }
 
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: {
-            data: {
-              username: cleanUsername,
-            },
-          },
-        });
-
-        if (signUpError) {
-          setError(signUpError.message);
-          sound.broke();
-          setLoading(false);
-          return;
-        }
-
-        if (data.user) {
-          const profile: UserProfile = {
-            id: data.user.id,
-            username: cleanUsername,
-            email: data.user.email,
-            coins: 1000,
-            biggest_win: 0,
-            created_at: new Date().toISOString(),
-          };
-
+        if (hasSupabase && supabase) {
           try {
-            await supabase.from('profiles').insert([profile]);
-          } catch {}
+            const { data, error: signUpError } = await supabase.auth.signUp({
+              email: cleanEmail,
+              password,
+              options: {
+                data: {
+                  username: cleanUsername,
+                },
+              },
+            });
 
-          sound.coinWin();
-          onAuthSuccess(profile);
+            if (signUpError) throw signUpError;
+
+            if (data.user) {
+              const profile: UserProfile = {
+                id: data.user.id,
+                username: cleanUsername,
+                email: data.user.email || cleanEmail,
+                coins: 1000,
+                biggest_win: 0,
+                streak_count: 1,
+                created_at: new Date().toISOString(),
+                auth_provider: 'supabase',
+              };
+
+              try {
+                await supabase.from('profiles').insert([
+                  {
+                    id: profile.id,
+                    username: profile.username,
+                    coins: profile.coins,
+                    biggest_win: profile.biggest_win,
+                    streak_count: 1,
+                  },
+                ]);
+              } catch {}
+
+              saveUserSession(profile, true);
+              sound.coinWin();
+              onAuthSuccess(profile);
+              return;
+            }
+          } catch (supErr: any) {
+            console.warn('Supabase register fallback:', supErr);
+          }
         }
+
+        // Local registration fallback
+        const localProfile = await registerLocalUser(cleanUsername, cleanEmail, password, true);
+        saveUserSession(localProfile, true);
+        sound.coinWin();
+        onAuthSuccess(localProfile);
       } else {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+        const cleanIdentifier = email.trim().toLowerCase();
 
-        if (signInError) {
-          setError(
-            signInError.message === 'Invalid login credentials'
-              ? 'Correo o contraseña incorrectos'
-              : signInError.message
-          );
-          sound.broke();
-          setLoading(false);
-          return;
+        if (hasSupabase && supabase && cleanIdentifier.includes('@')) {
+          try {
+            const { data, error: signInError } = await supabase.auth.signInWithPassword({
+              email: cleanIdentifier,
+              password,
+            });
+
+            if (!signInError && data.user) {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', data.user.id)
+                .single();
+
+              const profile: UserProfile = {
+                id: data.user.id,
+                username: profileData?.username || data.user.email?.split('@')[0] || cleanIdentifier,
+                email: data.user.email,
+                coins: Number(profileData?.coins ?? 1000),
+                biggest_win: Number(profileData?.biggest_win ?? 0),
+                streak_count: profileData?.streak_count ? Number(profileData.streak_count) : 1,
+                last_claim_date: profileData?.last_claim_date || undefined,
+                created_at: profileData?.created_at,
+                auth_provider: 'supabase',
+              };
+
+              saveUserSession(profile, true);
+              sound.coinWin();
+              onAuthSuccess(profile);
+              return;
+            }
+          } catch (supErr: any) {
+            console.warn('Supabase login fallback:', supErr);
+          }
         }
 
-        if (data.user) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-
-          const profile: UserProfile = {
-            id: data.user.id,
-            username: profileData?.username || data.user.email?.split('@')[0] || 'usuario',
-            email: data.user.email,
-            coins: Number(profileData?.coins ?? 1000),
-            biggest_win: Number(profileData?.biggest_win ?? 0),
-            created_at: profileData?.created_at,
-          };
-
-          sound.coinWin();
-          onAuthSuccess(profile);
-        }
+        // Local login fallback
+        const localProfile = await loginLocalUser(cleanIdentifier, password, true);
+        saveUserSession(localProfile, true);
+        sound.coinWin();
+        onAuthSuccess(localProfile);
       }
     } catch (err: any) {
-      setError(err?.message || 'Error de conexión');
+      setError(translateAuthError(err));
       sound.broke();
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDemoAccess = () => {
-    sound.tap();
-    const demoProfile: UserProfile = {
-      id: 'demo-' + Math.random().toString(36).substring(2, 7),
-      username: 'invitado',
-      email: 'invitado@smr2.local',
-      coins: 1000,
-      biggest_win: 0,
-      created_at: new Date().toISOString(),
-    };
-    onAuthSuccess(demoProfile);
-  };
-
   return (
-    <div className="min-h-screen relative flex flex-col justify-between items-center bg-[#070709] bg-dot-matrix text-white p-4 sm:p-6 selection:bg-white selection:text-black">
-      {/* Ambient Lighting Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-b from-emerald-500/10 via-blue-500/5 to-transparent blur-3xl pointer-events-none" />
+    <div className="min-h-screen relative flex flex-col justify-center items-center bg-[#070709] bg-dot-matrix text-white p-4 selection:bg-white selection:text-black">
+      {/* Subtle ambient light */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-emerald-500/5 blur-3xl pointer-events-none" />
 
-      {/* Top Bar */}
-      <header className="relative z-10 w-full max-w-sm flex items-center justify-between pt-2">
-        <span className="text-xs font-mono text-zinc-500">2º SMR</span>
-        <span className="text-xs font-mono text-zinc-600">v2.0</span>
-      </header>
-
-      {/* Centered Minimalist Card */}
-      <main className="relative z-10 w-full max-w-sm my-auto py-6">
-        <div className="glass-panel rounded-3xl p-6 sm:p-7 shadow-2xl border border-white/[0.08]">
-          {/* Logo & Title */}
+      {/* Auth Card */}
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="glass-panel rounded-3xl p-7 shadow-2xl border border-white/[0.08]">
+          {/* Logo with natural PNG transparency */}
           <div className="flex flex-col items-center text-center mb-6">
-            <div className="relative mb-3">
-              <img
-                src="/logo.png"
-                alt="SMR2 Logo"
-                className="w-20 h-20 rounded-2xl object-cover border border-white/10 shadow-lg shadow-black/60"
-              />
-            </div>
+            <img
+              src="/logo.png"
+              alt="SMR2"
+              className="w-24 h-24 object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.6)] mb-2 select-none"
+            />
             <h1 className="text-xl font-bold font-mono tracking-tight text-white">
               SMR2
             </h1>
             <p className="text-xs text-zinc-500 font-mono mt-0.5">
-              Horario y aula de 2º SMR
+              Acceso a la plataforma
             </p>
           </div>
 
-          {/* Mode Tabs */}
+          {/* Mode Switcher */}
           <div className="p-1 rounded-2xl bg-black/60 border border-white/[0.08] flex items-center mb-5">
             <button
               type="button"
@@ -240,14 +242,14 @@ export const AuthGate: React.FC<AuthGateProps> = ({
 
             <div>
               <label className="block text-xs font-mono text-zinc-400 mb-1">
-                Correo
+                {mode === 'login' ? 'Correo o usuario' : 'Correo electrónico'}
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3" />
                 <input
-                  type="email"
+                  type={mode === 'login' ? 'text' : 'email'}
                   required
-                  placeholder="alumno@ejemplo.com"
+                  placeholder={mode === 'login' ? 'alumno@ejemplo.com o tu usuario' : 'alumno@ejemplo.com'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full min-h-[42px] pl-10 pr-3.5 py-2 bg-black/40 border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30 font-sans transition-colors"
@@ -276,31 +278,17 @@ export const AuthGate: React.FC<AuthGateProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full min-h-[46px] mt-2 py-3 px-4 rounded-xl font-mono text-xs font-bold bg-white hover:bg-zinc-200 text-black shadow-md active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full min-h-[44px] mt-2 py-2.5 px-4 rounded-xl font-mono text-xs font-bold bg-white hover:bg-zinc-200 text-black shadow-md active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <span>{loading ? 'Entrando...' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>{loading ? 'Verificando...' : mode === 'login' ? 'Iniciar sesión' : 'Registrarse'}</span>
             </button>
           </form>
-
-          {/* Quick guest access */}
-          <div className="mt-4 pt-3.5 border-t border-white/[0.06] text-center">
-            <button
-              type="button"
-              onClick={handleDemoAccess}
-              className="w-full py-2 px-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-xs font-mono text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
-            >
-              <Zap className="w-3 h-3 text-amber-400" />
-              <span>Entrar como invitado</span>
-            </button>
-          </div>
         </div>
-      </main>
 
-      {/* Clean Footer */}
-      <footer className="relative z-10 w-full max-w-sm text-center text-[11px] text-zinc-600 font-mono pb-2">
-        <span>SMR2 · Curso 2024–2025</span>
-      </footer>
+        <p className="text-center text-[11px] text-zinc-600 font-mono mt-4">
+          2º Sistemas Microinformáticos y Redes
+        </p>
+      </div>
     </div>
   );
 };

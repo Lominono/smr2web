@@ -4,7 +4,10 @@ export interface UserProfile {
   email?: string;
   coins: number;
   biggest_win: number;
+  streak_count?: number;
+  last_claim_date?: string;
   created_at?: string;
+  auth_provider?: 'supabase' | 'local';
 }
 
 export interface ChatMessage {

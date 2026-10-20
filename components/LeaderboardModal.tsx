@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { LeaderboardEntry } from '@/lib/types';
+import { getUserRank } from '@/lib/economy';
 import { Trophy, Coins, X, User } from 'lucide-react';
 
 interface LeaderboardModalProps {
@@ -56,6 +57,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
           ) : (
             sorted.map((item, idx) => {
               const isTop1 = idx === 0;
+              const rank = getUserRank(item.coins);
 
               return (
                 <div
@@ -88,6 +90,11 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         <span className="text-sm font-bold text-white font-mono">
                           @{item.username}
                         </span>
+                        <span
+                          className={`text-[9px] font-mono px-1 py-0.2 rounded border font-semibold ${rank.bg} ${rank.color} ${rank.border}`}
+                        >
+                          {rank.name}
+                        </span>
                         {item.is_current_user && (
                           <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/20 text-white border border-white/30">
                             TÚ
@@ -101,8 +108,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   </div>
 
                   <div className="text-right">
-                    <div className="flex items-center justify-end gap-1.5 font-mono text-sm font-bold text-white">
-                      <Coins className="w-3.5 h-3.5 text-amber-400" />
+                    <div className="flex items-center justify-end gap-1 font-mono font-bold text-sm text-amber-400">
+                      <Coins className="w-3.5 h-3.5" />
                       <span>{item.coins.toLocaleString('es-ES')}</span>
                     </div>
                   </div>
@@ -110,16 +117,6 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
               );
             })
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 bg-black/40 border-t border-white/[0.08] flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 rounded-xl text-xs font-mono font-bold bg-white/10 hover:bg-white/20 text-white transition-colors"
-          >
-            Cerrar
-          </button>
         </div>
       </div>
     </div>

@@ -13,8 +13,14 @@ import { ScheduleCalendarView } from '@/components/ScheduleCalendarView';
 import { MobileTabBar } from '@/components/MobileTabBar';
 import { UserProfile, ChatMessage, LeaderboardEntry } from '@/lib/types';
 import { sound } from '@/lib/audio';
-import { createClient } from '@/lib/supabase/client';
-import { Target, TrendingUp, AlertCircle, MessageSquare, Calendar } from 'lucide-react';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import {
+  getUserSession,
+  saveUserSession,
+  clearUserSession,
+  updateSessionCoins,
+} from '@/lib/authSession';
+import { Target, TrendingUp, AlertCircle, MessageSquare, Calendar, Cookie } from 'lucide-react';
 
 export default function Home() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -62,24 +68,33 @@ export default function Home() {
         .single();
 
       if (data) {
-        setUser({
+        const profile: UserProfile = {
           id: data.id,
           username: data.username,
           email,
           coins: Number(data.coins),
           biggest_win: Number(data.biggest_win),
+          streak_count: data.streak_count ? Number(data.streak_count) : 1,
+          last_claim_date: data.last_claim_date || undefined,
           created_at: data.created_at,
-        });
+          auth_provider: 'supabase',
+        };
+        setUser(profile);
+        saveUserSession(profile, true);
       } else {
         const fallbackUsername = email ? email.split('@')[0] : `user_${userId.slice(0, 5)}`;
-        const newProfile = {
+        const newProfile: UserProfile = {
           id: userId,
           username: fallbackUsername,
+          email,
           coins: 1000,
           biggest_win: 0,
+          streak_count: 1,
+          auth_provider: 'supabase',
         };
         await supabase.from('profiles').insert([newProfile]);
         setUser(newProfile);
+        saveUserSession(newProfile, true);
       }
     } catch (err) {
       console.warn('Error al cargar perfil:', err);
@@ -130,10 +145,27 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // 1. Synchronously read local cookie session first for instant resume without flashing
+    const cachedSession = getUserSession();
+    if (cachedSession) {
+      setUser(cachedSession);
+      setAuthLoading(false);
+    }
+
+    const isConfigured = isSupabaseConfigured();
+    setSupabaseConfigured(isConfigured);
+
+    if (!isConfigured) {
+      // Running in local/offline mode
+      if (!cachedSession) {
+        setAuthLoading(false);
+      }
+      return;
+    }
+
     const supabase = createClient();
     if (!supabase) {
-      setSupabaseConfigured(false);
-      setAuthLoading(false);
+      if (!cachedSession) setAuthLoading(false);
       return;
     }
 
@@ -143,16 +175,25 @@ export default function Home() {
         if (authUser) {
           fetchUserProfile(authUser.id, authUser.email).finally(() => setAuthLoading(false));
         } else {
+          // If Supabase has no active session but user has a saved local session, keep cookie session
+          if (cachedSession?.auth_provider === 'supabase') {
+            setUser(null);
+            clearUserSession();
+          }
           setAuthLoading(false);
         }
       })
-      .catch(() => setAuthLoading(false));
+      .catch(() => {
+        // Network/connection issue, keep local cookie session if present
+        setAuthLoading(false);
+      });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         fetchUserProfile(session.user.id, session.user.email).finally(() => setAuthLoading(false));
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
+        clearUserSession();
         setAuthLoading(false);
       }
     });
@@ -203,15 +244,17 @@ export default function Home() {
         (payload) => {
           const updated = payload.new as any;
           if (updated) {
-            setUser((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    coins: Number(updated.coins),
-                    biggest_win: Number(updated.biggest_win),
-                  }
-                : null
-            );
+            setUser((prev) => {
+              if (!prev) return null;
+              const nextCoins = Number(updated.coins);
+              const nextBiggest = Number(updated.biggest_win);
+              updateSessionCoins(nextCoins, nextBiggest);
+              return {
+                ...prev,
+                coins: nextCoins,
+                biggest_win: nextBiggest,
+              };
+            });
           }
         }
       )
@@ -229,9 +272,12 @@ export default function Home() {
   }, [isLeaderboardOpen, user]);
 
   const handleSignOut = async () => {
+    clearUserSession();
     const supabase = createClient();
     if (supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch {}
     }
     setUser(null);
   };
@@ -246,6 +292,7 @@ export default function Home() {
     const isWin = delta > 0;
     const nextBiggestWin = isWin && delta > user.biggest_win ? delta : user.biggest_win;
 
+    // 1. Update React state
     setUser((prev) =>
       prev
         ? {
@@ -256,12 +303,60 @@ export default function Home() {
         : null
     );
 
+    // 2. Persist in cookies & localStorage
+    updateSessionCoins(nextCoins, nextBiggestWin);
+
+    // 3. Update Supabase profiles table if connected and user is supabase-authenticated
     const supabase = createClient();
-    if (supabase) {
-      await supabase
-        .from('profiles')
-        .update({ coins: nextCoins, biggest_win: nextBiggestWin })
-        .eq('id', user.id);
+    if (supabase && user.auth_provider === 'supabase') {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ coins: nextCoins, biggest_win: nextBiggestWin })
+          .eq('id', user.id);
+      } catch (err) {
+        console.warn('Could not sync coins to Supabase:', err);
+      }
+    }
+  };
+
+  const handleClaimCoins = async (amount: number, newStreak?: number) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+
+    const nextCoins = user.coins + amount;
+    const todayStr = new Date().toISOString();
+    const nextStreakVal = newStreak !== undefined ? newStreak : user.streak_count ?? 1;
+
+    setUser((prev) =>
+      prev
+        ? {
+            ...prev,
+            coins: nextCoins,
+            streak_count: nextStreakVal,
+            last_claim_date: todayStr,
+          }
+        : null
+    );
+
+    updateSessionCoins(nextCoins, undefined, nextStreakVal, todayStr);
+
+    const supabase = createClient();
+    if (supabase && user.auth_provider === 'supabase') {
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            coins: nextCoins,
+            streak_count: nextStreakVal,
+            last_claim_date: todayStr,
+          })
+          .eq('id', user.id);
+      } catch (err) {
+        console.warn('Could not sync streak/coins to Supabase:', err);
+      }
     }
   };
 
@@ -350,13 +445,13 @@ export default function Home() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#070709] bg-dot-matrix flex flex-col items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-2.5 animate-pulse">
+        <div className="flex flex-col items-center gap-3 animate-pulse">
           <img
             src="/logo.png"
             alt="SMR2 Logo"
-            className="w-14 h-14 rounded-2xl object-cover border border-white/10 shadow-lg"
+            className="w-16 h-16 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.7)]"
           />
-          <span className="text-sm font-bold tracking-tight text-white font-mono">
+          <span className="text-sm font-semibold tracking-tight text-white font-mono">
             SMR2
           </span>
         </div>
@@ -403,9 +498,12 @@ export default function Home() {
       {/* Main Container */}
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-28 lg:pb-8">
         {!supabaseConfigured && (
-          <div className="p-3.5 rounded-2xl bg-amber-500/[0.08] border border-amber-500/20 text-xs font-mono text-amber-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>Configura NEXT_PUBLIC_SUPABASE_URL y ANON_KEY en tu .env.local para sincronizar la base de datos.</span>
+          <div className="p-3 rounded-2xl bg-emerald-500/[0.08] border border-emerald-500/20 text-xs font-mono text-emerald-300 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Cookie className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Modo Local Activo: tu cuenta, sesión y saldo quedan guardados en cookies locales en este equipo.</span>
+            </div>
+            <span className="hidden sm:inline-block text-[10px] text-zinc-500 font-mono">Cookies: 365 días</span>
           </div>
         )}
 
@@ -530,21 +628,17 @@ export default function Home() {
       <FaucetModal
         isOpen={isFaucetOpen}
         onClose={() => setIsFaucetOpen(false)}
-        onClaimCoins={(amount) => handleUpdateCoins(amount)}
+        currentUser={user}
+        onClaimCoins={handleClaimCoins}
       />
 
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
-        onAuthSuccess={() => {
-          const supabase = createClient();
-          if (supabase) {
-            supabase.auth.getUser().then(({ data: { user: authUser } }) => {
-              if (authUser) fetchUserProfile(authUser.id, authUser.email);
-            });
-            fetchMessages();
-            fetchLeaderboard();
-          }
+        onAuthSuccess={(newProfile) => {
+          setUser(newProfile);
+          fetchMessages();
+          fetchLeaderboard();
         }}
       />
 
@@ -552,7 +646,7 @@ export default function Home() {
       <footer className="border-t border-white/[0.06] bg-black/60 py-4 mt-8 mb-16 lg:mb-0 text-center text-[11px] text-zinc-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="SMR2" className="w-4 h-4 rounded object-cover" />
+            <img src="/logo.png" alt="SMR2" className="w-5 h-5 object-contain" />
             <span>SMR2 · 2º Sistemas Microinformáticos y Redes</span>
           </div>
           <div className="text-zinc-600">
