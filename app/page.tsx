@@ -11,6 +11,9 @@ import { AuthModal } from '@/components/AuthModal';
 import { AuthGate } from '@/components/AuthGate';
 import { ScheduleCalendarView } from '@/components/ScheduleCalendarView';
 import { MobileTabBar } from '@/components/MobileTabBar';
+import { MinecraftBanner } from '@/components/MinecraftBanner';
+import { TermsModal } from '@/components/TermsModal';
+import { CookieBanner } from '@/components/CookieBanner';
 import { UserProfile, ChatMessage, LeaderboardEntry } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
@@ -32,6 +35,7 @@ export default function Home() {
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
 
@@ -499,6 +503,9 @@ export default function Home() {
 
       {/* Main Container */}
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-28 lg:pb-8">
+        {/* Marco Antonio's Minecraft Client Promo Banner */}
+        <MinecraftBanner />
+
         {!supabaseConfigured && (
           <div className="p-3 rounded-2xl bg-emerald-500/[0.08] border border-emerald-500/20 text-xs font-mono text-emerald-300 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -645,15 +652,35 @@ export default function Home() {
         }}
       />
 
+      <TermsModal
+        isOpen={isTermsOpen}
+        onClose={() => setIsTermsOpen(false)}
+      />
+
+      <CookieBanner
+        onOpenTerms={() => setIsTermsOpen(true)}
+      />
+
       {/* Footer */}
       <footer className="border-t border-white/[0.06] bg-black/60 py-4 mt-8 mb-16 lg:mb-0 text-center text-[11px] text-zinc-500 font-mono">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="SMR2" className="w-5 h-5 object-contain" />
             <span>SMR2 · 2º Sistemas Microinformáticos y Redes</span>
           </div>
-          <div className="text-zinc-600">
-            Curso 2024–2025
+
+          <div className="flex items-center gap-4 text-zinc-400">
+            <button
+              type="button"
+              onClick={() => {
+                setIsTermsOpen(true);
+                sound.tap();
+              }}
+              className="hover:text-amber-400 transition-colors cursor-pointer underline underline-offset-2"
+            >
+              Normas, Cookies & Contacto legal
+            </button>
+            <span className="text-zinc-600">Curso 2024–2025</span>
           </div>
         </div>
       </footer>

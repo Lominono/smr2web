@@ -2,22 +2,37 @@
 -- 01. PERFILES, ROLES Y ECONOMÍA (SMR2)
 -- ==============================================================
 -- Descripción:
--- Añade soporte para roles (estudiante, delegado, admin), correo,
--- racha de días consecutivos y fecha de último reclamo sin perder datos.
+-- Crea o actualiza la tabla 'profiles' para almacenar la cuenta,
+-- saldo de monedas virtuales, rol (estudiante, delegado, admin),
+-- racha de días de reclamo diario y récord de mayor premio.
 -- ==============================================================
 
--- 1. Añadir columnas nuevas a la tabla 'profiles' de forma segura
+-- 1. Crear tabla 'profiles' si no existe
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT UNIQUE NOT NULL,
+  email TEXT,
+  coins BIGINT DEFAULT 1000 NOT NULL,
+  biggest_win BIGINT DEFAULT 0 NOT NULL,
+  streak_count INTEGER DEFAULT 1 NOT NULL,
+  last_claim_date TIMESTAMP WITH TIME ZONE,
+  role TEXT DEFAULT 'student' CHECK (role IN ('student', 'delegado', 'admin')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 2. Asegurar que las columnas nuevas existan si la tabla ya estaba creada previamente
 ALTER TABLE public.profiles 
   ADD COLUMN IF NOT EXISTS email TEXT,
   ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'student' CHECK (role IN ('student', 'delegado', 'admin')),
   ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 1,
   ADD COLUMN IF NOT EXISTS last_claim_date TIMESTAMP WITH TIME ZONE;
 
--- 2. Índice para acelerar búsquedas de usuarios por apodo o rol
+-- 3. Índices para consultas ultra rápidas
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON public.profiles(username);
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
+CREATE INDEX IF NOT EXISTS idx_profiles_coins ON public.profiles(coins DESC);
 
--- 3. Actualizar función automática para nuevos registros en Supabase Auth
+-- 4. Disparador automático para crear perfil cuando alguien se registra
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -41,7 +56,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Re-vincular el disparador
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
@@ -49,6 +63,5 @@ CREATE TRIGGER on_auth_user_created
 
 -- ==============================================================
 -- CÓMO HACERTE DELEGADO O ADMIN:
--- Ejecuta esta línea sustituyendo 'tu_apodo' por tu nombre de usuario:
--- UPDATE public.profiles SET role = 'admin' WHERE username = 'tu_apodo';
+-- UPDATE public.profiles SET role = 'admin' WHERE username = 'tu_usuario';
 -- ==============================================================

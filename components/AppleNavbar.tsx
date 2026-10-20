@@ -13,6 +13,7 @@ import {
   Calendar,
   Target,
   TrendingUp,
+  Gamepad2,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -140,6 +141,18 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          {/* Minecraft Client Community Link */}
+          <a
+            href="https://nightverixclient.netlify.app/download-alpha"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Descargar Cliente Minecraft (Marco Antonio)"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-xs font-mono text-emerald-300 hover:text-emerald-200 transition-all cursor-pointer active:scale-95"
+          >
+            <Gamepad2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden lg:inline">Minecraft Alpha</span>
+          </a>
+
           {/* Sound Toggle */}
           <button
             onClick={() => {

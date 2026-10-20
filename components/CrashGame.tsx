@@ -3,7 +3,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { sound } from '@/lib/audio';
 import { CrashHistoryItem } from '@/lib/types';
-import { TrendingUp, AlertTriangle, Coins, Zap, Trophy, ShieldAlert } from 'lucide-react';
+import {
+  TrendingUp,
+  AlertTriangle,
+  Coins,
+  Zap,
+  Trophy,
+  ShieldAlert,
+  Flame,
+  Activity,
+  Check,
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface CrashGameProps {
@@ -24,8 +34,12 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     { id: 'init-2', crashPoint: 1.38, timestamp: '2m' },
     { id: 'init-3', crashPoint: 5.72, timestamp: '4m' },
     { id: 'init-4', crashPoint: 1.12, timestamp: '5m' },
+    { id: 'init-5', crashPoint: 3.45, timestamp: '7m' },
+    { id: 'init-6', crashPoint: 8.90, timestamp: '9m' },
   ]);
   const [bet, setBet] = useState<number>(100);
+  const [autoCashoutEnabled, setAutoCashoutEnabled] = useState<boolean>(false);
+  const [autoCashoutMult, setAutoCashoutMult] = useState<number>(2.0);
   const [gameState, setGameState] = useState<'idle' | 'running' | 'crashed'>('idle');
   const [currentMultiplier, setCurrentMultiplier] = useState<number>(1.0);
   const [hasCashedOut, setHasCashedOut] = useState<boolean>(false);
@@ -35,6 +49,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
   const crashPointRef = useRef<number>(2.0);
   const animFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
+  const autoCashedRef = useRef<boolean>(false);
 
   const LOGICAL_WIDTH = 840;
   const LOGICAL_HEIGHT = 340;
@@ -48,6 +63,32 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     if (h % 33 === 0) return 1.0;
     const crash = Math.floor((100 * e - h) / (e - h)) / 100;
     return Math.min(Math.max(crash, 1.1), 50.0);
+  };
+
+  const cashOutAt = (multToCash: number) => {
+    if (hasCashedOut || autoCashedRef.current) return;
+    autoCashedRef.current = true;
+
+    const win = Math.round(bet * multToCash);
+    setHasCashedOut(true);
+    setCashedAmount(win);
+    setCashedMultiplier(multToCash);
+    onUpdateCoins(win);
+    sound.coinWin();
+
+    if (multToCash >= 2.5) {
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        origin: { y: 0.6 },
+      });
+      onBroadcastWin('crash', multToCash, win);
+    }
+  };
+
+  const cashOut = () => {
+    if (gameState !== 'running' || hasCashedOut) return;
+    cashOutAt(currentMultiplier);
   };
 
   const startGame = () => {
@@ -64,6 +105,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     crashPointRef.current = targetCrash;
     setGameState('running');
     setHasCashedOut(false);
+    autoCashedRef.current = false;
     setCashedAmount(null);
     setCashedMultiplier(null);
     setCurrentMultiplier(1.0);
@@ -73,6 +115,16 @@ export const CrashGame: React.FC<CrashGameProps> = ({
       const elapsed = (now - startTimeRef.current) / 1000;
       const mult = Math.max(1.0, Math.exp(0.08 * (elapsed ** 1.35)));
 
+      // Auto Cashout check
+      if (
+        autoCashoutEnabled &&
+        !autoCashedRef.current &&
+        mult >= autoCashoutMult &&
+        mult < crashPointRef.current
+      ) {
+        cashOutAt(autoCashoutMult);
+      }
+
       if (mult >= crashPointRef.current) {
         const finalCrash = crashPointRef.current;
         setCurrentMultiplier(finalCrash);
@@ -81,7 +133,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
 
         setHistory((prev) => [
           { id: `h-${Date.now()}`, crashPoint: Number(finalCrash.toFixed(2)), timestamp: 'Ahora' },
-          ...prev.slice(0, 7),
+          ...prev.slice(0, 9),
         ]);
         return;
       }
@@ -96,28 +148,6 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     };
 
     animFrameRef.current = requestAnimationFrame(loop);
-  };
-
-  const cashOut = () => {
-    if (gameState !== 'running' || hasCashedOut) return;
-
-    const mult = currentMultiplier;
-    const win = Math.round(bet * mult);
-
-    setHasCashedOut(true);
-    setCashedAmount(win);
-    setCashedMultiplier(mult);
-    onUpdateCoins(win);
-    sound.coinWin();
-
-    if (mult >= 2.5) {
-      confetti({
-        particleCount: 80,
-        spread: 60,
-        origin: { y: 0.6 },
-      });
-      onBroadcastWin('crash', mult, win);
-    }
   };
 
   // High-DPI canvas loop
@@ -192,6 +222,24 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         const endX = startX + progress * (LOGICAL_WIDTH - startX - 40);
         const endY = startY - Math.sqrt(progress) * (startY - 35);
 
+        // Auto Cashout Target Line
+        if (autoCashoutEnabled && autoCashoutMult > 1.0) {
+          const autoProgress = Math.min((autoCashoutMult - 1.0) / 10.0, 1.0);
+          const autoLineY = startY - Math.sqrt(autoProgress) * (startY - 35);
+
+          ctx.strokeStyle = 'rgba(234, 179, 8, 0.25)';
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(startX, autoLineY);
+          ctx.lineTo(LOGICAL_WIDTH - 20, autoLineY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = 'rgba(234, 179, 8, 0.7)';
+          ctx.font = '9px monospace';
+          ctx.fillText(`Auto: ${autoCashoutMult.toFixed(2)}x`, LOGICAL_WIDTH - 90, autoLineY - 4);
+        }
+
         // Gradient under the curve
         const areaGrad = ctx.createLinearGradient(0, endY, 0, startY);
         if (gameState === 'crashed') {
@@ -224,7 +272,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         if (gameState === 'running') {
           // Glow halo
           ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
-          ctx.lineWidth = 8;
+          ctx.lineWidth = 10;
           ctx.beginPath();
           ctx.arc(endX, endY, 8, 0, Math.PI * 2);
           ctx.stroke();
@@ -234,17 +282,31 @@ export const CrashGame: React.FC<CrashGameProps> = ({
           ctx.beginPath();
           ctx.arc(endX, endY, 4.5, 0, Math.PI * 2);
           ctx.fill();
+
+          // Rocket flame sparks
+          for (let s = 0; s < 4; s++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#f59e0b' : '#34d399';
+            ctx.beginPath();
+            ctx.arc(
+              endX - Math.random() * 12 - 2,
+              endY + Math.random() * 6 - 3,
+              1.5 + Math.random() * 2,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+          }
         } else {
           // Crash explosion ring
           ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
           ctx.lineWidth = 6;
           ctx.beginPath();
-          ctx.arc(endX, endY, 10, 0, Math.PI * 2);
+          ctx.arc(endX, endY, 12, 0, Math.PI * 2);
           ctx.stroke();
 
           ctx.fillStyle = '#ef4444';
           ctx.beginPath();
-          ctx.arc(endX, endY, 5, 0, Math.PI * 2);
+          ctx.arc(endX, endY, 6, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -255,13 +317,23 @@ export const CrashGame: React.FC<CrashGameProps> = ({
 
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [currentMultiplier, gameState]);
+  }, [currentMultiplier, gameState, autoCashoutEnabled, autoCashoutMult]);
 
   useEffect(() => {
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
   }, []);
+
+  const historyAvg =
+    history.length > 0
+      ? (history.reduce((acc, h) => acc + h.crashPoint, 0) / history.length).toFixed(2)
+      : '2.00';
+
+  const historyMax =
+    history.length > 0
+      ? Math.max(...history.map((h) => h.crashPoint)).toFixed(2)
+      : '5.00';
 
   return (
     <div className="glass-panel rounded-3xl p-4 sm:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border border-white/[0.08]">
@@ -272,11 +344,16 @@ export const CrashGame: React.FC<CrashGameProps> = ({
             <TrendingUp className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm font-bold tracking-tight text-white font-mono">
-              Crash
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold tracking-tight text-white font-mono">
+                Crash SMR2
+              </h2>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/[0.04] text-zinc-400 border border-white/10 font-medium">
+                Avg: {historyAvg}x · Max: {historyMax}x
+              </span>
+            </div>
             <p className="text-[11px] text-zinc-500 font-mono">
-              Multiplicador en tiempo real
+              Multiplicador bursátil en tiempo real
             </p>
           </div>
         </div>
@@ -284,16 +361,18 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         {/* History Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0 scrollbar-none">
           <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider shrink-0 mr-1">
-            Historial:
+            Rondas:
           </span>
           {history.map((item) => (
             <span
               key={item.id}
               className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg border shrink-0 tabular-nums transition-all ${
-                item.crashPoint >= 2.0
+                item.crashPoint >= 5.0
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                  : item.crashPoint >= 2.0
                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                   : item.crashPoint >= 1.5
-                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
                   : 'bg-zinc-900/80 text-zinc-500 border-white/[0.06]'
               }`}
             >
@@ -332,14 +411,63 @@ export const CrashGame: React.FC<CrashGameProps> = ({
             </div>
           ) : (
             <div className="text-center text-zinc-500">
-              <p className="text-xs font-mono text-zinc-400 font-medium">Selecciona apuesta e inicia</p>
+              <p className="text-xs font-mono text-zinc-400 font-medium">Selecciona apuesta e inicia la subida</p>
             </div>
           )}
         </div>
       </div>
 
+      {/* Auto Cashout Controls Bar */}
+      <div className="w-full flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-white/[0.06] text-xs font-mono">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={gameState === 'running'}
+            onClick={() => {
+              setAutoCashoutEnabled(!autoCashoutEnabled);
+              sound.tap();
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono transition-all cursor-pointer ${
+              autoCashoutEnabled
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold'
+                : 'bg-white/[0.02] text-zinc-400 border-white/[0.06] hover:text-white'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 text-amber-400" />
+            <span>Auto-Cobro: {autoCashoutEnabled ? 'ON' : 'OFF'}</span>
+          </button>
+
+          {autoCashoutEnabled && (
+            <div className="flex items-center gap-1">
+              {[1.5, 2.0, 3.0, 5.0].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  disabled={gameState === 'running'}
+                  onClick={() => {
+                    setAutoCashoutMult(preset);
+                    sound.tap();
+                  }}
+                  className={`px-2 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                    autoCashoutMult === preset
+                      ? 'bg-white text-black font-bold'
+                      : 'text-zinc-400 hover:text-white bg-white/[0.04]'
+                  }`}
+                >
+                  {preset.toFixed(1)}x
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <span className="text-[11px] text-zinc-500">
+          {autoCashoutEnabled ? `Cobro automático fijado en x${autoCashoutMult.toFixed(2)}` : 'Cobro manual'}
+        </span>
+      </div>
+
       {/* Cockpit Bet Console */}
-      <div className="w-full flex flex-col sm:grid sm:grid-cols-12 gap-3 mt-4">
+      <div className="w-full flex flex-col sm:grid sm:grid-cols-12 gap-3 mt-3">
         {/* Quick Bet Buttons */}
         <div className="sm:col-span-7 flex items-center justify-between gap-1.5 bg-black/50 p-2 rounded-2xl border border-white/[0.08] overflow-x-auto scrollbar-none shadow-inner">
           <span className="text-xs font-mono text-zinc-400 pl-1.5 flex items-center gap-1.5 shrink-0 font-medium">

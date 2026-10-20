@@ -45,6 +45,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'grid' | 'agenda'>('grid');
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedSubjectForTask, setSelectedSubjectForTask] = useState<string | undefined>(undefined);
   const [mobileDay, setMobileDay] = useState<DayKey | 'all'>('all');
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -216,41 +217,50 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
             </div>
           </div>
 
-          {/* Sub-tab view switcher */}
-          <div className="inline-flex p-1 rounded-2xl bg-black/50 border border-white/[0.08] self-start md:self-auto">
+          {/* Actions & Sub-tab view switcher */}
+          <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
             <button
               onClick={() => {
-                setActiveSubTab('grid');
+                setSelectedSubjectForTask(undefined);
+                setIsTaskAdminOpen(true);
                 sound.tap();
               }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-                activeSubTab === 'grid'
-                  ? 'bg-white text-black font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-mono font-bold transition-all cursor-pointer shadow-sm active:scale-95"
             >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>Semana</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>Panel de Delegado</span>
             </button>
-            <button
-              onClick={() => {
-                setActiveSubTab('agenda');
-                sound.tap();
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-                activeSubTab === 'agenda'
-                  ? 'bg-white text-black font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <ListTodo className="w-3.5 h-3.5" />
-              <span>Tareas y exámenes</span>
-              {events.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  {events.length}
-                </span>
-              )}
-            </button>
+
+            <div className="inline-flex p-1 rounded-2xl bg-black/50 border border-white/[0.08]">
+              <button
+                onClick={() => {
+                  setActiveSubTab('grid');
+                  sound.tap();
+                }}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+                  activeSubTab === 'grid'
+                    ? 'bg-white text-black font-semibold shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                <span>Semana</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSubTab('agenda');
+                  sound.tap();
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+                  activeSubTab === 'agenda'
+                    ? 'bg-white text-black font-semibold shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <ListTodo className="w-3.5 h-3.5" />
+                <span>Tareas ({events.length})</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -482,6 +492,11 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                             liveStatus.status === 'in_class' &&
                             liveStatus.currentSlot?.index === slot.index;
 
+                          const subjectEvents = events.filter(
+                            (e) => e.subject === subjectCode && !e.is_completed
+                          );
+                          const hasExam = subjectEvents.some((e) => e.event_type === 'exam');
+
                           return (
                             <td
                               key={day.key}
@@ -513,16 +528,38 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                                     {subjectCode}
                                   </span>
 
-                                  {isNowActive && (
-                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500 text-black animate-pulse">
-                                      En curso
-                                    </span>
-                                  )}
+                                  <div className="flex items-center gap-1">
+                                    {hasExam && (
+                                      <span
+                                        title="Examen pendiente para este módulo"
+                                        className="w-2 h-2 rounded-full bg-rose-500 animate-ping"
+                                      />
+                                    )}
+                                    {isNowActive && (
+                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500 text-black animate-pulse">
+                                        En curso
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <p className="text-[10px] text-zinc-400 truncate mt-0.5 group-hover:text-zinc-200 transition-colors">
                                   {subject?.name || subjectCode}
                                 </p>
+
+                                {subjectEvents.length > 0 && (
+                                  <div className="mt-1.5 flex items-center gap-1">
+                                    <span
+                                      className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${
+                                        hasExam
+                                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                                          : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                                      }`}
+                                    >
+                                      {hasExam ? 'Examen próx.' : `${subjectEvents.length} entrega`}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </td>
                           );
@@ -571,6 +608,10 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                         isToday &&
                         liveStatus.status === 'in_class' &&
                         liveStatus.currentSlot?.index === slot.index;
+                      const mobSubjectEvents = events.filter(
+                        (e) => e.subject === subjectCode && !e.is_completed
+                      );
+                      const mobHasExam = mobSubjectEvents.some((e) => e.event_type === 'exam');
 
                       if (isRecreo) {
                         return (
@@ -631,11 +672,18 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                               </span>
                             </div>
 
-                            {isNowActive && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500 text-black animate-pulse shrink-0">
-                                En curso
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {mobHasExam && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                  Examen
+                                </span>
+                              )}
+                              {isNowActive && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500 text-black animate-pulse">
+                                  En curso
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -805,11 +853,15 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
       {/* Modal Seguro: Panel de Delegado y Gestión de Tareas */}
       <TaskAdminModal
         isOpen={isTaskAdminOpen}
-        onClose={() => setIsTaskAdminOpen(false)}
+        onClose={() => {
+          setIsTaskAdminOpen(false);
+          setSelectedSubjectForTask(undefined);
+        }}
         currentUser={currentUser}
         events={events}
         onRefreshEvents={fetchEvents}
         onBroadcastToChat={onBroadcastToChat}
+        initialSubject={selectedSubjectForTask}
       />
     </div>
   );

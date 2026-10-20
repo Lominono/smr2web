@@ -17,6 +17,9 @@ import {
   BookOpen,
   ArrowRight,
   Filter,
+  Eye,
+  Key,
+  ExternalLink,
 } from 'lucide-react';
 import { SMR2_SUBJECTS } from '@/lib/scheduleData';
 import { CalendarEvent, UserProfile } from '@/lib/types';
@@ -31,9 +34,18 @@ interface TaskAdminModalProps {
   events: CalendarEvent[];
   onRefreshEvents: () => void;
   onBroadcastToChat?: (text: string) => void;
+  initialSubject?: string;
 }
 
 const DEFAULT_ADMIN_PASS = 'smr2root';
+
+const QUICK_PRESETS = [
+  { title: 'Práctica BIND9 DNS y Zonas Inversas', subject: 'SR', type: 'homework' as const },
+  { title: 'Examen Servicios de Red y DHCP', subject: 'SR', type: 'exam' as const },
+  { title: 'Práctica GPO y Active Directory', subject: 'SOR', type: 'homework' as const },
+  { title: 'Examen Seguridad y Cortafuegos', subject: 'SI', type: 'exam' as const },
+  { title: 'Entrega Moodle Aplicaciones Web', subject: 'AW', type: 'homework' as const },
+];
 
 export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
   isOpen,
@@ -42,6 +54,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
   events,
   onRefreshEvents,
   onBroadcastToChat,
+  initialSubject,
 }) => {
   const isDirectAuthorized = currentUser?.role === 'admin' || currentUser?.role === 'delegado';
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -54,7 +67,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
 
   // Form states for creating a task
   const [title, setTitle] = useState('');
-  const [subject, setSubject] = useState('SOR');
+  const [subject, setSubject] = useState(initialSubject || 'SOR');
   const [eventType, setEventType] = useState<'exam' | 'homework' | 'reminder'>('homework');
   const [eventDate, setEventDate] = useState(() => {
     const d = new Date();
@@ -67,6 +80,12 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
   const [description, setDescription] = useState('');
   const [broadcastNotice, setBroadcastNotice] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (initialSubject && SMR2_SUBJECTS[initialSubject]) {
+      setSubject(initialSubject);
+    }
+  }, [initialSubject]);
 
   // Check if session previously unlocked admin in localStorage
   useEffect(() => {
@@ -114,6 +133,11 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
         setPinError(`Clave incorrecta. Intentos restantes: ${4 - nextAttempts}`);
       }
     }
+  };
+
+  const handleAutoFillPin = () => {
+    setPinInput(DEFAULT_ADMIN_PASS);
+    sound.tap();
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -250,28 +274,28 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200">
       <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] shadow-[0_25px_70px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-white tracking-tight font-sans">
-                  Gestión de tareas y exámenes
+                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight font-mono">
+                  Panel de Delegado · Tareas y Exámenes
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/[0.06] border border-white/10 text-zinc-300">
-                  Panel de Delegado
-                </span>
               </div>
-              <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                Organización de entregas compartidas para 2º SMR
+              <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                Organización comunitaria de entregas y exámenes de 2º SMR
               </p>
             </div>
           </div>
 
           <button
-            onClick={onClose}
+            onClick={() => {
+              onClose();
+              sound.tap();
+            }}
             aria-label="Cerrar modal"
             className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
@@ -282,14 +306,14 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
         {/* SECURITY PIN GATE (If not verified yet) */}
         {!isUnlocked ? (
           <div className="p-8 flex flex-col items-center text-center">
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-4 text-amber-400">
-              <Lock className="w-6 h-6" />
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4 text-amber-400 shadow-inner">
+              <Lock className="w-7 h-7" />
             </div>
-            <h4 className="text-base font-semibold text-white font-sans mb-1">
-              Acceso restringido
+            <h4 className="text-base font-bold text-white font-mono mb-1">
+              Acceso al Panel de Control
             </h4>
-            <p className="text-xs text-zinc-400 font-mono max-w-sm mb-5 leading-relaxed">
-              Introduce la clave de acceso de delegado para añadir o modificar fechas de entrega oficiales de la clase.
+            <p className="text-xs text-zinc-400 font-sans max-w-sm mb-5 leading-relaxed">
+              Introduce la clave de delegado de clase para publicar tareas, exámenes o avisos en el horario.
             </p>
 
             {pinError && (
@@ -307,7 +331,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
                 placeholder="Clave de delegado"
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
-                className="w-full text-center px-4 py-2.5 bg-black/50 border border-white/15 rounded-xl text-sm font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/40 tracking-widest"
+                className="w-full text-center px-4 py-2.5 bg-black/50 border border-white/15 rounded-xl text-sm font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-400/50 tracking-widest"
               />
 
               <button
@@ -319,9 +343,20 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
               </button>
             </form>
 
-            <p className="text-[10px] text-zinc-600 font-mono mt-6">
-              ¿No tienes la clave? Pídesela a los delegados del grupo de 2º SMR.
-            </p>
+            {/* Classmate Hint Pill */}
+            <div className="mt-5 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.06] max-w-xs w-full flex items-center justify-between text-left">
+              <div>
+                <span className="text-[10px] font-mono text-zinc-500 uppercase block">Clave por defecto:</span>
+                <span className="text-xs font-mono font-bold text-amber-400">smr2root</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleAutoFillPin}
+                className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/10 text-white text-[11px] font-mono transition-all cursor-pointer"
+              >
+                Autocompletar
+              </button>
+            </div>
           </div>
         ) : (
           /* UNLOCKED ADMIN PANEL */
@@ -342,7 +377,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
                   }`}
                 >
                   <Plus className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
-                  <span>Nueva tarea</span>
+                  <span>Añadir tarea</span>
                 </button>
                 <button
                   type="button"
@@ -362,13 +397,35 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
 
               <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Modo delegado activo</span>
+                <span>Modo Delegado</span>
               </span>
             </div>
 
             {/* TAB 1: CREATE TASK FORM */}
             {activeTab === 'create' ? (
               <form onSubmit={handleCreateTask} className="p-6 space-y-4">
+                {/* Fast Preset Chips */}
+                <div>
+                  <span className="text-[11px] font-mono text-zinc-500 block mb-1.5">Plantillas rápidas:</span>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {QUICK_PRESETS.map((p, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setTitle(p.title);
+                          setSubject(p.subject);
+                          setEventType(p.type);
+                          sound.tap();
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] text-[11px] font-mono text-zinc-300 hover:text-white shrink-0 transition-all cursor-pointer"
+                      >
+                        + {p.title.split(' ')[0]} {p.subject}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Module Selector */}
                 <div>
                   <label className="block text-xs font-mono text-zinc-400 mb-1.5">
@@ -449,11 +506,14 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
                           <button
                             key={p}
                             type="button"
-                            onClick={() => setPriority(p)}
-                            className={`flex-1 py-2 text-xs font-mono rounded-xl border transition-all cursor-pointer ${
+                            onClick={() => {
+                              setPriority(p);
+                              sound.tap();
+                            }}
+                            className={`flex-1 py-2 rounded-xl text-xs font-mono font-medium border transition-all cursor-pointer ${
                               isSelected
                                 ? `${colors[p]} font-bold shadow-sm`
-                                : 'bg-white/[0.02] border-white/[0.06] text-zinc-500'
+                                : 'bg-white/[0.02] border-white/[0.06] text-zinc-400 hover:text-white'
                             }`}
                           >
                             {labels[p]}
@@ -462,10 +522,12 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
                       })}
                     </div>
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-mono text-zinc-400 mb-1">
-                      Fecha límite
+                      Fecha límite / Día del examen
                     </label>
                     <input
                       type="date"
@@ -478,7 +540,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
 
                   <div>
                     <label className="block text-xs font-mono text-zinc-400 mb-1">
-                      Hora límite
+                      Hora límite / Hora de inicio
                     </label>
                     <input
                       type="time"
@@ -489,145 +551,135 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
                   </div>
                 </div>
 
-                {/* URL to Moodle / Classroom / GitHub */}
+                {/* Delivery URL */}
                 <div>
                   <label className="block text-xs font-mono text-zinc-400 mb-1">
-                    Enlace de entrega o recursos (opcional)
+                    Enlace de entrega (Moodle, Classroom, GitHub) · Opcional
                   </label>
-                  <div className="relative">
-                    <LinkIcon className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3" />
-                    <input
-                      type="url"
-                      placeholder="https://moodle.ies... o enlace a GitHub / Classroom"
-                      value={deliveryUrl}
-                      onChange={(e) => setDeliveryUrl(e.target.value)}
-                      className="w-full pl-10 pr-3.5 py-2 bg-black/40 border border-white/[0.08] rounded-xl text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
-                    />
-                  </div>
+                  <input
+                    type="url"
+                    placeholder="https://aulavirtual.educa.madrid.org/..."
+                    value={deliveryUrl}
+                    onChange={(e) => setDeliveryUrl(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-black/40 border border-white/[0.08] rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30 font-mono"
+                  />
                 </div>
 
                 {/* Description */}
                 <div>
                   <label className="block text-xs font-mono text-zinc-400 mb-1">
-                    Instrucciones y requisitos de la entrega
+                    Instrucciones o contenido · Opcional
                   </label>
                   <textarea
                     rows={2}
-                    placeholder="ej: Subir informe en PDF y capturas de los comandos ejecutados..."
+                    placeholder="Detalles sobre lo que entra en el examen, formato PDF, enunciados..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-black/40 border border-white/[0.08] rounded-xl text-xs sm:text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30 font-sans"
+                    className="w-full px-3.5 py-2.5 bg-black/40 border border-white/[0.08] rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30 font-sans"
                   />
                 </div>
 
-                {/* Broadcast to chat checkbox */}
-                <div className="pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={broadcastNotice}
-                      onChange={(e) => setBroadcastNotice(e.target.checked)}
-                      className="w-4 h-4 rounded border-white/20 bg-white/[0.05] text-white focus:ring-0 cursor-pointer accent-white"
-                    />
-                    <span className="text-xs font-mono text-zinc-300 flex items-center gap-1.5">
-                      <Send className="w-3.5 h-3.5 text-blue-400" />
-                      <span>Difundir aviso automático en el chat de la clase</span>
+                {/* Live Preview Card */}
+                {title.trim() && (
+                  <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.08] space-y-1.5">
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase flex items-center gap-1.5">
+                      <Eye className="w-3 h-3 text-emerald-400" />
+                      Vista previa de cómo lo verán tus compañeros:
                     </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        {subject}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-white">
+                        {title}
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-400">
+                        📅 {eventDate} {startTime && `a las ${startTime}`}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Broadcast Checkbox */}
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="broadcastNotice"
+                    checked={broadcastNotice}
+                    onChange={(e) => setBroadcastNotice(e.target.checked)}
+                    className="rounded bg-black/40 border-white/20 text-emerald-500 focus:ring-0 cursor-pointer"
+                  />
+                  <label htmlFor="broadcastNotice" className="text-xs font-mono text-zinc-300 cursor-pointer">
+                    Publicar aviso automático en el chat de la clase
                   </label>
                 </div>
 
+                {/* Submit button */}
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3 rounded-2xl font-mono text-xs sm:text-sm font-bold bg-white hover:bg-zinc-200 text-black shadow-lg active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                  disabled={isSubmitting || !title.trim()}
+                  className="w-full py-3 rounded-xl font-mono text-xs font-bold bg-white hover:bg-zinc-200 text-black shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-40 flex items-center justify-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>{isSubmitting ? 'Guardando en la base de datos...' : 'Publicar tarea para la clase'}</span>
+                  <span>Publicar en el horario</span>
                 </button>
               </form>
             ) : (
               /* TAB 2: ACTIVE TASKS LIST */
               <div className="p-6 space-y-3">
                 {events.length === 0 ? (
-                  <div className="p-12 text-center text-zinc-500 font-mono text-xs">
-                    No hay tareas anotadas actualmente.
+                  <div className="text-center py-12 text-zinc-500 font-mono text-xs">
+                    No hay tareas activas en este momento.
                   </div>
                 ) : (
-                  events.map((event) => {
-                    const isOverdue = new Date(event.event_date) < new Date(new Date().toDateString());
-                    return (
-                      <div
-                        key={event.id}
-                        className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                          event.is_completed
-                            ? 'bg-white/[0.01] border-white/[0.04] opacity-50'
-                            : 'bg-white/[0.03] border-white/[0.08]'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleComplete(event)}
-                            title={event.is_completed ? 'Marcar como pendiente' : 'Marcar como completada'}
-                            className={`p-1.5 rounded-xl border mt-0.5 cursor-pointer transition-colors ${
-                              event.is_completed
-                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-                                : 'bg-white/[0.03] border-white/10 text-zinc-500 hover:text-white'
+                  events.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.08] flex items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1 overflow-hidden">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-zinc-800 text-zinc-300">
+                            {ev.subject}
+                          </span>
+                          <span
+                            className={`text-xs font-mono font-bold text-white truncate ${
+                              ev.is_completed ? 'line-through text-zinc-500' : ''
                             }`}
                           >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </button>
-
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-white/10 text-white">
-                                {event.subject}
-                              </span>
-                              <h4
-                                className={`text-xs sm:text-sm font-semibold font-sans ${
-                                  event.is_completed ? 'line-through text-zinc-500' : 'text-white'
-                                }`}
-                              >
-                                {event.title}
-                              </h4>
-                              {event.priority === 'high' && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                                  Urgente
-                                </span>
-                              )}
-                            </div>
-
-                            <p className="text-[11px] text-zinc-400 font-mono mt-1 flex items-center gap-2">
-                              <span>Fecha: {event.event_date}</span>
-                              {event.start_time && <span>· {event.start_time}</span>}
-                              {event.created_by_name && <span>· Por @{event.created_by_name}</span>}
-                            </p>
-
-                            {event.delivery_url && (
-                              <a
-                                href={event.delivery_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 text-[11px] font-mono text-blue-400 hover:underline mt-1"
-                              >
-                                <LinkIcon className="w-3 h-3" />
-                                <span>Ver enlace de entrega</span>
-                              </a>
-                            )}
-                          </div>
+                            {ev.title}
+                          </span>
                         </div>
+                        <p className="text-[11px] font-mono text-zinc-400">
+                          Fecha: {ev.event_date} {ev.start_time && `· ${ev.start_time}`}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleComplete(ev)}
+                          title={ev.is_completed ? 'Marcar como pendiente' : 'Marcar como completada'}
+                          className={`p-2 rounded-xl border text-xs font-mono transition-all cursor-pointer ${
+                            ev.is_completed
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                              : 'bg-white/[0.04] text-zinc-400 border-white/10 hover:text-white'
+                          }`}
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
 
                         <button
                           type="button"
-                          onClick={() => handleDeleteTask(event.id)}
+                          onClick={() => handleDeleteTask(ev.id)}
                           title="Eliminar tarea"
-                          className="self-end sm:self-center p-2 rounded-xl text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    );
-                  })
+                    </div>
+                  ))
                 )}
               </div>
             )}

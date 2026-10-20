@@ -1,81 +1,52 @@
-# Estructura de Base de Datos — SMR2 Hub
+# 🛠️ Guía de Configuración de Supabase para 2º SMR
 
-Esta guía detalla la base de datos de Supabase para **SMR2**, diseñada específicamente para estudiantes (gestión de horario, tareas/exámenes, chat en vivo y economía virtual con apuestas y recompensas).
-
----
-
-## 🗄️ Esquema de Tablas
-
-### 1. `profiles` (Perfiles y Economía de Alumnos)
-Guarda la información de cada compañero y su progreso en el hub.
-* `id` (UUID, PK): ID único vinculado a la cuenta de autenticación.
-* `username` (TEXT, UNIQUE): Apodo del estudiante (ej: `carlos_root`).
-* `email` (TEXT): Correo electrónico para acceso dual.
-* `coins` (BIGINT): Fichas virtuales para juegos y propinas en el chat.
-* `biggest_win` (BIGINT): Mayor premio obtenido en Slingshot o Crash (para el ranking).
-* `role` (TEXT): Rol del usuario (`student`, `delegado`, `admin`).
-* `streak_count` (INTEGER): Días consecutivos entrando a la web (1 a 5).
-* `last_claim_date` (TIMESTAMPTZ): Fecha y hora del último reclamo de recompensa diaria.
-* `created_at` (TIMESTAMPTZ): Momento de registro.
+Esta guía explica de forma clara y sin tecnicismos raros cómo tener la base de datos de la web 100% lista para que funcione el chat en tiempo real, el horario con tareas de delegados, las cuentas y las monedas.
 
 ---
 
-### 2. `calendar_events` (Tareas, Exámenes y Entregas)
-Almacena la agenda de la clase para que nadie se pierda una fecha límite.
-* `id` (UUID, PK): Identificador único del evento.
-* `title` (TEXT): Título de la tarea o examen (ej: *Examen BIND9 y DHCP*).
-* `subject` (TEXT): Código del módulo oficial (`SR`, `SOR`, `SI`, `AW`, `MEP`, `IP2`, `PI`, `DIG`).
-* `event_type` (TEXT): Tipo (`exam`, `homework`, `reminder`, `class`).
-* `event_date` (DATE): Fecha de entrega o examen (`AAAA-MM-DD`).
-* `start_time` (TIME): Hora de inicio (opcional).
-* `description` (TEXT): Detalles e instrucciones de la práctica.
-* `priority` (TEXT): Urgencia (`high`, `normal`, `low`).
-* `delivery_url` (TEXT): Enlace directo al enunciado o entrega (Moodle, Classroom, GitHub).
-* `is_completed` (BOOLEAN): Si la tarea ya ha sido finalizada.
-* `created_by` (UUID): ID del estudiante o delegado que la creó.
-* `created_by_name` (TEXT): Nombre legible de quien publicó el aviso.
-* `created_at` (TIMESTAMPTZ): Fecha de creación.
+## ⚡ Método Rápido (1 solo clic)
+
+Hemos unificado todo en un único archivo maestro: **`supabase/SCHEMA_COMPLETO_SMR2.sql`**.
+
+1. Entra a tu proyecto en [Supabase Dashboard](https://supabase.com/dashboard).
+2. En el menú de la izquierda, entra a **SQL Editor** (el icono de código `>_`).
+3. Haz clic en **"New query"** (Nueva consulta).
+4. Abre el archivo `supabase/SCHEMA_COMPLETO_SMR2.sql`, copia todo su contenido y pégalo ahí.
+5. Haz clic en el botón verde **"Run"** (o presiona `Ctrl + Enter`).
+6. Verás el mensaje verde `Success. No rows returned`. ¡Listo!
 
 ---
 
-### 3. `chat_messages` (Chat en Vivo y Avisos del Sistema)
-Canal en tiempo real para cachondeo entre compañeros, propinas y avisos automáticos.
-* `id` (UUID, PK): ID del mensaje.
-* `user_id` (UUID): ID del alumno emisor.
-* `username` (TEXT): Apodo que se muestra en pantalla.
-* `text` (TEXT): Contenido del mensaje.
-* `is_system_win` (BOOLEAN): Indica si es una notificación automática del sistema (ej: premio gordo o nueva tarea creada).
-* `win_amount` (BIGINT): Cantidad de fichas involucrada.
-* `multiplier` (NUMERIC): Multiplicador si proviene de un juego.
-* `game` (TEXT): `'angry'` o `'crash'`.
-* `created_at` (TIMESTAMPTZ): Fecha y hora de envío.
+## 📂 ¿Qué hace cada parte del SQL?
+
+| Paso | Archivo / Sección | Función |
+| :--- | :--- | :--- |
+| **01** | `01_perfiles_y_roles.sql` | Crea la tabla `profiles` con monedas iniciales (1.000 fichas), mayor victoria, rachas diarias consecutivas y roles (`student`, `delegado`, `admin`). |
+| **02** | `02_tareas_y_examenes.sql` | Crea la tabla `calendar_events` para los exámenes de módulos (SR, SOR, SI, etc.), enlaces directos a Moodle y prioridades. |
+| **03** | `03_chat_y_avisos.sql` | Crea la tabla `chat_messages` con soporte para mensajes en vivo, avisos automáticos de tareas y propinas entre compañeros. |
+| **04** | `04_seguridad_rls_y_realtime.sql` | Activa la seguridad RLS para que nadie borre lo que no debe y habilita **Supabase Realtime** para ver mensajes y tareas al instante sin recargar la web. |
 
 ---
 
-## 🚀 Cómo aplicar las migraciones en Supabase
+## 👑 Cómo hacerte Administrador o Delegado
 
-En el panel de **Supabase** -> **SQL Editor** -> **New query**, copia y pega los archivos en este orden:
+Por defecto, todos los usuarios que se registran entran como `student` (alumno). Para darte a ti o a otro compañero permisos de Delegado para gestionar tareas sin necesidad de meter el PIN:
 
-1. `supabase/migrations/01_perfiles_y_roles.sql`
-2. `supabase/migrations/02_tareas_y_examenes.sql`
-3. `supabase/migrations/03_chat_y_avisos.sql`
-4. `supabase/migrations/04_seguridad_rls_y_realtime.sql`
-
-> **Nota:** Todos los scripts usan `ADD COLUMN IF NOT EXISTS` y `CREATE IF NOT EXISTS`, por lo que **no borran datos existentes ni dan error si ya ejecutaste partes antes**.
+1. Ve a **SQL Editor** en Supabase.
+2. Escribe esta línea cambiando `tu_apodo` por tu nombre de usuario exacto:
+   ```sql
+   UPDATE public.profiles SET role = 'admin' WHERE username = 'tu_apodo';
+   ```
+3. Haz clic en **Run**. A partir de ese momento, tu perfil tendrá corona y acceso directo a todo.
 
 ---
 
-## 👑 Cómo asignar el rol de Delegado o Admin a un compañero
+## 🔑 Clave PIN para compañeros que no sean Admin
 
-En el SQL Editor de Supabase:
-```sql
-UPDATE public.profiles 
-SET role = 'delegado' 
-WHERE username = 'apodo_del_delegado';
-```
-Para otorgar acceso completo de Administrador:
-```sql
-UPDATE public.profiles 
-SET role = 'admin' 
-WHERE username = 'tu_apodo';
-```
+Para que cualquier compañero de clase pueda publicar una tarea o examen si el delegado no está conectado, el panel incluye la clave de seguridad de clase:
+- **PIN por defecto:** `smr2root` (o configurable en `.env.local` con `NEXT_PUBLIC_ADMIN_PIN`).
+
+---
+
+## 📧 Contacto de reclamaciones
+- Correo de broma oficial para el departamento legal de 2º SMR: `franciscofranquito@gmail.com`.

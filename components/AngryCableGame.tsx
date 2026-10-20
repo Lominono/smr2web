@@ -2,7 +2,20 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { sound } from '@/lib/audio';
-import { RotateCcw, Coins, Trophy, Zap, AlertTriangle, Share2, Target, ArrowRight } from 'lucide-react';
+import {
+  RotateCcw,
+  Coins,
+  Trophy,
+  Zap,
+  AlertTriangle,
+  Share2,
+  Target,
+  ArrowRight,
+  Sparkles,
+  Cable,
+  Radio,
+  Flame,
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface AngryCableGameProps {
@@ -10,6 +23,8 @@ interface AngryCableGameProps {
   onUpdateCoins: (delta: number) => void;
   onBroadcastWin: (game: 'angry', multiplier: number, winAmount: number) => void;
 }
+
+export type CableType = 'rj45' | 'fiber' | 'coaxial';
 
 interface Block {
   x: number;
@@ -37,6 +52,15 @@ interface Particle {
   size: number;
 }
 
+interface Shockwave {
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  color: string;
+  alpha: number;
+}
+
 interface FloatingText {
   x: number;
   y: number;
@@ -55,6 +79,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
   const [bet, setBet] = useState<number>(100);
   const [gameState, setGameState] = useState<'aiming' | 'flying' | 'resolved'>('aiming');
   const [currentLevel, setCurrentLevel] = useState<number>(1);
+  const [cableType, setCableType] = useState<CableType>('rj45');
   const [hasBoosted, setHasBoosted] = useState<boolean>(false);
   const [lastWin, setLastWin] = useState<{ amount: number; multiplier: number; comboBonus?: boolean } | null>(null);
   const [bragged, setBragged] = useState(false);
@@ -78,6 +103,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     active: boolean;
     hasLanded: boolean;
     restTimer: number;
+    cable: CableType;
   }>({
     x: slingshotAnchor.x,
     y: slingshotAnchor.y,
@@ -87,10 +113,12 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     active: false,
     hasLanded: false,
     restTimer: 0,
+    cable: 'rj45',
   });
 
   const blocksRef = useRef<Block[]>([]);
   const particlesRef = useRef<Particle[]>([]);
+  const shockwavesRef = useRef<Shockwave[]>([]);
   const floatingTextsRef = useRef<FloatingText[]>([]);
   const shakeRef = useRef(0);
   const slowMoRef = useRef(0);
@@ -102,7 +130,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     const baseStartX = 510;
 
     if (lvl === 1) {
-      // Nivel 1: Bastidor Central
+      // Nivel 1: Bastidor Central (Rack de Switch & Servidores)
       blocks.push({ x: baseStartX, y: groundY - 42, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
       blocks.push({ x: baseStartX, y: groundY - 84, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
       blocks.push({ x: baseStartX + 12, y: groundY - 126, w: 48, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
@@ -162,6 +190,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     blocksRef.current = blocks;
     hitMultipliersRef.current = [];
     particlesRef.current = [];
+    shockwavesRef.current = [];
     floatingTextsRef.current = [];
     shakeRef.current = 0;
     slowMoRef.current = 0;
@@ -171,10 +200,11 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
       y: slingshotAnchor.y,
       vx: 0,
       vy: 0,
-      radius: 13,
+      radius: cableType === 'coaxial' ? 16 : cableType === 'fiber' ? 10 : 13,
       active: false,
       hasLanded: false,
       restTimer: 0,
+      cable: cableType,
     };
 
     dragPosRef.current = { x: slingshotAnchor.x, y: slingshotAnchor.y };
@@ -182,7 +212,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     setHasBoosted(false);
     setLastWin(null);
     setBragged(false);
-  }, [currentLevel, slingshotAnchor.x, slingshotAnchor.y]);
+  }, [currentLevel, cableType, slingshotAnchor.x, slingshotAnchor.y]);
 
   useEffect(() => {
     resetLevel();
@@ -200,7 +230,6 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
     const render = () => {
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
       
-      // Ensure canvas internal resolution matches display aspect ratio
       const rect = canvas.getBoundingClientRect();
       const targetWidth = Math.floor(rect.width * dpr);
       const targetHeight = Math.floor((rect.width * (LOGICAL_HEIGHT / LOGICAL_WIDTH)) * dpr);
@@ -292,7 +321,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
         ctx.lineTo(pullPos.x, pullPos.y);
         ctx.stroke();
 
-        // Projectile RJ-45 body
+        // Projectile rendering in sling
         ctx.save();
         ctx.translate(pullPos.x, pullPos.y);
         const aimAngle = isDraggingRef.current
@@ -300,17 +329,49 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           : 0;
         ctx.rotate(aimAngle);
 
-        ctx.fillStyle = '#059669';
-        ctx.strokeStyle = '#34d399';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(-13, -8, 26, 16, 3);
-        ctx.fill();
-        ctx.stroke();
+        if (cableType === 'fiber') {
+          // Fiber Optic Laser Cable (Cyan/Violet)
+          ctx.fillStyle = '#06b6d4';
+          ctx.strokeStyle = '#67e8f9';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(-14, -6, 28, 12, 4);
+          ctx.fill();
+          ctx.stroke();
 
-        ctx.fillStyle = '#fbbf24';
-        for (let pIdx = -5; pIdx <= 5; pIdx += 2) {
-          ctx.fillRect(9, pIdx - 0.5, 3.5, 1);
+          // Laser core tip
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(10, 0, 3, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (cableType === 'coaxial') {
+          // Coaxial Cable (Heavy Dark Gold)
+          ctx.fillStyle = '#854d0e';
+          ctx.strokeStyle = '#eab308';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(-16, -10, 32, 20, 5);
+          ctx.fill();
+          ctx.stroke();
+
+          // Heavy center copper pin
+          ctx.fillStyle = '#f59e0b';
+          ctx.fillRect(10, -2.5, 7, 5);
+        } else {
+          // RJ-45 Cat6 Standard
+          ctx.fillStyle = '#059669';
+          ctx.strokeStyle = '#34d399';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(-13, -8, 26, 16, 3);
+          ctx.fill();
+          ctx.stroke();
+
+          // 8 Gold Contact Pins
+          ctx.fillStyle = '#fbbf24';
+          for (let pIdx = -5; pIdx <= 5; pIdx += 2) {
+            ctx.fillRect(9, pIdx - 0.5, 3.5, 1);
+          }
         }
         ctx.restore();
 
@@ -324,19 +385,21 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
         // Trajectory arc dots with landing prediction ring
         if (isDraggingRef.current) {
-          const launchVx = (slingshotAnchor.x - pullPos.x) * 0.22;
-          const launchVy = (slingshotAnchor.y - pullPos.y) * 0.22;
+          const powerMult = cableType === 'fiber' ? 0.28 : cableType === 'coaxial' ? 0.18 : 0.22;
+          const launchVx = (slingshotAnchor.x - pullPos.x) * powerMult;
+          const launchVy = (slingshotAnchor.y - pullPos.y) * powerMult;
           let simX = pullPos.x;
           let simY = pullPos.y;
           let simVx = launchVx;
           let simVy = launchVy;
           let impactX = simX;
           let impactY = groundY;
+          const gravitySim = cableType === 'coaxial' ? 0.45 : cableType === 'fiber' ? 0.28 : 0.35;
 
           for (let step = 0; step < 36; step++) {
             simX += simVx * 1.5;
             simY += simVy * 1.5;
-            simVy += 0.35 * 1.5;
+            simVy += gravitySim * 1.5;
             if (simY >= groundY) {
               impactX = simX;
               impactY = groundY;
@@ -344,14 +407,24 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
             }
 
             const alpha = Math.max(0.12, 0.85 - step * 0.022);
-            ctx.fillStyle = `rgba(52, 211, 153, ${alpha})`;
+            ctx.fillStyle =
+              cableType === 'fiber'
+                ? `rgba(6, 182, 212, ${alpha})`
+                : cableType === 'coaxial'
+                ? `rgba(234, 179, 8, ${alpha})`
+                : `rgba(52, 211, 153, ${alpha})`;
             ctx.beginPath();
             ctx.arc(simX, simY, Math.max(1.5, 3.2 - step * 0.06), 0, Math.PI * 2);
             ctx.fill();
           }
 
           // Target landing ring on the ground
-          ctx.strokeStyle = 'rgba(52, 211, 153, 0.45)';
+          ctx.strokeStyle =
+            cableType === 'fiber'
+              ? 'rgba(6, 182, 212, 0.5)'
+              : cableType === 'coaxial'
+              ? 'rgba(234, 179, 8, 0.5)'
+              : 'rgba(52, 211, 153, 0.5)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.ellipse(impactX, impactY - 2, 10, 4, 0, 0, Math.PI * 2);
@@ -361,29 +434,51 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
       // Flying projectile
       if (proj.active) {
+        const gravity = cableType === 'coaxial' ? 0.46 : cableType === 'fiber' ? 0.28 : 0.35;
         proj.vx *= 0.995;
-        proj.vy += 0.35 * timeStep;
+        proj.vy += gravity * timeStep;
         proj.x += proj.vx * timeStep;
         proj.y += proj.vy * timeStep;
 
-        if (Math.random() > 0.3) {
+        // Particle trail
+        if (Math.random() > 0.2) {
+          const trailColor =
+            cableType === 'fiber'
+              ? '#06b6d4'
+              : cableType === 'coaxial'
+              ? '#f59e0b'
+              : '#10b981';
           particlesRef.current.push({
             x: proj.x,
             y: proj.y,
             vx: (Math.random() - 0.5) * 1.2 - proj.vx * 0.08,
             vy: (Math.random() - 0.5) * 1.2 - proj.vy * 0.08,
             life: 1,
-            maxLife: 18 + Math.random() * 8,
-            color: '#10b981',
-            size: 2.5 + Math.random() * 2,
+            maxLife: 20 + Math.random() * 10,
+            color: trailColor,
+            size: cableType === 'coaxial' ? 4 : 2.5,
           });
         }
 
         // Floor collision
         if (proj.y + proj.radius >= groundY) {
           proj.y = groundY - proj.radius;
-          proj.vy = -proj.vy * 0.42;
+          proj.vy = -proj.vy * (cableType === 'coaxial' ? 0.25 : 0.42);
           proj.vx *= 0.8;
+
+          // Coaxial ground impact shockwave
+          if (cableType === 'coaxial' && Math.abs(proj.vy) > 1.5) {
+            shakeRef.current = 10;
+            shockwavesRef.current.push({
+              x: proj.x,
+              y: groundY,
+              radius: 5,
+              maxRadius: 80,
+              color: '#f59e0b',
+              alpha: 0.8,
+            });
+          }
+
           if (Math.abs(proj.vy) < 0.5) {
             proj.vy = 0;
             proj.restTimer += 1;
@@ -398,7 +493,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           proj.restTimer = 100;
         }
 
-        // Projectile RJ-45 connector rendering
+        // Projectile rendering in flight
         ctx.save();
         ctx.translate(proj.x, proj.y);
         const heading = Math.atan2(proj.vy, proj.vx);
@@ -409,43 +504,60 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           ctx.fillStyle = '#38bdf8';
           ctx.beginPath();
           ctx.moveTo(-14, -6);
-          ctx.lineTo(-30 - Math.random() * 8, 0);
+          ctx.lineTo(-32 - Math.random() * 8, 0);
           ctx.lineTo(-14, 6);
           ctx.closePath();
           ctx.fill();
         }
 
-        // RJ-45 crystal housing
-        ctx.fillStyle = hasBoosted ? '#0284c7' : '#059669';
-        ctx.strokeStyle = hasBoosted ? '#38bdf8' : '#34d399';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(-13, -8, 26, 16, 3);
-        ctx.fill();
-        ctx.stroke();
+        if (cableType === 'fiber') {
+          ctx.fillStyle = hasBoosted ? '#38bdf8' : '#0891b2';
+          ctx.strokeStyle = '#67e8f9';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(-14, -6, 28, 12, 4);
+          ctx.fill();
+          ctx.stroke();
 
-        // 8 Gold Contact Pins
-        ctx.fillStyle = '#fbbf24';
-        for (let pIdx = -5; pIdx <= 5; pIdx += 2) {
-          ctx.fillRect(9, pIdx - 0.5, 3.5, 1);
+          // Laser flare
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(12, 0, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (cableType === 'coaxial') {
+          ctx.fillStyle = hasBoosted ? '#ca8a04' : '#713f12';
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(-16, -10, 32, 20, 5);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#fbbf24';
+          ctx.fillRect(10, -3, 8, 6);
+        } else {
+          // RJ-45
+          ctx.fillStyle = hasBoosted ? '#0284c7' : '#059669';
+          ctx.strokeStyle = hasBoosted ? '#38bdf8' : '#34d399';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(-13, -8, 26, 16, 3);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#fbbf24';
+          for (let pIdx = -5; pIdx <= 5; pIdx += 2) {
+            ctx.fillRect(9, pIdx - 0.5, 3.5, 1);
+          }
+
+          ctx.fillStyle = hasBoosted ? '#bae6fd' : '#a7f3d0';
+          ctx.beginPath();
+          ctx.moveTo(-6, -8);
+          ctx.lineTo(4, -12);
+          ctx.lineTo(5, -8);
+          ctx.closePath();
+          ctx.fill();
         }
-
-        // Locking Tab clip
-        ctx.fillStyle = hasBoosted ? '#bae6fd' : '#a7f3d0';
-        ctx.beginPath();
-        ctx.moveTo(-6, -8);
-        ctx.lineTo(4, -12);
-        ctx.lineTo(5, -8);
-        ctx.closePath();
-        ctx.fill();
-
-        // Wire jacket out the back
-        ctx.strokeStyle = '#27272a';
-        ctx.lineWidth = 3.5;
-        ctx.beginPath();
-        ctx.moveTo(-13, 0);
-        ctx.lineTo(-24, 0);
-        ctx.stroke();
 
         ctx.restore();
 
@@ -457,6 +569,26 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           proj.active = false;
           proj.hasLanded = true;
           handleRoundEnd();
+        }
+      }
+
+      // Shockwaves rendering
+      for (let sIdx = shockwavesRef.current.length - 1; sIdx >= 0; sIdx--) {
+        const sw = shockwavesRef.current[sIdx];
+        sw.radius += 4;
+        sw.alpha *= 0.92;
+
+        ctx.save();
+        ctx.strokeStyle = sw.color;
+        ctx.globalAlpha = sw.alpha;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.ellipse(sw.x, sw.y, sw.radius, sw.radius * 0.45, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        if (sw.radius >= sw.maxRadius || sw.alpha < 0.05) {
+          shockwavesRef.current.splice(sIdx, 1);
         }
       }
 
@@ -487,26 +619,36 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
           if (distSq < proj.radius ** 2) {
             const impactSpeed = Math.sqrt(proj.vx ** 2 + proj.vy ** 2);
-            shakeRef.current = Math.min(18, impactSpeed * 2);
-            sound.impact(Math.min(1.3, impactSpeed * 0.2));
+            shakeRef.current = Math.min(20, impactSpeed * (cableType === 'coaxial' ? 3 : 2));
+            sound.impact(Math.min(1.4, impactSpeed * 0.25));
 
-            block.vx = proj.vx * 0.45;
+            const damage = cableType === 'coaxial' ? 2 : 1;
+            const impulseMultiplier = cableType === 'coaxial' ? 0.75 : 0.45;
+
+            block.vx = proj.vx * impulseMultiplier;
             block.vy = proj.vy * 0.35 - 1.5;
-            block.vAngle = (Math.random() - 0.5) * 0.12;
+            block.vAngle = (Math.random() - 0.5) * 0.15;
 
-            proj.vx *= 0.45;
-            proj.vy *= 0.45;
+            // Fiber optic maintains momentum through light crates!
+            if (cableType === 'fiber') {
+              proj.vx *= 0.75;
+              proj.vy *= 0.75;
+            } else {
+              proj.vx *= 0.45;
+              proj.vy *= 0.45;
+            }
 
-            block.hp -= 1;
+            block.hp -= damage;
             if (block.hp <= 0) {
               block.destroyed = true;
 
-              for (let i = 0; i < 14; i++) {
+              // Debris
+              for (let i = 0; i < 16; i++) {
                 particlesRef.current.push({
                   x: block.x + block.w / 2,
                   y: block.y + block.h / 2,
-                  vx: (Math.random() - 0.5) * 7,
-                  vy: (Math.random() - 0.5) * 7 - 2,
+                  vx: (Math.random() - 0.5) * 8,
+                  vy: (Math.random() - 0.5) * 8 - 2,
                   life: 1,
                   maxLife: 24 + Math.random() * 16,
                   color: block.type.includes('multiplier') ? '#eab308' : '#71717a',
@@ -514,18 +656,37 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                 });
               }
 
+              // Shockwave on destruction
+              shockwavesRef.current.push({
+                x: block.x + block.w / 2,
+                y: block.y + block.h / 2,
+                radius: 4,
+                maxRadius: 60,
+                color: block.type.includes('multiplier') ? '#fbbf24' : '#71717a',
+                alpha: 0.7,
+              });
+
               if (block.type === 'tnt') {
                 sound.crashExplode();
-                shakeRef.current = 24;
+                shakeRef.current = 26;
                 slowMoRef.current = 14;
+                shockwavesRef.current.push({
+                  x: block.x + block.w / 2,
+                  y: block.y + block.h / 2,
+                  radius: 10,
+                  maxRadius: 160,
+                  color: '#ef4444',
+                  alpha: 0.9,
+                });
+
                 blocksRef.current.forEach((other) => {
                   if (!other.destroyed) {
                     const dx = other.x - block.x;
                     const dy = other.y - block.y;
                     const d = Math.sqrt(dx * dx + dy * dy);
-                    if (d < 160) {
-                      other.vx += (dx / d) * 9;
-                      other.vy -= 6;
+                    if (d < 170) {
+                      other.vx += (dx / d) * 10;
+                      other.vy -= 7;
                       other.hp -= 2;
                       if (other.hp <= 0) other.destroyed = true;
                     }
@@ -589,7 +750,6 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           ctx.arc(-block.w / 2 + 8, -block.h / 2 + 8, 2, 0, Math.PI * 2);
           ctx.fill();
         } else if (block.type === 'tnt') {
-          // Tactical red block
           ctx.fillStyle = '#7f1d1d';
           ctx.strokeStyle = '#ef4444';
           ctx.lineWidth = 1.5;
@@ -602,7 +762,6 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           ctx.textBaseline = 'middle';
           ctx.fillText('TNT', 0, 0);
         } else if (block.type.includes('multiplier') || block.type.includes('jackpot')) {
-          // Precision amber/gold vault
           const isJ50 = block.type === 'jackpot_50x';
           ctx.fillStyle = isJ50 ? '#381604' : '#291e0a';
           ctx.strokeStyle = isJ50 ? '#f59e0b' : '#d97706';
@@ -626,7 +785,6 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               : 'x2';
           ctx.fillText(label, 0, 0);
         } else {
-          // Standard dark crate
           ctx.fillStyle = '#202024';
           ctx.strokeStyle = '#323238';
           ctx.lineWidth = 1;
@@ -693,7 +851,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, []);
+  }, [cableType]);
 
   const handleRoundEnd = () => {
     const destroyedCount = blocksRef.current.filter((b) => b.destroyed).length;
@@ -828,15 +986,17 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
       setGameState('flying');
       sound.whoosh();
 
+      const power = cableType === 'fiber' ? 0.28 : cableType === 'coaxial' ? 0.18 : 0.22;
       projectileRef.current = {
         x: slingshotAnchor.x,
         y: slingshotAnchor.y,
-        vx: dx * 0.22,
-        vy: dy * 0.22,
-        radius: 13,
+        vx: dx * power,
+        vy: dy * power,
+        radius: cableType === 'coaxial' ? 16 : cableType === 'fiber' ? 10 : 13,
         active: true,
         hasLanded: false,
         restTimer: 0,
+        cable: cableType,
       };
     } else {
       dragPosRef.current = { x: slingshotAnchor.x, y: slingshotAnchor.y };
@@ -871,7 +1031,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold tracking-tight text-white font-mono">
-                  Slingshot
+                  Slingshot SMR2
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
                   {currentLevel === 3 ? 'Bote x50' : 'Bote x25'}
@@ -983,6 +1143,64 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
         </div>
       </div>
 
+      {/* Cable Selector Bar */}
+      <div className="w-full flex items-center justify-between gap-2 mb-3 px-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none w-full sm:w-auto">
+          <span className="text-[11px] font-mono text-zinc-500 shrink-0 mr-1">Proyectil:</span>
+          
+          <button
+            type="button"
+            disabled={gameState === 'flying'}
+            onClick={() => {
+              setCableType('rj45');
+              sound.tap();
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer shrink-0 ${
+              cableType === 'rj45'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
+                : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.05]'
+            }`}
+          >
+            <Cable className="w-3.5 h-3.5 text-emerald-400" />
+            <span>RJ-45 Cat6</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={gameState === 'flying'}
+            onClick={() => {
+              setCableType('fiber');
+              sound.tap();
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer shrink-0 ${
+              cableType === 'fiber'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.05]'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Fibra Láser (+Vel)</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={gameState === 'flying'}
+            onClick={() => {
+              setCableType('coaxial');
+              sound.tap();
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer shrink-0 ${
+              cableType === 'coaxial'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
+                : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.05]'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 text-amber-400" />
+            <span>Coaxial (+Onda)</span>
+          </button>
+        </div>
+      </div>
+
       {/* Canvas Area */}
       <div className="relative w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0d]">
         <canvas
@@ -997,7 +1215,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
         {gameState === 'aiming' && (
           <div className="absolute top-3 left-3 pointer-events-none bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-[11px] text-zinc-400 font-mono flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Arrastra el conector RJ-45 hacia atrás para disparar</span>
+            <span>Arrastra el cable hacia atrás para disparar</span>
           </div>
         )}
 
@@ -1095,7 +1313,6 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           </div>
         )}
       </div>
-
     </div>
   );
 };
