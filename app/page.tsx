@@ -26,6 +26,7 @@ import {
   clearUserSession,
   updateSessionCoins,
 } from '@/lib/authSession';
+import { logoutAccount } from '@/lib/authService';
 import { Target, TrendingUp, AlertCircle, MessageSquare, Calendar, Cookie, Server, CircleDot } from 'lucide-react';
 
 export default function Home() {
@@ -72,25 +73,46 @@ export default function Home() {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (data) {
         const profile: UserProfile = {
           id: data.id,
           username: data.username,
-          email,
-          coins: Number(data.coins),
-          biggest_win: Number(data.biggest_win),
+          email: data.email || email,
+          coins: Number(data.coins ?? 1000),
+          biggest_win: Number(data.biggest_win ?? 0),
           streak_count: data.streak_count ? Number(data.streak_count) : 1,
           last_claim_date: data.last_claim_date || undefined,
-          role: data.role || 'student',
+          role: data.role || (data.username === 'admin' ? 'admin' : 'student'),
           created_at: data.created_at,
           auth_provider: 'supabase',
         };
         setUser(profile);
         saveUserSession(profile, true);
       } else {
-        const fallbackUsername = email ? email.split('@')[0] : `user_${userId.slice(0, 5)}`;
+        const fallbackUsername = (email ? email.split('@')[0] : `user_${userId.slice(0, 5)}`)
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, '_');
+        const role = fallbackUsername === 'admin' ? 'admin' : 'student';
+
+        try {
+          await supabase.from('profiles').upsert(
+            [
+              {
+                id: userId,
+                username: fallbackUsername,
+                email: email || null,
+                coins: 1000,
+                biggest_win: 0,
+                streak_count: 1,
+                role,
+              },
+            ],
+            { onConflict: 'id' }
+          );
+        } catch {}
+
         const newProfile: UserProfile = {
           id: userId,
           username: fallbackUsername,
@@ -98,10 +120,9 @@ export default function Home() {
           coins: 1000,
           biggest_win: 0,
           streak_count: 1,
-          role: 'student',
+          role,
           auth_provider: 'supabase',
         };
-        await supabase.from('profiles').insert([newProfile]);
         setUser(newProfile);
         saveUserSession(newProfile, true);
       }
@@ -184,11 +205,7 @@ export default function Home() {
         if (authUser) {
           fetchUserProfile(authUser.id, authUser.email).finally(() => setAuthLoading(false));
         } else {
-          // If Supabase has no active session but user has a saved local session, keep cookie session
-          if (cachedSession?.auth_provider === 'supabase') {
-            setUser(null);
-            clearUserSession();
-          }
+          // Keep cached session to avoid wiping user on transient token refresh or network hiccup
           setAuthLoading(false);
         }
       })
@@ -197,9 +214,10 @@ export default function Home() {
         setAuthLoading(false);
       });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        fetchUserProfile(session.user.id, session.user.email).finally(() => setAuthLoading(false));
+        await fetchUserProfile(session.user.id, session.user.email);
+        setAuthLoading(false);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         clearUserSession();
@@ -294,13 +312,7 @@ export default function Home() {
         }).catch(() => {});
       } catch {}
     }
-    clearUserSession();
-    const supabase = createClient();
-    if (supabase) {
-      try {
-        await supabase.auth.signOut();
-      } catch {}
-    }
+    await logoutAccount();
     setUser(null);
   };
 

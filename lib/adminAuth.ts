@@ -142,8 +142,13 @@ export async function verifyUserSession(): Promise<{
   const sessionCookie = cookieStore.get(COOKIE_SESSION);
   if (sessionCookie?.value) {
     try {
-      const decoded = decodeURIComponent(sessionCookie.value);
-      const user = JSON.parse(decoded) as UserProfile;
+      let raw = sessionCookie.value;
+      if (raw.includes('%')) {
+        try {
+          raw = decodeURIComponent(raw);
+        } catch {}
+      }
+      const user = JSON.parse(raw) as UserProfile;
       if (user && user.id && user.username) {
         return { authenticated: true, user };
       }
