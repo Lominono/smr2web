@@ -69,10 +69,11 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
   } | null>(null);
   const [bragged, setBragged] = useState<boolean>(false);
 
-  // Animation physics state
-  const wheelAngleRef = useRef<number>(0);
-  const ballAngleRef = useRef<number>(0);
-  const ballRadiusRef = useRef<number>(120);
+  // Animation physics state (initially align 0 to the top pointer needle)
+  const initialSlice = (Math.PI * 2) / WHEEL_NUMBERS.length;
+  const wheelAngleRef = useRef<number>(-Math.PI / 2 - 0.5 * initialSlice);
+  const ballAngleRef = useRef<number>(-Math.PI / 2);
+  const ballRadiusRef = useRef<number>(122);
   const animFrameRef = useRef<number | null>(null);
 
   const totalBet = Object.values(bets).reduce((sum, amt) => sum + amt, 0);
@@ -190,47 +191,103 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
     setBragged(false);
     sound.whoosh();
 
-    // Pick random target number using crypto
+    // 1. Pick true random target number from the wheel sequence
     const randArr = new Uint32Array(1);
     crypto.getRandomValues(randArr);
-    const targetNumber = WHEEL_NUMBERS[randArr[0] % WHEEL_NUMBERS.length];
+    const targetIndex = randArr[0] % WHEEL_NUMBERS.length;
+    const targetNumber = WHEEL_NUMBERS[targetIndex];
 
-    // Find target angle on wheel
-    const targetIndex = WHEEL_NUMBERS.indexOf(targetNumber);
     const sliceAngle = (Math.PI * 2) / WHEEL_NUMBERS.length;
-    // Align slot to top (angle -Math.PI / 2)
-    const targetWheelOffset = (Math.PI * 2) - (targetIndex * sliceAngle) - sliceAngle / 2;
+    // Center of target slot in wheel's local angular coordinates
+    const targetSlotCenter = (targetIndex + 0.5) * sliceAngle;
+    // The gold indicator needle is stationed at top (angle -Math.PI / 2)
+    const topAngle = -Math.PI / 2;
 
-    const startWheelAngle = wheelAngleRef.current % (Math.PI * 2);
-    const totalWheelSpins = (4 + Math.random() * 2) * Math.PI * 2;
-    const finalWheelAngle = startWheelAngle + totalWheelSpins + targetWheelOffset;
+    // To align the target slot under the needle at the end:
+    // (finalWheelAngle + targetSlotCenter) % 2PI === topAngle
+    let desiredWheelMod = (topAngle - targetSlotCenter) % (Math.PI * 2);
+    if (desiredWheelMod < 0) desiredWheelMod += Math.PI * 2;
+
+    const startWheelAngle = wheelAngleRef.current;
+    let currentWheelMod = startWheelAngle % (Math.PI * 2);
+    if (currentWheelMod < 0) currentWheelMod += Math.PI * 2;
+
+    // Calculate forward angular distance to reach desired alignment
+    let forwardDelta = desiredWheelMod - currentWheelMod;
+    if (forwardDelta <= 0) forwardDelta += Math.PI * 2;
+
+    // Realistic multi-revolution spin (5 to 7 full 360° turns + exact delta)
+    const numFullSpins = 5 + Math.floor(Math.random() * 3);
+    const totalWheelRotation = numFullSpins * Math.PI * 2 + forwardDelta;
+    const finalWheelAngle = startWheelAngle + totalWheelRotation;
+
+    // Physical tracks
+    const outerTrackRadius = 138;
+    const pocketRadius = 122;
+
+    // Ball spins counter-clockwise opposite to the wheel (7-9 revolutions)
+    const ballRelativeSpins = (7 + Math.random() * 2) * Math.PI * 2;
 
     const startTime = performance.now();
-    const duration = 4800; // 4.8 seconds realistic spin
+    const duration = 4800; // 4.8 seconds
+
+    let hasDroppedSound = false;
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      // Smooth cubic deceleration
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      wheelAngleRef.current = startWheelAngle + easeOut * (finalWheelAngle - startWheelAngle);
+      // Smooth cubic deceleration for wheel rotation
+      const easeWheel = 1 - Math.pow(1 - progress, 3);
+      wheelAngleRef.current = startWheelAngle + easeWheel * (finalWheelAngle - startWheelAngle);
 
-      // Ball rotates counter-clockwise and gradually drops towards the center
-      const ballSpins = (8 * (1 - easeOut)) * Math.PI * 2;
-      ballAngleRef.current = -ballSpins + wheelAngleRef.current;
-      ballRadiusRef.current = 130 - easeOut * 32;
+      // Current world position of the target slot center
+      const currentTargetAngle = wheelAngleRef.current + targetSlotCenter;
 
-      // Sound ticks
-      if (Math.floor(elapsed / 120) % 2 === 0 && progress < 0.85) {
-        sound.rouletteTick(1 - progress * 0.7);
+      if (progress < 0.82) {
+        // Phase 1: Ball spins rapidly on outer mahogany rim opposite to the wheel
+        const ballEase = Math.pow(1 - progress / 0.82, 2.2);
+        ballAngleRef.current = currentTargetAngle - ballRelativeSpins * ballEase;
+
+        if (progress < 0.60) {
+          ballRadiusRef.current = outerTrackRadius;
+        } else {
+          // Centrifugal force drops, ball spirals inwards toward pockets
+          const dropT = (progress - 0.60) / 0.22;
+          ballRadiusRef.current = outerTrackRadius - dropT * (outerTrackRadius - pocketRadius);
+        }
+
+        // Mechanical clicking sound ticks
+        if (Math.floor(elapsed / 115) % 2 === 0) {
+          sound.rouletteTick(1 - progress * 0.7);
+        }
+      } else if (progress < 0.92) {
+        // Phase 2: Ball drops into pocket with realistic fret bounce
+        if (!hasDroppedSound) {
+          hasDroppedSound = true;
+          sound.rouletteBallDrop();
+        }
+
+        const bounceT = (progress - 0.82) / 0.10;
+        const bounce = Math.sin(bounceT * Math.PI * 2) * 2.5 * (1 - bounceT);
+        ballRadiusRef.current = pocketRadius + bounce;
+
+        // Ball is captured inside target slot and rotates synchronously with it
+        ballAngleRef.current = currentTargetAngle;
+      } else {
+        // Phase 3: Ball is settled snugly in target pocket
+        ballRadiusRef.current = pocketRadius;
+        ballAngleRef.current = currentTargetAngle;
       }
 
       if (progress < 1) {
         animFrameRef.current = requestAnimationFrame(animate);
       } else {
-        // Spin finished!
-        sound.rouletteBallDrop();
+        // Spin finished! Snap exact final alignment
+        wheelAngleRef.current = finalWheelAngle;
+        ballAngleRef.current = finalWheelAngle + targetSlotCenter;
+        ballRadiusRef.current = pocketRadius;
+
         setWinningNumber(targetNumber);
         setHistory((prev) => [targetNumber, ...prev.slice(0, 9)]);
 
@@ -307,23 +364,25 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
         const start = i * slice;
         const end = start + slice;
         const color = getNumberColor(num);
+        const isWinner = winningNumber !== null && !isSpinning && num === winningNumber;
 
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.arc(0, 0, radius, start, end);
         ctx.closePath();
 
-        ctx.fillStyle =
-          color === 'green'
-            ? '#059669'
-            : color === 'red'
-            ? '#b91c1c'
-            : '#18181b';
+        ctx.fillStyle = isWinner
+          ? '#d97706'
+          : color === 'green'
+          ? '#059669'
+          : color === 'red'
+          ? '#b91c1c'
+          : '#18181b';
         ctx.fill();
 
         // Dividing gold ray lines
-        ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = isWinner ? '#fbbf24' : 'rgba(245, 158, 11, 0.4)';
+        ctx.lineWidth = isWinner ? 2.5 : 1;
         ctx.stroke();
 
         // Number labels on the rim
@@ -331,8 +390,8 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
         ctx.rotate(start + slice / 2);
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 10px monospace';
+        ctx.fillStyle = isWinner ? '#ffffff' : '#ffffff';
+        ctx.font = isWinner ? 'bold 11px monospace' : 'bold 10px monospace';
         ctx.fillText(String(num), radius - 10, 0);
         ctx.restore();
       });
