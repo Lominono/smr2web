@@ -6,7 +6,7 @@ export interface SubjectInfo {
   cardBg: string;
   border: string;
   text: string;
-  gradient: string;
+  accentHex: string;
 }
 
 export const SMR2_SUBJECTS: Record<string, SubjectInfo> = {
@@ -14,91 +14,91 @@ export const SMR2_SUBJECTS: Record<string, SubjectInfo> = {
     code: 'SR',
     name: 'Servicios en Red',
     description: 'Configuración de servidores DNS, DHCP, Web, FTP, Correo y monitorización.',
-    badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    cardBg: 'bg-blue-950/20 hover:bg-blue-900/30',
-    border: 'border-blue-500/30',
-    text: 'text-blue-400',
-    gradient: 'from-blue-600 to-cyan-500',
+    badgeColor: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+    cardBg: 'bg-sky-500/[0.04] hover:bg-sky-500/[0.08]',
+    border: 'border-sky-500/20 hover:border-sky-500/40',
+    text: 'text-sky-400',
+    accentHex: '#38bdf8',
   },
   SOR: {
     code: 'SOR',
     name: 'Sistemas Operativos en Red',
     description: 'Administración de servidores Windows Server (AD, GPO) y Linux Server.',
-    badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    cardBg: 'bg-amber-950/20 hover:bg-amber-900/30',
-    border: 'border-amber-500/30',
+    badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    cardBg: 'bg-amber-500/[0.04] hover:bg-amber-500/[0.08]',
+    border: 'border-amber-500/20 hover:border-amber-500/40',
     text: 'text-amber-400',
-    gradient: 'from-amber-500 to-orange-500',
+    accentHex: '#fbbf24',
   },
   SI: {
     code: 'SI',
     name: 'Seguridad Informática',
     description: 'Criptografía, firewalls, copias de seguridad, análisis de vulnerabilidades y malware.',
-    badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-    cardBg: 'bg-purple-950/20 hover:bg-purple-900/30',
-    border: 'border-purple-500/30',
+    badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    cardBg: 'bg-purple-500/[0.04] hover:bg-purple-500/[0.08]',
+    border: 'border-purple-500/20 hover:border-purple-500/40',
     text: 'text-purple-400',
-    gradient: 'from-purple-500 to-violet-600',
+    accentHex: '#c084fc',
   },
   AW: {
     code: 'AW',
     name: 'Aplicaciones Web',
     description: 'Instalación y gestión de CMS (WordPress, Moodle), bases de datos y despliegue web.',
-    badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-    cardBg: 'bg-emerald-950/20 hover:bg-emerald-900/30',
-    border: 'border-emerald-500/30',
+    badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    cardBg: 'bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08]',
+    border: 'border-emerald-500/20 hover:border-emerald-500/40',
     text: 'text-emerald-400',
-    gradient: 'from-emerald-500 to-teal-500',
+    accentHex: '#34d399',
   },
   MEP: {
     code: 'MEP',
     name: 'Módulo de Empresa / Profesional',
     description: 'Empresa e iniciativa emprendedora, orientación laboral y gestión de proyectos IT.',
-    badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-    cardBg: 'bg-rose-950/20 hover:bg-rose-900/30',
-    border: 'border-rose-500/30',
+    badgeColor: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    cardBg: 'bg-rose-500/[0.04] hover:bg-rose-500/[0.08]',
+    border: 'border-rose-500/20 hover:border-rose-500/40',
     text: 'text-rose-400',
-    gradient: 'from-rose-500 to-pink-600',
+    accentHex: '#fb7185',
   },
   IP2: {
     code: 'IP2',
     name: 'Inglés Profesional 2',
     description: 'Vocabulario técnico de redes, soporte a usuarios y documentación en inglés.',
-    badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
-    cardBg: 'bg-sky-950/20 hover:bg-sky-900/30',
-    border: 'border-sky-500/30',
-    text: 'text-sky-400',
-    gradient: 'from-sky-500 to-indigo-500',
+    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    cardBg: 'bg-cyan-500/[0.04] hover:bg-cyan-500/[0.08]',
+    border: 'border-cyan-500/20 hover:border-cyan-500/40',
+    text: 'text-cyan-400',
+    accentHex: '#22d3ee',
   },
   PI: {
     code: 'PI',
     name: 'Proyecto Intermodular',
     description: 'Diseño, implantación y defensa de un proyecto integral de sistemas y redes.',
-    badgeColor: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-    cardBg: 'bg-yellow-950/20 hover:bg-yellow-900/30',
-    border: 'border-yellow-500/30',
+    badgeColor: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+    cardBg: 'bg-yellow-500/[0.04] hover:bg-yellow-500/[0.08]',
+    border: 'border-yellow-500/20 hover:border-yellow-500/40',
     text: 'text-yellow-400',
-    gradient: 'from-yellow-400 to-amber-500',
+    accentHex: '#facc15',
   },
   DIG: {
     code: 'DIG',
     name: 'Digitalización Aplicada',
     description: 'Herramientas de digitalización, automatización e industria 4.0 en el sector productivo.',
-    badgeColor: 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30',
-    cardBg: 'bg-fuchsia-950/20 hover:bg-fuchsia-900/30',
-    border: 'border-fuchsia-500/30',
+    badgeColor: 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20',
+    cardBg: 'bg-fuchsia-500/[0.04] hover:bg-fuchsia-500/[0.08]',
+    border: 'border-fuchsia-500/20 hover:border-fuchsia-500/40',
     text: 'text-fuchsia-400',
-    gradient: 'from-fuchsia-500 to-pink-500',
+    accentHex: '#e879f9',
   },
   RECREO: {
     code: 'RECREO',
     name: 'Recreo',
-    description: 'Descanso de media mañana. Momento para el almuerzo y partidas en el Arcade.',
-    badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-    cardBg: 'bg-emerald-950/30 hover:bg-emerald-900/40',
-    border: 'border-emerald-500/40',
-    text: 'text-emerald-400',
-    gradient: 'from-emerald-500 to-green-600',
+    description: 'Descanso de media mañana de 30 minutos.',
+    badgeColor: 'bg-zinc-800 text-zinc-300 border-zinc-700/50',
+    cardBg: 'bg-zinc-900/40',
+    border: 'border-white/[0.06]',
+    text: 'text-zinc-400',
+    accentHex: '#a1a1aa',
   },
 };
 
@@ -111,13 +111,13 @@ export interface TimeSlot {
 }
 
 export const TIME_SLOTS: TimeSlot[] = [
-  { index: 1, label: '8.15 - 9.05', startMinutes: 8 * 60 + 15, endMinutes: 9 * 60 + 5 },
-  { index: 2, label: '9.05 - 10.00', startMinutes: 9 * 60 + 5, endMinutes: 10 * 60 },
-  { index: 3, label: '10.00 - 10.55', startMinutes: 10 * 60, endMinutes: 10 * 60 + 55 },
-  { index: 4, label: '10.55 - 11.25', startMinutes: 10 * 60 + 55, endMinutes: 11 * 60 + 25, isRecreo: true },
-  { index: 5, label: '11.25 - 12.20', startMinutes: 11 * 60 + 25, endMinutes: 12 * 60 + 20 },
-  { index: 6, label: '12.20 - 13.15', startMinutes: 12 * 60 + 20, endMinutes: 13 * 60 + 15 },
-  { index: 7, label: '13.15 - 14.05', startMinutes: 13 * 60 + 15, endMinutes: 14 * 60 + 5 },
+  { index: 1, label: '08:15 — 09:05', startMinutes: 8 * 60 + 15, endMinutes: 9 * 60 + 5 },
+  { index: 2, label: '09:05 — 10:00', startMinutes: 9 * 60 + 5, endMinutes: 10 * 60 },
+  { index: 3, label: '10:00 — 10:55', startMinutes: 10 * 60, endMinutes: 10 * 60 + 55 },
+  { index: 4, label: '10:55 — 11:25', startMinutes: 10 * 60 + 55, endMinutes: 11 * 60 + 25, isRecreo: true },
+  { index: 5, label: '11:25 — 12:20', startMinutes: 11 * 60 + 25, endMinutes: 12 * 60 + 20 },
+  { index: 6, label: '12:20 — 13:15', startMinutes: 12 * 60 + 20, endMinutes: 13 * 60 + 15 },
+  { index: 7, label: '13:15 — 14:05', startMinutes: 13 * 60 + 15, endMinutes: 14 * 60 + 5 },
 ];
 
 export type DayKey = 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes';
@@ -130,11 +130,11 @@ export interface DayInfo {
 }
 
 export const DAYS: DayInfo[] = [
-  { key: 'lunes', label: 'LUNES', shortLabel: 'Lun', dayIndex: 1 },
-  { key: 'martes', label: 'MARTES', shortLabel: 'Mar', dayIndex: 2 },
-  { key: 'miercoles', label: 'MIÉRCOLES', shortLabel: 'Mié', dayIndex: 3 },
-  { key: 'jueves', label: 'JUEVES', shortLabel: 'Jue', dayIndex: 4 },
-  { key: 'viernes', label: 'VIERNES', shortLabel: 'Vie', dayIndex: 5 },
+  { key: 'lunes', label: 'Lunes', shortLabel: 'Lun', dayIndex: 1 },
+  { key: 'martes', label: 'Martes', shortLabel: 'Mar', dayIndex: 2 },
+  { key: 'miercoles', label: 'Miércoles', shortLabel: 'Mié', dayIndex: 3 },
+  { key: 'jueves', label: 'Jueves', shortLabel: 'Jue', dayIndex: 4 },
+  { key: 'viernes', label: 'Viernes', shortLabel: 'Vie', dayIndex: 5 },
 ];
 
 /**
@@ -173,7 +173,7 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
       nextSubjectCode: 'SR',
       nextSubject: SMR2_SUBJECTS['SR'],
       minutesRemaining: 0,
-      message: 'Fin de semana · Próxima clase: Lunes 8:15 (SR)',
+      message: 'Fin de semana · Próxima clase: Lunes 08:15 (SR)',
     };
   }
 
@@ -203,7 +203,7 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
       nextSubjectCode: firstSubjectCode,
       nextSubject: SMR2_SUBJECTS[firstSubjectCode] || null,
       minutesRemaining: diff,
-      message: `Empieza en ${diff} min (${firstSubjectCode} a las 8:15)`,
+      message: `Empieza en ${diff} min · ${firstSubjectCode} a las 08:15`,
     };
   }
 
@@ -219,7 +219,7 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
       nextSubjectCode,
       nextSubject: SMR2_SUBJECTS[nextSubjectCode] || null,
       minutesRemaining: 0,
-      message: `Clases finalizadas por hoy · Próxima: ${nextSubjectCode} a las 8:15`,
+      message: `Clases finalizadas por hoy · Próxima: ${nextSubjectCode} a las 08:15`,
     };
   }
 
@@ -246,14 +246,6 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
         };
       }
 
-      const timeToRecreo =
-        currentMinutes < 10 * 60 + 55 ? 10 * 60 + 55 - currentMinutes : null;
-
-      let msg = `En clase: ${subjectCode} · Quedan ${remaining} min`;
-      if (timeToRecreo !== null && timeToRecreo > 0 && timeToRecreo <= 90) {
-        msg += ` · Recreo en ${timeToRecreo}m`;
-      }
-
       return {
         status: 'in_class',
         currentSubjectCode: subjectCode,
@@ -262,7 +254,7 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
         nextSubjectCode,
         nextSubject: nextSubjectCode ? SMR2_SUBJECTS[nextSubjectCode] : null,
         minutesRemaining: remaining,
-        message: msg,
+        message: `En clase: ${subject?.name || subjectCode} · Quedan ${remaining} min`,
       };
     }
   }
@@ -275,6 +267,6 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
     nextSubjectCode: null,
     nextSubject: null,
     minutesRemaining: 0,
-    message: 'Horario escolar SMR2',
+    message: 'Horario escolar SMR2 · Aula 204',
   };
 }

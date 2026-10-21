@@ -187,7 +187,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({
     return (
       <div className="min-h-screen relative flex flex-col justify-center items-center bg-[#070709] bg-dot-matrix text-white p-4 selection:bg-white selection:text-black">
         <div className="relative z-10 w-full max-w-sm">
-          <div className="glass-panel rounded-3xl p-7 shadow-2xl border border-white/[0.08] text-center">
+          <div className="glass-panel rounded-3xl p-5 sm:p-7 shadow-2xl border border-white/[0.08] text-center">
             <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-4">
               <Inbox className="w-8 h-8 animate-bounce" />
             </div>
@@ -231,7 +231,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({
     <div className="min-h-screen relative flex flex-col justify-center items-center bg-[#070709] bg-dot-matrix text-white p-4 selection:bg-white selection:text-black">
       {/* Auth Card */}
       <div className="relative z-10 w-full max-w-sm">
-        <div className="glass-panel rounded-3xl p-7 shadow-2xl border border-white/[0.08]">
+        <div className="glass-panel rounded-3xl p-5 sm:p-7 shadow-2xl border border-white/[0.08]">
           {/* Logo with natural PNG transparency */}
           <div className="flex flex-col items-center text-center mb-6">
             <img

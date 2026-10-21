@@ -5,18 +5,16 @@ import {
   Calendar as CalendarIcon,
   Clock,
   BookOpen,
-  Sparkles,
   Plus,
   Trash2,
-  AlertCircle,
   CheckCircle2,
-  Coffee,
   X,
-  Filter,
   CalendarDays,
   ListTodo,
   ShieldCheck,
   Link as LinkIcon,
+  ChevronRight,
+  Sparkles,
 } from 'lucide-react';
 import {
   SMR2_SUBJECTS,
@@ -45,14 +43,16 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'grid' | 'agenda'>('grid');
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [selectedSubjectForTask, setSelectedSubjectForTask] = useState<string | undefined>(undefined);
-  const [mobileDay, setMobileDay] = useState<DayKey | 'all'>('all');
+  const [inspectedSubject, setInspectedSubject] = useState<SubjectInfo | null>(null);
+  const [mobileDay, setMobileDay] = useState<DayKey | 'all'>('lunes');
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isTaskAdminOpen, setIsTaskAdminOpen] = useState(false);
+  const [selectedSubjectForTask, setSelectedSubjectForTask] = useState<string | undefined>(undefined);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'exam' | 'homework' | 'reminder'>('all');
   const [loadingEvents, setLoadingEvents] = useState(false);
 
-  // Update live status every 15 seconds
+  // Update live status periodically
   useEffect(() => {
     const update = () => setLiveStatus(getCurrentScheduleStatus());
     update();
@@ -60,7 +60,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Determine current day key for mobile default
+  // Set default mobile day to today (or Monday if weekend)
   useEffect(() => {
     const day = new Date().getDay();
     const dayMap: Record<number, DayKey> = {
@@ -70,12 +70,10 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
       4: 'jueves',
       5: 'viernes',
     };
-    if (dayMap[day]) {
-      setMobileDay(dayMap[day]);
-    }
+    setMobileDay(dayMap[day] || 'lunes');
   }, []);
 
-  // Fetch calendar events from Supabase or localStorage
+  // Fetch calendar events
   const fetchEvents = async () => {
     setLoadingEvents(true);
     const supabase = createClient();
@@ -93,17 +91,15 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
           return;
         }
       } catch (err) {
-        console.warn('Error al cargar eventos de Supabase:', err);
+        console.warn('Error loading calendar events:', err);
       }
     }
 
-    // Fallback: localStorage
     try {
       const stored = localStorage.getItem('smr2_calendar_events');
       if (stored) {
         setEvents(JSON.parse(stored));
       } else {
-        // Sample seed events
         const demoEvents: CalendarEvent[] = [
           {
             id: 'demo-1',
@@ -113,7 +109,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
             event_date: new Date(Date.now() + 86400000 * 4).toISOString().split('T')[0],
             start_time: '08:15',
             description: 'Instalación y configuración de BIND9 e isc-dhcp-server en Linux.',
-            created_by_name: 'Profesor/Clase',
+            created_by_name: 'Delegado',
           },
           {
             id: 'demo-2',
@@ -129,27 +125,22 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         setEvents(demoEvents);
         localStorage.setItem('smr2_calendar_events', JSON.stringify(demoEvents));
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
     setLoadingEvents(false);
   };
 
   useEffect(() => {
     fetchEvents();
 
-    // Subscribe to realtime changes on calendar_events if Supabase is connected
     const supabase = createClient();
     if (!supabase) return;
 
     const channel = supabase
-      .channel('calendar_realtime')
+      .channel('calendar_realtime_view')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'calendar_events' },
-        () => {
-          fetchEvents();
-        }
+        () => fetchEvents()
       )
       .subscribe();
 
@@ -164,9 +155,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     if (supabase) {
       try {
         await supabase.from('calendar_events').delete().eq('id', id);
-      } catch (err) {
-        console.warn('Error deleting event:', err);
-      }
+      } catch {}
     }
 
     const updated = events.filter((e) => e.id !== id);
@@ -176,10 +165,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     } catch {}
   };
 
-  // Current day index (1 = Monday, 5 = Friday)
-  const currentDayIndex = new Date().getDay();
-
-  // Weekly hours summary by subject
+  // Weekly hours summary
   const subjectWeeklyHours = useMemo(() => {
     const counts: Record<string, number> = {};
     Object.values(SCHEDULE_GRID).forEach((daySlots) => {
@@ -192,138 +178,134 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     return counts;
   }, []);
 
+  const currentDayIndex = new Date().getDay();
+
+  // Filtered events
+  const filteredEvents = useMemo(() => {
+    return events.filter((ev) => {
+      if (taskFilter === 'all') return true;
+      return ev.event_type === taskFilter;
+    });
+  }, [events, taskFilter]);
+
   return (
-    <div className="space-y-4 animate-in fade-in duration-200">
-      {/* Top Banner Card: Horario SMR2 Title + Live Status */}
-      <div className="relative overflow-hidden rounded-3xl glass-panel border border-white/[0.08] p-5 sm:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.6)]">
-        {/* Glow backdrop */}
-        <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-white/[0.06] border border-white/10 text-white">
-                <CalendarIcon className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-base sm:text-lg font-semibold tracking-tight text-white font-sans">
-                  Horario lectivo
-                </h2>
-                <p className="text-xs text-zinc-400 font-mono mt-0.5">
-                  2º Sistemas Microinformáticos y Redes · Turno de mañana
-                </p>
-              </div>
-            </div>
+    <div className="space-y-4">
+      {/* ============================================================== */}
+      {/* 1. MINIMALIST HEADER & LIVE BAR */}
+      {/* ============================================================== */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-[#0c0c10] border border-white/[0.07] flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-base font-semibold tracking-tight text-white">
+              Horario y Tareas
+            </h2>
+            <span className="text-[11px] font-mono text-zinc-400 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06]">
+              2º SMR · Aula 204
+            </span>
           </div>
 
-          {/* Actions & Sub-tab view switcher */}
-          <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
-            <button
-              onClick={() => {
-                setSelectedSubjectForTask(undefined);
-                setIsTaskAdminOpen(true);
-                sound.tap();
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-mono font-bold transition-all cursor-pointer shadow-sm active:scale-95"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>Panel de Delegado</span>
-            </button>
-
-            <div className="inline-flex p-1 rounded-2xl bg-black/50 border border-white/[0.08]">
-              <button
-                onClick={() => {
-                  setActiveSubTab('grid');
-                  sound.tap();
-                }}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-                  activeSubTab === 'grid'
-                    ? 'bg-white text-black font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <CalendarDays className="w-3.5 h-3.5" />
-                <span>Semana</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveSubTab('agenda');
-                  sound.tap();
-                }}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-                  activeSubTab === 'agenda'
-                    ? 'bg-white text-black font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <ListTodo className="w-3.5 h-3.5" />
-                <span>Tareas ({events.length})</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Live Status Widget */}
-        <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-2.5 text-xs font-mono">
+          {/* Live Status Pill */}
+          <div className="flex items-center gap-2 text-xs text-zinc-300">
             <span className="relative flex h-2 w-2">
               <span
                 className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                  liveStatus.status === 'recreo'
+                  liveStatus.status === 'in_class'
                     ? 'bg-emerald-400'
-                    : liveStatus.status === 'in_class'
-                    ? 'bg-blue-400'
-                    : 'bg-zinc-500'
-                }`}
-              ></span>
-              <span
-                className={`relative inline-flex rounded-full h-2 w-2 ${
-                  liveStatus.status === 'recreo'
-                    ? 'bg-emerald-500'
-                    : liveStatus.status === 'in_class'
-                    ? 'bg-blue-500'
+                    : liveStatus.status === 'recreo'
+                    ? 'bg-amber-400'
                     : 'bg-zinc-600'
                 }`}
-              ></span>
+              />
+              <span
+                className={`relative inline-flex rounded-full h-2 w-2 ${
+                  liveStatus.status === 'in_class'
+                    ? 'bg-emerald-500'
+                    : liveStatus.status === 'recreo'
+                    ? 'bg-amber-500'
+                    : 'bg-zinc-600'
+                }`}
+              />
             </span>
-
-            <span className="text-zinc-300 leading-relaxed font-sans text-xs">
+            <span className="text-zinc-300 text-xs font-mono">
               {liveStatus.message}
             </span>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-500">
-            <Clock className="w-3.5 h-3.5 text-zinc-400" />
-            <span>08:15 — 14:05 · Aula 204</span>
+        {/* View Switcher & Delegate Access */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex p-1 rounded-xl bg-black/60 border border-white/[0.08]">
+            <button
+              onClick={() => {
+                setActiveSubTab('grid');
+                sound.tap();
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                activeSubTab === 'grid'
+                  ? 'bg-white text-black font-semibold'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>Horario</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveSubTab('agenda');
+                sound.tap();
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                activeSubTab === 'agenda'
+                  ? 'bg-white text-black font-semibold'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <ListTodo className="w-3.5 h-3.5" />
+              <span>Tareas ({events.length})</span>
+            </button>
           </div>
+
+          <button
+            onClick={() => {
+              setSelectedSubjectForTask(undefined);
+              setIsTaskAdminOpen(true);
+              sound.tap();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/15 text-amber-300 border border-amber-400/25 text-xs font-semibold transition-all cursor-pointer active:scale-95"
+            title="Gestión de tareas de clase"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+            <span>Delegado</span>
+          </button>
         </div>
       </div>
 
-      {/* VIEW 1: HORARIO SEMANAL GRID */}
+      {/* ============================================================== */}
+      {/* 2. HORARIO GRID VIEW */}
+      {/* ============================================================== */}
       {activeSubTab === 'grid' && (
-        <div className="space-y-4">
-          {/* Subject Filter Pills */}
+        <div className="space-y-3">
+          {/* Minimalist Subject Filters */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             <button
               onClick={() => {
                 setSelectedSubject(null);
                 sound.tap();
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all shrink-0 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all shrink-0 cursor-pointer border ${
                 selectedSubject === null
-                  ? 'bg-white text-black font-semibold'
-                  : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
+                  ? 'bg-white text-black font-semibold border-white'
+                  : 'bg-white/[0.03] text-zinc-400 hover:text-white border-white/[0.06]'
               }`}
             >
-              Todos los módulos
+              Todos
             </button>
 
             {Object.keys(SMR2_SUBJECTS).map((code) => {
               if (code === 'RECREO') return null;
               const sub = SMR2_SUBJECTS[code];
               const isSelected = selectedSubject === code;
-              const hours = subjectWeeklyHours[code] || 0;
 
               return (
                 <button
@@ -332,106 +314,38 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                     setSelectedSubject(isSelected ? null : code);
                     sound.tap();
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all shrink-0 cursor-pointer border ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all shrink-0 cursor-pointer border ${
                     isSelected
-                      ? `${sub.badgeColor} border-current font-bold ring-1 ring-white/20`
+                      ? `${sub.badgeColor} border-current font-bold`
                       : 'bg-white/[0.03] text-zinc-400 hover:text-white border-white/[0.06]'
                   }`}
                 >
-                  <span>{code}</span>
-                  <span className="text-[10px] opacity-60 ml-1.5">({hours}h)</span>
+                  {code}
                 </button>
               );
             })}
           </div>
 
-          {/* Selected Subject Info Header (if filtered) */}
-          {selectedSubject && SMR2_SUBJECTS[selectedSubject] && (
-            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-between gap-3 text-xs font-mono animate-in fade-in duration-150">
-              <div className="flex items-center gap-2.5">
-                <span
-                  className={`px-2 py-0.5 rounded-md font-bold text-xs ${SMR2_SUBJECTS[selectedSubject].badgeColor}`}
-                >
-                  {selectedSubject}
-                </span>
-                <div>
-                  <span className="text-white font-semibold">
-                    {SMR2_SUBJECTS[selectedSubject].name}
-                  </span>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">
-                    {SMR2_SUBJECTS[selectedSubject].description} · {subjectWeeklyHours[selectedSubject]} horas semanales
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setSelectedSubject(null)}
-                className="text-zinc-500 hover:text-white text-[11px] underline shrink-0 cursor-pointer"
-              >
-                Limpiar filtro
-              </button>
-            </div>
-          )}
-
-          {/* Mobile Day Selector (Visible on small screens) */}
-          <div className="md:hidden flex items-center gap-1.5 p-1.5 rounded-2xl bg-black/50 border border-white/[0.08] overflow-x-auto scrollbar-none">
-            <button
-              onClick={() => {
-                setMobileDay('all');
-                sound.tap();
-              }}
-              className={`min-h-[38px] flex-1 py-1.5 px-3 rounded-xl text-xs font-mono font-medium transition-all text-center shrink-0 active:scale-95 ${
-                mobileDay === 'all'
-                  ? 'bg-zinc-200 text-black font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              Semana
-            </button>
-            {DAYS.map((d) => (
-              <button
-                key={d.key}
-                onClick={() => {
-                  setMobileDay(d.key);
-                  sound.tap();
-                }}
-                className={`min-h-[38px] flex-1 py-1.5 px-3 rounded-xl text-xs font-mono font-medium transition-all text-center shrink-0 active:scale-95 ${
-                  mobileDay === d.key
-                    ? 'bg-zinc-200 text-black font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <span>{d.shortLabel}</span>
-                {currentDayIndex === d.dayIndex && (
-                  <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 align-middle"></span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Desktop Full Weekly Grid */}
-          <div className="hidden md:block overflow-hidden rounded-3xl glass-panel border border-white/[0.08] shadow-[0_16px_50px_rgba(0,0,0,0.6)]">
+          {/* DESKTOP TIMETABLE */}
+          <div className="hidden md:block overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0c10]">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left font-mono text-xs">
                 <thead>
-                  <tr className="border-b border-white/[0.08] bg-black/40">
-                    <th className="py-3 px-4 text-zinc-400 font-medium w-28 text-[11px] font-mono">
-                      Horario
-                    </th>
+                  <tr className="border-b border-white/[0.08] bg-black/40 text-zinc-400">
+                    <th className="py-2.5 px-3 font-medium w-28 text-[11px]">Horario</th>
                     {DAYS.map((day) => {
                       const isToday = currentDayIndex === day.dayIndex;
-                      const formattedName = day.label.charAt(0).toUpperCase() + day.label.slice(1).toLowerCase();
                       return (
                         <th
                           key={day.key}
-                          className={`py-3 px-4 font-semibold text-xs tracking-tight ${
-                            isToday ? 'text-emerald-400 bg-emerald-500/[0.04]' : 'text-zinc-200'
+                          className={`py-2.5 px-3 font-semibold text-xs ${
+                            isToday ? 'text-emerald-400 bg-emerald-500/[0.03]' : 'text-zinc-200'
                           }`}
                         >
                           <div className="flex items-center gap-1.5">
-                            <span>{formattedName}</span>
+                            <span>{day.label}</span>
                             {isToday && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                                 Hoy
                               </span>
                             )}
@@ -442,31 +356,19 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-white/[0.06]">
+                <tbody className="divide-y divide-white/[0.05]">
                   {TIME_SLOTS.map((slot, slotIdx) => {
-                    const isRecreoRow = slot.isRecreo;
-
-                    if (isRecreoRow) {
+                    if (slot.isRecreo) {
                       return (
-                        <tr
-                          key={slot.index}
-                          className="bg-emerald-950/25 border-y-2 border-emerald-500/30 transition-colors"
-                        >
-                          <td className="py-3 px-4 font-medium text-emerald-400 whitespace-nowrap bg-black/30">
-                            <div className="flex items-center gap-1.5">
-                              <Coffee className="w-3.5 h-3.5 text-emerald-400" />
-                              <span>{slot.label}</span>
-                            </div>
+                        <tr key={slot.index} className="bg-zinc-900/40 border-y border-white/[0.06]">
+                          <td className="py-2 px-3 text-[11px] text-zinc-400 font-mono">
+                            {slot.label}
                           </td>
                           <td
                             colSpan={5}
-                            className="py-3 px-6 text-center font-bold tracking-widest text-emerald-300 uppercase text-xs"
+                            className="py-2 px-3 text-center text-xs text-zinc-400 font-mono"
                           >
-                            <div className="flex items-center justify-center gap-3">
-                              <span className="h-px flex-1 bg-emerald-500/20"></span>
-                              <span>🥪 RECREO (10:55 - 11:25) 🥪</span>
-                              <span className="h-px flex-1 bg-emerald-500/20"></span>
-                            </div>
+                            Recreo · 30 min
                           </td>
                         </tr>
                       );
@@ -474,7 +376,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
                     return (
                       <tr key={slot.index} className="hover:bg-white/[0.01] transition-colors">
-                        <td className="py-3.5 px-4 font-medium text-zinc-400 whitespace-nowrap bg-black/20 border-r border-white/[0.06]">
+                        <td className="py-2.5 px-3 text-[11px] text-zinc-400 whitespace-nowrap border-r border-white/[0.06]">
                           {slot.label}
                         </td>
 
@@ -482,84 +384,67 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                           const subjectCode = SCHEDULE_GRID[day.key][slotIdx];
                           const subject = SMR2_SUBJECTS[subjectCode];
                           const isToday = currentDayIndex === day.dayIndex;
-                          const isHighlighted =
-                            selectedSubject === null || selectedSubject === subjectCode;
                           const isDimmed = selectedSubject !== null && selectedSubject !== subjectCode;
-
-                          // Check if this slot is active right now
                           const isNowActive =
                             isToday &&
                             liveStatus.status === 'in_class' &&
                             liveStatus.currentSlot?.index === slot.index;
 
-                          const subjectEvents = events.filter(
+                          const pendingEvents = events.filter(
                             (e) => e.subject === subjectCode && !e.is_completed
                           );
-                          const hasExam = subjectEvents.some((e) => e.event_type === 'exam');
+                          const hasExam = pendingEvents.some((e) => e.event_type === 'exam');
 
                           return (
                             <td
                               key={day.key}
-                              className={`p-2 border-r border-white/[0.06] last:border-r-0 align-middle transition-opacity ${
+                              className={`p-1.5 border-r border-white/[0.05] last:border-r-0 align-middle ${
                                 isToday ? 'bg-emerald-500/[0.015]' : ''
                               } ${isDimmed ? 'opacity-20' : 'opacity-100'}`}
                             >
                               <div
                                 onClick={() => {
-                                  setSelectedSubject(
-                                    selectedSubject === subjectCode ? null : subjectCode
-                                  );
-                                  sound.tap();
+                                  if (subject) {
+                                    setInspectedSubject(subject);
+                                    sound.tap();
+                                  }
                                 }}
-                                className={`p-2.5 rounded-2xl border transition-all cursor-pointer group ${
-                                  subject ? subject.cardBg : 'bg-white/[0.02]'
-                                } ${subject ? subject.border : 'border-white/[0.06]'} ${
+                                className={`p-2 rounded-xl border transition-all cursor-pointer group ${
+                                  subject ? subject.cardBg : 'bg-white/[0.01]'
+                                } ${
                                   isNowActive
-                                    ? 'ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)] border-emerald-400'
-                                    : 'hover:border-white/20'
+                                    ? 'border-emerald-400 ring-1 ring-emerald-400/30'
+                                    : subject
+                                    ? subject.border
+                                    : 'border-white/[0.05]'
                                 }`}
                               >
                                 <div className="flex items-center justify-between gap-1">
                                   <span
-                                    className={`font-mono font-bold text-sm tracking-tight ${
+                                    className={`font-mono font-bold text-xs ${
                                       subject ? subject.text : 'text-white'
                                     }`}
                                   >
                                     {subjectCode}
                                   </span>
 
-                                  <div className="flex items-center gap-1">
-                                    {hasExam && (
-                                      <span
-                                        title="Examen pendiente para este módulo"
-                                        className="w-2 h-2 rounded-full bg-rose-500 animate-ping"
-                                      />
-                                    )}
-                                    {isNowActive && (
-                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500 text-black animate-pulse">
-                                        En curso
-                                      </span>
-                                    )}
-                                  </div>
+                                  {isNowActive && (
+                                    <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-emerald-500 text-black">
+                                      Ahora
+                                    </span>
+                                  )}
+
+                                  {hasExam && !isNowActive && (
+                                    <span
+                                      title="Examen próximo"
+                                      className="w-1.5 h-1.5 rounded-full bg-rose-400"
+                                    />
+                                  )}
                                 </div>
 
-                                <p className="text-[10px] text-zinc-400 truncate mt-0.5 group-hover:text-zinc-200 transition-colors">
+                                <p className="text-[10px] text-zinc-400 truncate mt-0.5 group-hover:text-zinc-200">
                                   {subject?.name || subjectCode}
                                 </p>
-
-                                {subjectEvents.length > 0 && (
-                                  <div className="mt-1.5 flex items-center gap-1">
-                                    <span
-                                      className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${
-                                        hasExam
-                                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                                          : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                                      }`}
-                                    >
-                                      {hasExam ? 'Examen próx.' : `${subjectEvents.length} entrega`}
-                                    </span>
-                                  </div>
-                                )}
                               </div>
                             </td>
                           );
@@ -570,69 +455,90 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                 </tbody>
               </table>
             </div>
-
-            {/* Bottom SMR2 Footer Quote */}
-            <div className="py-2.5 px-4 border-t border-white/[0.06] bg-black/40 flex items-center justify-between text-[11px] font-mono text-zinc-500">
-              <span>SMR2 · Aula 204</span>
-              <span>Curso académico 2024–2025</span>
-            </div>
           </div>
 
-          {/* Mobile Cards View */}
+          {/* MOBILE FAST TIMELINE */}
           <div className="md:hidden space-y-3">
+            {/* Day Selector Tabs */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-black/60 border border-white/[0.08]">
+              {DAYS.map((d) => {
+                const isSelected = mobileDay === d.key;
+                const isToday = currentDayIndex === d.dayIndex;
+
+                return (
+                  <button
+                    key={d.key}
+                    onClick={() => {
+                      setMobileDay(d.key);
+                      sound.tap();
+                    }}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-mono font-medium text-center transition-all ${
+                      isSelected
+                        ? 'bg-white text-black font-semibold shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span>{d.shortLabel}</span>
+                    {isToday && (
+                      <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 align-middle" />
+                    )}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => {
+                  setMobileDay('all');
+                  sound.tap();
+                }}
+                className={`py-1.5 px-2 rounded-lg text-xs font-mono font-medium text-center transition-all ${
+                  mobileDay === 'all'
+                    ? 'bg-white text-black font-semibold shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Todo
+              </button>
+            </div>
+
+            {/* Selected Day Classes List */}
             {(mobileDay === 'all' ? DAYS : DAYS.filter((d) => d.key === mobileDay)).map((day) => {
               const isToday = currentDayIndex === day.dayIndex;
 
               return (
                 <div
                   key={day.key}
-                  className="rounded-3xl glass-panel-subtle border border-white/[0.08] overflow-hidden shadow-lg"
+                  className="rounded-2xl border border-white/[0.08] bg-[#0c0c10] overflow-hidden"
                 >
-                  <div className="px-4 py-3 bg-black/40 border-b border-white/[0.06] flex items-center justify-between">
-                    <span className="text-xs font-bold font-mono text-white tracking-wider">
-                      {day.label}
-                    </span>
+                  <div className="px-3.5 py-2 bg-black/40 border-b border-white/[0.06] flex items-center justify-between text-xs font-mono">
+                    <span className="font-bold text-white">{day.label}</span>
                     {isToday && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        HOY
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        Hoy
                       </span>
                     )}
                   </div>
 
-                  <div className="p-3 divide-y divide-white/[0.04] space-y-2">
+                  <div className="p-2 space-y-1.5">
                     {TIME_SLOTS.map((slot, slotIdx) => {
                       const subjectCode = SCHEDULE_GRID[day.key][slotIdx];
                       const subject = SMR2_SUBJECTS[subjectCode];
-                      const isRecreo = slot.isRecreo;
                       const isNowActive =
                         isToday &&
                         liveStatus.status === 'in_class' &&
                         liveStatus.currentSlot?.index === slot.index;
-                      const mobSubjectEvents = events.filter(
-                        (e) => e.subject === subjectCode && !e.is_completed
+                      const hasExam = events.some(
+                        (e) => e.subject === subjectCode && e.event_type === 'exam' && !e.is_completed
                       );
-                      const mobHasExam = mobSubjectEvents.some((e) => e.event_type === 'exam');
 
-                      if (isRecreo) {
+                      if (slot.isRecreo) {
                         return (
                           <div
                             key={slot.index}
-                            className={`pt-2 p-3 rounded-2xl border flex items-center justify-between font-mono text-xs ${
-                              isToday && liveStatus.status === 'recreo'
-                                ? 'bg-emerald-950/40 border-emerald-500/50 ring-1 ring-emerald-400'
-                                : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300'
-                            }`}
+                            className="p-2.5 rounded-xl bg-zinc-900/40 border border-white/[0.05] flex items-center justify-between text-xs font-mono text-zinc-400"
                           >
-                            <div className="flex items-center gap-2">
-                              <Coffee className="w-4 h-4 text-emerald-400" />
-                              <span className="font-semibold text-emerald-300">Recreo</span>
-                              {isToday && liveStatus.status === 'recreo' && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-400 text-black animate-pulse">
-                                  En curso
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[11px] text-emerald-400/90 font-medium font-mono">{slot.label}</span>
+                            <span>Recreo (10:55 — 11:25)</span>
+                            <span className="text-[10px] text-zinc-500">30 min</span>
                           </div>
                         );
                       }
@@ -640,50 +546,47 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                       return (
                         <div
                           key={slot.index}
-                          className="pt-2 flex items-center justify-between gap-2.5 font-mono text-xs"
-                        >
-                          <span className="text-zinc-500 text-[11px] w-20 shrink-0 font-mono">
-                            {slot.label}
-                          </span>
-
-                          <div
-                            onClick={() => {
-                              setSelectedSubject(
-                                selectedSubject === subjectCode ? null : subjectCode
-                              );
+                          onClick={() => {
+                            if (subject) {
+                              setInspectedSubject(subject);
                               sound.tap();
-                            }}
-                            className={`flex-1 min-h-[44px] p-2.5 rounded-2xl border flex items-center justify-between cursor-pointer active:scale-[0.98] transition-all ${
-                              subject ? subject.cardBg : 'bg-white/[0.02]'
-                            } ${
-                              isNowActive
-                                ? 'border-emerald-500/60 ring-1 ring-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-                                : subject
-                                ? subject.border
-                                : 'border-white/[0.06]'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 truncate">
-                              <span className={`font-mono font-bold text-sm ${subject ? subject.text : 'text-white'}`}>
-                                {subjectCode}
+                            }
+                          }}
+                          className={`p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                            isNowActive
+                              ? 'border-emerald-400 ring-1 ring-emerald-400/30 bg-emerald-500/[0.05]'
+                              : subject
+                              ? subject.cardBg
+                              : 'bg-white/[0.02]'
+                          } ${subject ? subject.border : 'border-white/[0.06]'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-[11px] font-mono text-zinc-400 w-16 shrink-0">
+                              {slot.label.split('—')[0].trim()}
+                            </span>
+                            <div className="flex flex-col">
+                              <span
+                                className={`text-xs font-bold font-mono ${
+                                  subject ? subject.text : 'text-white'
+                                }`}
+                              >
+                                {subjectCode} · {subject?.name}
                               </span>
-                              <span className="text-[11px] font-sans text-zinc-400 truncate max-w-[150px]">
-                                {subject?.name}
-                              </span>
+                              <span className="text-[10px] text-zinc-500 font-mono">Aula 204</span>
                             </div>
+                          </div>
 
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {mobHasExam && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                                  Examen
-                                </span>
-                              )}
-                              {isNowActive && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500 text-black animate-pulse">
-                                  En curso
-                                </span>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-1.5">
+                            {hasExam && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                Examen
+                              </span>
+                            )}
+                            {isNowActive && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500 text-black">
+                                Ahora
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
@@ -696,123 +599,112 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         </div>
       )}
 
-      {/* VIEW 2: AGENDA & EXÁMENES (SUPABASE REALTIME) */}
+      {/* ============================================================== */}
+      {/* 3. TAREAS Y EXÁMENES (AGENDA) VIEW */}
+      {/* ============================================================== */}
       {activeSubTab === 'agenda' && (
-        <div className="space-y-4">
-          {/* Top Actions */}
+        <div className="space-y-3">
+          {/* Filter Pills */}
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-zinc-400">
-                Exámenes, entregas y tareas compartidas con la clase
-              </span>
+            <div className="flex items-center gap-1 text-xs font-mono">
+              {(
+                [
+                  { id: 'all', label: 'Todas' },
+                  { id: 'exam', label: 'Exámenes' },
+                  { id: 'homework', label: 'Entregas' },
+                  { id: 'reminder', label: 'Avisos' },
+                ] as const
+              ).map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setTaskFilter(f.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer border ${
+                    taskFilter === f.id
+                      ? 'bg-white text-black font-semibold border-white'
+                      : 'bg-white/[0.03] text-zinc-400 hover:text-white border-white/[0.06]'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
 
             <button
               onClick={() => {
+                setSelectedSubjectForTask(undefined);
                 setIsTaskAdminOpen(true);
                 sound.tap();
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-mono font-bold transition-all cursor-pointer shadow-md active:scale-95"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-black text-xs font-semibold hover:bg-zinc-200 transition-all cursor-pointer"
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
-              <span>Gestionar tareas (Delegado)</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Añadir Tarea</span>
             </button>
           </div>
 
-          {/* Events List */}
+          {/* Cards List */}
           {loadingEvents ? (
-            <div className="p-12 text-center text-zinc-500 font-mono text-xs">
-              <Clock className="w-6 h-6 mx-auto mb-2 animate-spin text-zinc-400" />
-              <span>Sincronizando tareas y eventos...</span>
+            <div className="p-12 text-center text-zinc-500 text-xs font-mono">
+              Cargando tareas y exámenes...
             </div>
-          ) : events.length === 0 ? (
-            <div className="rounded-3xl bg-[#121215] border border-white/[0.08] p-12 text-center font-mono">
-              <CalendarIcon className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
-              <h4 className="text-sm font-bold text-white mb-1">No hay exámenes ni tareas anotadas</h4>
-              <p className="text-xs text-zinc-500 max-w-sm mx-auto mb-4">
-                Usa el panel de delegado para añadir fechas de exámenes, entregas de Moodle o avisos importantes.
-              </p>
-              <button
-                onClick={() => {
-                  setIsTaskAdminOpen(true);
-                  sound.tap();
-                }}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-mono font-medium transition-colors cursor-pointer inline-flex items-center gap-1.5"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                <span>Abrir panel de tareas</span>
-              </button>
+          ) : filteredEvents.length === 0 ? (
+            <div className="p-8 text-center rounded-2xl bg-[#0c0c10] border border-white/[0.06] space-y-2 font-mono">
+              <CalendarIcon className="w-6 h-6 text-zinc-600 mx-auto" />
+              <p className="text-xs text-zinc-400">No hay tareas o exámenes anotados en esta categoría.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {events.map((ev) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {filteredEvents.map((ev) => {
                 const sub = SMR2_SUBJECTS[ev.subject] || {
                   code: ev.subject,
                   name: ev.subject,
                   badgeColor: 'bg-zinc-800 text-zinc-300 border-zinc-700',
-                  cardBg: 'bg-zinc-900/40',
-                  border: 'border-white/10',
                   text: 'text-white',
                 };
 
-                const typeLabels: Record<string, { label: string; color: string }> = {
-                  exam: { label: 'Examen', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
-                  homework: { label: 'Entrega', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-                  reminder: { label: 'Aviso', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-                  class: { label: 'Clase', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
-                };
-                const badge = typeLabels[ev.event_type] || typeLabels.homework;
+                const isExam = ev.event_type === 'exam';
 
                 return (
                   <div
                     key={ev.id}
-                    className={`p-4 rounded-3xl border transition-all flex flex-col justify-between group shadow-sm ${
-                      ev.is_completed
-                        ? 'bg-[#121215]/50 border-white/[0.04] opacity-60'
-                        : 'bg-[#121215] border-white/[0.08] hover:border-white/20'
-                    }`}
+                    className="p-3.5 rounded-2xl border border-white/[0.07] bg-[#0c0c10] hover:border-white/15 transition-all flex flex-col justify-between space-y-2"
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-1.5">
                           <span
-                            className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border ${badge.color}`}
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold border ${
+                              isExam
+                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/25'
+                                : 'bg-sky-500/10 text-sky-400 border-sky-500/25'
+                            }`}
                           >
-                            {badge.label}
+                            {isExam ? 'Examen' : 'Entrega'}
                           </span>
                           <span
-                            className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border ${sub.badgeColor}`}
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold border ${sub.badgeColor}`}
                           >
-                            {ev.subject} · {sub.name}
+                            {ev.subject}
                           </span>
-                          {ev.priority === 'high' && (
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold">
-                              Urgente
-                            </span>
-                          )}
                         </div>
 
-                        {currentUser && (currentUser.role === 'admin' || currentUser.role === 'delegado' || ev.created_by === currentUser.id) && (
-                          <button
-                            onClick={() => handleDeleteEvent(ev.id)}
-                            title="Eliminar evento"
-                            className="p-1 rounded-lg text-zinc-600 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        {currentUser &&
+                          (currentUser.role === 'admin' ||
+                            currentUser.role === 'delegado' ||
+                            ev.created_by === currentUser.id) && (
+                            <button
+                              onClick={() => handleDeleteEvent(ev.id)}
+                              className="text-zinc-600 hover:text-rose-400 transition-colors p-1"
+                              title="Eliminar tarea"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                       </div>
 
-                      <h4
-                        className={`text-sm font-semibold font-sans leading-snug mb-1 ${
-                          ev.is_completed ? 'line-through text-zinc-500' : 'text-white'
-                        }`}
-                      >
-                        {ev.title}
-                      </h4>
-
+                      <h4 className="text-xs font-semibold text-white leading-snug">{ev.title}</h4>
                       {ev.description && (
-                        <p className="text-xs text-zinc-400 font-sans leading-relaxed mb-2">
+                        <p className="text-[11px] text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
                           {ev.description}
                         </p>
                       )}
@@ -822,25 +714,17 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                           href={ev.delivery_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-mono text-blue-400 hover:underline mb-2"
+                          className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:underline mt-1.5"
                         >
                           <LinkIcon className="w-3 h-3" />
-                          <span>Ver enlace de entrega</span>
+                          <span>Enlace de entrega</span>
                         </a>
                       )}
                     </div>
 
-                    <div className="pt-3 border-t border-white/[0.04] flex items-center justify-between text-[11px] font-mono text-zinc-500">
-                      <div className="flex items-center gap-1.5 text-zinc-300">
-                        <CalendarIcon className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>
-                          {ev.event_date} {ev.start_time ? `(${ev.start_time})` : ''}
-                        </span>
-                      </div>
-
-                      {ev.created_by_name && (
-                        <span>por @{ev.created_by_name}</span>
-                      )}
+                    <div className="pt-2 border-t border-white/[0.05] flex items-center justify-between text-[11px] font-mono text-zinc-500">
+                      <span>Fecha: {ev.event_date}</span>
+                      {ev.created_by_name && <span>por @{ev.created_by_name}</span>}
                     </div>
                   </div>
                 );
@@ -850,7 +734,79 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         </div>
       )}
 
-      {/* Modal Seguro: Panel de Delegado y Gestión de Tareas */}
+      {/* ============================================================== */}
+      {/* 4. SUBJECT DETAIL INSPECTOR MODAL */}
+      {/* ============================================================== */}
+      {inspectedSubject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="max-w-md w-full p-5 rounded-2xl bg-[#0e0e12] border border-white/15 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-2 py-0.5 rounded-md font-mono text-xs font-bold border ${inspectedSubject.badgeColor}`}
+                >
+                  {inspectedSubject.code}
+                </span>
+                <h3 className="font-semibold text-sm text-white">{inspectedSubject.name}</h3>
+              </div>
+              <button
+                onClick={() => setInspectedSubject(null)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg bg-white/5"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+              {inspectedSubject.description}
+            </p>
+
+            <div className="p-3 rounded-xl bg-black/50 border border-white/[0.07] flex items-center justify-between text-xs font-mono text-zinc-400">
+              <span>Carga horaria semanal:</span>
+              <span className="font-bold text-white">
+                {subjectWeeklyHours[inspectedSubject.code] || 0} horas / semana
+              </span>
+            </div>
+
+            {/* Upcoming tasks for this subject */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-mono text-zinc-500 uppercase">
+                Tareas y exámenes pendientes
+              </span>
+              {events.filter((e) => e.subject === inspectedSubject.code && !e.is_completed).length === 0 ? (
+                <p className="text-xs text-zinc-500 italic">No hay tareas pendientes para este módulo.</p>
+              ) : (
+                events
+                  .filter((e) => e.subject === inspectedSubject.code && !e.is_completed)
+                  .map((e) => (
+                    <div
+                      key={e.id}
+                      className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05] text-xs flex items-center justify-between"
+                    >
+                      <span className="text-white truncate max-w-[200px]">{e.title}</span>
+                      <span className="text-[10px] font-mono text-zinc-400">{e.event_date}</span>
+                    </div>
+                  ))
+              )}
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  setSelectedSubjectForTask(inspectedSubject.code);
+                  setInspectedSubject(null);
+                  setIsTaskAdminOpen(true);
+                }}
+                className="w-full py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-all cursor-pointer"
+              >
+                Añadir Tarea para {inspectedSubject.code}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Admin Modal */}
       <TaskAdminModal
         isOpen={isTaskAdminOpen}
         onClose={() => {

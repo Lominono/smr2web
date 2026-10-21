@@ -63,11 +63,27 @@ html, body {
   background: rgba(255, 255, 255, 0.28);
 }
 
-/* Hide scrollbars for tactile mobile lists */
+/* Hide scrollbars for tactile mobile lists with smooth touch momentum */
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent auto-zoom on iOS Safari when tapping inputs */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="url"],
+  input[type="date"],
+  input[type="time"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
