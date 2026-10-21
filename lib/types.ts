@@ -9,6 +9,10 @@ export interface UserProfile {
   created_at?: string;
   auth_provider?: 'supabase' | 'local';
   role?: 'admin' | 'delegado' | 'student';
+  avatar_color?: string;
+  games_played?: number;
+  games_won?: number;
+  sound_enabled?: boolean;
 }
 
 export interface ChatMessage {

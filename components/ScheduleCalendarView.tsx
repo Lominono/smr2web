@@ -15,6 +15,7 @@ import {
   Link as LinkIcon,
   ChevronRight,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import {
   SMR2_SUBJECTS,
@@ -34,12 +35,14 @@ interface ScheduleCalendarViewProps {
   currentUser: UserProfile | null;
   onOpenAuth: () => void;
   onBroadcastToChat?: (text: string) => void;
+  onPlayRussianRoulette?: () => void;
 }
 
 export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   currentUser,
   onOpenAuth,
   onBroadcastToChat,
+  onPlayRussianRoulette,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'grid' | 'agenda'>('grid');
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
@@ -280,6 +283,37 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Quick Access to Multiplayer Russian Roulette */}
+      {onPlayRussianRoulette && (
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-amber-400/[0.04] border border-amber-400/20 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-amber-400/10 text-amber-400">
+              <Zap className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-white">Ruleta Rusa Multijugador</span>
+                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-semibold">
+                  En Vivo
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                Partidas por turnos con cilindro de 6 recámaras y fichas virtuales entre compañeros de clase.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              onPlayRussianRoulette();
+              sound.tap();
+            }}
+            className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-xs font-bold font-mono transition-all cursor-pointer shrink-0 active:scale-95"
+          >
+            Entrar a Jugar
+          </button>
+        </div>
+      )}
 
       {/* ============================================================== */}
       {/* 2. HORARIO GRID VIEW */}

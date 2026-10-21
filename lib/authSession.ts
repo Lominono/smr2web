@@ -136,6 +136,50 @@ export function updateSessionCoins(
 }
 
 /**
+ * Updates arbitrary user profile fields (username, avatar color, sound preference)
+ * across cookies, localStorage and local accounts DB.
+ */
+export function updateUserProfileSession(updates: Partial<UserProfile>): UserProfile | null {
+  const current = getUserSession();
+  if (!current) return null;
+
+  const updated: UserProfile = {
+    ...current,
+    ...updates,
+  };
+
+  saveUserSession(updated, getCookie(COOKIE_REMEMBER) !== 'false');
+
+  // Update in local accounts list if applicable
+  if (typeof window !== 'undefined') {
+    try {
+      const accounts = getLocalAccounts();
+      const idx = accounts.findIndex((a) => a.id === current.id);
+      if (idx !== -1) {
+        if (updates.username) accounts[idx].username = updates.username;
+        saveLocalAccounts(accounts);
+      }
+    } catch {}
+  }
+
+  return updated;
+}
+
+/**
+ * Updates password for a local user account
+ */
+export async function updateLocalUserPassword(userId: string, newPassword: string): Promise<boolean> {
+  const accounts = getLocalAccounts();
+  const idx = accounts.findIndex((a) => a.id === userId);
+  if (idx === -1) return false;
+
+  const passwordHash = await hashPassword(newPassword);
+  accounts[idx].passwordHash = passwordHash;
+  saveLocalAccounts(accounts);
+  return true;
+}
+
+/**
  * Completely clears user session cookies and local storage
  */
 export function clearUserSession(): void {

@@ -12,9 +12,10 @@ import {
   LogIn,
   LogOut,
   Calendar,
+  Zap,
   Gamepad2,
   ShieldCheck,
-  Clock,
+  Settings,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -33,6 +34,7 @@ interface AppleNavbarProps {
   isChatOpen: boolean;
   soundEnabled: boolean;
   onToggleSound: () => void;
+  onOpenSettings?: () => void;
   activeTab?: 'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar';
   onSelectTab?: (tab: 'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar') => void;
 }
@@ -49,11 +51,13 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
   isChatOpen,
   soundEnabled,
   onToggleSound,
+  onOpenSettings,
   activeTab = 'calendar',
   onSelectTab,
 }) => {
   const rank = user ? getUserRank(user.coins) : null;
-  const isArcadeActive = activeTab !== 'calendar';
+  const isRussianRoulette = activeTab === 'russian_roulette';
+  const isOtherArcade = activeTab !== 'calendar' && activeTab !== 'russian_roulette';
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
 
   useEffect(() => {
@@ -62,6 +66,16 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
     const interval = setInterval(update, 20000);
     return () => clearInterval(interval);
   }, []);
+
+  const avatarColorMap: Record<string, string> = {
+    emerald: 'bg-emerald-500 text-white',
+    blue: 'bg-blue-600 text-white',
+    purple: 'bg-purple-600 text-white',
+    amber: 'bg-amber-500 text-white',
+    rose: 'bg-rose-600 text-white',
+    cyan: 'bg-cyan-500 text-white',
+  };
+  const avatarClass = user?.avatar_color ? avatarColorMap[user.avatar_color] || 'bg-white/[0.08] text-white' : 'bg-white/[0.08] text-white';
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#090b0e]/95 backdrop-blur-md">
@@ -113,7 +127,7 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
           </div>
         </div>
 
-        {/* Center: Main Academic vs Recreo Switcher */}
+        {/* Center: Main Direct Navigation */}
         {onSelectTab && (
           <nav aria-label="Secciones principales" className="hidden md:flex items-center p-1 rounded-xl bg-black/60 border border-white/[0.08]">
             <button
@@ -123,29 +137,46 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                 sound.tap();
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer ${
-                !isArcadeActive
+                activeTab === 'calendar'
                   ? 'bg-white text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
               <Calendar className="w-3.5 h-3.5 text-blue-400" />
-              <span>Horario y Tareas</span>
+              <span>Horario</span>
             </button>
 
             <button
               type="button"
               onClick={() => {
-                if (!isArcadeActive) onSelectTab('russian_roulette');
+                onSelectTab('russian_roulette');
                 sound.tap();
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer ${
-                isArcadeActive
+                isRussianRoulette
                   ? 'bg-amber-400 text-black font-bold shadow-sm'
+                  : 'text-amber-300 hover:text-amber-200'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>Ruleta Rusa</span>
+              <span className="text-[9px] px-1 py-0.2 rounded bg-amber-400/20 text-amber-300 font-mono">Multi</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!isOtherArcade) onSelectTab('crash');
+                sound.tap();
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer ${
+                isOtherArcade
+                  ? 'bg-white text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              <Gamepad2 className="w-3.5 h-3.5 text-amber-500" />
-              <span>Recreo (Juegos)</span>
+              <Gamepad2 className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Arcade</span>
             </button>
           </nav>
         )}
@@ -219,6 +250,21 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                 </button>
               </div>
 
+              {/* User Settings Gear Button */}
+              {onOpenSettings && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenSettings();
+                    sound.tap();
+                  }}
+                  title="Ajustes de usuario y perfil"
+                  className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                >
+                  <Settings className="w-3.5 h-3.5 text-zinc-300" />
+                </button>
+              )}
+
               {/* Admin Panel Link */}
               {(user.role === 'admin' || user.role === 'delegado') && (
                 <Link
@@ -230,10 +276,15 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                 </Link>
               )}
 
-              {/* Avatar Initial */}
-              <div
-                title={`@${user.username} (${user.role === 'admin' || user.role === 'delegado' ? 'Delegado / Admin' : rank?.name || 'Alumno'})`}
-                className="relative w-7 h-7 rounded-lg bg-white/[0.08] border border-white/10 flex items-center justify-center font-mono font-bold text-xs text-zinc-200 select-none uppercase"
+              {/* Avatar Initial (Clickable to open Settings) */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenSettings) onOpenSettings();
+                  sound.tap();
+                }}
+                title={`@${user.username} - Abrir ajustes`}
+                className={`relative w-7 h-7 rounded-lg ${avatarClass} border border-white/10 flex items-center justify-center font-mono font-bold text-xs select-none uppercase cursor-pointer hover:ring-2 hover:ring-white/20 transition-all`}
               >
                 {user.username.charAt(0)}
                 {(user.role === 'admin' || user.role === 'delegado') && (
@@ -242,7 +293,7 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                     className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-black"
                   />
                 )}
-              </div>
+              </button>
 
               {/* Sign out */}
               <button

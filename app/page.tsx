@@ -17,6 +17,7 @@ import { MobileTabBar } from '@/components/MobileTabBar';
 import { MinecraftBanner } from '@/components/MinecraftBanner';
 import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
+import { UserSettingsModal } from '@/components/UserSettingsModal';
 import { UserProfile, ChatMessage, LeaderboardEntry } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
@@ -37,6 +38,7 @@ export default function Home() {
   const [activeGame, setActiveGame] = useState<'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar'>('calendar');
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
@@ -533,6 +535,7 @@ export default function Home() {
         isChatOpen={isChatDrawerOpen}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         activeTab={activeGame}
         onSelectTab={(tab) => setActiveGame(tab)}
       />
@@ -630,6 +633,7 @@ export default function Home() {
                 currentUser={user}
                 onOpenAuth={() => setIsAuthOpen(true)}
                 onBroadcastToChat={handleSendMessage}
+                onPlayRussianRoulette={() => setActiveGame('russian_roulette')}
               />
             )}
           </div>
@@ -657,6 +661,7 @@ export default function Home() {
         isChatOpen={isChatDrawerOpen}
         onToggleChat={() => setIsChatDrawerOpen(!isChatDrawerOpen)}
         onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Mobile Drawer Chat (Bottom Sheet) */}
@@ -698,6 +703,17 @@ export default function Home() {
           fetchMessages();
           fetchLeaderboard();
         }}
+      />
+
+      <UserSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        user={user}
+        onUpdateUser={(updated) => setUser(updated)}
+        onSignOut={handleSignOut}
+        onOpenFaucet={() => setIsFaucetOpen(true)}
+        soundEnabled={soundEnabled}
+        onToggleSound={handleToggleSound}
       />
 
       <TermsModal
