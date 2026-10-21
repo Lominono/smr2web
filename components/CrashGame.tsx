@@ -29,15 +29,8 @@ export const CrashGame: React.FC<CrashGameProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [history, setHistory] = useState<CrashHistoryItem[]>([
-    { id: 'init-1', crashPoint: 2.14, timestamp: '1m' },
-    { id: 'init-2', crashPoint: 1.38, timestamp: '2m' },
-    { id: 'init-3', crashPoint: 5.72, timestamp: '4m' },
-    { id: 'init-4', crashPoint: 1.12, timestamp: '5m' },
-    { id: 'init-5', crashPoint: 3.45, timestamp: '7m' },
-    { id: 'init-6', crashPoint: 8.90, timestamp: '9m' },
-  ]);
-  const [bet, setBet] = useState<number>(100);
+  const [history, setHistory] = useState<CrashHistoryItem[]>([]);
+  const [bet, setBet] = useState<number>(25);
   const [autoCashoutEnabled, setAutoCashoutEnabled] = useState<boolean>(false);
   const [autoCashoutMult, setAutoCashoutMult] = useState<number>(2.0);
   const [gameState, setGameState] = useState<'idle' | 'running' | 'crashed'>('idle');
@@ -55,14 +48,19 @@ export const CrashGame: React.FC<CrashGameProps> = ({
   const LOGICAL_HEIGHT = 340;
 
   const generateCrashPoint = () => {
-    if (Math.random() < 0.08) {
-      return 1.0 + Math.random() * 0.15;
-    }
+    // 4% direct instant bust house edge (1.00x)
     const e = 2 ** 32;
     const h = crypto.getRandomValues(new Uint32Array(1))[0];
-    if (h % 33 === 0) return 1.0;
-    const crash = Math.floor((100 * e - h) / (e - h)) / 100;
-    return Math.min(Math.max(crash, 1.1), 50.0);
+    if (h % 25 === 0) return 1.0;
+
+    // 10% early shakeout (1.05x - 1.25x)
+    if (Math.random() < 0.10) {
+      return 1.05 + Math.random() * 0.20;
+    }
+
+    // Provably fair exponential distribution with 25x cap
+    const crash = Math.floor((96 * e) / (e - h)) / 100;
+    return Math.min(Math.max(crash, 1.08), 25.0);
   };
 
   const cashOutAt = (multToCash: number) => {
@@ -363,22 +361,26 @@ export const CrashGame: React.FC<CrashGameProps> = ({
           <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider shrink-0 mr-1">
             Rondas:
           </span>
-          {history.map((item) => (
-            <span
-              key={item.id}
-              className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg border shrink-0 tabular-nums transition-all ${
-                item.crashPoint >= 5.0
-                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
-                  : item.crashPoint >= 2.0
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                  : item.crashPoint >= 1.5
-                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                  : 'bg-zinc-900/80 text-zinc-500 border-white/[0.06]'
-              }`}
-            >
-              {item.crashPoint.toFixed(2)}x
-            </span>
-          ))}
+          {history.length === 0 ? (
+            <span className="text-[11px] font-mono text-zinc-500">Sin rondas previas</span>
+          ) : (
+            history.map((item) => (
+              <span
+                key={item.id}
+                className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg border shrink-0 tabular-nums transition-all ${
+                  item.crashPoint >= 5.0
+                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/40'
+                    : item.crashPoint >= 2.0
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                    : item.crashPoint >= 1.5
+                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                    : 'bg-zinc-900/80 text-zinc-500 border-white/[0.06]'
+                }`}
+              >
+                {item.crashPoint.toFixed(2)}x
+              </span>
+            ))
+          )}
         </div>
       </div>
 
@@ -492,7 +494,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
               type="button"
               disabled={gameState === 'running'}
               onClick={() => {
-                setBet((prev) => Math.min(Math.min(userCoins, 10000), prev * 2));
+                setBet((prev) => Math.min(Math.min(userCoins, 500), prev * 2));
                 sound.tap();
               }}
               title="Duplicar apuesta"
@@ -500,7 +502,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
             >
               2×
             </button>
-            {[50, 100, 250, 500].map((amt) => (
+            {[10, 25, 50, 100, 250].map((amt) => (
               <button
                 key={amt}
                 disabled={gameState === 'running'}
@@ -521,11 +523,11 @@ export const CrashGame: React.FC<CrashGameProps> = ({
               type="button"
               disabled={gameState === 'running'}
               onClick={() => {
-                setBet(Math.min(userCoins > 0 ? userCoins : 1000, 2500));
+                setBet(Math.min(userCoins > 0 ? userCoins : 100, 500));
                 sound.tap();
               }}
               className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-mono font-black transition-all cursor-pointer shrink-0 active:scale-95 disabled:opacity-40 ${
-                bet >= 2500 || bet === userCoins
+                bet >= 500 || bet === userCoins
                   ? 'bg-amber-400 text-black shadow-md shadow-amber-400/30'
                   : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/25'
               }`}

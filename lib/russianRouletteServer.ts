@@ -193,7 +193,7 @@ export async function createRoomServer(
   req?: Request
 ): Promise<RRRoom> {
   const cleanName = (name || `${user.username}'s Arena`).trim().slice(0, 32);
-  const cleanBet = Math.max(10, Math.min(100000, Math.floor(betAmount || 50)));
+  const cleanBet = Math.max(10, Math.min(500, Math.floor(betAmount || 25)));
   const cleanMax = Math.max(2, Math.min(6, Math.floor(maxPlayers || 6)));
 
   if (user.coins < cleanBet) {

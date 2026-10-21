@@ -113,7 +113,9 @@ export function updateSessionCoins(
   coins: number,
   biggestWin?: number,
   streakCount?: number,
-  lastClaimDate?: string
+  lastClaimDate?: string,
+  lastSpinDate?: string,
+  lastRescueDate?: string
 ): UserProfile | null {
   const current = getUserSession();
   if (!current) return null;
@@ -125,6 +127,8 @@ export function updateSessionCoins(
     biggest_win: nextWin,
     streak_count: streakCount !== undefined ? streakCount : current.streak_count,
     last_claim_date: lastClaimDate !== undefined ? lastClaimDate : current.last_claim_date,
+    last_spin_date: lastSpinDate !== undefined ? lastSpinDate : current.last_spin_date,
+    last_rescue_date: lastRescueDate !== undefined ? lastRescueDate : current.last_rescue_date,
   };
 
   saveUserSession(updated, getCookie(COOKIE_REMEMBER) !== 'false');
@@ -279,7 +283,7 @@ export async function registerLocalUser(
     username: cleanUsername,
     email: cleanEmail,
     passwordHash,
-    coins: 1000,
+    coins: 200,
     biggest_win: 0,
     streak_count: 1,
     role,

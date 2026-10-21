@@ -55,12 +55,12 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [selectedChip, setSelectedChip] = useState<number>(50);
+  const [selectedChip, setSelectedChip] = useState<number>(25);
   const [bets, setBets] = useState<Record<string, number>>({});
   const [previousBets, setPreviousBets] = useState<Record<string, number>>({});
   const [isSpinning, setIsSpinning] = useState<boolean>(false);
   const [winningNumber, setWinningNumber] = useState<number | null>(null);
-  const [history, setHistory] = useState<number[]>([17, 0, 28, 3, 15]);
+  const [history, setHistory] = useState<number[]>([]);
   const [lastRoundResult, setLastRoundResult] = useState<{
     won: boolean;
     winAmount: number;
@@ -490,23 +490,27 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
           <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider shrink-0 mr-1">
             Últimos:
           </span>
-          {history.map((num, i) => {
-            const col = getNumberColor(num);
-            return (
-              <span
-                key={i}
-                className={`w-6 h-6 rounded-lg flex items-center justify-center font-mono text-[11px] font-bold border shrink-0 ${
-                  col === 'green'
-                    ? 'bg-emerald-600/30 text-emerald-300 border-emerald-500/40'
-                    : col === 'red'
-                    ? 'bg-rose-600/30 text-rose-300 border-rose-500/40'
-                    : 'bg-zinc-800 text-zinc-200 border-white/10'
-                }`}
-              >
-                {num}
-              </span>
-            );
-          })}
+          {history.length === 0 ? (
+            <span className="text-[11px] font-mono text-zinc-500">Sin tiradas previas</span>
+          ) : (
+            history.map((num, i) => {
+              const col = getNumberColor(num);
+              return (
+                <span
+                  key={i}
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center font-mono text-[11px] font-bold border shrink-0 ${
+                    col === 'green'
+                      ? 'bg-emerald-600/30 text-emerald-300 border-emerald-500/40'
+                      : col === 'red'
+                      ? 'bg-rose-600/30 text-rose-300 border-rose-500/40'
+                      : 'bg-zinc-800 text-zinc-200 border-white/10'
+                  }`}
+                >
+                  {num}
+                </span>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -580,7 +584,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
           <div className="flex items-center justify-between gap-2 p-2 rounded-2xl bg-black/50 border border-white/[0.08]">
             <span className="text-xs font-mono text-zinc-400 pl-1 shrink-0">Ficha:</span>
             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
-              {[10, 50, 100, 500, 1000].map((val) => (
+              {[5, 10, 25, 50, 100, 250].map((val) => (
                 <button
                   key={val}
                   type="button"

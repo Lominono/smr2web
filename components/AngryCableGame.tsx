@@ -37,7 +37,7 @@ interface Block {
   vAngle: number;
   hp: number;
   maxHp: number;
-  type: 'server' | 'crate' | 'multiplier_2x' | 'multiplier_5x' | 'multiplier_10x' | 'jackpot_25x' | 'jackpot_50x' | 'tnt';
+  type: 'server' | 'crate' | 'multiplier_1.5x' | 'multiplier_2x' | 'multiplier_3x' | 'jackpot_5x' | 'tnt';
   destroyed: boolean;
 }
 
@@ -76,7 +76,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [bet, setBet] = useState<number>(100);
+  const [bet, setBet] = useState<number>(25);
   const [gameState, setGameState] = useState<'aiming' | 'flying' | 'resolved'>('aiming');
   const [currentLevel, setCurrentLevel] = useState<number>(1);
   const [cableType, setCableType] = useState<CableType>('rj45');
@@ -133,58 +133,58 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
       // Nivel 1: Bastidor Central (Rack de Switch & Servidores)
       blocks.push({ x: baseStartX, y: groundY - 42, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
       blocks.push({ x: baseStartX, y: groundY - 84, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-      blocks.push({ x: baseStartX + 12, y: groundY - 126, w: 48, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
+      blocks.push({ x: baseStartX + 12, y: groundY - 126, w: 48, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_1.5x', destroyed: false });
 
       const col2X = baseStartX + 96;
       blocks.push({ x: col2X, y: groundY - 45, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
       blocks.push({ x: col2X, y: groundY - 90, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
-      blocks.push({ x: col2X, y: groundY - 135, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_5x', destroyed: false });
+      blocks.push({ x: col2X, y: groundY - 135, w: 46, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
 
       const col3X = baseStartX + 162;
       blocks.push({ x: col3X, y: groundY - 42, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
       blocks.push({ x: col3X, y: groundY - 84, w: 72, h: 42, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-      blocks.push({ x: col3X + 12, y: groundY - 128, w: 48, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
+      blocks.push({ x: col3X + 12, y: groundY - 128, w: 48, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_3x', destroyed: false });
 
       blocks.push({ x: baseStartX + 36, y: groundY - 168, w: 146, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
-      blocks.push({ x: baseStartX + 84, y: groundY - 220, w: 50, h: 52, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_25x', destroyed: false });
+      blocks.push({ x: baseStartX + 84, y: groundY - 220, w: 50, h: 52, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_5x', destroyed: false });
     } else if (lvl === 2) {
       // Nivel 2: Puente Cortafuegos de Doble Bastión
       const leftX = baseStartX - 30;
       blocks.push({ x: leftX, y: groundY - 45, w: 60, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-      blocks.push({ x: leftX, y: groundY - 90, w: 60, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_5x', destroyed: false });
+      blocks.push({ x: leftX, y: groundY - 90, w: 60, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
       blocks.push({ x: leftX + 8, y: groundY - 135, w: 44, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
 
       const midX = leftX + 88;
       blocks.push({ x: midX, y: groundY - 45, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
-      blocks.push({ x: midX, y: groundY - 90, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
+      blocks.push({ x: midX, y: groundY - 90, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_1.5x', destroyed: false });
 
       const rightX = leftX + 160;
       blocks.push({ x: rightX, y: groundY - 45, w: 60, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
       blocks.push({ x: rightX, y: groundY - 90, w: 60, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-      blocks.push({ x: rightX + 6, y: groundY - 135, w: 48, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
+      blocks.push({ x: rightX + 6, y: groundY - 135, w: 48, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_3x', destroyed: false });
 
       blocks.push({ x: leftX + 10, y: groundY - 170, w: 195, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
-      blocks.push({ x: leftX + 82, y: groundY - 222, w: 52, h: 52, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_25x', destroyed: false });
+      blocks.push({ x: leftX + 82, y: groundY - 222, w: 52, h: 52, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_5x', destroyed: false });
     } else {
-      // Nivel 3: Fortaleza SysAdmin (Bóveda Suprema x50)
+      // Nivel 3: Fortaleza SysAdmin (Bóveda Suprema x5)
       const start = baseStartX - 45;
       blocks.push({ x: start, y: groundY - 44, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-      blocks.push({ x: start, y: groundY - 88, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_5x', destroyed: false });
+      blocks.push({ x: start, y: groundY - 88, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_2x', destroyed: false });
       blocks.push({ x: start + 5, y: groundY - 132, w: 44, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
 
       const c2 = start + 78;
       blocks.push({ x: c2, y: groundY - 45, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
-      blocks.push({ x: c2, y: groundY - 90, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
+      blocks.push({ x: c2, y: groundY - 90, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_3x', destroyed: false });
       blocks.push({ x: c2, y: groundY - 135, w: 45, h: 45, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'tnt', destroyed: false });
 
       const c3 = start + 148;
       blocks.push({ x: c3, y: groundY - 44, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
       blocks.push({ x: c3, y: groundY - 88, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 3, maxHp: 3, type: 'server', destroyed: false });
-      blocks.push({ x: c3, y: groundY - 132, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_10x', destroyed: false });
+      blocks.push({ x: c3, y: groundY - 132, w: 54, h: 44, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'multiplier_3x', destroyed: false });
 
       blocks.push({ x: start + 8, y: groundY - 165, w: 184, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
       blocks.push({ x: start + 38, y: groundY - 198, w: 124, h: 18, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 2, maxHp: 2, type: 'crate', destroyed: false });
-      blocks.push({ x: start + 72, y: groundY - 254, w: 56, h: 56, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_50x', destroyed: false });
+      blocks.push({ x: start + 72, y: groundY - 254, w: 56, h: 56, vx: 0, vy: 0, angle: 0, vAngle: 0, hp: 1, maxHp: 1, type: 'jackpot_5x', destroyed: false });
     }
 
     blocksRef.current = blocks;
@@ -695,17 +695,16 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               }
 
               let mult = 0;
-              if (block.type === 'multiplier_2x') mult = 2;
-              if (block.type === 'multiplier_5x') mult = 5;
-              if (block.type === 'multiplier_10x') mult = 10;
-              if (block.type === 'jackpot_25x') mult = 25;
-              if (block.type === 'jackpot_50x') mult = 50;
+              if (block.type === 'multiplier_1.5x') mult = 1.5;
+              if (block.type === 'multiplier_2x') mult = 2.0;
+              if (block.type === 'multiplier_3x') mult = 3.0;
+              if (block.type === 'jackpot_5x') mult = 5.0;
 
               if (mult > 0) {
                 hitMultipliersRef.current.push(mult);
-                if (mult >= 10) {
+                if (mult >= 5.0) {
                   sound.jackpot();
-                  slowMoRef.current = 18;
+                  slowMoRef.current = 16;
                 } else {
                   sound.coinWin();
                 }
@@ -762,27 +761,25 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           ctx.textBaseline = 'middle';
           ctx.fillText('TNT', 0, 0);
         } else if (block.type.includes('multiplier') || block.type.includes('jackpot')) {
-          const isJ50 = block.type === 'jackpot_50x';
-          ctx.fillStyle = isJ50 ? '#381604' : '#291e0a';
-          ctx.strokeStyle = isJ50 ? '#f59e0b' : '#d97706';
-          ctx.lineWidth = isJ50 ? 2 : 1.5;
+          const isJackpot = block.type === 'jackpot_5x';
+          ctx.fillStyle = isJackpot ? '#381604' : '#291e0a';
+          ctx.strokeStyle = isJackpot ? '#f59e0b' : '#d97706';
+          ctx.lineWidth = isJackpot ? 2 : 1.5;
           ctx.fillRect(-block.w / 2, -block.h / 2, block.w, block.h);
           ctx.strokeRect(-block.w / 2, -block.h / 2, block.w, block.h);
 
-          ctx.fillStyle = isJ50 ? '#fef08a' : '#fbbf24';
-          ctx.font = isJ50 ? 'bold 12px monospace' : 'bold 11px monospace';
+          ctx.fillStyle = isJackpot ? '#fef08a' : '#fbbf24';
+          ctx.font = isJackpot ? 'bold 12px monospace' : 'bold 11px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           const label =
-            block.type === 'jackpot_50x'
-              ? '★ x50'
-              : block.type === 'jackpot_25x'
-              ? 'x25'
-              : block.type === 'multiplier_10x'
-              ? 'x10'
-              : block.type === 'multiplier_5x'
-              ? 'x5'
-              : 'x2';
+            block.type === 'jackpot_5x'
+              ? '★ x5'
+              : block.type === 'multiplier_3x'
+              ? 'x3'
+              : block.type === 'multiplier_2x'
+              ? 'x2'
+              : 'x1.5';
           ctx.fillText(label, 0, 0);
         } else {
           ctx.fillStyle = '#202024';
@@ -855,16 +852,22 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
   const handleRoundEnd = () => {
     const destroyedCount = blocksRef.current.filter((b) => b.destroyed).length;
-    const cratesMults = hitMultipliersRef.current.reduce((sum, m) => sum + m, 0);
+    const cratesHit = hitMultipliersRef.current;
 
-    let totalMult = cratesMults;
-    const isCombo = hitMultipliersRef.current.length >= 2;
-    if (isCombo) {
-      // Combo multiplier reward +25%
-      totalMult = Math.round(totalMult * 1.25 * 10) / 10;
+    let totalMult = 0;
+    const isCombo = cratesHit.length >= 2;
+
+    if (cratesHit.length > 0) {
+      // Balanced payout: strongest crate multiplier + controlled combo bonus per extra crate
+      const maxCrate = Math.max(...cratesHit);
+      const extraBonus = (cratesHit.length - 1) * 0.4;
+      totalMult = Math.min(Math.round((maxCrate + extraBonus) * 10) / 10, 6.0);
+    } else {
+      // Small reward for structure demolition if no multiplier crate was reached
+      if (destroyedCount >= 8) totalMult = 1.6;
+      else if (destroyedCount >= 5) totalMult = 1.2;
+      else if (destroyedCount >= 3) totalMult = 0.8;
     }
-    if (destroyedCount >= 3 && cratesMults === 0) totalMult = 1.5;
-    if (destroyedCount >= 6 && cratesMults === 0) totalMult = 3.0;
 
     if (totalMult > 0) {
       const winAmount = Math.round(bet * totalMult);
@@ -872,10 +875,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
       setLastWin({ amount: winAmount, multiplier: totalMult, comboBonus: isCombo });
       sound.coinWin();
 
-      if (totalMult >= 5) {
+      if (totalMult >= 3) {
         confetti({
-          particleCount: 90,
-          spread: 70,
+          particleCount: 70,
+          spread: 60,
           origin: { y: 0.6 },
         });
       }
@@ -1100,14 +1103,14 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               type="button"
               disabled={gameState === 'flying'}
               onClick={() => {
-                setBet((prev) => Math.min(Math.min(userCoins, 10000), prev * 2));
+                setBet((prev) => Math.min(Math.min(userCoins, 500), prev * 2));
                 sound.tap();
               }}
               className="min-h-[36px] px-2 py-1 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.06] active:scale-95 cursor-pointer"
             >
               2×
             </button>
-            {[50, 100, 250, 500].map((amount) => (
+            {[10, 25, 50, 100, 250].map((amount) => (
               <button
                 key={amount}
                 disabled={gameState === 'flying'}
@@ -1128,11 +1131,11 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               type="button"
               disabled={gameState === 'flying'}
               onClick={() => {
-                setBet(Math.min(userCoins > 0 ? userCoins : 1000, 2500));
+                setBet(Math.min(userCoins > 0 ? userCoins : 100, 500));
                 sound.tap();
               }}
               className={`min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 ${
-                bet >= 2500 || bet === userCoins
+                bet >= 500 || bet === userCoins
                   ? 'bg-amber-400 text-black shadow-sm'
                   : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/20'
               }`}

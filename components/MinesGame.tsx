@@ -37,7 +37,7 @@ export const MinesGame: React.FC<MinesGameProps> = ({
   onUpdateCoins,
   onBroadcastWin,
 }) => {
-  const [bet, setBet] = useState<number>(100);
+  const [bet, setBet] = useState<number>(25);
   const [mineCount, setMineCount] = useState<number>(3);
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'cashed' | 'busted'>('idle');
   const [tiles, setTiles] = useState<TileState[]>(() =>
@@ -370,14 +370,14 @@ export const MinesGame: React.FC<MinesGameProps> = ({
                 type="button"
                 disabled={gameState === 'playing'}
                 onClick={() => {
-                  setBet((prev) => Math.min(Math.min(userCoins, 10000), prev * 2));
+                  setBet((prev) => Math.min(Math.min(userCoins, 500), prev * 2));
                   sound.tap();
                 }}
                 className="flex-1 py-1.5 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.04] disabled:opacity-40 cursor-pointer"
               >
                 2×
               </button>
-              {[50, 100, 250, 500].map((amt) => (
+              {[10, 25, 50, 100, 250].map((amt) => (
                 <button
                   key={amt}
                   type="button"
@@ -399,11 +399,11 @@ export const MinesGame: React.FC<MinesGameProps> = ({
                 type="button"
                 disabled={gameState === 'playing'}
                 onClick={() => {
-                  setBet(Math.min(userCoins > 0 ? userCoins : 1000, 2500));
+                  setBet(Math.min(userCoins > 0 ? userCoins : 100, 500));
                   sound.tap();
                 }}
                 className={`flex-1 py-1.5 rounded-xl text-xs font-mono font-bold transition-all disabled:opacity-40 cursor-pointer ${
-                  bet >= 2500 || bet === userCoins
+                  bet >= 500 || bet === userCoins
                     ? 'bg-amber-400 text-black'
                     : 'text-amber-400 hover:text-amber-300 bg-amber-500/10'
                 }`}

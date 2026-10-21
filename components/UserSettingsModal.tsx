@@ -9,15 +9,10 @@ import {
   Coins,
   Volume2,
   VolumeX,
-  Trophy,
   Flame,
   Check,
   Copy,
-  Lock,
   LogOut,
-  RefreshCw,
-  Sparkles,
-  HelpCircle,
   BarChart3,
   Palette,
 } from 'lucide-react';
@@ -31,6 +26,10 @@ import {
   COOKIE_REMEMBER,
 } from '@/lib/authSession';
 import { setCookie } from '@/lib/cookies';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/Input';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -44,12 +43,12 @@ interface UserSettingsModalProps {
 }
 
 const AVATAR_COLORS = [
-  { id: 'emerald', bg: 'bg-emerald-500', border: 'border-emerald-400', label: 'Verde Terminal' },
-  { id: 'blue', bg: 'bg-blue-600', border: 'border-blue-400', label: 'Azul Redes' },
-  { id: 'purple', bg: 'bg-purple-600', border: 'border-purple-400', label: 'Púrpura Ciber' },
-  { id: 'amber', bg: 'bg-amber-500', border: 'border-amber-400', label: 'Ámbar Root' },
-  { id: 'rose', bg: 'bg-rose-600', border: 'border-rose-400', label: 'Rosa Bug' },
-  { id: 'cyan', bg: 'bg-cyan-500', border: 'border-cyan-400', label: 'Cian Servidor' },
+  { id: 'emerald', bg: 'bg-emerald-600', label: 'Verde' },
+  { id: 'blue', bg: 'bg-blue-600', label: 'Azul' },
+  { id: 'purple', bg: 'bg-purple-600', label: 'Púrpura' },
+  { id: 'amber', bg: 'bg-amber-500', label: 'Ámbar' },
+  { id: 'rose', bg: 'bg-rose-600', label: 'Rosa' },
+  { id: 'cyan', bg: 'bg-cyan-600', label: 'Cian' },
 ];
 
 export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
@@ -121,7 +120,6 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
     setSavingProfile(true);
 
     try {
-      // Call server API
       const res = await fetch('/api/user/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -137,7 +135,6 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
         throw new Error(data.error || 'No se pudo actualizar el nombre.');
       }
 
-      // Update client session
       const updated = updateUserProfileSession({
         username: clean,
         avatar_color: selectedColor,
@@ -148,7 +145,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
       }
 
       sound.coinWin();
-      setProfileMsg({ type: 'ok', text: '¡Perfil actualizado con éxito!' });
+      setProfileMsg({ type: 'ok', text: 'Perfil actualizado con éxito.' });
     } catch (err: any) {
       setProfileMsg({ type: 'err', text: err?.message || 'Error al guardar.' });
     } finally {
@@ -186,13 +183,12 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
         throw new Error(data.error || 'No se pudo cambiar la contraseña.');
       }
 
-      // Also update local storage if it's a local account
       if (user.auth_provider === 'local') {
         await updateLocalUserPassword(user.id, newPassword);
       }
 
       sound.coinWin();
-      setPasswordMsg({ type: 'ok', text: '¡Contraseña cambiada con éxito!' });
+      setPasswordMsg({ type: 'ok', text: 'Contraseña cambiada con éxito.' });
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
@@ -211,72 +207,72 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   const activeColorObj = AVATAR_COLORS.find((c) => c.id === selectedColor) || AVATAR_COLORS[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="max-w-xl w-full rounded-3xl bg-[#0c0d12] border border-white/[0.12] shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
+      <Card className="max-w-xl w-full p-0 overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Modal Header */}
-        <div className="p-4 sm:p-5 border-b border-white/[0.08] flex items-center justify-between bg-black/40">
+        <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between bg-surface">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-white/[0.06] border border-white/10 text-white">
-              <Settings className="w-4 h-4 text-amber-400" />
+            <div className="p-2 rounded-[var(--radius-sm)] bg-surface-raised border border-border text-accent">
+              <Settings className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm text-white font-sans">Ajustes de Usuario</h3>
-              <p className="text-[11px] text-zinc-400 font-mono">Personaliza tu cuenta y revisa tus estadísticas</p>
+              <h3 className="font-semibold text-sm text-foreground">Ajustes de Usuario</h3>
+              <p className="text-xs text-foreground-muted font-mono">Personaliza tu perfil y preferencias</p>
             </div>
           </div>
 
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => {
               onClose();
               sound.tap();
             }}
-            className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            aria-label="Cerrar modal"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* User Quick Identity Bar */}
-        <div className="p-4 bg-white/[0.02] border-b border-white/[0.06] flex items-center justify-between gap-3">
+        <div className="p-4 bg-surface-raised border-b border-border flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
-              className={`w-11 h-11 rounded-2xl ${activeColorObj.bg} text-white font-mono font-bold text-base flex items-center justify-center shadow-md uppercase select-none`}
+              className={`w-10 h-10 rounded-[var(--radius-sm)] ${activeColorObj.bg} text-white font-mono font-bold text-sm flex items-center justify-center uppercase select-none`}
             >
               {user.username.charAt(0)}
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm text-white">@{user.username}</span>
-                <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-semibold ${rank.bg} ${rank.color} ${rank.border}`}>
+                <span className="font-semibold text-sm text-foreground font-mono">@{user.username}</span>
+                <Badge variant="accent" size="sm">
                   {rank.name}
-                </span>
+                </Badge>
               </div>
-              <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-mono mt-0.5">
-                <span>{user.email || 'Cuenta Local SMR2'}</span>
+              <div className="flex items-center gap-2 text-[11px] text-foreground-subtle font-mono mt-0.5">
+                <span>{user.email || 'Cuenta SMR2'}</span>
                 <span>•</span>
                 <button
                   type="button"
                   onClick={handleCopyId}
-                  className="hover:text-zinc-300 flex items-center gap-1 transition-colors cursor-pointer"
-                  title="Copiar ID de usuario"
+                  className="hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Copiar ID"
                 >
                   <span>ID: {user.id.slice(0, 8)}...</span>
-                  {copiedId ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}
+                  {copiedId ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col items-end">
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-400/10 border border-amber-400/20 text-xs font-mono font-bold text-amber-300">
-              <Coins className="w-3.5 h-3.5 text-amber-400" />
-              <span>{user.coins.toLocaleString('es-ES')}</span>
-            </div>
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] bg-surface border border-border text-xs font-mono font-semibold text-accent">
+            <Coins className="w-3.5 h-3.5" />
+            <span>{user.coins.toLocaleString('es-ES')}</span>
           </div>
         </div>
 
         {/* Tabs Bar */}
-        <div className="flex items-center p-1.5 bg-black/50 border-b border-white/[0.06] gap-1 overflow-x-auto scrollbar-none">
+        <div className="flex items-center p-1.5 bg-surface border-b border-border gap-1 overflow-x-auto scrollbar-none">
           {[
             { id: 'profile', label: 'Perfil', icon: User },
             { id: 'stats', label: 'Estadísticas', icon: BarChart3 },
@@ -286,21 +282,18 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             const Icon = t.icon;
             const isActive = activeTab === t.id;
             return (
-              <button
+              <Button
                 key={t.id}
+                variant={isActive ? 'primary' : 'ghost'}
+                size="sm"
                 onClick={() => {
                   setActiveTab(t.id as any);
                   sound.tap();
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all shrink-0 cursor-pointer ${
-                  isActive
-                    ? 'bg-white text-black font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/[0.04]'
-                }`}
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{t.label}</span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -310,28 +303,17 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
           {/* TAB 1: PROFILE */}
           {activeTab === 'profile' && (
             <form onSubmit={handleSaveProfile} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs text-zinc-300 font-semibold font-sans">
-                  Nombre de Usuario / Apodo en SMR2
-                </label>
-                <p className="text-[11px] text-zinc-500 font-sans">
-                  Es el identificador público con el que tus compañeros te verán en el chat, horario y partidas de Ruleta Rusa.
-                </p>
-                <div className="relative mt-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-xs">@</span>
-                  <input
-                    type="text"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    maxLength={20}
-                    className="w-full pl-7 pr-3 py-2 rounded-xl bg-black border border-white/10 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-              </div>
+              <Input
+                label="Nombre de Usuario / Apodo"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                maxLength={20}
+                required
+              />
 
               {/* Avatar Color Picker */}
-              <div className="space-y-1.5 pt-2">
-                <label className="text-xs text-zinc-300 font-semibold font-sans">
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs text-foreground font-medium">
                   Color del Avatar
                 </label>
                 <div className="grid grid-cols-6 gap-2">
@@ -343,9 +325,9 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                         setSelectedColor(c.id);
                         sound.tap();
                       }}
-                      className={`h-9 rounded-xl ${c.bg} flex items-center justify-center transition-all cursor-pointer border ${
+                      className={`h-9 rounded-[var(--radius-sm)] ${c.bg} flex items-center justify-center transition-transform cursor-pointer border ${
                         selectedColor === c.id
-                          ? 'ring-2 ring-white scale-105 border-white'
+                          ? 'ring-2 ring-foreground scale-105 border-foreground'
                           : 'border-transparent opacity-70 hover:opacity-100'
                       }`}
                       title={c.label}
@@ -358,10 +340,10 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
 
               {profileMsg && (
                 <div
-                  className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                  className={`p-3 rounded-[var(--radius)] text-xs flex items-center gap-2 border ${
                     profileMsg.type === 'ok'
-                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
-                      : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+                      ? 'bg-surface-raised border-border text-success'
+                      : 'bg-surface-raised border-danger text-danger'
                   }`}
                 >
                   {profileMsg.type === 'ok' ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
@@ -370,13 +352,14 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
               )}
 
               <div className="pt-2 flex justify-end">
-                <button
+                <Button
                   type="submit"
-                  disabled={savingProfile}
-                  className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                  variant="primary"
+                  size="sm"
+                  isLoading={savingProfile}
                 >
-                  {savingProfile ? 'Guardando...' : 'Guardar Cambios de Perfil'}
-                </button>
+                  Guardar Perfil
+                </Button>
               </div>
             </form>
           )}
@@ -385,59 +368,60 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
           {activeTab === 'stats' && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.07] space-y-1">
-                  <span className="text-[10px] text-zinc-500 font-mono">SALDO ACTUAL</span>
-                  <div className="text-sm font-bold text-amber-300 font-mono">
+                <div className="p-3.5 rounded-[var(--radius)] bg-surface-raised border border-border space-y-1">
+                  <span className="text-[10px] text-foreground-subtle font-mono uppercase">Saldo actual</span>
+                  <div className="text-sm font-bold text-accent font-mono">
                     {user.coins.toLocaleString('es-ES')}
                   </div>
-                  <span className="text-[10px] text-zinc-500">Fichas virtuales</span>
+                  <span className="text-[11px] text-foreground-subtle">Fichas</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.07] space-y-1">
-                  <span className="text-[10px] text-zinc-500 font-mono">MAYOR PREMIO</span>
-                  <div className="text-sm font-bold text-emerald-400 font-mono">
+                <div className="p-3.5 rounded-[var(--radius)] bg-surface-raised border border-border space-y-1">
+                  <span className="text-[10px] text-foreground-subtle font-mono uppercase">Mayor premio</span>
+                  <div className="text-sm font-bold text-foreground font-mono">
                     {(user.biggest_win || 0).toLocaleString('es-ES')}
                   </div>
-                  <span className="text-[10px] text-zinc-500">Récord de ganancia</span>
+                  <span className="text-[11px] text-foreground-subtle">Récord</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.07] space-y-1">
-                  <span className="text-[10px] text-zinc-500 font-mono">WIN RATE</span>
-                  <div className="text-sm font-bold text-white font-mono">
+                <div className="p-3.5 rounded-[var(--radius)] bg-surface-raised border border-border space-y-1">
+                  <span className="text-[10px] text-foreground-subtle font-mono uppercase">Win rate</span>
+                  <div className="text-sm font-bold text-foreground font-mono">
                     {winRate}%
                   </div>
-                  <span className="text-[10px] text-zinc-500">{gamesWon} de {totalGames} ganadas</span>
+                  <span className="text-[11px] text-foreground-subtle">{gamesWon} de {totalGames} ganadas</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.07] space-y-1">
-                  <span className="text-[10px] text-zinc-500 font-mono">RACHA DIARIA</span>
-                  <div className="text-sm font-bold text-amber-400 font-mono flex items-center gap-1">
-                    <Flame className="w-3.5 h-3.5 fill-amber-400" />
+                <div className="p-3.5 rounded-[var(--radius)] bg-surface-raised border border-border space-y-1">
+                  <span className="text-[10px] text-foreground-subtle font-mono uppercase">Racha diaria</span>
+                  <div className="text-sm font-bold text-accent font-mono flex items-center gap-1">
+                    <Flame className="w-3.5 h-3.5" />
                     <span>{user.streak_count || 1} días</span>
                   </div>
-                  <span className="text-[10px] text-zinc-500">Conexiones seguidas</span>
+                  <span className="text-[11px] text-foreground-subtle">Seguidos</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.07] space-y-1">
-                  <span className="text-[10px] text-zinc-500 font-mono">ROL EN CLASE</span>
-                  <div className="text-sm font-bold text-white font-mono uppercase">
+                <div className="p-3.5 rounded-[var(--radius)] bg-surface-raised border border-border space-y-1">
+                  <span className="text-[10px] text-foreground-subtle font-mono uppercase">Rol</span>
+                  <div className="text-sm font-bold text-foreground font-mono uppercase">
                     {user.role === 'admin' ? 'Administrador' : user.role === 'delegado' ? 'Delegado' : 'Estudiante'}
                   </div>
-                  <span className="text-[10px] text-zinc-500">2º SMR</span>
+                  <span className="text-[11px] text-foreground-subtle">2º SMR</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.07] space-y-1">
-                  <span className="text-[10px] text-zinc-500 font-mono">FONDO DE RESCATE</span>
+                <div className="p-3.5 rounded-[var(--radius)] bg-surface-raised border border-border space-y-1">
+                  <span className="text-[10px] text-foreground-subtle font-mono uppercase">Fondo rescate</span>
                   <button
+                    type="button"
                     onClick={() => {
                       onClose();
                       onOpenFaucet();
                     }}
-                    className="text-xs font-bold text-amber-300 underline font-mono block text-left"
+                    className="text-xs font-semibold text-accent underline font-mono block text-left cursor-pointer"
                   >
                     Reclamar fichas
                   </button>
-                  <span className="text-[10px] text-zinc-500">Subsidio diario</span>
+                  <span className="text-[11px] text-foreground-subtle">Subsidio</span>
                 </div>
               </div>
             </div>
@@ -445,57 +429,49 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
 
           {/* TAB 3: PREFERENCES */}
           {activeTab === 'preferences' && (
-            <div className="space-y-4">
-              {/* Sound Toggle */}
-              <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.07] flex items-center justify-between gap-3">
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-[var(--radius)] bg-surface-raised border border-border flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     {soundEnabled ? (
-                      <Volume2 className="w-4 h-4 text-emerald-400" />
+                      <Volume2 className="w-4 h-4 text-accent" />
                     ) : (
-                      <VolumeX className="w-4 h-4 text-zinc-500" />
+                      <VolumeX className="w-4 h-4 text-foreground-subtle" />
                     )}
-                    <span className="text-xs font-semibold text-white">Efectos de Sonido</span>
+                    <span className="text-xs font-semibold text-foreground">Efectos de Sonido</span>
                   </div>
-                  <p className="text-[11px] text-zinc-500 font-sans">
-                    Sonidos de botones, premios en ruleta, gatillo en ruleta rusa y mensajes.
+                  <p className="text-[11px] text-foreground-muted">
+                    Sonidos de interfaz y alertas de juego.
                   </p>
                 </div>
 
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => {
                     onToggleSound();
                     sound.tap();
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
-                    soundEnabled
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : 'bg-zinc-800 text-zinc-400 border border-white/5'
-                  }`}
                 >
                   {soundEnabled ? 'Activado' : 'Silenciado'}
-                </button>
+                </Button>
               </div>
 
-              {/* Remember Me Toggle */}
-              <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.07] flex items-center justify-between gap-3">
+              <div className="p-3.5 rounded-[var(--radius)] bg-surface-raised border border-border flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
-                  <span className="text-xs font-semibold text-white">Recordar Sesión Permanente</span>
-                  <p className="text-[11px] text-zinc-500 font-sans">
-                    Mantener tu cuenta iniciada hasta 365 días en este navegador sin volver a pedir contraseña.
+                  <span className="text-xs font-semibold text-foreground">Recordar Sesión</span>
+                  <p className="text-[11px] text-foreground-muted">
+                    Mantener sesión iniciada en este navegador (365 días).
                   </p>
                 </div>
 
-                <button
+                <Button
+                  variant={rememberMe ? 'primary' : 'secondary'}
+                  size="sm"
                   onClick={() => handleToggleRemember(!rememberMe)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
-                    rememberMe
-                      ? 'bg-amber-400 text-black shadow-sm'
-                      : 'bg-zinc-800 text-zinc-400 border border-white/5'
-                  }`}
                 >
-                  {rememberMe ? 'Sí (365 días)' : 'No (30 días)'}
-                </button>
+                  {rememberMe ? 'Activado' : 'Desactivado'}
+                </Button>
               </div>
             </div>
           )}
@@ -504,38 +480,30 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
           {activeTab === 'security' && (
             <div className="space-y-4">
               <form onSubmit={handleChangePassword} className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-zinc-300 font-semibold font-sans">
-                    Nueva Contraseña
-                  </label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Mínimo 6 caracteres"
-                    className="w-full px-3 py-2 rounded-xl bg-black border border-white/10 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
+                <Input
+                  label="Nueva Contraseña"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  required
+                />
 
-                <div className="space-y-1">
-                  <label className="text-xs text-zinc-300 font-semibold font-sans">
-                    Confirmar Nueva Contraseña
-                  </label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repite la contraseña"
-                    className="w-full px-3 py-2 rounded-xl bg-black border border-white/10 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
+                <Input
+                  label="Confirmar Contraseña"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repite la contraseña"
+                  required
+                />
 
                 {passwordMsg && (
                   <div
-                    className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                    className={`p-3 rounded-[var(--radius)] text-xs flex items-center gap-2 border ${
                       passwordMsg.type === 'ok'
-                        ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
-                        : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+                        ? 'bg-surface-raised border-border text-success'
+                        : 'bg-surface-raised border-danger text-danger'
                     }`}
                   >
                     {passwordMsg.type === 'ok' ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
@@ -544,38 +512,40 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                 )}
 
                 <div className="pt-1 flex justify-end">
-                  <button
+                  <Button
                     type="submit"
-                    disabled={savingPassword}
-                    className="px-4 py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                    variant="primary"
+                    size="sm"
+                    isLoading={savingPassword}
                   >
-                    {savingPassword ? 'Actualizando...' : 'Cambiar Contraseña'}
-                  </button>
+                    Cambiar Contraseña
+                  </Button>
                 </div>
               </form>
 
               {/* Danger Zone: Logout */}
-              <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between">
+              <div className="pt-4 border-t border-border flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-semibold text-rose-400">Cerrar Sesión</span>
-                  <p className="text-[11px] text-zinc-500">Cierra tu cuenta activa en este dispositivo.</p>
+                  <span className="text-xs font-semibold text-danger">Cerrar Sesión</span>
+                  <p className="text-[11px] text-foreground-subtle">Cierra tu cuenta activa en este dispositivo.</p>
                 </div>
 
-                <button
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={() => {
                     onClose();
                     onSignOut();
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Salir</span>
-                </button>
+                </Button>
               </div>
             </div>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

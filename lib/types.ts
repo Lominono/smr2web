@@ -13,6 +13,8 @@ export interface UserProfile {
   games_played?: number;
   games_won?: number;
   sound_enabled?: boolean;
+  last_spin_date?: string;
+  last_rescue_date?: string;
 }
 
 export interface ChatMessage {

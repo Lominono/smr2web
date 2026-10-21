@@ -38,7 +38,7 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
 
   // Create room modal form state
   const [newRoomName, setNewRoomName] = useState('');
-  const [newBetAmount, setNewBetAmount] = useState<number>(50);
+  const [newBetAmount, setNewBetAmount] = useState<number>(25);
   const [newMaxPlayers, setNewMaxPlayers] = useState<number>(6);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -346,9 +346,9 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
                 <input
                   type="number"
                   min={10}
-                  max={50000}
+                  max={Math.min(user?.coins ?? 500, 500)}
                   value={newBetAmount}
-                  onChange={(e) => setNewBetAmount(parseInt(e.target.value, 10) || 50)}
+                  onChange={(e) => setNewBetAmount(Math.min(500, parseInt(e.target.value, 10) || 25))}
                   className="w-full px-3 py-2 rounded-xl bg-black border border-white/10 text-xs text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400"
                 />
               </div>

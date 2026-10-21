@@ -39,73 +39,10 @@ import {
   Server,
   Target,
   Zap,
-  Calendar as CalendarIcon,
-  Sparkles,
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 type ViewMode = 'feed' | 'calendar' | 'russian_roulette' | 'crash' | 'mines' | 'angry' | 'roulette';
-
-const STARTER_MESSAGES: ChatMessage[] = [
-  {
-    id: 'starter_1',
-    user_id: 'sys_delegado',
-    username: 'delegado',
-    text: '[#AvisoAula] 📢 Bienvenidos al nuevo portal de 2º SMR con feed de clase estilo Twitter. Podéis consultar el horario lectivo y todas las secciones pulsando el botón de 3 líneas (Menú).',
-    created_at: '08:30',
-  },
-  {
-    id: 'starter_2',
-    user_id: 'sys_alex',
-    username: 'alex_redes',
-    text: '[#DudaSMR] ¿Alguien sabe si en la práctica de Packet Tracer hay que añadir una ruta por defecto hacia el router de salida a Internet?',
-    created_at: '09:14',
-  },
-  {
-    id: 'starter_3',
-    user_id: 'sys_maria',
-    username: 'maria_sor',
-    text: '[#General] He dejado subidos los apuntes del Tema 3 de Sistemas Operativos en Red en la carpeta compartida.',
-    created_at: '09:45',
-  },
-  {
-    id: 'starter_4',
-    user_id: 'sys_win',
-    username: 'carlos_smr',
-    text: '@carlos_smr consiguió un multiplicador de x3.40 (+1,700 fichas) en Ruleta Rusa Multijugador',
-    created_at: '10:05',
-    is_system_win: true,
-    multiplier: 3.4,
-    win_amount: 1700,
-    game: 'roulette',
-  },
-];
-
-const DEFAULT_EVENTS: CalendarEvent[] = [
-  {
-    id: 'ev_1',
-    title: 'Práctica Servidor DNS & DHCP',
-    subject: 'SR',
-    event_type: 'homework',
-    event_date: 'Viernes 24',
-    priority: 'high',
-  },
-  {
-    id: 'ev_2',
-    title: 'Examen Tema 4 Windows Server',
-    subject: 'SOR',
-    event_type: 'exam',
-    event_date: 'Martes 28',
-    priority: 'high',
-  },
-  {
-    id: 'ev_3',
-    title: 'Auditoría Criptografía y Firewalls',
-    subject: 'SI',
-    event_type: 'homework',
-    event_date: 'Viernes 31',
-    priority: 'normal',
-  },
-];
 
 export default function Home() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -164,7 +101,7 @@ export default function Home() {
           id: data.id,
           username: data.username,
           email: data.email || email,
-          coins: Number(data.coins ?? 1000),
+          coins: Number(data.coins ?? 200),
           biggest_win: Number(data.biggest_win ?? 0),
           streak_count: data.streak_count ? Number(data.streak_count) : 1,
           last_claim_date: data.last_claim_date || undefined,
@@ -188,7 +125,7 @@ export default function Home() {
                 id: userId,
                 username: fallbackUsername,
                 email: email || null,
-                coins: 1000,
+                coins: 200,
                 biggest_win: 0,
                 streak_count: 1,
                 role,
@@ -202,7 +139,7 @@ export default function Home() {
           id: userId,
           username: fallbackUsername,
           email,
-          coins: 1000,
+          coins: 200,
           biggest_win: 0,
           streak_count: 1,
           role,
@@ -227,7 +164,7 @@ export default function Home() {
         .order('created_at', { ascending: false })
         .limit(60);
 
-      if (data && data.length > 0) {
+      if (data) {
         setChatMessages(
           data.map((m: any) => ({
             ...m,
@@ -251,7 +188,7 @@ export default function Home() {
         .order('event_date', { ascending: true })
         .limit(6);
 
-      if (data && data.length > 0) {
+      if (data) {
         setCalendarEvents(data);
       }
     } catch (err) {
@@ -270,7 +207,7 @@ export default function Home() {
         .order('coins', { ascending: false })
         .limit(20);
 
-      if (data && data.length > 0) {
+      if (data) {
         setLeaderboard(
           data.map((p: any) => ({
             id: p.id,
@@ -460,15 +397,23 @@ export default function Home() {
     }
   };
 
-  const handleClaimCoins = async (amount: number, newStreak?: number) => {
+  const handleClaimCoins = async (
+    amount: number,
+    newStreak?: number,
+    claimType?: 'daily' | 'spin' | 'rescue'
+  ) => {
     if (!user) {
       setIsAuthOpen(true);
       return;
     }
 
     const nextCoins = user.coins + amount;
-    const todayStr = new Date().toISOString();
-    const nextStreakVal = newStreak !== undefined ? newStreak : user.streak_count ?? 1;
+    const nowIso = new Date().toISOString();
+    const nextStreakVal =
+      claimType === 'daily' && newStreak !== undefined ? newStreak : user.streak_count ?? 1;
+    const nextClaimDate = claimType === 'daily' ? nowIso : user.last_claim_date;
+    const nextSpinDate = claimType === 'spin' ? nowIso : user.last_spin_date;
+    const nextRescueDate = claimType === 'rescue' ? nowIso : user.last_rescue_date;
 
     setUser((prev) =>
       prev
@@ -476,23 +421,33 @@ export default function Home() {
             ...prev,
             coins: nextCoins,
             streak_count: nextStreakVal,
-            last_claim_date: todayStr,
+            last_claim_date: nextClaimDate,
+            last_spin_date: nextSpinDate,
+            last_rescue_date: nextRescueDate,
           }
         : null
     );
 
-    updateSessionCoins(nextCoins, undefined, nextStreakVal, todayStr);
+    updateSessionCoins(
+      nextCoins,
+      undefined,
+      nextStreakVal,
+      nextClaimDate,
+      nextSpinDate,
+      nextRescueDate
+    );
 
     const supabase = createClient();
     if (supabase && user.auth_provider === 'supabase') {
       try {
+        const updatePayload: Record<string, any> = { coins: nextCoins };
+        if (claimType === 'daily') {
+          updatePayload.streak_count = nextStreakVal;
+          updatePayload.last_claim_date = nowIso;
+        }
         await supabase
           .from('profiles')
-          .update({
-            coins: nextCoins,
-            streak_count: nextStreakVal,
-            last_claim_date: todayStr,
-          })
+          .update(updatePayload)
           .eq('id', user.id);
       } catch (err) {
         console.warn('Could not sync streak/coins to Supabase:', err);
@@ -627,14 +582,14 @@ export default function Home() {
   // Loading splash screen
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#070709] bg-dot-matrix flex flex-col items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-3 animate-pulse">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
           <img
             src="/logo.png"
             alt="SMR2 Logo"
-            className="w-16 h-16 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.7)]"
+            className="w-12 h-12 object-contain"
           />
-          <span className="text-sm font-semibold tracking-tight text-white font-mono">
+          <span className="text-sm font-semibold tracking-tight text-foreground font-mono">
             SMR2
           </span>
         </div>
@@ -658,7 +613,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen relative flex flex-col bg-[#070709] bg-dot-matrix text-zinc-100 selection:bg-white selection:text-black overflow-x-hidden">
+    <div className="min-h-screen relative flex flex-col bg-background text-foreground selection:bg-accent selection:text-accent-foreground overflow-x-hidden">
       {/* 1. Top Navbar with Hamburger Menu Button */}
       <AppleNavbar
         user={user}
@@ -709,7 +664,7 @@ export default function Home() {
               {/* Center Feed Column (Twitter Timeline) */}
               <div className="col-span-1 lg:col-span-6 w-full min-w-0">
                 <SmrTwitterFeed
-                  messages={chatMessages.length > 0 ? chatMessages : STARTER_MESSAGES}
+                  messages={chatMessages}
                   currentUser={user}
                   onOpenAuth={() => setIsAuthOpen(true)}
                   onSendMessage={handleSendMessage}
@@ -724,7 +679,7 @@ export default function Home() {
               <div className="hidden lg:block lg:col-span-3 sticky top-18 space-y-4">
                 <DesktopWidgets
                   currentUser={user}
-                  events={calendarEvents.length > 0 ? calendarEvents : DEFAULT_EVENTS}
+                  events={calendarEvents}
                   leaderboard={leaderboard}
                   onOpenSchedule={() => setActiveView('calendar')}
                   onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
@@ -738,22 +693,22 @@ export default function Home() {
           /* VIEW 2: HORARIO O JUEGOS CON BARRA "← VOLVER AL FEED" */
           <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 pt-3 space-y-4">
             {/* Sleek Top Banner to return to the Twitter Feed */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-[#0c0e12] border border-white/[0.08] shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-[var(--radius)] bg-surface border border-border">
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={() => {
                     setActiveView('feed');
                     sound.tap();
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-black font-mono text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+                  className="shrink-0"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  <span className="sm:hidden">← Volver al Feed</span>
-                  <span className="hidden sm:inline">← Volver al Feed de 2º SMR</span>
-                </button>
+                  <span>Volver al feed</span>
+                </Button>
 
-                <span className="text-xs font-mono font-medium text-zinc-400 hidden sm:inline">
+                <span className="text-xs font-mono font-medium text-foreground-muted hidden sm:inline">
                   {activeView === 'calendar'
                     ? 'Horario Lectivo & Tareas'
                     : activeView === 'russian_roulette'
@@ -766,7 +721,7 @@ export default function Home() {
               {activeView !== 'calendar' && (
                 <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
                   {[
-                    { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap, tag: 'Multi' },
+                    { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
                     { id: 'crash', label: 'Crash', icon: TrendingUp },
                     { id: 'mines', label: 'Minas', icon: Server },
                     { id: 'angry', label: 'Slingshot', icon: Target },
@@ -782,10 +737,10 @@ export default function Home() {
                           setActiveView(g.id as ViewMode);
                           sound.tap();
                         }}
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-sm)] text-xs font-mono font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                           isActive
-                            ? 'bg-amber-400 text-black font-bold shadow-sm'
-                            : 'text-zinc-400 hover:text-white hover:bg-white/[0.04]'
+                            ? 'bg-accent text-accent-foreground font-semibold'
+                            : 'text-foreground-muted hover:text-foreground hover:bg-surface-raised'
                         }`}
                       >
                         <IconComponent className="w-3 h-3" />
@@ -801,25 +756,25 @@ export default function Home() {
             <div className="animate-in fade-in duration-150">
               {activeView === 'angry' ? (
                 <AngryCableGame
-                  userCoins={user ? user.coins : 1000}
+                  userCoins={user ? user.coins : 200}
                   onUpdateCoins={handleUpdateCoins}
                   onBroadcastWin={handleBroadcastWin}
                 />
               ) : activeView === 'crash' ? (
                 <CrashGame
-                  userCoins={user ? user.coins : 1000}
+                  userCoins={user ? user.coins : 200}
                   onUpdateCoins={handleUpdateCoins}
                   onBroadcastWin={handleBroadcastWin}
                 />
               ) : activeView === 'mines' ? (
                 <MinesGame
-                  userCoins={user ? user.coins : 1000}
+                  userCoins={user ? user.coins : 200}
                   onUpdateCoins={handleUpdateCoins}
                   onBroadcastWin={handleBroadcastWin}
                 />
               ) : activeView === 'roulette' ? (
                 <RouletteGame
-                  userCoins={user ? user.coins : 1000}
+                  userCoins={user ? user.coins : 200}
                   onUpdateCoins={handleUpdateCoins}
                   onBroadcastWin={handleBroadcastWin}
                 />
@@ -852,7 +807,7 @@ export default function Home() {
             sound.tap();
           }}
           aria-label="Publicar en el feed"
-          className="lg:hidden fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 w-12 h-12 rounded-full bg-amber-400 hover:bg-amber-300 text-black flex items-center justify-center shadow-2xl shadow-amber-500/30 cursor-pointer active:scale-90 transition-transform"
+          className="lg:hidden fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 w-12 h-12 rounded-[var(--radius)] bg-accent hover:bg-accent-hover text-accent-foreground flex items-center justify-center border border-border shadow-md cursor-pointer active:scale-95 transition-transform"
         >
           <PenSquare className="w-5 h-5" />
         </button>
@@ -928,25 +883,25 @@ export default function Home() {
       />
 
       {/* 7. Footer */}
-      <footer className="border-t border-white/[0.06] bg-black/60 py-4 mt-8 mb-16 lg:mb-0 text-center text-[11px] text-zinc-500 font-mono">
+      <footer className="border-t border-border bg-surface py-4 mt-8 mb-16 lg:mb-0 text-center text-xs text-foreground-muted font-mono">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="SMR2" className="w-5 h-5 object-contain" />
+            <img src="/logo.png" alt="SMR2" className="w-4 h-4 object-contain" />
             <span>SMR2 · 2º Sistemas Microinformáticos y Redes</span>
           </div>
 
-          <div className="flex items-center gap-4 text-zinc-400">
+          <div className="flex items-center gap-4 text-foreground-subtle">
             <button
               type="button"
               onClick={() => {
                 setIsTermsOpen(true);
                 sound.tap();
               }}
-              className="hover:text-amber-400 transition-colors cursor-pointer underline underline-offset-2"
+              className="hover:text-accent transition-colors cursor-pointer underline underline-offset-2"
             >
               Normas, Cookies & Contacto legal
             </button>
-            <span className="text-zinc-600">Curso 2024–2025</span>
+            <span>Curso 2024–2025</span>
           </div>
         </div>
       </footer>
