@@ -193,10 +193,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-md max-h-[92vh] overflow-y-auto shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 border-b border-white/[0.08] flex items-center justify-between sticky top-0 bg-[#0c0c12]/90 backdrop-blur-md z-10">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center p-1.5 shrink-0">
               <img
@@ -256,7 +256,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         ) : (
           <>
             {/* Tab Switcher */}
-            <div className="p-1.5 mx-6 mt-5 rounded-2xl bg-black/50 border border-white/[0.06] flex items-center">
+            <div className="p-1.5 mx-4 sm:mx-6 mt-4 sm:mt-5 rounded-2xl bg-black/50 border border-white/[0.06] flex items-center">
               <button
                 type="button"
                 onClick={() => {
@@ -329,7 +329,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-3.5">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5">
               {mode === 'register' ? (
                 <>
                   {/* Username Input */}

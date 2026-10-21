@@ -202,7 +202,7 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
           {user ? (
             <div className="flex items-center gap-1.5 pl-1.5 border-l border-white/[0.08]">
               {/* Coin Pill */}
-              <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1">
+              <div className="flex items-center gap-1 sm:gap-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg px-1.5 sm:px-2 py-1 shrink-0">
                 <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span className="text-xs font-mono font-medium text-amber-300 tabular-nums">
                   {user.coins.toLocaleString('es-ES')}

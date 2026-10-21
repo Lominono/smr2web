@@ -91,10 +91,10 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-md max-h-[92vh] overflow-y-auto shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
+        <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-white/[0.08] flex items-center justify-between sticky top-0 bg-[#0c0c12]/90 backdrop-blur-md z-10">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
               <Gift className="w-5 h-5" />
@@ -118,7 +118,7 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4">
           {/* Daily Streak Card */}
           <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
             <div className="flex items-center justify-between mb-3">

@@ -314,7 +314,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200">
       <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] shadow-[0_25px_70px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
               <ShieldCheck className="w-5 h-5" />
@@ -406,7 +406,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
           /* UNLOCKED ADMIN PANEL */
           <div className="flex-1 overflow-y-auto">
             {/* Tab switchers & Session Security Header */}
-            <div className="px-6 pt-4 pb-2 border-b border-white/[0.06] flex items-center justify-between gap-2 flex-wrap">
+            <div className="px-4 sm:px-6 pt-3 sm:pt-4 pb-2 border-b border-white/[0.06] flex items-center justify-between gap-2 flex-wrap">
               <div className="inline-flex p-1 rounded-2xl bg-black/40 border border-white/[0.08]">
                 <button
                   type="button"
@@ -462,7 +462,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
 
             {/* TAB 1: CREATE TASK FORM */}
             {activeTab === 'create' ? (
-              <form onSubmit={handleCreateTask} className="p-6 space-y-4">
+              <form onSubmit={handleCreateTask} className="p-4 sm:p-6 space-y-4">
                 {/* Fast Preset Chips */}
                 <div>
                   <span className="text-[11px] font-mono text-zinc-500 block mb-1.5">Plantillas rápidas:</span>
@@ -685,7 +685,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
               </form>
             ) : (
               /* TAB 2: ACTIVE TASKS LIST */
-              <div className="p-6 space-y-3">
+              <div className="p-4 sm:p-6 space-y-3">
                 {events.length === 0 ? (
                   <div className="text-center py-12 text-zinc-500 font-mono text-xs">
                     No hay tareas activas en este momento.

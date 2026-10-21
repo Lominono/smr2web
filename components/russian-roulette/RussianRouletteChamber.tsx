@@ -185,6 +185,7 @@ export const RussianRouletteChamber: React.FC<RussianRouletteChamberProps> = ({
         ref={canvasRef}
         width={size}
         height={size}
+        style={{ width: `${size}px`, maxWidth: '100%', height: 'auto', aspectRatio: '1 / 1' }}
         className="drop-shadow-[0_10px_25px_rgba(0,0,0,0.8)]"
       />
     </div>

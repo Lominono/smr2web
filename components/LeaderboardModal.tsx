@@ -21,10 +21,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   const sorted = [...entries].sort((a, b) => b.coins - a.coins);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-lg shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-lg max-h-[92vh] overflow-hidden flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
+        <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-2xl bg-white/[0.06] text-white border border-white/10 shadow-inner">
               <Trophy className="w-5 h-5 text-amber-400" />
