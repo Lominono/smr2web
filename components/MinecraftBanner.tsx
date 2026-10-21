@@ -63,44 +63,46 @@ export const MinecraftBanner: React.FC = () => {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-          <button
-            type="button"
-            onClick={handleCopy}
-            title="Copiar enlace"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-mono text-zinc-300 hover:text-white transition-colors cursor-pointer"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Copiado</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Copiar link</span>
-              </>
-            )}
-          </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-1 sm:pt-0">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopy}
+              title="Copiar enlace"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-mono text-zinc-300 hover:text-white transition-colors cursor-pointer"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">Copiado</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>Copiar link</span>
+                </>
+              )}
+            </button>
 
-          <a
-            href={MINECRAFT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => sound.tap()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-mono font-semibold transition-colors cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Descargar</span>
-            <ExternalLink className="w-3 h-3 opacity-60" />
-          </a>
+            <a
+              href={MINECRAFT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => sound.tap()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-mono font-semibold transition-colors cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Descargar</span>
+              <ExternalLink className="w-3 h-3 opacity-60" />
+            </a>
+          </div>
 
           <button
             type="button"
             onClick={handleDismiss}
             aria-label="Cerrar aviso"
             title="Ocultar aviso"
-            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.06] transition-colors cursor-pointer ml-1"
+            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.06] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

@@ -1,127 +1,119 @@
 'use client';
 
 import React from 'react';
-import { Calendar, MessageSquare, Gamepad2, Zap, Settings } from 'lucide-react';
+import { Sparkles, Calendar, Zap, Trophy, Menu } from 'lucide-react';
 import { sound } from '@/lib/audio';
 
 interface MobileTabBarProps {
-  activeTab: 'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar';
-  onSelectTab: (tab: 'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar') => void;
-  isChatOpen: boolean;
-  onToggleChat: () => void;
+  activeTab: string;
+  onSelectTab: (tab: string) => void;
+  onOpenDrawer: () => void;
   onOpenLeaderboard: () => void;
-  onOpenSettings?: () => void;
-  onOpenFaucet?: () => void;
 }
 
 export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   activeTab,
   onSelectTab,
-  isChatOpen,
-  onToggleChat,
-  onOpenSettings,
+  onOpenDrawer,
+  onOpenLeaderboard,
 }) => {
-  const isRussianRoulette = activeTab === 'russian_roulette';
-  const isOtherGames = activeTab !== 'calendar' && activeTab !== 'russian_roulette';
-
   return (
     <nav
-      aria-label="Navegación móvil"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#090b0e]/95 backdrop-blur-xl border-t border-white/[0.08] px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg"
+      aria-label="Navegación móvil inferior"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#090b0e]/95 backdrop-blur-xl border-t border-white/[0.08] px-2 pt-1.5 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-2xl"
     >
       <div className="max-w-md mx-auto grid grid-cols-5 gap-1 items-center">
-        {/* Horario y Tareas */}
+        {/* 1. Feed / Inicio */}
         <button
+          type="button"
+          onClick={() => {
+            onSelectTab('feed');
+            sound.tap();
+          }}
+          className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all cursor-pointer active:scale-90 ${
+            activeTab === 'feed' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <div
+            className={`p-1.5 rounded-xl transition-colors ${
+              activeTab === 'feed' ? 'bg-amber-400 text-black shadow-sm' : ''
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <span className="text-[10px] font-mono font-medium mt-0.5">Inicio</span>
+        </button>
+
+        {/* 2. Horario */}
+        <button
+          type="button"
           onClick={() => {
             onSelectTab('calendar');
             sound.tap();
           }}
-          className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors cursor-pointer ${
+          className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all cursor-pointer active:scale-90 ${
             activeTab === 'calendar' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
           <div
-            className={`p-1 rounded-lg transition-colors ${
+            className={`p-1.5 rounded-xl transition-colors ${
               activeTab === 'calendar' ? 'bg-blue-500/20 text-blue-400' : ''
             }`}
           >
             <Calendar className="w-4 h-4" />
           </div>
-          <span className="text-[9px] font-mono font-medium mt-0.5">Horario</span>
+          <span className="text-[10px] font-mono font-medium mt-0.5">Horario</span>
         </button>
 
-        {/* Ruleta Rusa Direct Access */}
+        {/* 3. Ruleta Rusa */}
         <button
+          type="button"
           onClick={() => {
             onSelectTab('russian_roulette');
             sound.tap();
           }}
-          className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors cursor-pointer ${
-            isRussianRoulette ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
+          className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all cursor-pointer active:scale-90 ${
+            activeTab === 'russian_roulette' ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
           <div
-            className={`p-1 rounded-lg transition-colors ${
-              isRussianRoulette ? 'bg-amber-400/20 text-amber-400' : ''
+            className={`p-1.5 rounded-xl transition-colors ${
+              activeTab === 'russian_roulette' ? 'bg-amber-400/20 text-amber-400' : ''
             }`}
           >
             <Zap className="w-4 h-4" />
           </div>
-          <span className="text-[9px] font-mono font-medium mt-0.5">R. Rusa</span>
+          <span className="text-[10px] font-mono font-medium mt-0.5">R. Rusa</span>
         </button>
 
-        {/* Otros Juegos (Arcade) */}
+        {/* 4. Ranking Top */}
         <button
+          type="button"
           onClick={() => {
-            if (!isOtherGames) onSelectTab('crash');
+            onOpenLeaderboard();
             sound.tap();
           }}
-          className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors cursor-pointer ${
-            isOtherGames ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
-          }`}
+          className="flex flex-col items-center justify-center py-1 rounded-xl text-zinc-500 hover:text-zinc-300 transition-all cursor-pointer active:scale-90"
         >
-          <div
-            className={`p-1 rounded-lg transition-colors ${
-              isOtherGames ? 'bg-white/20 text-white' : ''
-            }`}
-          >
-            <Gamepad2 className="w-4 h-4" />
+          <div className="p-1.5 rounded-xl">
+            <Trophy className="w-4 h-4 text-amber-400" />
           </div>
-          <span className="text-[9px] font-mono font-medium mt-0.5">Arcade</span>
+          <span className="text-[10px] font-mono font-medium mt-0.5">Top</span>
         </button>
 
-        {/* Chat */}
+        {/* 5. The 3-Line Button (Menú Desplegable) */}
         <button
+          type="button"
           onClick={() => {
-            onToggleChat();
+            onOpenDrawer();
             sound.tap();
           }}
-          className={`relative flex flex-col items-center justify-center py-1 rounded-xl transition-colors cursor-pointer ${
-            isChatOpen ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
-          }`}
+          className="flex flex-col items-center justify-center py-1 rounded-xl text-zinc-400 hover:text-white transition-all cursor-pointer group active:scale-90"
         >
-          <div
-            className={`p-1 rounded-lg transition-colors ${
-              isChatOpen ? 'bg-white/20 text-white' : ''
-            }`}
-          >
-            <MessageSquare className="w-4 h-4" />
+          <div className="p-1.5 rounded-xl bg-white/[0.04] group-hover:bg-white/[0.08] transition-colors border border-white/[0.08]">
+            <Menu className="w-4 h-4 text-amber-300" />
           </div>
-          <span className="text-[9px] font-mono font-medium mt-0.5">Chat</span>
-        </button>
-
-        {/* Ajustes de Usuario */}
-        <button
-          onClick={() => {
-            if (onOpenSettings) onOpenSettings();
-            sound.tap();
-          }}
-          className="flex flex-col items-center justify-center py-1 rounded-xl text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
-        >
-          <div className="p-1 rounded-lg">
-            <Settings className="w-4 h-4 text-zinc-400" />
-          </div>
-          <span className="text-[9px] font-mono font-medium mt-0.5">Ajustes</span>
+          <span className="text-[10px] font-mono font-medium mt-0.5 text-zinc-300">Menú</span>
         </button>
       </div>
     </nav>

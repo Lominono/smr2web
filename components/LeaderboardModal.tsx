@@ -22,7 +22,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-lg max-h-[92vh] overflow-hidden flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+      <div className="glass-panel border border-white/10 rounded-3xl w-full max-w-lg max-h-[90dvh] overflow-hidden flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
         {/* Header */}
         <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -48,7 +48,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         </div>
 
         {/* List */}
-        <div className="p-4 sm:p-6 overflow-y-auto max-h-[60vh] space-y-2">
+        <div className="p-4 sm:p-6 overflow-y-auto max-h-[60dvh] space-y-2">
           {sorted.length === 0 ? (
             <div className="py-12 text-center text-zinc-500 font-mono text-xs">
               <User className="w-8 h-8 mx-auto mb-2 opacity-30" />

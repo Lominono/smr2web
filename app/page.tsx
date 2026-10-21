@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppleNavbar } from '@/components/AppleNavbar';
+import { SmrTwitterFeed } from '@/components/SmrTwitterFeed';
+import { NavigationDrawer } from '@/components/NavigationDrawer';
+import { DesktopSidebar } from '@/components/DesktopSidebar';
+import { DesktopWidgets } from '@/components/DesktopWidgets';
 import { AngryCableGame } from '@/components/AngryCableGame';
 import { CrashGame } from '@/components/CrashGame';
 import { MinesGame } from '@/components/MinesGame';
 import { RouletteGame } from '@/components/RouletteGame';
 import { RussianRouletteGame } from '@/components/RussianRouletteGame';
-import { LiveChat } from '@/components/LiveChat';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { FaucetModal } from '@/components/FaucetModal';
 import { AuthModal } from '@/components/AuthModal';
@@ -18,7 +21,7 @@ import { MinecraftBanner } from '@/components/MinecraftBanner';
 import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
 import { UserSettingsModal } from '@/components/UserSettingsModal';
-import { UserProfile, ChatMessage, LeaderboardEntry } from '@/lib/types';
+import { UserProfile, ChatMessage, LeaderboardEntry, CalendarEvent } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
@@ -28,22 +31,101 @@ import {
   updateSessionCoins,
 } from '@/lib/authSession';
 import { logoutAccount } from '@/lib/authService';
-import { Target, TrendingUp, AlertCircle, MessageSquare, Calendar, Cookie, Server, CircleDot } from 'lucide-react';
+import {
+  ArrowLeft,
+  PenSquare,
+  CircleDot,
+  TrendingUp,
+  Server,
+  Target,
+  Zap,
+  Calendar as CalendarIcon,
+  Sparkles,
+} from 'lucide-react';
+
+type ViewMode = 'feed' | 'calendar' | 'russian_roulette' | 'crash' | 'mines' | 'angry' | 'roulette';
+
+const STARTER_MESSAGES: ChatMessage[] = [
+  {
+    id: 'starter_1',
+    user_id: 'sys_delegado',
+    username: 'delegado',
+    text: '[#AvisoAula] 📢 Bienvenidos al nuevo portal de 2º SMR con feed de clase estilo Twitter. Podéis consultar el horario lectivo y todas las secciones pulsando el botón de 3 líneas (Menú).',
+    created_at: '08:30',
+  },
+  {
+    id: 'starter_2',
+    user_id: 'sys_alex',
+    username: 'alex_redes',
+    text: '[#DudaSMR] ¿Alguien sabe si en la práctica de Packet Tracer hay que añadir una ruta por defecto hacia el router de salida a Internet?',
+    created_at: '09:14',
+  },
+  {
+    id: 'starter_3',
+    user_id: 'sys_maria',
+    username: 'maria_sor',
+    text: '[#General] He dejado subidos los apuntes del Tema 3 de Sistemas Operativos en Red en la carpeta compartida.',
+    created_at: '09:45',
+  },
+  {
+    id: 'starter_4',
+    user_id: 'sys_win',
+    username: 'carlos_smr',
+    text: '@carlos_smr consiguió un multiplicador de x3.40 (+1,700 fichas) en Ruleta Rusa Multijugador',
+    created_at: '10:05',
+    is_system_win: true,
+    multiplier: 3.4,
+    win_amount: 1700,
+    game: 'roulette',
+  },
+];
+
+const DEFAULT_EVENTS: CalendarEvent[] = [
+  {
+    id: 'ev_1',
+    title: 'Práctica Servidor DNS & DHCP',
+    subject: 'SR',
+    event_type: 'homework',
+    event_date: 'Viernes 24',
+    priority: 'high',
+  },
+  {
+    id: 'ev_2',
+    title: 'Examen Tema 4 Windows Server',
+    subject: 'SOR',
+    event_type: 'exam',
+    event_date: 'Martes 28',
+    priority: 'high',
+  },
+  {
+    id: 'ev_3',
+    title: 'Auditoría Criptografía y Firewalls',
+    subject: 'SI',
+    event_type: 'homework',
+    event_date: 'Viernes 31',
+    priority: 'normal',
+  },
+];
 
 export default function Home() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [activeGame, setActiveGame] = useState<'angry' | 'crash' | 'mines' | 'roulette' | 'russian_roulette' | 'calendar'>('calendar');
+  const [activeView, setActiveView] = useState<ViewMode>('feed');
+
+  // Modals & Drawers
+  const [isNavDrawerOpen, setIsNavDrawerOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
+
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Load sound preference on mount
   useEffect(() => {
@@ -87,6 +169,7 @@ export default function Home() {
           streak_count: data.streak_count ? Number(data.streak_count) : 1,
           last_claim_date: data.last_claim_date || undefined,
           role: data.role || (data.username === 'admin' ? 'admin' : 'student'),
+          avatar_color: data.avatar_color,
           created_at: data.created_at,
           auth_provider: 'supabase',
         };
@@ -137,19 +220,42 @@ export default function Home() {
     const supabase = createClient();
     if (!supabase) return;
 
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .limit(60);
+    try {
+      const { data } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(60);
 
-    if (data) {
-      setChatMessages(
-        data.map((m: any) => ({
-          ...m,
-          created_at: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        }))
-      );
+      if (data && data.length > 0) {
+        setChatMessages(
+          data.map((m: any) => ({
+            ...m,
+            created_at: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Error fetching messages:', err);
+    }
+  };
+
+  const fetchCalendarEvents = async () => {
+    const supabase = createClient();
+    if (!supabase) return;
+
+    try {
+      const { data } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .order('event_date', { ascending: true })
+        .limit(6);
+
+      if (data && data.length > 0) {
+        setCalendarEvents(data);
+      }
+    } catch (err) {
+      console.warn('Error fetching calendar events:', err);
     }
   };
 
@@ -157,22 +263,26 @@ export default function Home() {
     const supabase = createClient();
     if (!supabase) return;
 
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, username, coins, biggest_win')
-      .order('coins', { ascending: false })
-      .limit(20);
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, username, coins, biggest_win')
+        .order('coins', { ascending: false })
+        .limit(20);
 
-    if (data) {
-      setLeaderboard(
-        data.map((p: any) => ({
-          id: p.id,
-          username: p.username,
-          coins: Number(p.coins),
-          biggest_win: Number(p.biggest_win),
-          is_current_user: user ? p.id === user.id : false,
-        }))
-      );
+      if (data && data.length > 0) {
+        setLeaderboard(
+          data.map((p: any) => ({
+            id: p.id,
+            username: p.username,
+            coins: Number(p.coins),
+            biggest_win: Number(p.biggest_win),
+            is_current_user: user ? p.id === user.id : false,
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Error fetching leaderboard:', err);
     }
   };
 
@@ -188,10 +298,7 @@ export default function Home() {
     setSupabaseConfigured(isConfigured);
 
     if (!isConfigured) {
-      // Running in local/offline mode
-      if (!cachedSession) {
-        setAuthLoading(false);
-      }
+      if (!cachedSession) setAuthLoading(false);
       return;
     }
 
@@ -207,12 +314,10 @@ export default function Home() {
         if (authUser) {
           fetchUserProfile(authUser.id, authUser.email).finally(() => setAuthLoading(false));
         } else {
-          // Keep cached session to avoid wiping user on transient token refresh or network hiccup
           setAuthLoading(false);
         }
       })
       .catch(() => {
-        // Network/connection issue, keep local cookie session if present
         setAuthLoading(false);
       });
 
@@ -228,21 +333,23 @@ export default function Home() {
     });
 
     fetchMessages();
+    fetchCalendarEvents();
     fetchLeaderboard();
 
+    // Realtime chat subscription
     const channel = supabase
-      .channel('chat_realtime')
+      .channel('chat_feed_realtime')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (payload) => {
           const newMsg = payload.new as any;
           setChatMessages((prev) => [
-            ...prev,
             {
               ...newMsg,
               created_at: new Date(newMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             },
+            ...prev,
           ]);
         }
       )
@@ -328,7 +435,6 @@ export default function Home() {
     const isWin = delta > 0;
     const nextBiggestWin = isWin && delta > user.biggest_win ? delta : user.biggest_win;
 
-    // 1. Update React state
     setUser((prev) =>
       prev
         ? {
@@ -339,10 +445,8 @@ export default function Home() {
         : null
     );
 
-    // 2. Persist in cookies & localStorage
     updateSessionCoins(nextCoins, nextBiggestWin);
 
-    // 3. Update Supabase profiles table if connected and user is supabase-authenticated
     const supabase = createClient();
     if (supabase && user.auth_provider === 'supabase') {
       try {
@@ -402,16 +506,29 @@ export default function Home() {
       return;
     }
 
+    const optimisticMsg: ChatMessage = {
+      id: `opt_${Date.now()}`,
+      user_id: user.id,
+      username: user.username,
+      text,
+      created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setChatMessages((prev) => [optimisticMsg, ...prev]);
+
     const supabase = createClient();
     if (!supabase) return;
 
-    await supabase.from('chat_messages').insert([
-      {
-        user_id: user.id,
-        username: user.username,
-        text,
-      },
-    ]);
+    try {
+      await supabase.from('chat_messages').insert([
+        {
+          user_id: user.id,
+          username: user.username,
+          text,
+        },
+      ]);
+    } catch (err) {
+      console.warn('Error inserting message to Supabase:', err);
+    }
   };
 
   const handleBroadcastWin = async (
@@ -422,27 +539,44 @@ export default function Home() {
     if (!user) return;
     const gameLabel =
       game === 'angry'
-        ? 'Slingshot'
+        ? 'Slingshot Cable'
         : game === 'crash'
         ? 'Crash'
         : game === 'mines'
         ? 'Minas'
-        : 'Ruleta';
+        : 'Ruleta Clásica';
+
+    const winText = `@${user.username} consiguió un multiplicador de x${multiplier.toFixed(2)} (+${winAmount.toLocaleString()} fichas) en ${gameLabel}`;
+
+    const optimisticWin: ChatMessage = {
+      id: `win_${Date.now()}`,
+      user_id: user.id,
+      username: user.username,
+      text: winText,
+      is_system_win: true,
+      win_amount: winAmount,
+      multiplier,
+      game,
+      created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setChatMessages((prev) => [optimisticWin, ...prev]);
 
     const supabase = createClient();
     if (!supabase) return;
 
-    await supabase.from('chat_messages').insert([
-      {
-        user_id: user.id,
-        username: user.username,
-        text: `@${user.username} consiguió un multiplicador de x${multiplier.toFixed(2)} (+${winAmount.toLocaleString()} fichas) en ${gameLabel}`,
-        is_system_win: true,
-        win_amount: winAmount,
-        multiplier,
-        game,
-      },
-    ]);
+    try {
+      await supabase.from('chat_messages').insert([
+        {
+          user_id: user.id,
+          username: user.username,
+          text: winText,
+          is_system_win: true,
+          win_amount: winAmount,
+          multiplier,
+          game,
+        },
+      ]);
+    } catch {}
   };
 
   const handleTipUser = async (targetUsername: string, amount: number) => {
@@ -457,38 +591,40 @@ export default function Home() {
       return;
     }
 
+    await handleUpdateCoins(-amount);
+
     const supabase = createClient();
     if (!supabase) return;
 
-    await handleUpdateCoins(-amount);
-
-    const { data: receiver } = await supabase
-      .from('profiles')
-      .select('id, coins')
-      .eq('username', targetUsername)
-      .single();
-
-    if (receiver) {
-      await supabase
+    try {
+      const { data: receiver } = await supabase
         .from('profiles')
-        .update({ coins: Number(receiver.coins) + amount })
-        .eq('id', receiver.id);
-    }
+        .select('id, coins')
+        .eq('username', targetUsername)
+        .single();
 
-    await supabase.from('chat_messages').insert([
-      {
-        user_id: user.id,
-        username: 'SISTEMA',
-        text: `@${user.username} transfirió ${amount} fichas a @${targetUsername}`,
-        is_system_win: true,
-        win_amount: amount,
-      },
-    ]);
+      if (receiver) {
+        await supabase
+          .from('profiles')
+          .update({ coins: Number(receiver.coins) + amount })
+          .eq('id', receiver.id);
+      }
+
+      await supabase.from('chat_messages').insert([
+        {
+          user_id: user.id,
+          username: 'SISTEMA',
+          text: `@${user.username} transfirió ${amount} fichas a @${targetUsername}`,
+          is_system_win: true,
+          win_amount: amount,
+        },
+      ]);
+    } catch {}
 
     sound.coinWin();
   };
 
-  // 1. Loading splash screen while checking session
+  // Loading splash screen
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#070709] bg-dot-matrix flex flex-col items-center justify-center p-4">
@@ -506,7 +642,7 @@ export default function Home() {
     );
   }
 
-  // 2. Mandatory Authentication Gate
+  // Mandatory Auth Gate
   if (!user) {
     return (
       <AuthGate
@@ -514,6 +650,7 @@ export default function Home() {
           setUser(profile);
           fetchMessages();
           fetchLeaderboard();
+          fetchCalendarEvents();
         }}
         supabaseConfigured={supabaseConfigured}
       />
@@ -522,166 +659,230 @@ export default function Home() {
 
   return (
     <div className="min-h-screen relative flex flex-col bg-[#070709] bg-dot-matrix text-zinc-100 selection:bg-white selection:text-black overflow-x-hidden">
-      {/* Top Navbar */}
+      {/* 1. Top Navbar with Hamburger Menu Button */}
       <AppleNavbar
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
         onSignOut={handleSignOut}
-        onOpenFaucet={() => (user ? setIsFaucetOpen(true) : setIsAuthOpen(true))}
+        onOpenFaucet={() => setIsFaucetOpen(true)}
         onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
-        onOpenSchedule={() => setActiveGame('calendar')}
-        isScheduleActive={activeGame === 'calendar'}
-        onToggleChat={() => setIsChatDrawerOpen(!isChatDrawerOpen)}
-        isChatOpen={isChatDrawerOpen}
+        onOpenSchedule={() => setActiveView('calendar')}
+        isScheduleActive={activeView === 'calendar'}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        activeTab={activeGame}
-        onSelectTab={(tab) => setActiveGame(tab)}
+        onOpenDrawer={() => setIsNavDrawerOpen(true)}
+        activeTab={activeView}
+        onSelectTab={(tab) => setActiveView(tab as ViewMode)}
       />
 
-      {/* Main Container */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 pb-28 lg:pb-8">
+      {/* 2. Main Workspace Layout */}
+      <main className="relative z-10 flex-1 w-full pb-24 lg:pb-12">
         {/* Community Minecraft Project (dismissible) */}
-        <MinecraftBanner />
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 pt-3">
+          <MinecraftBanner />
+        </div>
 
-        {/* If in Recreo / Games mode, show sleek game navigation bar */}
-        {activeGame !== 'calendar' && (
-          <div className="flex items-center justify-between gap-2 p-1.5 rounded-2xl bg-[#0c0e12] border border-white/[0.08]">
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none w-full">
-              {[
-                { id: 'russian_roulette', label: 'Ruleta Rusa', icon: CircleDot, tag: 'Multijugador' },
-                { id: 'crash', label: 'Crash', icon: TrendingUp },
-                { id: 'mines', label: 'Minas', icon: Server },
-                { id: 'angry', label: 'Slingshot', icon: Target },
-                { id: 'roulette', label: 'Ruleta', icon: CircleDot },
-              ].map((g) => {
-                const isActive = activeGame === g.id;
-                const IconComponent = g.icon;
-                return (
-                  <button
-                    key={g.id}
-                    onClick={() => {
-                      setActiveGame(g.id as any);
-                      sound.tap();
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                      isActive
-                        ? 'bg-amber-400 text-black font-bold shadow-sm'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    <IconComponent className="w-3.5 h-3.5" />
-                    <span>{g.label}</span>
-                    {g.tag && (
-                      <span
-                        className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+        {/* VIEW 1: TWITTER FEED (Hero Experience) */}
+        {activeView === 'feed' ? (
+          <div className="max-w-7xl mx-auto w-full px-0 sm:px-4 lg:px-6 pt-2">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-6 items-start">
+              {/* Left Sidebar Rail (Desktop) */}
+              <div className="hidden lg:block lg:col-span-3">
+                <DesktopSidebar
+                  currentUser={user}
+                  activeView={activeView}
+                  onSelectView={(v) => setActiveView(v as ViewMode)}
+                  onOpenDrawer={() => setIsNavDrawerOpen(true)}
+                  onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+                  onOpenFaucet={() => setIsFaucetOpen(true)}
+                  onOpenSettings={() => setIsSettingsOpen(true)}
+                  onSignOut={handleSignOut}
+                  onOpenAuth={() => setIsAuthOpen(true)}
+                  onFocusComposer={() => {
+                    composerRef.current?.focus();
+                    composerRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                />
+              </div>
+
+              {/* Center Feed Column (Twitter Timeline) */}
+              <div className="col-span-1 lg:col-span-6 w-full min-w-0">
+                <SmrTwitterFeed
+                  messages={chatMessages.length > 0 ? chatMessages : STARTER_MESSAGES}
+                  currentUser={user}
+                  onOpenAuth={() => setIsAuthOpen(true)}
+                  onSendMessage={handleSendMessage}
+                  onTipUser={handleTipUser}
+                  onOpenSchedule={() => setActiveView('calendar')}
+                  onOpenRussianRoulette={() => setActiveView('russian_roulette')}
+                  composerRef={composerRef}
+                />
+              </div>
+
+              {/* Right Sidebar Widgets (Desktop) */}
+              <div className="hidden lg:block lg:col-span-3 sticky top-18 space-y-4">
+                <DesktopWidgets
+                  currentUser={user}
+                  events={calendarEvents.length > 0 ? calendarEvents : DEFAULT_EVENTS}
+                  leaderboard={leaderboard}
+                  onOpenSchedule={() => setActiveView('calendar')}
+                  onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+                  onOpenFaucet={() => setIsFaucetOpen(true)}
+                  onOpenRussianRoulette={() => setActiveView('russian_roulette')}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* VIEW 2: HORARIO O JUEGOS CON BARRA "← VOLVER AL FEED" */
+          <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 pt-3 space-y-4">
+            {/* Sleek Top Banner to return to the Twitter Feed */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-[#0c0e12] border border-white/[0.08] shadow-sm">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveView('feed');
+                    sound.tap();
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-black font-mono text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span className="sm:hidden">← Volver al Feed</span>
+                  <span className="hidden sm:inline">← Volver al Feed de 2º SMR</span>
+                </button>
+
+                <span className="text-xs font-mono font-medium text-zinc-400 hidden sm:inline">
+                  {activeView === 'calendar'
+                    ? 'Horario Lectivo & Tareas'
+                    : activeView === 'russian_roulette'
+                    ? 'Ruleta Rusa Multijugador'
+                    : 'Recreo Arcade'}
+                </span>
+              </div>
+
+              {/* Quick Game Switcher Bar */}
+              {activeView !== 'calendar' && (
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+                  {[
+                    { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap, tag: 'Multi' },
+                    { id: 'crash', label: 'Crash', icon: TrendingUp },
+                    { id: 'mines', label: 'Minas', icon: Server },
+                    { id: 'angry', label: 'Slingshot', icon: Target },
+                    { id: 'roulette', label: 'Ruleta', icon: CircleDot },
+                  ].map((g) => {
+                    const isActive = activeView === g.id;
+                    const IconComponent = g.icon;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveView(g.id as ViewMode);
+                          sound.tap();
+                        }}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                           isActive
-                            ? 'bg-black/20 text-black font-semibold'
-                            : 'bg-amber-400/15 text-amber-300'
+                            ? 'bg-amber-400 text-black font-bold shadow-sm'
+                            : 'text-zinc-400 hover:text-white hover:bg-white/[0.04]'
                         }`}
                       >
-                        {g.tag}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+                        <IconComponent className="w-3 h-3" />
+                        <span>{g.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Active Component */}
+            <div className="animate-in fade-in duration-150">
+              {activeView === 'angry' ? (
+                <AngryCableGame
+                  userCoins={user ? user.coins : 1000}
+                  onUpdateCoins={handleUpdateCoins}
+                  onBroadcastWin={handleBroadcastWin}
+                />
+              ) : activeView === 'crash' ? (
+                <CrashGame
+                  userCoins={user ? user.coins : 1000}
+                  onUpdateCoins={handleUpdateCoins}
+                  onBroadcastWin={handleBroadcastWin}
+                />
+              ) : activeView === 'mines' ? (
+                <MinesGame
+                  userCoins={user ? user.coins : 1000}
+                  onUpdateCoins={handleUpdateCoins}
+                  onBroadcastWin={handleBroadcastWin}
+                />
+              ) : activeView === 'roulette' ? (
+                <RouletteGame
+                  userCoins={user ? user.coins : 1000}
+                  onUpdateCoins={handleUpdateCoins}
+                  onBroadcastWin={handleBroadcastWin}
+                />
+              ) : activeView === 'russian_roulette' ? (
+                <RussianRouletteGame
+                  user={user}
+                  onOpenAuth={() => setIsAuthOpen(true)}
+                  onUpdateCoins={handleUpdateCoins}
+                />
+              ) : (
+                <ScheduleCalendarView
+                  currentUser={user}
+                  onOpenAuth={() => setIsAuthOpen(true)}
+                  onBroadcastToChat={handleSendMessage}
+                  onPlayRussianRoulette={() => setActiveView('russian_roulette')}
+                />
+              )}
             </div>
           </div>
         )}
-
-        {/* Main Workspace: expands to full width when chat is closed */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          <div
-            className={`space-y-4 transition-all duration-200 ${
-              isChatDrawerOpen ? 'lg:col-span-8' : 'lg:col-span-12'
-            }`}
-          >
-            {activeGame === 'angry' ? (
-              <AngryCableGame
-                userCoins={user ? user.coins : 1000}
-                onUpdateCoins={handleUpdateCoins}
-                onBroadcastWin={handleBroadcastWin}
-              />
-            ) : activeGame === 'crash' ? (
-              <CrashGame
-                userCoins={user ? user.coins : 1000}
-                onUpdateCoins={handleUpdateCoins}
-                onBroadcastWin={handleBroadcastWin}
-              />
-            ) : activeGame === 'mines' ? (
-              <MinesGame
-                userCoins={user ? user.coins : 1000}
-                onUpdateCoins={handleUpdateCoins}
-                onBroadcastWin={handleBroadcastWin}
-              />
-            ) : activeGame === 'roulette' ? (
-              <RouletteGame
-                userCoins={user ? user.coins : 1000}
-                onUpdateCoins={handleUpdateCoins}
-                onBroadcastWin={handleBroadcastWin}
-              />
-            ) : activeGame === 'russian_roulette' ? (
-              <RussianRouletteGame
-                user={user}
-                onOpenAuth={() => setIsAuthOpen(true)}
-                onUpdateCoins={handleUpdateCoins}
-              />
-            ) : (
-              <ScheduleCalendarView
-                currentUser={user}
-                onOpenAuth={() => setIsAuthOpen(true)}
-                onBroadcastToChat={handleSendMessage}
-                onPlayRussianRoulette={() => setActiveGame('russian_roulette')}
-              />
-            )}
-          </div>
-
-          {/* Desktop Live Chat (only rendered when chat is open) */}
-          {isChatDrawerOpen && (
-            <div className="hidden lg:block lg:col-span-4 sticky top-20">
-              <LiveChat
-                messages={chatMessages}
-                currentUser={user}
-                onOpenAuth={() => setIsAuthOpen(true)}
-                onSendMessage={handleSendMessage}
-                onTipUser={handleTipUser}
-                onClose={() => setIsChatDrawerOpen(false)}
-              />
-            </div>
-          )}
-        </div>
       </main>
 
-      {/* Mobile Bottom Dock */}
-      <MobileTabBar
-        activeTab={activeGame}
-        onSelectTab={(tab) => setActiveGame(tab)}
-        isChatOpen={isChatDrawerOpen}
-        onToggleChat={() => setIsChatDrawerOpen(!isChatDrawerOpen)}
-        onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-      />
-
-      {/* Mobile Drawer Chat (Bottom Sheet) */}
-      {isChatDrawerOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end bg-black/85 backdrop-blur-xl animate-in fade-in duration-150">
-          <div className="w-full max-w-lg mx-auto h-[88vh] flex flex-col p-2 sm:p-4">
-            <LiveChat
-              messages={chatMessages}
-              currentUser={user}
-              onOpenAuth={() => setIsAuthOpen(true)}
-              onSendMessage={handleSendMessage}
-              onTipUser={handleTipUser}
-              onClose={() => setIsChatDrawerOpen(false)}
-              isDrawer={true}
-            />
-          </div>
-        </div>
+      {/* 3. Floating Action Button (FAB) on Mobile for Instant Tweet Compose */}
+      {activeView === 'feed' && (
+        <button
+          type="button"
+          onClick={() => {
+            composerRef.current?.focus();
+            composerRef.current?.scrollIntoView({ behavior: 'smooth' });
+            sound.tap();
+          }}
+          aria-label="Publicar en el feed"
+          className="lg:hidden fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 w-12 h-12 rounded-full bg-amber-400 hover:bg-amber-300 text-black flex items-center justify-center shadow-2xl shadow-amber-500/30 cursor-pointer active:scale-90 transition-transform"
+        >
+          <PenSquare className="w-5 h-5" />
+        </button>
       )}
 
-      {/* Modals */}
+      {/* 4. Mobile Bottom Tab Bar */}
+      <MobileTabBar
+        activeTab={activeView}
+        onSelectTab={(tab) => setActiveView(tab as ViewMode)}
+        onOpenDrawer={() => setIsNavDrawerOpen(true)}
+        onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+      />
+
+      {/* 5. The 3-Line Menu Drawer ("demas cosas esten desplegadas si presionas el boton de tres lineas") */}
+      <NavigationDrawer
+        isOpen={isNavDrawerOpen}
+        onClose={() => setIsNavDrawerOpen(false)}
+        currentUser={user}
+        activeView={activeView}
+        onSelectView={(v) => setActiveView(v as ViewMode)}
+        onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+        onOpenFaucet={() => setIsFaucetOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenTerms={() => setIsTermsOpen(true)}
+        soundEnabled={soundEnabled}
+        onToggleSound={handleToggleSound}
+        onSignOut={handleSignOut}
+      />
+
+      {/* 6. Modals */}
       <LeaderboardModal
         isOpen={isLeaderboardOpen}
         onClose={() => setIsLeaderboardOpen(false)}
@@ -702,6 +903,7 @@ export default function Home() {
           setUser(newProfile);
           fetchMessages();
           fetchLeaderboard();
+          fetchCalendarEvents();
         }}
       />
 
@@ -725,7 +927,7 @@ export default function Home() {
         onOpenTerms={() => setIsTermsOpen(true)}
       />
 
-      {/* Footer */}
+      {/* 7. Footer */}
       <footer className="border-t border-white/[0.06] bg-black/60 py-4 mt-8 mb-16 lg:mb-0 text-center text-[11px] text-zinc-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">

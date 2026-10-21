@@ -212,7 +212,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="max-w-xl w-full rounded-3xl bg-[#0c0d12] border border-white/[0.12] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="max-w-xl w-full rounded-3xl bg-[#0c0d12] border border-white/[0.12] shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-white/[0.08] flex items-center justify-between bg-black/40">
           <div className="flex items-center gap-2.5">

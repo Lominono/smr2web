@@ -517,7 +517,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
           <div className="relative">
             <canvas
               ref={canvasRef}
-              className="w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] block select-none drop-shadow-[0_12px_30px_rgba(0,0,0,0.8)]"
+              className="w-[260px] h-[260px] sm:w-[320px] sm:h-[320px] max-w-full aspect-square block select-none drop-shadow-[0_12px_30px_rgba(0,0,0,0.8)]"
             />
 
             {/* Winning result callout in center if stopped */}

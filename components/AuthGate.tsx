@@ -185,7 +185,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({
   // If email confirmation is required, show informative confirmation screen
   if (pendingConfirmation) {
     return (
-      <div className="min-h-screen relative flex flex-col justify-center items-center bg-[#070709] bg-dot-matrix text-white p-4 selection:bg-white selection:text-black">
+      <div className="min-h-[100dvh] relative flex flex-col justify-center items-center bg-[#070709] bg-dot-matrix text-white p-3.5 sm:p-4 selection:bg-white selection:text-black">
         <div className="relative z-10 w-full max-w-sm">
           <div className="glass-panel rounded-3xl p-5 sm:p-7 shadow-2xl border border-white/[0.08] text-center">
             <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-4">
@@ -228,7 +228,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({
   }
 
   return (
-    <div className="min-h-screen relative flex flex-col justify-center items-center bg-[#070709] bg-dot-matrix text-white p-4 selection:bg-white selection:text-black">
+    <div className="min-h-[100dvh] relative flex flex-col justify-center items-center bg-[#070709] bg-dot-matrix text-white p-3.5 sm:p-4 selection:bg-white selection:text-black">
       {/* Auth Card */}
       <div className="relative z-10 w-full max-w-sm">
         <div className="glass-panel rounded-3xl p-5 sm:p-7 shadow-2xl border border-white/[0.08]">
