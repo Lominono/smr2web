@@ -67,7 +67,8 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     if (hasCashedOut || autoCashedRef.current) return;
     autoCashedRef.current = true;
 
-    const win = Math.round(bet * multToCash);
+    // Límite de seguridad: Pago máximo de 15.000 fichas
+    const win = Math.min(Math.round(bet * multToCash), 15000);
     setHasCashedOut(true);
     setCashedAmount(win);
     setCashedMultiplier(multToCash);
@@ -90,13 +91,14 @@ export const CrashGame: React.FC<CrashGameProps> = ({
   };
 
   const startGame = () => {
-    if (userCoins < bet) {
+    const safeBet = Math.min(Math.max(10, bet), 500);
+    if (userCoins < safeBet) {
       sound.broke();
       alert('Saldo insuficiente. Pulsa el botón + arriba a la derecha para recargar.');
       return;
     }
 
-    onUpdateCoins(-bet);
+    onUpdateCoins(-safeBet);
     sound.whoosh();
 
     const targetCrash = generateCrashPoint();

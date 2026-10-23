@@ -69,13 +69,14 @@ export const MinesGame: React.FC<MinesGameProps> = ({
 
   // Start a new Mines round
   const startGame = () => {
-    if (userCoins < bet) {
+    const safeBet = Math.min(Math.max(10, bet), 500);
+    if (userCoins < safeBet) {
       sound.broke();
       alert('Saldo insuficiente para realizar esta apuesta.');
       return;
     }
 
-    onUpdateCoins(-bet);
+    onUpdateCoins(-safeBet);
     sound.whoosh();
 
     // 1. Generate random mine positions using crypto RNG
@@ -156,7 +157,8 @@ export const MinesGame: React.FC<MinesGameProps> = ({
   const handleCashOut = () => {
     if (gameState !== 'playing' || revealedCount === 0) return;
 
-    const winAmount = Math.round(bet * currentMultiplier);
+    // Límite de seguridad: Pago máximo de 15.000 fichas
+    const winAmount = Math.min(Math.round(bet * currentMultiplier), 15000);
     onUpdateCoins(winAmount);
     setLastWin({ amount: winAmount, multiplier: currentMultiplier });
     setGameState('cashed');

@@ -101,6 +101,36 @@ export const TIERS: TierConfig[] = [
   },
 ];
 
+export function getTierMilestoneMultiplier(level: number): number {
+  let mult = 1;
+  if (level >= 10) mult *= 2;
+  if (level >= 25) mult *= 2;
+  if (level >= 50) mult *= 2.5;
+  if (level >= 100) mult *= 3;
+  return mult;
+}
+
+export const TIER_CYCLE_MS: Record<string, number> = {
+  litronas: 1200,
+  hielos: 2000,
+  chupitos: 3200,
+  botellas: 4500,
+  altavoz: 6000,
+  barra_libre: 8500,
+  vip: 12000,
+};
+
+const PARTY_NEWS = [
+  'Un colega acaba de llegar con litronas bien frías del chino.',
+  '¡Ronda de chupitos de Jäger y Tequila repartida por la pista!',
+  'El DJ soltó el temazo de la noche y tol mundo está bailando.',
+  'David intentó colarse en el reservado pero el portero lo pilló al vuelo.',
+  'Acaban de encender las bengalas en las botellas del reservado VIP.',
+  'Alguien tiró un cubata al suelo pero ya han traído una fregona.',
+  'El altavoz a toda mecha retumba en todo el vecindario.',
+  'La nevera con botellas y mezcla no da abasto con los hielos.',
+];
+
 export interface BotellonState {
   levels: Record<string, number>;
   pendingVault: number;
@@ -143,17 +173,37 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [crazyPartyTimeRemaining, setCrazyPartyTimeRemaining] = useState<number>(0);
   const [justClaimed, setJustClaimed] = useState<boolean>(false);
   const [buyMultiplier, setBuyMultiplier] = useState<1 | 5 | 10 | 'max'>(1);
+  const [currentNewsIndex, setCurrentNewsIndex] = useState<number>(0);
+  const [cycleTick, setCycleTick] = useState<number>(Date.now());
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
+  const lastClickTimeRef = useRef<number>(0);
 
   // Multiplicador por prestigios de After
   const prestigeMultiplier = 1 + afterPrestigeCount * 0.5;
 
-  // Tasa de producción pasiva base (por segundo)
+  // Tasa de producción pasiva base con hitos multiplicadores (x2 en Nvl 10, 25, 50, 100)
   const baseRatePerSecond = useMemo(() => {
     return TIERS.reduce((acc, tier) => {
       const lvl = levels[tier.id] || 0;
-      return acc + lvl * tier.baseRate;
+      const milestone = getTierMilestoneMultiplier(lvl);
+      return acc + lvl * tier.baseRate * milestone;
     }, 0);
   }, [levels]);
+
+  // Rotador de noticias de la fiesta y temporizador de ciclo visual
+  useEffect(() => {
+    const newsTimer = setInterval(() => {
+      setCurrentNewsIndex((prev) => (prev + 1) % PARTY_NEWS.length);
+    }, 4500);
+    const tickTimer = setInterval(() => {
+      setCycleTick(Date.now());
+    }, 80);
+
+    return () => {
+      clearInterval(newsTimer);
+      clearInterval(tickTimer);
+    };
+  }, []);
 
   // Tasa real con multiplicadores aplicados
   const effectiveRatePerSecond = useMemo(() => {
@@ -276,14 +326,34 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     return () => clearInterval(timer);
   }, [isCrazyParty]);
 
-  // Acción: Clic manual ("Echar un trago")
+  // Acción: Clic manual ("Echar un trago") con protección anti-autoclicker y partículas
   const handleManualDrink = () => {
+    const now = Date.now();
+    // Anti-Autoclicker: máximo ~12 clics por segundo
+    if (now - lastClickTimeRef.current < 75) return;
+    lastClickTimeRef.current = now;
+
     sound.tap();
 
     // Cada trago manual da fichas al instante al bote
     const clickPower = Math.max(1, Math.floor(1 + baseRatePerSecond * 0.05)) * prestigeMultiplier;
     setPendingVault((prev) => prev + clickPower);
     setTotalLifetimeProduced((prev) => prev + clickPower);
+
+    // Generar partícula visual flotante
+    const pId = Date.now() + Math.random();
+    const emojis = ['🍺', '⚡', '🥂', '🍹', '🍷'];
+    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+    const newParticle = {
+      id: pId,
+      x: (Math.random() - 0.5) * 80,
+      y: (Math.random() - 0.5) * 30,
+      text: `+${clickPower} ${randomEmoji}`,
+    };
+    setParticles((prev) => [...prev.slice(-8), newParticle]);
+    setTimeout(() => {
+      setParticles((prev) => prev.filter((p) => p.id !== pId));
+    }, 750);
 
     // Sistema de combo rápido
     setPartyComboCount((prev) => {
@@ -562,19 +632,34 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleManualDrink}
-            className="w-full py-4 rounded-xl bg-surface border border-border/80 hover:border-foreground/30 hover:bg-surface-raised transition-all active:scale-95 cursor-pointer flex flex-col items-center justify-center gap-1 group shadow-xs touch-manipulation"
-          >
-            <Wine className="w-6 h-6 text-foreground-muted group-hover:text-accent group-hover:scale-110 transition-all" />
-            <span className="text-xs font-semibold text-foreground">
-              ¡Echar un trago!
-            </span>
-            <span className="text-[10px] text-foreground-subtle font-mono">
-              +{Math.max(1, Math.floor(1 + baseRatePerSecond * 0.05)) * prestigeMultiplier} al bote
-            </span>
-          </button>
+          <div className="relative w-full">
+            <button
+              type="button"
+              onClick={handleManualDrink}
+              className="w-full py-4 rounded-xl bg-surface border border-border/80 hover:border-foreground/30 hover:bg-surface-raised transition-all active:scale-95 cursor-pointer flex flex-col items-center justify-center gap-1 group shadow-xs touch-manipulation"
+            >
+              <Wine className="w-6 h-6 text-foreground-muted group-hover:text-accent group-hover:scale-110 transition-all" />
+              <span className="text-xs font-semibold text-foreground">
+                ¡Echar un trago!
+              </span>
+              <span className="text-[10px] text-foreground-subtle font-mono">
+                +{Math.max(1, Math.floor(1 + baseRatePerSecond * 0.05)) * prestigeMultiplier} al bote
+              </span>
+            </button>
+
+            {/* Partículas visuales flotantes de tragos */}
+            {particles.map((p) => (
+              <span
+                key={p.id}
+                className="pointer-events-none absolute left-1/2 top-1/2 font-mono font-black text-xs text-amber-400 select-none animate-in fade-in slide-in-from-bottom-2 duration-300 drop-shadow-xs"
+                style={{
+                  transform: `translate(calc(-50% + ${p.x}px), calc(-50% + ${p.y}px))`,
+                }}
+              >
+                {p.text}
+              </span>
+            ))}
+          </div>
 
           {/* Barra de combo fiesta */}
           <div className="space-y-1">
@@ -591,6 +676,42 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Feed de Noticias de la Fiesta en Vivo y Ecualizador de Ritmo */}
+      <div className="p-3.5 rounded-2xl bg-surface-raised border border-border/60 flex items-center justify-between gap-3 text-xs shadow-2xs overflow-hidden">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-7 h-7 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div className="min-w-0 truncate">
+            <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-accent mr-2">
+              En directo:
+            </span>
+            <span className="text-foreground-muted font-medium transition-all duration-300">
+              {PARTY_NEWS[currentNewsIndex]}
+            </span>
+          </div>
+        </div>
+
+        {/* Ecualizador animado */}
+        <div className="flex items-end gap-0.5 h-3.5 shrink-0 px-2 py-0.5 rounded-md bg-surface border border-border/50">
+          {[0, 1, 2, 3, 4].map((i) => {
+            const h =
+              effectiveRatePerSecond > 0
+                ? (Math.sin(cycleTick / 250 + i * 1.2) * 0.5 + 0.5) * 10 + 3
+                : 3;
+            return (
+              <span
+                key={i}
+                className={`w-1 rounded-full transition-all duration-100 ${
+                  effectiveRatePerSecond > 0 ? 'bg-emerald-400' : 'bg-foreground-subtle'
+                }`}
+                style={{ height: `${h}px` }}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -643,56 +764,80 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           {TIERS.map((tier) => {
             const currentLevel = levels[tier.id] || 0;
             const quote = getBuyQuote(tier, currentLevel, buyMultiplier, userCoins);
-            const currentTotalRate = currentLevel * tier.baseRate * prestigeMultiplier;
+            const milestone = getTierMilestoneMultiplier(currentLevel);
+            const currentTotalRate =
+              currentLevel * tier.baseRate * milestone * prestigeMultiplier;
+            const cycleMs = TIER_CYCLE_MS[tier.id] || 3000;
+            const progressPercent =
+              currentLevel > 0 ? ((cycleTick % cycleMs) / cycleMs) * 100 : 0;
             const Icon = tier.icon;
 
             return (
               <div
                 key={tier.id}
-                className="p-4 rounded-2xl bg-surface-raised border border-border/60 hover:border-border transition-all flex items-center justify-between gap-3 shadow-xs"
+                className="p-4 rounded-2xl bg-surface-raised border border-border/60 hover:border-border transition-all flex flex-col justify-between gap-3 shadow-xs"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-surface border border-border/60 flex items-center justify-center shrink-0 text-foreground-muted">
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-foreground truncate">
-                        {tier.name}
-                      </span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-surface text-foreground-muted border border-border/50 shrink-0">
-                        Nvl. {currentLevel}
-                      </span>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-surface border border-border/60 flex items-center justify-center shrink-0 text-foreground-muted">
+                      <Icon className="w-5 h-5" />
                     </div>
-                    <p className="text-[11px] text-foreground-subtle truncate mt-0.5">
-                      {tier.desc}
-                    </p>
-                    <p className="text-[10px] text-emerald-400 font-mono mt-0.5">
-                      +{tier.baseRate * prestigeMultiplier}/s cada uno{' '}
-                      {currentLevel > 0 && (
-                        <span className="text-foreground-subtle">
-                          (total: +{currentTotalRate.toFixed(1)}/s)
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-foreground truncate">
+                          {tier.name}
                         </span>
-                      )}
-                    </p>
+                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-surface text-foreground-muted border border-border/50 shrink-0">
+                          Nvl. {currentLevel}
+                        </span>
+                        {milestone > 1 && (
+                          <span className="text-[9px] font-mono font-semibold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                            ★ x{milestone}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-foreground-subtle truncate mt-0.5">
+                        {tier.desc}
+                      </p>
+                      <p className="text-[10px] text-emerald-400 font-mono mt-0.5">
+                        +{tier.baseRate * milestone * prestigeMultiplier}/s cada uno{' '}
+                        {currentLevel > 0 && (
+                          <span className="text-foreground-subtle">
+                            (total: +{currentTotalRate.toFixed(1)}/s)
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    disabled={!quote.canAfford}
+                    onClick={() => handleBuyTier(tier)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer active:scale-95 flex flex-col items-end ${
+                      quote.canAfford
+                        ? 'bg-foreground text-background shadow-xs hover:opacity-95'
+                        : 'bg-surface text-foreground-subtle border border-border/50 cursor-not-allowed opacity-50'
+                    }`}
+                  >
+                    <span>Pillar {quote.count > 1 ? `x${quote.count}` : ''}</span>
+                    <span className="text-[10px] font-mono opacity-80">
+                      {quote.totalCost.toLocaleString()} fichas
+                    </span>
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  disabled={!quote.canAfford}
-                  onClick={() => handleBuyTier(tier)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer active:scale-95 flex flex-col items-end ${
-                    quote.canAfford
-                      ? 'bg-foreground text-background shadow-xs hover:opacity-95'
-                      : 'bg-surface text-foreground-subtle border border-border/50 cursor-not-allowed opacity-50'
-                  }`}
-                >
-                  <span>Pillar {quote.count > 1 ? `x${quote.count}` : ''}</span>
-                  <span className="text-[10px] font-mono opacity-80">
-                    {quote.totalCost.toLocaleString()} fichas
-                  </span>
-                </button>
+                {/* Barra de progreso de producción continua en tiempo real */}
+                {currentLevel > 0 && (
+                  <div className="w-full space-y-1 pt-1">
+                    <div className="w-full h-1 bg-border/40 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-400 transition-all duration-100 rounded-full"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

@@ -17,7 +17,7 @@ import { getCurrentScheduleStatus } from '@/lib/scheduleData';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { TIERS, STORAGE_KEY_PREFIX, BotellonState } from '@/components/PartyIdleGame';
+import { TIERS, STORAGE_KEY_PREFIX, BotellonState, getTierMilestoneMultiplier } from '@/components/PartyIdleGame';
 import { sound } from '@/lib/audio';
 import confetti from 'canvas-confetti';
 
@@ -65,7 +65,10 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
         if (raw) {
           const parsed: BotellonState = JSON.parse(raw);
           const lvl = parsed.levels || {};
-          const baseRate = TIERS.reduce((acc, t) => acc + (lvl[t.id] || 0) * t.baseRate, 0);
+          const baseRate = TIERS.reduce((acc, t) => {
+            const l = lvl[t.id] || 0;
+            return acc + l * t.baseRate * getTierMilestoneMultiplier(l);
+          }, 0);
           const mult = 1 + (parsed.afterPrestigeCount || 0) * 0.5;
           setBotellonState({
             vault: Math.floor(parsed.pendingVault || 0),

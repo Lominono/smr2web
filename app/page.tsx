@@ -367,11 +367,14 @@ export default function Home() {
     setUser(null);
   };
 
-  const handleUpdateCoins = async (delta: number) => {
+  const handleUpdateCoins = async (rawDelta: number) => {
     if (!user) {
       setIsAuthOpen(true);
       return;
     }
+
+    // Escudo anti-abuso: Límite de seguridad en transacciones individuales
+    const delta = Math.min(Math.max(rawDelta, -50000), 25000);
 
     const nextCoins = Math.max(0, user.coins + delta);
     const isWin = delta > 0;
@@ -737,7 +740,7 @@ export default function Home() {
                     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
                     { id: 'crash', label: 'Crash', icon: TrendingUp },
                     { id: 'mines', label: 'Minas', icon: Server },
-                    { id: 'angry', label: 'Slingshot', icon: Target },
+                    { id: 'angry', label: 'Angry Birds', icon: Target, badge: 'Cerrado' },
                     { id: 'roulette', label: 'Ruleta', icon: CircleDot },
                   ].map((g) => {
                     const isActive = activeView === g.id;
@@ -790,6 +793,7 @@ export default function Home() {
                 <AngryCableGame
                   userCoins={user ? user.coins : 200}
                   onUpdateCoins={handleUpdateCoins}
+                  onNavigateGame={(g) => setActiveView(g as ViewMode)}
                   onBroadcastWin={handleBroadcastWin}
                 />
               ) : activeView === 'crash' ? (

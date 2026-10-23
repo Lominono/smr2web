@@ -178,6 +178,10 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
 
   const spinWheel = () => {
     if (isSpinning || totalBet === 0) return;
+    if (totalBet > 1000) {
+      alert('La apuesta máxima por tirada es de 1.000 fichas para evitar abusos.');
+      return;
+    }
     if (userCoins < totalBet) {
       sound.broke();
       return;

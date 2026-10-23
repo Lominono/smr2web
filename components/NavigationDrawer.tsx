@@ -252,7 +252,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               { id: 'russian_roulette', label: 'Ruleta Rusa (Multijugador)', icon: Zap },
               { id: 'crash', label: 'Crash multiplicador', icon: TrendingUp },
               { id: 'mines', label: 'Minas', icon: Server },
-              { id: 'angry', label: 'Slingshot Cable', icon: Target },
+              { id: 'angry', label: 'Angry Birds', icon: Target, badge: 'Cerrado' },
               { id: 'roulette', label: 'Ruleta clásica', icon: CircleDot },
             ].map((g) => {
               const Icon = g.icon;
