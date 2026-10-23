@@ -13,10 +13,12 @@ import {
   MessageSquare,
   Wine,
   Sprout,
+  Settings,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
 import { Button } from '@/components/ui/Button';
+import { sound } from '@/lib/audio';
 
 interface DesktopSidebarProps {
   currentUser: UserProfile | null;
@@ -51,13 +53,13 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
     { id: 'farmhand', label: 'El Huerto', icon: Sprout, badge: 'Granja' },
     { id: 'party_idle', label: 'El Botellón', icon: Wine, badge: 'Farmeo' },
     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
-    { id: 'crash', label: 'Casino Arcade', icon: Gamepad2 },
+    { id: 'crash', label: 'Recreo Arcade', icon: Gamepad2 },
   ];
 
   return (
-    <aside className="sticky top-18 h-[calc(100dvh-5rem)] flex flex-col justify-between py-2 space-y-4">
+    <aside className="sticky top-16 max-h-[calc(100dvh-4.5rem)] overflow-y-auto overscroll-contain scrollbar-none flex flex-col justify-between py-2 space-y-4">
       {/* Navigation Links */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <nav aria-label="Navegación lateral" className="space-y-1">
           {navItems.map((item) => {
             const isActive =
@@ -69,10 +71,13 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <button
                 key={item.id}
                 type="button"
-                onClick={() => onSelectView(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                onClick={() => {
+                  sound.tap();
+                  onSelectView(item.id);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-foreground text-background font-semibold shadow-xs'
+                    ? 'bg-foreground text-background font-semibold shadow-2xs'
                     : 'text-foreground-muted hover:text-foreground hover:bg-surface-raised'
                 }`}
               >
@@ -86,10 +91,10 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 </div>
                 {item.badge && (
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold transition-colors ${
+                    className={`text-[10px] px-2 py-0.2 rounded-full font-mono font-medium transition-colors ${
                       isActive
                         ? 'bg-background/20 text-background'
-                        : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        : 'bg-surface-raised text-foreground-muted border border-border/70'
                     }`}
                   >
                     {item.badge}
@@ -101,8 +106,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
           <button
             type="button"
-            onClick={onOpenLeaderboard}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
+            onClick={() => {
+              sound.tap();
+              onOpenLeaderboard();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
           >
             <Trophy className="w-4 h-4 text-amber-500" />
             <span>Clasificación</span>
@@ -110,8 +118,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
           <button
             type="button"
-            onClick={onOpenFaucet}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
+            onClick={() => {
+              sound.tap();
+              onOpenFaucet();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
           >
             <Coins className="w-4 h-4 text-amber-500" />
             <span>Fondo diario</span>
@@ -119,12 +130,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
           <button
             type="button"
-            onClick={onOpenDrawer}
-            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
+            onClick={() => {
+              sound.tap();
+              onOpenDrawer();
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <Menu className="w-4 h-4 text-foreground-subtle" />
-              <span>Menú completo</span>
+              <span>Más opciones</span>
             </div>
           </button>
         </nav>
@@ -132,8 +146,9 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         <Button
           variant="primary"
           size="md"
-          className="w-full rounded-xl shadow-xs"
+          className="w-full rounded-xl shadow-2xs font-medium h-9 text-xs"
           onClick={() => {
+            sound.tap();
             if (activeView !== 'feed') onSelectView('feed');
             if (onFocusComposer) setTimeout(onFocusComposer, 100);
           }}
@@ -145,14 +160,17 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
       {/* User Card */}
       {currentUser ? (
-        <div className="p-3.5 rounded-2xl bg-surface border border-border/70 shadow-xs space-y-2.5">
+        <div className="p-3 rounded-xl bg-surface border border-border/70 space-y-2">
           <div className="flex items-center justify-between">
             <button
               type="button"
-              onClick={onOpenSettings}
-              className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer group"
+              onClick={() => {
+                sound.tap();
+                onOpenSettings();
+              }}
+              className="flex items-center gap-2 min-w-0 text-left cursor-pointer group"
             >
-              <div className="w-8 h-8 rounded-lg bg-surface-raised border border-border/70 flex items-center justify-center font-mono font-medium text-xs uppercase shrink-0 text-foreground group-hover:scale-105 transition-transform">
+              <div className="w-7 h-7 rounded-lg bg-surface-raised border border-border/70 flex items-center justify-center font-mono font-medium text-xs uppercase shrink-0 text-foreground group-hover:scale-105 transition-transform">
                 {currentUser.username.charAt(0)}
               </div>
               <div className="flex flex-col min-w-0">
@@ -169,23 +187,34 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
             <button
               type="button"
-              onClick={onSignOut}
+              onClick={() => {
+                sound.tap();
+                onSignOut();
+              }}
               title="Cerrar sesión"
-              className="p-1.5 rounded-lg text-foreground-subtle hover:text-danger hover:bg-danger-subtle transition-colors cursor-pointer"
+              className="p-1 rounded-md text-foreground-subtle hover:text-danger hover:bg-danger-subtle transition-colors cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] font-mono">
-            <span className="text-foreground-subtle">Saldo disponible:</span>
+          <div className="flex items-center justify-between pt-1.5 border-t border-border/50 text-[11px] font-mono">
+            <span className="text-foreground-subtle">Saldo:</span>
             <span className="text-foreground font-semibold">
               {currentUser.coins.toLocaleString('es-ES')} fichas
             </span>
           </div>
         </div>
       ) : (
-        <Button variant="primary" size="md" className="w-full rounded-xl" onClick={onOpenAuth}>
+        <Button
+          variant="primary"
+          size="md"
+          className="w-full rounded-xl text-xs h-9"
+          onClick={() => {
+            sound.tap();
+            onOpenAuth();
+          }}
+        >
           Iniciar sesión
         </Button>
       )}

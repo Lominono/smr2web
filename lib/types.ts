@@ -34,8 +34,12 @@ export interface ChatMessage {
 export interface LeaderboardEntry {
   id: string;
   username: string;
+  full_name?: string;
   coins: number;
   biggest_win: number;
+  streak_count?: number;
+  avatar_color?: string;
+  role?: string;
   is_current_user?: boolean;
 }
 

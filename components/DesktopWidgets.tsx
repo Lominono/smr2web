@@ -12,6 +12,7 @@ import {
   Sprout,
   ArrowDownToLine,
   Check,
+  Crown,
 } from 'lucide-react';
 import { UserProfile, CalendarEvent, LeaderboardEntry } from '@/lib/types';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
@@ -128,10 +129,15 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
   const upcomingEvents = events.slice(0, 3);
   const topStudents = leaderboard.slice(0, 3);
 
+  // User rank in leaderboard
+  const userRankPosition = currentUser
+    ? leaderboard.findIndex((item) => item.id === currentUser.id)
+    : -1;
+
   return (
-    <div className="w-full space-y-3.5">
+    <div className="w-full space-y-3 overscroll-contain">
       {/* Widget 1: Aula en Vivo */}
-      <Card className="rounded-2xl border-border/70 p-4 space-y-3">
+      <Card className="rounded-xl border-border/70 p-3.5 space-y-2.5 bg-surface">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span
@@ -143,40 +149,138 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
                   : 'bg-foreground-subtle'
               }`}
             />
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
+            <h3 className="text-xs font-semibold text-foreground tracking-tight">
               Horario en directo
             </h3>
           </div>
           <span className="text-[11px] font-mono text-foreground-subtle">Aula 204</span>
         </div>
 
-        <div className="p-3 rounded-xl bg-surface-raised border border-border/60 space-y-1">
-          <div className="text-xs font-semibold text-foreground">
+        <div className="p-2.5 rounded-lg bg-surface-raised border border-border/60 space-y-1">
+          <div className="text-xs font-medium text-foreground">
             {liveStatus.currentSubject?.name ||
-              (liveStatus.status === 'recreo' ? 'Recreo' : 'Fuera de horario lectivo')}
+              (liveStatus.status === 'recreo' ? 'Recreo' : 'Fuera de horario')}
           </div>
           <div className="text-[11px] text-foreground-muted flex items-center gap-1.5 font-mono">
-            <Clock className="w-3 h-3 text-accent" />
-            <span>{liveStatus.message}</span>
+            <Clock className="w-3 h-3 text-accent shrink-0" />
+            <span className="truncate">{liveStatus.message}</span>
           </div>
         </div>
 
         <Button
           variant="secondary"
           size="sm"
-          className="w-full justify-between rounded-xl"
-          onClick={onOpenSchedule}
+          className="w-full justify-between rounded-lg h-8 text-xs font-medium"
+          onClick={() => {
+            sound.tap();
+            onOpenSchedule();
+          }}
         >
           <span className="flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5" />
-            <span>Ver horario semanal</span>
+            <span>Ver horario de clase</span>
           </span>
           <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
         </Button>
       </Card>
 
-      {/* Widget Botellón: Farmeo en Directo */}
-      <Card className="rounded-2xl border-border/70 p-4 space-y-3">
+      {/* Widget 2: Clasificación General y Podio */}
+      <Card className="rounded-xl border-border/70 p-3.5 space-y-2.5 bg-surface">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Trophy className="w-3.5 h-3.5 text-amber-500" />
+            <h3 className="text-xs font-semibold text-foreground tracking-tight">
+              Clasificación SMR
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              sound.tap();
+              onOpenFaucet();
+            }}
+            className="text-[11px] text-foreground-muted hover:text-foreground flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <Coins className="w-3 h-3 text-amber-500" />
+            <span>Fondo diario</span>
+          </button>
+        </div>
+
+        {topStudents.length > 0 ? (
+          <div className="space-y-1.5">
+            {topStudents.map((st, i) => {
+              const isFirst = i === 0;
+              const isSecond = i === 1;
+              const isUser = currentUser && st.id === currentUser.id;
+
+              return (
+                <div
+                  key={st.id}
+                  className={`flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${
+                    isUser
+                      ? 'bg-surface-raised border-accent/50'
+                      : 'bg-surface-raised border-border/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      className={`w-5 h-5 rounded-md flex items-center justify-center font-mono font-bold text-[10px] shrink-0 ${
+                        isFirst
+                          ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                          : isSecond
+                          ? 'bg-slate-300/15 text-slate-300 border border-slate-300/30'
+                          : 'bg-amber-700/15 text-amber-600 border border-amber-700/30'
+                      }`}
+                    >
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-mono text-foreground font-medium truncate block">
+                        @{st.username}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 font-mono font-semibold text-xs text-foreground shrink-0 pl-2">
+                    <Coins className="w-3 h-3 text-amber-500/80" />
+                    <span>{st.coins.toLocaleString('es-ES')}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-foreground-subtle text-center py-2">
+            Sin datos de clasificación
+          </p>
+        )}
+
+        {/* Current user rank indicator */}
+        {currentUser && userRankPosition !== -1 && (
+          <div className="flex items-center justify-between p-2 rounded-lg bg-surface-raised/70 border border-border/50 text-[11px]">
+            <span className="text-foreground-muted">Tu posición:</span>
+            <span className="font-mono font-semibold text-accent">
+              #{userRankPosition + 1} de {leaderboard.length}
+            </span>
+          </div>
+        )}
+
+        <Button
+          variant="secondary"
+          size="sm"
+          className="w-full justify-between rounded-lg h-8 text-xs font-medium"
+          onClick={() => {
+            sound.tap();
+            onOpenLeaderboard();
+          }}
+        >
+          <span>Abrir ranking completo</span>
+          <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+        </Button>
+      </Card>
+
+      {/* Widget 3: El Botellón (Farmeo) */}
+      <Card className="rounded-xl border-border/70 p-3.5 space-y-2.5 bg-surface">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span
@@ -184,7 +288,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
                 botellonState.rate > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-foreground-subtle'
               }`}
             />
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted flex items-center gap-1.5">
+            <h3 className="text-xs font-semibold text-foreground tracking-tight flex items-center gap-1.5">
               <Wine className="w-3.5 h-3.5 text-accent" />
               <span>El Botellón</span>
             </h3>
@@ -194,12 +298,12 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
           </span>
         </div>
 
-        <div className="p-3 rounded-xl bg-surface-raised border border-border/60 flex items-center justify-between gap-2">
+        <div className="p-2.5 rounded-lg bg-surface-raised border border-border/60 flex items-center justify-between gap-2">
           <div>
-            <div className="text-[10px] text-foreground-subtle uppercase tracking-wider font-mono">
+            <div className="text-[10px] text-foreground-subtle font-mono">
               En la saca
             </div>
-            <div className="text-base font-semibold font-mono text-foreground">
+            <div className="text-sm font-semibold font-mono text-foreground">
               +{botellonState.vault.toLocaleString()}{' '}
               <span className="text-[10px] font-sans font-normal text-foreground-muted">fichas</span>
             </div>
@@ -209,10 +313,10 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
             type="button"
             disabled={botellonState.vault <= 0}
             onClick={handleClaimFromWidget}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
               botellonState.vault > 0
-                ? 'bg-foreground text-background shadow-xs hover:opacity-95'
-                : 'bg-surface text-foreground-subtle border border-border/50 cursor-not-allowed opacity-50'
+                ? 'bg-foreground text-background shadow-xs hover:opacity-90'
+                : 'bg-surface text-foreground-subtle border border-border/50 cursor-not-allowed opacity-40'
             }`}
           >
             {justClaimedWidget ? (
@@ -223,50 +327,60 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
             ) : (
               <>
                 <ArrowDownToLine className="w-3.5 h-3.5" />
-                <span>Meter a la saca</span>
+                <span>Cobrar</span>
               </>
             )}
           </button>
         </div>
 
-        {onOpenPartyIdle && (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="w-full justify-between rounded-xl"
-            onClick={onOpenPartyIdle}
-          >
-            <span className="flex items-center gap-1.5">
-              <Wine className="w-3.5 h-3.5 text-accent" />
-              <span>Ir a la fiesta completa</span>
-            </span>
-            <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
-          </Button>
-        )}
+        <div className="space-y-1.5">
+          {onOpenPartyIdle && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full justify-between rounded-lg h-8 text-xs font-medium"
+              onClick={() => {
+                sound.tap();
+                onOpenPartyIdle();
+              }}
+            >
+              <span className="flex items-center gap-1.5">
+                <Wine className="w-3.5 h-3.5 text-accent" />
+                <span>Ir al Botellón</span>
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+            </Button>
+          )}
 
-        {onOpenFarmhand && (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="w-full justify-between rounded-xl"
-            onClick={onOpenFarmhand}
-          >
-            <span className="flex items-center gap-1.5">
-              <Sprout className="w-3.5 h-3.5 text-emerald-400" />
-              <span>El Huerto SMR (Farmhand)</span>
-            </span>
-            <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
-          </Button>
-        )}
+          {onOpenFarmhand && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full justify-between rounded-lg h-8 text-xs font-medium"
+              onClick={() => {
+                sound.tap();
+                onOpenFarmhand();
+              }}
+            >
+              <span className="flex items-center gap-1.5">
+                <Sprout className="w-3.5 h-3.5 text-emerald-400" />
+                <span>El Huerto SMR</span>
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+            </Button>
+          )}
+        </div>
       </Card>
 
-      {/* Widget 2: Próximas Entregas */}
-      <Card className="rounded-2xl border-border/70 p-4 space-y-3">
+      {/* Widget 4: Próximas Entregas */}
+      <Card className="rounded-xl border-border/70 p-3.5 space-y-2.5 bg-surface">
         <div className="flex items-center justify-between">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
             <AlertCircle className="w-3.5 h-3.5 text-accent" />
-            <span>Próximas entregas</span>
-          </h3>
+            <h3 className="text-xs font-semibold text-foreground tracking-tight">
+              Próximas entregas
+            </h3>
+          </div>
           <Badge variant="default" size="sm">
             {events.length}
           </Badge>
@@ -277,8 +391,11 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
             {upcomingEvents.map((ev) => (
               <div
                 key={ev.id}
-                onClick={onOpenSchedule}
-                className="p-2.5 rounded-xl bg-surface-raised border border-border/50 hover:border-border transition-colors cursor-pointer space-y-0.5"
+                onClick={() => {
+                  sound.tap();
+                  onOpenSchedule();
+                }}
+                className="p-2 rounded-lg bg-surface-raised border border-border/50 hover:border-border transition-colors cursor-pointer space-y-0.5"
               >
                 <div className="flex items-center justify-between text-[11px] font-mono">
                   <span className="font-semibold text-accent">{ev.subject}</span>
@@ -297,63 +414,13 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
         <Button
           variant="secondary"
           size="sm"
-          className="w-full justify-between rounded-xl"
-          onClick={onOpenSchedule}
+          className="w-full justify-between rounded-lg h-8 text-xs font-medium"
+          onClick={() => {
+            sound.tap();
+            onOpenSchedule();
+          }}
         >
           <span>Abrir agenda</span>
-          <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
-        </Button>
-      </Card>
-
-      {/* Widget 3: Clasificación */}
-      <Card className="rounded-2xl border-border/70 p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted flex items-center gap-1.5">
-            <Trophy className="w-3.5 h-3.5 text-amber-500" />
-            <span>Clasificación</span>
-          </h3>
-          <button
-            type="button"
-            onClick={onOpenFaucet}
-            className="text-[11px] text-accent hover:underline flex items-center gap-1 cursor-pointer"
-          >
-            <Coins className="w-3 h-3 text-amber-500" />
-            <span>Fondo diario</span>
-          </button>
-        </div>
-
-        {topStudents.length > 0 ? (
-          <div className="space-y-1.5">
-            {topStudents.map((st, i) => (
-              <div
-                key={st.id}
-                className="flex items-center justify-between p-2 rounded-xl bg-surface-raised border border-border/50 text-xs"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-4 text-center font-mono text-foreground-subtle text-[11px]">
-                    {i + 1}.
-                  </span>
-                  <span className="font-mono text-foreground">@{st.username}</span>
-                </div>
-                <span className="font-mono text-foreground font-semibold">
-                  {st.coins.toLocaleString('es-ES')}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-foreground-subtle text-center py-2">
-            Sin datos en el ranking
-          </p>
-        )}
-
-        <Button
-          variant="secondary"
-          size="sm"
-          className="w-full justify-between rounded-xl"
-          onClick={onOpenLeaderboard}
-        >
-          <span>Ver ranking completo</span>
           <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
         </Button>
       </Card>

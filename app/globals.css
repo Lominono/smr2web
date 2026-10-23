@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f5f7;
+  --background: #fbfbfd;
   --surface: #ffffff;
-  --surface-raised: #fbfbfd;
-  --surface-hover: #f0f0f2;
-  --border: #e5e5ea;
-  --border-subtle: #ebebef;
+  --surface-raised: #f4f4f6;
+  --surface-hover: #ececef;
+  --border: #e2e2e8;
+  --border-subtle: #eeeeef;
   --border-focus: #0071e3;
-  --foreground: #1d1d1f;
-  --foreground-muted: #6e6e73;
-  --foreground-subtle: #86868b;
+  --foreground: #111113;
+  --foreground-muted: #57575d;
+  --foreground-subtle: #7e7e86;
   --accent: #0071e3;
   --accent-hover: #0077ed;
   --accent-foreground: #ffffff;
@@ -30,20 +30,20 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #000000;
-    --surface: #1c1c1e;
-    --surface-raised: #2c2c2e;
-    --surface-hover: #3a3a3c;
-    --border: #38383a;
-    --border-subtle: #2c2c2e;
-    --border-focus: #2997ff;
-    --foreground: #f5f5f7;
-    --foreground-muted: #86868b;
-    --foreground-subtle: #6e6e73;
-    --accent: #2997ff;
-    --accent-hover: #47a3ff;
+    --background: #09090b;
+    --surface: #121215;
+    --surface-raised: #18181c;
+    --surface-hover: #222227;
+    --border: #26262b;
+    --border-subtle: #1a1a1e;
+    --border-focus: #0a84ff;
+    --foreground: #f4f4f6;
+    --foreground-muted: #9e9ea7;
+    --foreground-subtle: #71717a;
+    --accent: #0a84ff;
+    --accent-hover: #2e97ff;
     --accent-foreground: #ffffff;
-    --accent-subtle: rgba(41, 151, 255, 0.15);
+    --accent-subtle: rgba(10, 132, 255, 0.14);
     --danger: #ff453a;
     --danger-subtle: rgba(255, 69, 58, 0.15);
     --success: #32d74b;
@@ -52,20 +52,20 @@
 }
 
 html.dark {
-  --background: #000000;
-  --surface: #1c1c1e;
-  --surface-raised: #2c2c2e;
-  --surface-hover: #3a3a3c;
-  --border: #38383a;
-  --border-subtle: #2c2c2e;
-  --border-focus: #2997ff;
-  --foreground: #f5f5f7;
-  --foreground-muted: #86868b;
-  --foreground-subtle: #6e6e73;
-  --accent: #2997ff;
-  --accent-hover: #47a3ff;
+  --background: #09090b;
+  --surface: #121215;
+  --surface-raised: #18181c;
+  --surface-hover: #222227;
+  --border: #26262b;
+  --border-subtle: #1a1a1e;
+  --border-focus: #0a84ff;
+  --foreground: #f4f4f6;
+  --foreground-muted: #9e9ea7;
+  --foreground-subtle: #71717a;
+  --accent: #0a84ff;
+  --accent-hover: #2e97ff;
   --accent-foreground: #ffffff;
-  --accent-subtle: rgba(41, 151, 255, 0.15);
+  --accent-subtle: rgba(10, 132, 255, 0.14);
   --danger: #ff453a;
   --danger-subtle: rgba(255, 69, 58, 0.15);
   --success: #32d74b;
@@ -98,7 +98,13 @@ html.dark {
   --radius-sm: var(--radius-sm);
 }
 
-html, body {
+html {
+  scroll-behavior: smooth;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
   background-color: var(--background);
   color: var(--foreground);
   min-height: 100dvh;
@@ -107,14 +113,22 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
   font-family: var(--font-sans);
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
-/* Fallbacks sobrios y limpios (tipo Apple) */
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* Fallbacks sobrios y limpios */
 .glass-panel {
   background-color: var(--surface);
   border: 1px solid var(--border);
@@ -125,21 +139,17 @@ html, body {
   border: 1px solid var(--border-subtle);
 }
 
-.bg-dot-matrix {
-  background-image: none;
-}
-
-/* Scrollbar minimalista y sobria */
+/* Scrollbar ultra-minimalista */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--foreground-subtle);
@@ -152,6 +162,12 @@ html, body {
   -ms-overflow-style: none;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Scroll performance & rendering */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 90px;
 }
 
 /* Zonas táctiles mínimas (Apple HIG: 44x44px) */

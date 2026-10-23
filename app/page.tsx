@@ -219,17 +219,21 @@ export default function Home() {
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('id, username, coins, biggest_win')
+        .select('id, username, full_name, coins, biggest_win, streak_count, avatar_color, role')
         .order('coins', { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (data) {
         setLeaderboard(
           data.map((p: any) => ({
             id: p.id,
             username: p.username,
-            coins: Number(p.coins),
-            biggest_win: Number(p.biggest_win),
+            full_name: p.full_name || undefined,
+            coins: Number(p.coins ?? 0),
+            biggest_win: Number(p.biggest_win ?? 0),
+            streak_count: p.streak_count ? Number(p.streak_count) : 1,
+            avatar_color: p.avatar_color || undefined,
+            role: p.role || undefined,
             is_current_user: user ? p.id === user.id : false,
           }))
         );
@@ -695,7 +699,7 @@ export default function Home() {
               </div>
 
               {/* Right Sidebar Widgets (Desktop) */}
-              <div className="hidden lg:block lg:col-span-3 sticky top-18 space-y-4">
+              <div className="hidden lg:block lg:col-span-3 sticky top-16 max-h-[calc(100dvh-4.5rem)] overflow-y-auto overscroll-contain scrollbar-none pr-0.5">
                 <DesktopWidgets
                   currentUser={user}
                   events={calendarEvents}
@@ -898,6 +902,7 @@ export default function Home() {
         isOpen={isLeaderboardOpen}
         onClose={() => setIsLeaderboardOpen(false)}
         entries={leaderboard}
+        currentUser={user}
       />
 
       <FaucetModal
