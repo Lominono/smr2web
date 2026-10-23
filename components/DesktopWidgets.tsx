@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Coins,
   Wine,
+  Sprout,
   ArrowDownToLine,
   Check,
 } from 'lucide-react';
@@ -37,6 +38,7 @@ interface DesktopWidgetsProps {
   onOpenFaucet: () => void;
   onOpenRussianRoulette?: () => void;
   onOpenPartyIdle?: () => void;
+  onOpenFarmhand?: () => void;
   onUpdateCoins?: (delta: number) => void;
 }
 
@@ -48,6 +50,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
   onOpenLeaderboard,
   onOpenFaucet,
   onOpenPartyIdle,
+  onOpenFarmhand,
   onUpdateCoins,
 }) => {
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
@@ -236,6 +239,21 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
             <span className="flex items-center gap-1.5">
               <Wine className="w-3.5 h-3.5 text-accent" />
               <span>Ir a la fiesta completa</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+          </Button>
+        )}
+
+        {onOpenFarmhand && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full justify-between rounded-xl"
+            onClick={onOpenFarmhand}
+          >
+            <span className="flex items-center gap-1.5">
+              <Sprout className="w-3.5 h-3.5 text-emerald-400" />
+              <span>El Huerto SMR (Farmhand)</span>
             </span>
             <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
           </Button>

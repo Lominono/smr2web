@@ -12,6 +12,7 @@ import {
   PenSquare,
   MessageSquare,
   Wine,
+  Sprout,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -47,6 +48,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   const navItems: { id: string; label: string; icon: any; badge?: string }[] = [
     { id: 'feed', label: 'Feed de clase', icon: MessageSquare },
     { id: 'calendar', label: 'Horario y tareas', icon: Calendar },
+    { id: 'farmhand', label: 'El Huerto', icon: Sprout, badge: 'Granja' },
     { id: 'party_idle', label: 'El Botellón', icon: Wine, badge: 'Farmeo' },
     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
     { id: 'crash', label: 'Casino Arcade', icon: Gamepad2 },

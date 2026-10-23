@@ -12,6 +12,7 @@ import {
   Target,
   CircleDot,
   Wine,
+  Sprout,
   Trophy,
   Coins,
   Settings,
@@ -248,6 +249,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               Recreo Arcade
             </span>
             {[
+              { id: 'farmhand', label: 'El Huerto (Farmhand)', icon: Sprout, badge: 'Granja' },
               { id: 'party_idle', label: 'El Botellón', icon: Wine, badge: 'Farmeo Idle' },
               { id: 'russian_roulette', label: 'Ruleta Rusa (Multijugador)', icon: Zap },
               { id: 'crash', label: 'Crash multiplicador', icon: TrendingUp },

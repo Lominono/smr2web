@@ -12,6 +12,7 @@ import { MinesGame } from '@/components/MinesGame';
 import { RouletteGame } from '@/components/RouletteGame';
 import { RussianRouletteGame } from '@/components/RussianRouletteGame';
 import { PartyIdleGame } from '@/components/PartyIdleGame';
+import { FarmhandGame } from '@/components/FarmhandGame';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { FaucetModal } from '@/components/FaucetModal';
 import { AuthModal } from '@/components/AuthModal';
@@ -42,10 +43,20 @@ import {
   Target,
   Zap,
   Wine,
+  Sprout,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
-type ViewMode = 'feed' | 'calendar' | 'russian_roulette' | 'crash' | 'mines' | 'angry' | 'roulette' | 'party_idle';
+type ViewMode =
+  | 'feed'
+  | 'calendar'
+  | 'russian_roulette'
+  | 'crash'
+  | 'mines'
+  | 'angry'
+  | 'roulette'
+  | 'party_idle'
+  | 'farmhand';
 
 export default function Home() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -373,8 +384,8 @@ export default function Home() {
       return;
     }
 
-    // Escudo anti-abuso: Límite de seguridad en transacciones individuales
-    const delta = Math.min(Math.max(rawDelta, -50000), 25000);
+    // Transacción monetaria: permitir cobros íntegros de botes y cosechas legítimas (sin truncar a 25.000)
+    const delta = isNaN(rawDelta) ? 0 : Math.round(rawDelta);
 
     const nextCoins = Math.max(0, user.coins + delta);
     const isWin = delta > 0;
@@ -694,6 +705,7 @@ export default function Home() {
                   onOpenFaucet={() => setIsFaucetOpen(true)}
                   onOpenRussianRoulette={() => setActiveView('russian_roulette')}
                   onOpenPartyIdle={() => setActiveView('party_idle')}
+                  onOpenFarmhand={() => setActiveView('farmhand')}
                   onUpdateCoins={handleUpdateCoins}
                 />
               </div>
@@ -736,6 +748,7 @@ export default function Home() {
               {activeView !== 'calendar' && (
                 <div className="flex items-center p-1 rounded-full bg-surface-raised border border-border/60 overflow-x-auto scrollbar-none gap-0.5">
                   {[
+                    { id: 'farmhand', label: 'El Huerto', icon: Sprout, badge: 'Granja' },
                     { id: 'party_idle', label: 'El Botellón', icon: Wine, badge: 'Farmeo' },
                     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
                     { id: 'crash', label: 'Crash', icon: TrendingUp },
@@ -781,7 +794,14 @@ export default function Home() {
 
             {/* Active Component */}
             <div className="animate-in fade-in duration-150">
-              {activeView === 'party_idle' ? (
+              {activeView === 'farmhand' ? (
+                <FarmhandGame
+                  userCoins={user ? user.coins : 200}
+                  userId={user?.id}
+                  onUpdateCoins={handleUpdateCoins}
+                  onNavigateGame={(g) => setActiveView(g as ViewMode)}
+                />
+              ) : activeView === 'party_idle' ? (
                 <PartyIdleGame
                   userCoins={user ? user.coins : 200}
                   userId={user?.id}

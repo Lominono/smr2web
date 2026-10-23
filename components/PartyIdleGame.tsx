@@ -54,55 +54,55 @@ export const TIERS: TierConfig[] = [
     name: 'Litronas del chino',
     desc: 'Lo básico para empezar a beber en el parque.',
     baseCost: 25,
-    baseRate: 1,
+    baseRate: 0.2, // ~1 ficha cada 5 segundos
     icon: BottleWine,
   },
   {
     id: 'hielos',
     name: 'Bolsa de hielos y vasos',
     desc: 'Para que no se caliente el trago a los 5 minutos.',
-    baseCost: 90,
-    baseRate: 4,
+    baseCost: 95,
+    baseRate: 0.8,
     icon: GlassWater,
   },
   {
     id: 'chupitos',
     name: 'Ronda de chupitos',
     desc: 'Tequila y Jäger para que la peña se anime rápido.',
-    baseCost: 320,
-    baseRate: 14,
+    baseCost: 380,
+    baseRate: 2.8,
     icon: Wine,
   },
   {
     id: 'botellas',
     name: 'Nevera con botellas y mezcla',
     desc: 'Ron-cola y ginebra sin escatimar con los hielos.',
-    baseCost: 1100,
-    baseRate: 48,
+    baseCost: 1400,
+    baseRate: 9.5,
     icon: CupSoda,
   },
   {
     id: 'altavoz',
     name: 'Altavoz a toda mecha',
     desc: 'Suena el reguetón y se acerca tol mundo a la fiesta.',
-    baseCost: 3800,
-    baseRate: 160,
+    baseCost: 4800,
+    baseRate: 32,
     icon: Music,
   },
   {
     id: 'barra_libre',
     name: 'Barra libre en el local',
     desc: 'Desmadre total y copas sin fin hasta el amanecer.',
-    baseCost: 14000,
-    baseRate: 550,
+    baseCost: 18000,
+    baseRate: 105,
     icon: Flame,
   },
   {
     id: 'vip',
     name: 'Reservado VIP y champán',
     desc: 'Botellazas con bengalas para los reyes de la noche.',
-    baseCost: 50000,
-    baseRate: 1900,
+    baseCost: 65000,
+    baseRate: 320,
     icon: Sparkles,
   },
 ];
@@ -135,8 +135,8 @@ export const ZONES: ZoneConfig[] = [
     name: 'Piso de Colegas (Pre-Fiesta)',
     subtitle: '00:00h · Calentando motores',
     desc: 'Música en altavoces, cubatas en vasos de tubo y la gente dándolo todo.',
-    multiplier: 2.2,
-    requiredProduction: 3000,
+    multiplier: 1.35,
+    requiredProduction: 1000,
     badge: 'Fase 2',
     icon: '🏠',
   },
@@ -145,8 +145,8 @@ export const ZONES: ZoneConfig[] = [
     name: 'La Discoteca Central',
     subtitle: '02:30h · Desmadre en pista',
     desc: 'Luces estroboscópicas, DJ en directo, barra libre y la pista a reventar.',
-    multiplier: 5.5,
-    requiredProduction: 25000,
+    multiplier: 1.8,
+    requiredProduction: 6000,
     badge: 'Fase 3',
     icon: '🪩',
   },
@@ -155,8 +155,8 @@ export const ZONES: ZoneConfig[] = [
     name: 'Macro-Festival Fin de Curso SMR',
     subtitle: '05:00h · El fiestón del año',
     desc: 'Escenario masivo al aire libre, pantallas gigantes y barras por doquier.',
-    multiplier: 14.0,
-    requiredProduction: 120000,
+    multiplier: 2.5,
+    requiredProduction: 30000,
     badge: 'Fase 4',
     icon: '🎪',
   },
@@ -165,8 +165,8 @@ export const ZONES: ZoneConfig[] = [
     name: 'Villa VIP en Ibiza (Leyenda SMR)',
     subtitle: '07:30h · El After de los elegidos',
     desc: 'Piscina infinita, champán ilimitado y los reyes indiscutibles del curso.',
-    multiplier: 35.0,
-    requiredProduction: 500000,
+    multiplier: 4.0,
+    requiredProduction: 120000,
     badge: 'Leyenda',
     icon: '👑',
   },
@@ -251,10 +251,10 @@ export const PARTY_RANKS: PartyRank[] = [
 
 export function getTierMilestoneMultiplier(level: number): number {
   let mult = 1;
-  if (level >= 10) mult *= 2;
-  if (level >= 25) mult *= 2;
-  if (level >= 50) mult *= 2.5;
-  if (level >= 100) mult *= 3;
+  if (level >= 10) mult *= 1.3;
+  if (level >= 25) mult *= 1.4;
+  if (level >= 50) mult *= 1.6;
+  if (level >= 100) mult *= 2.0;
   return mult;
 }
 
@@ -579,13 +579,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
     sound.tap();
 
-    const baseClick = Math.max(1, Math.floor(1 + baseRatePerSecond * 0.05));
+    const baseClick = Math.max(1, Math.floor(1 + baseRatePerSecond * 0.02));
     let clickPower = baseClick * prestigeMultiplier * drinkPowerMult;
 
     // Enchufe en barra perk: 12% probabilidad de Jackpot sorpresa
     let hasJackpotBonus = false;
     if (hasPerk('enchufe_barra') && Math.random() < 0.12) {
-      clickPower *= 5;
+      clickPower = Math.min(60, clickPower * 3);
       hasJackpotBonus = true;
       sound.coinWin();
     }
@@ -758,7 +758,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       if (isBullseye) {
         sound.coinWin();
         confetti({ particleCount: 100, spread: 70 });
-        const prize = Math.max(120, Math.floor(effectiveRatePerSecond * 15));
+        const prize = Math.min(400, Math.max(25, Math.floor(effectiveRatePerSecond * 6)));
         setPendingVault((prev) => prev + prize);
         setBeerPongWins((prev) => prev + 1);
         setPongResult({
@@ -768,7 +768,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         });
       } else if (isNearHit) {
         sound.coinWin();
-        const prize = Math.max(40, Math.floor(effectiveRatePerSecond * 4));
+        const prize = Math.min(150, Math.max(10, Math.floor(effectiveRatePerSecond * 2)));
         setPendingVault((prev) => prev + prize);
         setPongResult({
           success: true,
