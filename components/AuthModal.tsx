@@ -24,13 +24,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       <div className="border border-border/80 rounded-2xl w-full max-w-sm bg-surface shadow-2xl overflow-hidden flex flex-col">
         <div className="px-5 py-3.5 border-b border-border/70 flex items-center justify-between bg-surface-raised/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg overflow-hidden bg-white p-0.5 ring-1 ring-border/70 flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 flex items-center justify-center shrink-0">
               <Image
                 src="/logo.png"
                 alt="SMR2 Logo"
                 width={28}
                 height={28}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain drop-shadow-xs"
               />
             </div>
             <h2 className="text-xs font-semibold text-foreground tracking-tight">

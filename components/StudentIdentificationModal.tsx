@@ -113,8 +113,8 @@ export const StudentIdentificationModal: React.FC<StudentIdentificationModalProp
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-border/60 bg-surface-raised/40">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden bg-white p-0.5 ring-1 ring-border/80 shadow-xs flex items-center justify-center shrink-0">
-              <img src="/logo.png" alt="SMR" className="w-full h-full object-contain" />
+            <div className="w-10 h-10 flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="SMR" className="w-full h-full object-contain drop-shadow-xs" />
             </div>
             <div>
               <h2 className="text-base font-semibold text-foreground tracking-tight">

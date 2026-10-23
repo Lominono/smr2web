@@ -14,6 +14,7 @@ import {
   LogOut,
   ShieldCheck,
   Settings,
+  Wine,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
@@ -77,13 +78,13 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             onClick={() => onSelectTab && onSelectTab('feed')}
             className="flex items-center gap-2.5 cursor-pointer text-left select-none touch-manipulation active:opacity-80 group"
           >
-            <div className="w-8 h-8 rounded-xl overflow-hidden bg-white p-0.5 ring-1 ring-border/80 shadow-xs flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
+            <div className="w-8 h-8 flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
               <Image
                 src="/logo.png"
                 alt="2º SMR"
                 width={32}
                 height={32}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain drop-shadow-xs"
                 priority
               />
             </div>
@@ -137,6 +138,19 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
               }`}
             >
               Horario
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectTab('party_idle')}
+              className={`flex items-center gap-1.5 px-3.5 py-1 text-xs font-medium rounded-full transition-all cursor-pointer ${
+                activeTab === 'party_idle'
+                  ? 'bg-foreground text-background font-semibold shadow-xs'
+                  : 'text-foreground-muted hover:text-foreground'
+              }`}
+            >
+              <Wine className="w-3.5 h-3.5 text-accent" />
+              <span>El Botellón</span>
             </button>
 
             <button

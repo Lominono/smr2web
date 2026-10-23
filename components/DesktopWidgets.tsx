@@ -8,12 +8,18 @@ import {
   ChevronRight,
   AlertCircle,
   Coins,
+  Wine,
+  ArrowDownToLine,
+  Check,
 } from 'lucide-react';
 import { UserProfile, CalendarEvent, LeaderboardEntry } from '@/lib/types';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { TIERS, STORAGE_KEY_PREFIX, BotellonState } from '@/components/PartyIdleGame';
+import { sound } from '@/lib/audio';
+import confetti from 'canvas-confetti';
 
 interface DesktopWidgetsProps {
   currentUser: UserProfile | null;
@@ -23,16 +29,26 @@ interface DesktopWidgetsProps {
   onOpenLeaderboard: () => void;
   onOpenFaucet: () => void;
   onOpenRussianRoulette?: () => void;
+  onOpenPartyIdle?: () => void;
+  onUpdateCoins?: (delta: number) => void;
 }
 
 export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
+  currentUser,
   events = [],
   leaderboard = [],
   onOpenSchedule,
   onOpenLeaderboard,
   onOpenFaucet,
+  onOpenPartyIdle,
+  onUpdateCoins,
 }) => {
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
+  const [botellonState, setBotellonState] = useState<{ vault: number; rate: number }>({
+    vault: 0,
+    rate: 0,
+  });
+  const [justClaimedWidget, setJustClaimedWidget] = useState(false);
 
   useEffect(() => {
     const update = () => setLiveStatus(getCurrentScheduleStatus());
@@ -40,6 +56,55 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
     const interval = setInterval(update, 20000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const key = `${STORAGE_KEY_PREFIX}${currentUser?.id || 'local'}`;
+    const read = () => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed: BotellonState = JSON.parse(raw);
+          const lvl = parsed.levels || {};
+          const baseRate = TIERS.reduce((acc, t) => acc + (lvl[t.id] || 0) * t.baseRate, 0);
+          const mult = 1 + (parsed.afterPrestigeCount || 0) * 0.5;
+          setBotellonState({
+            vault: Math.floor(parsed.pendingVault || 0),
+            rate: baseRate * mult,
+          });
+        }
+      } catch {}
+    };
+
+    read();
+    const interval = setInterval(read, 2000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id]);
+
+  const handleClaimFromWidget = () => {
+    const key = `${STORAGE_KEY_PREFIX}${currentUser?.id || 'local'}`;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const parsed: BotellonState = JSON.parse(raw);
+      const toClaim = Math.floor(parsed.pendingVault || 0);
+      if (toClaim <= 0) return;
+
+      sound.coinWin();
+      confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 } });
+
+      if (onUpdateCoins) {
+        onUpdateCoins(toClaim);
+      }
+
+      parsed.pendingVault = 0;
+      parsed.lastTickMs = Date.now();
+      localStorage.setItem(key, JSON.stringify(parsed));
+
+      setBotellonState((prev) => ({ ...prev, vault: 0 }));
+      setJustClaimedWidget(true);
+      setTimeout(() => setJustClaimedWidget(false), 2000);
+    } catch {}
+  };
 
   const upcomingEvents = events.slice(0, 3);
   const topStudents = leaderboard.slice(0, 3);
@@ -89,6 +154,76 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
           </span>
           <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
         </Button>
+      </Card>
+
+      {/* Widget Botellón: Farmeo en Directo */}
+      <Card className="rounded-2xl border-border/70 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                botellonState.rate > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-foreground-subtle'
+              }`}
+            />
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted flex items-center gap-1.5">
+              <Wine className="w-3.5 h-3.5 text-accent" />
+              <span>El Botellón</span>
+            </h3>
+          </div>
+          <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+            +{botellonState.rate.toFixed(1)}/s
+          </span>
+        </div>
+
+        <div className="p-3 rounded-xl bg-surface-raised border border-border/60 flex items-center justify-between gap-2">
+          <div>
+            <div className="text-[10px] text-foreground-subtle uppercase tracking-wider font-mono">
+              En la saca
+            </div>
+            <div className="text-base font-semibold font-mono text-foreground">
+              +{botellonState.vault.toLocaleString()}{' '}
+              <span className="text-[10px] font-sans font-normal text-foreground-muted">fichas</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={botellonState.vault <= 0}
+            onClick={handleClaimFromWidget}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
+              botellonState.vault > 0
+                ? 'bg-foreground text-background shadow-xs hover:opacity-95'
+                : 'bg-surface text-foreground-subtle border border-border/50 cursor-not-allowed opacity-50'
+            }`}
+          >
+            {justClaimedWidget ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>¡Cobrado!</span>
+              </>
+            ) : (
+              <>
+                <ArrowDownToLine className="w-3.5 h-3.5" />
+                <span>Meter a la saca</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {onOpenPartyIdle && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full justify-between rounded-xl"
+            onClick={onOpenPartyIdle}
+          >
+            <span className="flex items-center gap-1.5">
+              <Wine className="w-3.5 h-3.5 text-accent" />
+              <span>Ir a la fiesta completa</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+          </Button>
+        )}
       </Card>
 
       {/* Widget 2: Próximas Entregas */}

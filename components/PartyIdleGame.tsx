@@ -21,10 +21,11 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-interface PartyIdleGameProps {
+export interface PartyIdleGameProps {
   userCoins: number;
   userId?: string;
   onUpdateCoins: (delta: number) => void;
+  onNavigateGame?: (game: string) => void;
   onBroadcastWin?: (
     game: 'angry' | 'crash' | 'mines' | 'roulette',
     multiplier: number,
@@ -32,7 +33,7 @@ interface PartyIdleGameProps {
   ) => void;
 }
 
-interface TierConfig {
+export interface TierConfig {
   id: string;
   name: string;
   desc: string;
@@ -41,7 +42,7 @@ interface TierConfig {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const TIERS: TierConfig[] = [
+export const TIERS: TierConfig[] = [
   {
     id: 'litronas',
     name: 'Litronas del chino',
@@ -100,7 +101,7 @@ const TIERS: TierConfig[] = [
   },
 ];
 
-interface BotellonState {
+export interface BotellonState {
   levels: Record<string, number>;
   pendingVault: number;
   totalLifetimeProduced: number;
@@ -108,12 +109,13 @@ interface BotellonState {
   lastTickMs: number;
 }
 
-const STORAGE_KEY_PREFIX = 'smr2_botellon_data_';
+export const STORAGE_KEY_PREFIX = 'smr2_botellon_data_';
 
 export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   userCoins,
   userId,
   onUpdateCoins,
+  onNavigateGame,
 }) => {
   const storageKey = `${STORAGE_KEY_PREFIX}${userId || 'local'}`;
 
@@ -140,6 +142,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [isCrazyParty, setIsCrazyParty] = useState<boolean>(false);
   const [crazyPartyTimeRemaining, setCrazyPartyTimeRemaining] = useState<number>(0);
   const [justClaimed, setJustClaimed] = useState<boolean>(false);
+  const [buyMultiplier, setBuyMultiplier] = useState<1 | 5 | 10 | 'max'>(1);
 
   // Multiplicador por prestigios de After
   const prestigeMultiplier = 1 + afterPrestigeCount * 0.5;
@@ -295,21 +298,59 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     });
   };
 
+  // Cálculo de costes escalonados e308 para compras múltiples (x1, x5, x10, Máx)
+  const getBuyQuote = useCallback(
+    (tier: TierConfig, currentLevel: number, multiplier: 1 | 5 | 10 | 'max', availableCoins: number) => {
+      let count = 0;
+      let totalCost = 0;
+      const targetCount = multiplier === 'max' ? 100 : multiplier;
+
+      for (let i = 0; i < targetCount; i++) {
+        const nextCost = Math.floor(tier.baseCost * Math.pow(1.15, currentLevel + i));
+        if (multiplier === 'max') {
+          if (totalCost + nextCost > availableCoins) break;
+          totalCost += nextCost;
+          count++;
+        } else {
+          totalCost += nextCost;
+          count++;
+        }
+      }
+
+      if (multiplier === 'max' && count === 0) {
+        count = 1;
+        totalCost = Math.floor(tier.baseCost * Math.pow(1.15, currentLevel));
+      }
+
+      return {
+        count,
+        totalCost,
+        canAfford: availableCoins >= totalCost && count > 0,
+      };
+    },
+    []
+  );
+
   // Acción: Comprar mejora de nivel
   const handleBuyTier = (tier: TierConfig) => {
     const currentLevel = levels[tier.id] || 0;
-    const cost = Math.floor(tier.baseCost * Math.pow(1.15, currentLevel));
+    const { count, totalCost, canAfford } = getBuyQuote(
+      tier,
+      currentLevel,
+      buyMultiplier,
+      userCoins
+    );
 
-    if (userCoins < cost) return;
+    if (!canAfford || count <= 0) return;
 
     sound.coinWin();
     // Se descuenta directamente de las monedas reales del usuario
-    onUpdateCoins(-cost);
+    onUpdateCoins(-totalCost);
 
     setLevels((prev) => {
       const nextLevels = {
         ...prev,
-        [tier.id]: (prev[tier.id] || 0) + 1,
+        [tier.id]: (prev[tier.id] || 0) + count,
       };
 
       saveState({
@@ -555,30 +596,53 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       {/* Lista de Mejoras (Bebidas & Suministros) */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Suministros del Botellón</h2>
             <p className="text-xs text-foreground-muted">
               Usa las fichas que tienes o las que ganes en el casino para mejorar tu farmeo.
             </p>
           </div>
-          {canPrestige && (
-            <button
-              type="button"
-              onClick={handleAfterPrestige}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition-all cursor-pointer active:scale-95"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Irse de After (+50% bonus)</span>
-            </button>
-          )}
+
+          <div className="flex items-center gap-2">
+            {/* Selector de cantidad estilo e308 (x1, x5, x10, Máx) */}
+            <div className="flex items-center p-0.5 rounded-xl bg-surface border border-border/70 shadow-2xs">
+              {([1, 5, 10, 'max'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    setBuyMultiplier(m);
+                    sound.tap();
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+                    buyMultiplier === m
+                      ? 'bg-foreground text-background font-semibold shadow-xs'
+                      : 'text-foreground-muted hover:text-foreground'
+                  }`}
+                >
+                  {m === 'max' ? 'Máx' : `x${m}`}
+                </button>
+              ))}
+            </div>
+
+            {canPrestige && (
+              <button
+                type="button"
+                onClick={handleAfterPrestige}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition-all cursor-pointer active:scale-95"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Irse de After (+50% bonus)</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           {TIERS.map((tier) => {
             const currentLevel = levels[tier.id] || 0;
-            const cost = Math.floor(tier.baseCost * Math.pow(1.15, currentLevel));
-            const canAfford = userCoins >= cost;
+            const quote = getBuyQuote(tier, currentLevel, buyMultiplier, userCoins);
             const currentTotalRate = currentLevel * tier.baseRate * prestigeMultiplier;
             const Icon = tier.icon;
 
@@ -616,17 +680,17 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
                 <button
                   type="button"
-                  disabled={!canAfford}
+                  disabled={!quote.canAfford}
                   onClick={() => handleBuyTier(tier)}
                   className={`px-3.5 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer active:scale-95 flex flex-col items-end ${
-                    canAfford
+                    quote.canAfford
                       ? 'bg-foreground text-background shadow-xs hover:opacity-95'
                       : 'bg-surface text-foreground-subtle border border-border/50 cursor-not-allowed opacity-50'
                   }`}
                 >
-                  <span>Pillar</span>
+                  <span>Pillar {quote.count > 1 ? `x${quote.count}` : ''}</span>
                   <span className="text-[10px] font-mono opacity-80">
-                    {cost.toLocaleString()} fichas
+                    {quote.totalCost.toLocaleString()} fichas
                   </span>
                 </button>
               </div>
@@ -634,6 +698,47 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           })}
         </div>
       </div>
+
+      {/* Puente con el Casino: Farmea y Apuesta */}
+      {onNavigateGame && (
+        <div className="p-4 rounded-2xl bg-surface-raised border border-border/70 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <h3 className="text-xs font-semibold text-foreground flex items-center gap-2">
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>¿Necesitas fichas para comprar más rápido?</span>
+            </h3>
+            <p className="text-[11px] text-foreground-muted">
+              Apuesta en el casino y usa tus ganancias para comprar suministros y acelerar tu farmeo.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onNavigateGame('crash')}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium bg-surface hover:bg-surface-hover border border-border/70 text-foreground transition-all cursor-pointer active:scale-95 flex items-center gap-1"
+            >
+              <TrendingUp className="w-3 h-3 text-emerald-400" />
+              <span>Jugar Crash</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateGame('russian_roulette')}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium bg-surface hover:bg-surface-hover border border-border/70 text-foreground transition-all cursor-pointer active:scale-95 flex items-center gap-1"
+            >
+              <Zap className="w-3 h-3 text-amber-400" />
+              <span>Ruleta Rusa</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateGame('mines')}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium bg-surface hover:bg-surface-hover border border-border/70 text-foreground transition-all cursor-pointer active:scale-95 flex items-center gap-1"
+            >
+              <span>Minas</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

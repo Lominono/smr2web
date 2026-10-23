@@ -11,6 +11,7 @@ import {
   LogOut,
   PenSquare,
   MessageSquare,
+  Wine,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -43,11 +44,12 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 }) => {
   const rank = currentUser ? getUserRank(currentUser.coins) : null;
 
-  const navItems = [
+  const navItems: { id: string; label: string; icon: any; badge?: string }[] = [
     { id: 'feed', label: 'Feed de clase', icon: MessageSquare },
     { id: 'calendar', label: 'Horario y tareas', icon: Calendar },
+    { id: 'party_idle', label: 'El Botellón', icon: Wine, badge: 'Farmeo' },
     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
-    { id: 'crash', label: 'Minijuegos', icon: Gamepad2 },
+    { id: 'crash', label: 'Casino Arcade', icon: Gamepad2 },
   ];
 
   return (
@@ -58,7 +60,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           {navItems.map((item) => {
             const isActive =
               item.id === 'crash'
-                ? ['crash', 'mines', 'angry', 'roulette', 'party_idle'].includes(activeView)
+                ? ['crash', 'mines', 'angry', 'roulette'].includes(activeView)
                 : activeView === item.id;
             const Icon = item.icon;
             return (
@@ -80,6 +82,17 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   />
                   <span>{item.label}</span>
                 </div>
+                {item.badge && (
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold transition-colors ${
+                      isActive
+                        ? 'bg-background/20 text-background'
+                        : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
               </button>
             );
           })}

@@ -110,13 +110,13 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
         {/* Header */}
         <div className="sticky top-0 z-20 px-4 py-3 bg-surface/90 backdrop-blur-xl border-b border-border/70 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl overflow-hidden bg-white p-0.5 ring-1 ring-border/80 shadow-xs flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 flex items-center justify-center shrink-0">
               <Image
                 src="/logo.png"
-                alt="SMR2 Logo"
+                alt="2º SMR"
                 width={32}
                 height={32}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain drop-shadow-xs"
               />
             </div>
             <div className="flex flex-col">
@@ -248,7 +248,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               Recreo Arcade
             </span>
             {[
-              { id: 'party_idle', label: 'El Botellón (Idle)', icon: Wine },
+              { id: 'party_idle', label: 'El Botellón', icon: Wine, badge: 'Farmeo Idle' },
               { id: 'russian_roulette', label: 'Ruleta Rusa (Multijugador)', icon: Zap },
               { id: 'crash', label: 'Crash multiplicador', icon: TrendingUp },
               { id: 'mines', label: 'Minas', icon: Server },
@@ -271,6 +271,11 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                   <div className="flex items-center gap-3">
                     <Icon className="w-4 h-4 text-foreground-subtle" />
                     <span className="text-sm font-sans">{g.label}</span>
+                    {'badge' in g && g.badge && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                        {g.badge}
+                      </span>
+                    )}
                   </div>
                   <ChevronRight className="w-4 h-4 text-foreground-subtle" />
                 </button>

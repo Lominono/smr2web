@@ -589,11 +589,11 @@ export default function Home() {
     return (
       <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3.5 animate-in fade-in duration-300">
-          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white p-1 ring-1 ring-border/80 shadow-md flex items-center justify-center">
+          <div className="w-16 h-16 flex items-center justify-center">
             <img
               src="/logo.png"
               alt="SMR2 Logo"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain drop-shadow-sm animate-pulse"
             />
           </div>
           <span className="text-xs font-semibold tracking-wider uppercase text-foreground-muted font-mono">
@@ -690,6 +690,8 @@ export default function Home() {
                   onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
                   onOpenFaucet={() => setIsFaucetOpen(true)}
                   onOpenRussianRoulette={() => setActiveView('russian_roulette')}
+                  onOpenPartyIdle={() => setActiveView('party_idle')}
+                  onUpdateCoins={handleUpdateCoins}
                 />
               </div>
             </div>
@@ -731,7 +733,7 @@ export default function Home() {
               {activeView !== 'calendar' && (
                 <div className="flex items-center p-1 rounded-full bg-surface-raised border border-border/60 overflow-x-auto scrollbar-none gap-0.5">
                   {[
-                    { id: 'party_idle', label: 'El Botellón', icon: Wine },
+                    { id: 'party_idle', label: 'El Botellón', icon: Wine, badge: 'Farmeo' },
                     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
                     { id: 'crash', label: 'Crash', icon: TrendingUp },
                     { id: 'mines', label: 'Minas', icon: Server },
@@ -756,6 +758,17 @@ export default function Home() {
                       >
                         <IconComponent className="w-3.5 h-3.5" />
                         <span>{g.label}</span>
+                        {g.badge && (
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono font-semibold ${
+                              isActive
+                                ? 'bg-background/25 text-background'
+                                : 'bg-emerald-500/15 text-emerald-400'
+                            }`}
+                          >
+                            {g.badge}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -770,6 +783,7 @@ export default function Home() {
                   userCoins={user ? user.coins : 200}
                   userId={user?.id}
                   onUpdateCoins={handleUpdateCoins}
+                  onNavigateGame={(g) => setActiveView(g as ViewMode)}
                   onBroadcastWin={handleBroadcastWin}
                 />
               ) : activeView === 'angry' ? (
@@ -914,8 +928,8 @@ export default function Home() {
       <footer className="border-t border-border/70 bg-surface/80 py-5 mt-10 mb-16 lg:mb-0 text-center text-xs text-foreground-muted">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-lg overflow-hidden bg-white p-0.5 ring-1 ring-border/70 flex items-center justify-center shrink-0">
-              <img src="/logo.png" alt="SMR2" className="w-full h-full object-contain" />
+            <div className="w-6 h-6 flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="SMR2" className="w-full h-full object-contain drop-shadow-xs" />
             </div>
             <span className="font-medium text-foreground tracking-tight">SMR2 · 2º Sistemas Microinformáticos y Redes</span>
           </div>
