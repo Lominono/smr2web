@@ -269,11 +269,11 @@ export const PERKS: PerkConfig[] = [
   {
     id: 'pase_vip',
     name: 'Pase VIP Permanente',
-    desc: 'El límite de recaudación offline aumenta de 8 horas a 16 horas seguidas.',
+    desc: 'El límite de recaudación offline aumenta de 4 horas a 8 horas seguidas.',
     cost: 24000,
     icon: 'ticket',
     effectType: 'offline_hours',
-    value: 16,
+    value: 8,
   },
 ];
 
@@ -530,7 +530,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       if (typeof saved.hangoverLevel === 'number') setHangoverLevel(saved.hangoverLevel);
 
       // Calcular farmeo mientras no estaba con límite de horas del perk
-      const maxOfflineHours = (saved.purchasedPerks || []).includes('pase_vip') ? 16 : 8;
+      const maxOfflineHours = (saved.purchasedPerks || []).includes('pase_vip') ? 8 : 4;
       if (saved.lastTickMs && saved.lastTickMs < now) {
         const elapsedSec = Math.min(
           Math.floor((now - saved.lastTickMs) / 1000),
@@ -540,12 +540,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         if (elapsedSec > 10) {
           const zoneObj = ZONES.find((z) => z.id === saved?.currentZoneId) || ZONES[0];
           const mult = 1 + (saved.afterPrestigeCount || 0) * 0.5;
+          const hangoverDebuff = (saved.hangoverLevel || 0) >= 80 ? 0.35 : 1.0;
           const savedBaseRate = TIERS.reduce((acc, tier) => {
             const lvl = saved?.levels?.[tier.id] || 0;
             return acc + lvl * tier.baseRate * getTierMilestoneMultiplier(lvl);
           }, 0) * zoneObj.multiplier;
 
-          const offlineEarned = Math.floor(elapsedSec * savedBaseRate * mult);
+          const offlineEarned = Math.floor(elapsedSec * savedBaseRate * mult * hangoverDebuff);
           if (offlineEarned > 0) {
             setPendingVault((prev) => prev + offlineEarned);
             setTotalLifetimeProduced((prev) => prev + offlineEarned);
@@ -1009,12 +1010,12 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
     setTimeout(() => {
       setPongShooting(false);
-      setPongCooldown(15);
+      setPongCooldown(25);
 
       if (isBullseye) {
         sound.coinWin();
         confetti({ particleCount: 100, spread: 70 });
-        const prize = Math.min(400, Math.max(25, Math.floor(effectiveRatePerSecond * 6)));
+        const prize = Math.min(200, Math.max(15, Math.floor(effectiveRatePerSecond * 3.5)));
         setPendingVault((prev) => prev + prize);
         setBeerPongWins((prev) => prev + 1);
         setPongResult({
@@ -1024,7 +1025,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         });
       } else if (isNearHit) {
         sound.coinWin();
-        const prize = Math.min(150, Math.max(10, Math.floor(effectiveRatePerSecond * 2)));
+        const prize = Math.min(80, Math.max(8, Math.floor(effectiveRatePerSecond * 1.5)));
         setPendingVault((prev) => prev + prize);
         setPongResult({
           success: true,
@@ -1036,7 +1037,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         setPongResult({
           success: false,
           reward: 0,
-          text: '¡Agua! La bola rebotó en la mesa y se fue fuera. ¡Prueba en 15s!',
+          text: '¡Agua! La bola rebotó en la mesa y se fue fuera. ¡Prueba en 25s!',
         });
       }
     }, 600);
@@ -1262,10 +1263,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               setTutorialStep(0);
               setShowTutorial(true);
             }}
-            title="Ver guía de cómo jugar"
-            className="p-2 rounded-xl bg-surface hover:bg-surface-hover border border-border/70 text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
+            title="Ver guía completa de cómo jugar"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-hover border border-border/70 text-foreground-muted hover:text-foreground text-xs font-medium transition-colors cursor-pointer"
           >
-            <HelpCircle className="w-4 h-4" />
+            <HelpCircle className="w-3.5 h-3.5 text-accent" />
+            <span>¿Cómo jugar?</span>
           </button>
 
           <div className="text-right">
@@ -1960,38 +1962,66 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                     <Wine className="w-5 h-5" />
                   </div>
                   <h4 className="text-sm font-semibold text-foreground text-center">
-                    1. Tragos manuales y farmeo pasivo
+                    1. Bebidas y Generación Continua
                   </h4>
                   <p className="leading-relaxed text-center">
-                    Pulsa la litrona central para ganar fichas manuales. Después, compra y sube de nivel los suministros en la primera pestaña para generar fichas automáticamente por segundo, incluso cuando estés desconectado.
+                    Pulsa la litrona central para ganar fichas manuales. Compra y sube de nivel los suministros (hielos, chupitos, botellas...) para generar fichas automáticamente por segundo, incluso mientras estás en clase o desconectado.
                   </p>
                 </div>
               )}
 
               {tutorialStep === 1 && (
                 <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
-                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-border flex items-center justify-center text-emerald-400 mx-auto mb-2">
-                    <MapPin className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-cyan-500/30 flex items-center justify-center text-cyan-400 mx-auto mb-2">
+                    <Droplets className="w-5 h-5" />
                   </div>
                   <h4 className="text-sm font-semibold text-foreground text-center">
-                    2. Fases de fiesta y multiplicadores
+                    2. Medidor de Resaca y Vaso de Agua
                   </h4>
                   <p className="leading-relaxed text-center">
-                    A medida que tu recaudación crezca, avanzarás por las zonas de la noche (Parque, Piso de colegas, Discoteca y Villa VIP). Cada nueva fase multiplica la velocidad de toda tu producción pasiva.
+                    Cuidado con abusar: los tragos y la alta producción llenan tu barra de resaca. Si llega al 100% entras en <strong>Resaca Mortal</strong> y tu farmeo cae un <strong>-65%</strong>. Pulsa el botón <strong>&quot;Beber vaso de agua&quot;</strong> para bajarte la resaca y recuperar tu velocidad.
                   </p>
                 </div>
               )}
 
               {tutorialStep === 2 && (
                 <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
-                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-border flex items-center justify-center text-amber-500 mx-auto mb-2">
-                    <ArrowDownToLine className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-red-500/30 flex items-center justify-center text-red-400 mx-auto mb-2">
+                    <Siren className="w-5 h-5" />
                   </div>
                   <h4 className="text-sm font-semibold text-foreground text-center">
-                    3. Cobro íntegro a tu balance oficial
+                    3. Las 7 Fases y Batidas Policiales
                   </h4>
                   <p className="leading-relaxed text-center">
-                    Tus fichas se acumulan en <strong>&quot;En la saca&quot;</strong>. Pulsa <strong>&quot;Meter a la saca&quot;</strong> cuando quieras para transferir todas las ganancias directamente a tu saldo oficial de 2º SMR y competir en el ranking.
+                    Avanzar de zona multiplica tu dinero, pero atrae a la policía. Si salta la sirena, tienes <strong>12 segundos</strong> para reaccionar: esconder vasos (pausa), correr (-40%) o negociar. ¡Si estás ausente (AFK), la policía te requisará el <strong>50% del bote</strong> acumulado!
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 3 && (
+                <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
+                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-amber-500/30 flex items-center justify-center text-amber-500 mx-auto mb-2">
+                    <Coins className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-foreground text-center">
+                    4. Canje Oficial 5 a 1 a tu Cuenta Real
+                  </h4>
+                  <p className="leading-relaxed text-center">
+                    Tus fichas se acumulan en <strong>&quot;En la saca&quot;</strong>. La tasa oficial es de <strong>5 fichas = 1 moneda real</strong>. Pulsa <strong>&quot;Meter a la saca&quot;</strong> cuando quieras para transferir el 100% íntegro a tu saldo de Supabase para apostar o subir en el ranking.
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 4 && (
+                <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
+                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-border flex items-center justify-center text-emerald-400 mx-auto mb-2">
+                    <Trophy className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-foreground text-center">
+                    5. Estrategia y Supervivencia SMR
+                  </h4>
+                  <p className="leading-relaxed text-center">
+                    No dejes millones en el bote sin cobrar o te desplumarán en una redada. Juega al <strong>Beer Pong</strong> para ganar botes extra y compra <strong>Perks</strong> en la tienda para potenciar tu aguante. ¡Que empiece la fiesta!
                   </p>
                 </div>
               )}
@@ -2000,7 +2030,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             {/* Step Indicators and Nav Buttons */}
             <div className="flex items-center justify-between pt-2 border-t border-border/60">
               <div className="flex items-center gap-1.5">
-                {[0, 1, 2].map((s) => (
+                {[0, 1, 2, 3, 4].map((s) => (
                   <span
                     key={s}
                     className={`h-1.5 rounded-full transition-all ${
@@ -2024,7 +2054,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   </button>
                 )}
 
-                {tutorialStep < 2 ? (
+                {tutorialStep < 4 ? (
                   <button
                     type="button"
                     onClick={() => {

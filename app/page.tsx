@@ -23,6 +23,7 @@ import { MinecraftBanner } from '@/components/MinecraftBanner';
 import { MobileWipBanner } from '@/components/MobileWipBanner';
 import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
+import { UpdateNotificationBanner } from '@/components/UpdateNotificationBanner';
 import { UserSettingsModal } from '@/components/UserSettingsModal';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
 import { RealtimeToast, RealtimeNotification } from '@/components/RealtimeToast';
@@ -1077,6 +1078,9 @@ export default function Home() {
       <CookieBanner
         onOpenTerms={() => setIsTermsOpen(true)}
       />
+
+      {/* Actualizaciones del sistema en vivo */}
+      <UpdateNotificationBanner />
 
       {/* 8. Live Realtime Notification Banner */}
       <RealtimeToast
