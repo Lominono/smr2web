@@ -147,7 +147,7 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
                 sound.tap();
               }
             }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs shadow-lg shadow-amber-400/10 transition-all cursor-pointer active:scale-95"
+            className="min-h-[44px] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-foreground text-background font-bold text-xs shadow-md transition-all cursor-pointer active:scale-95 touch-manipulation"
           >
             <Plus className="w-4 h-4" />
             <span>Crear Sala</span>
@@ -159,7 +159,8 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
               sound.tap();
             }}
             title="Refrescar lista"
-            className="p-2 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/10 text-zinc-300 transition-all cursor-pointer active:scale-95"
+            aria-label="Refrescar lista de salas"
+            className="w-11 h-11 rounded-xl bg-surface-raised border border-border text-foreground-muted hover:text-foreground flex items-center justify-center transition-all cursor-pointer active:scale-95 touch-manipulation"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -169,20 +170,23 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
       {/* Code Join Bar */}
       <form
         onSubmit={handleJoinByCode}
-        className="flex items-center gap-2 p-3 rounded-2xl bg-black/40 border border-white/[0.08]"
+        className="flex items-center gap-2 p-2 sm:p-2.5 rounded-xl bg-surface-raised border border-border"
       >
-        <KeyRound className="w-4 h-4 text-zinc-500 ml-2" />
+        <KeyRound className="w-4 h-4 text-foreground-subtle ml-2" />
         <input
           type="text"
           value={roomCodeInput}
           onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
           placeholder="¿Tienes un código de sala? (ej: R68K9A)"
           maxLength={6}
-          className="flex-1 bg-transparent text-xs text-white placeholder-zinc-500 font-mono tracking-wider uppercase focus:outline-none"
+          inputMode="text"
+          autoCapitalize="characters"
+          spellCheck={false}
+          className="flex-1 min-h-[44px] bg-transparent text-base sm:text-xs text-foreground placeholder:text-foreground-subtle font-mono tracking-wider uppercase focus:outline-none"
         />
         <button
           type="submit"
-          className="px-3.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/15 text-xs text-white font-semibold transition-all cursor-pointer"
+          className="min-h-[44px] px-4 py-2 rounded-lg bg-foreground text-background font-semibold text-xs transition-all cursor-pointer active:scale-95 touch-manipulation shrink-0"
         >
           Unirse
         </button>
@@ -270,10 +274,10 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
                         sound.tap();
                       }}
                       disabled={isFull && isWaiting}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 touch-manipulation ${
                         isWaiting && !isFull
-                          ? 'bg-white hover:bg-zinc-200 text-black active:scale-95'
-                          : 'bg-white/10 text-zinc-400 hover:text-white'
+                          ? 'bg-foreground text-background font-semibold shadow-xs'
+                          : 'bg-surface-raised text-foreground-muted border border-border'
                       }`}
                     >
                       {isWaiting ? (isFull ? 'Llena' : 'Entrar') : 'Espectar'}
@@ -288,43 +292,43 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
 
       {/* Create Room Modal */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="max-w-md w-full p-6 rounded-2xl bg-[#0d0d12] border border-white/20 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
+          <div className="max-w-md w-full p-5 sm:p-6 rounded-t-[20px] sm:rounded-2xl bg-surface border border-border space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <h3 className="font-bold text-sm text-white">Crear Nueva Sala</h3>
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <h3 className="font-bold text-sm text-foreground">Crear Nueva Sala</h3>
               </div>
               <button
                 onClick={() => setIsCreateOpen(false)}
-                className="text-zinc-400 hover:text-white text-xs px-2 py-1 rounded-lg bg-white/5"
+                className="w-10 h-10 flex items-center justify-center text-foreground-muted hover:text-foreground text-xs rounded-lg active:scale-95 touch-manipulation cursor-pointer"
               >
                 Cancelar
               </button>
             </div>
 
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+              <div className="p-3.5 rounded-xl bg-danger-subtle border border-danger/25 text-danger text-xs flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             <form onSubmit={handleCreateRoom} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs text-zinc-400 font-medium">Nombre de la Sala</label>
+              <div className="space-y-1.5">
+                <label className="text-xs text-foreground-muted font-medium">Nombre de la Sala</label>
                 <input
                   type="text"
                   value={newRoomName}
                   onChange={(e) => setNewRoomName(e.target.value)}
                   placeholder={`Arena de @${user?.username || 'alumno'}`}
                   maxLength={30}
-                  className="w-full px-3 py-2 rounded-xl bg-black border border-white/10 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-surface-raised border border-border text-base sm:text-xs text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-border-focus"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs text-zinc-400 font-medium">
+              <div className="space-y-1.5">
+                <label className="text-xs text-foreground-muted font-medium">
                   Apuesta de Entrada (Fichas)
                 </label>
                 <div className="grid grid-cols-4 gap-2 mb-2">
@@ -333,10 +337,10 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
                       type="button"
                       key={amount}
                       onClick={() => setNewBetAmount(amount)}
-                      className={`py-1.5 rounded-xl text-xs font-mono font-semibold border transition-all cursor-pointer ${
+                      className={`min-h-[42px] py-1.5 rounded-xl text-xs font-mono font-semibold border transition-all cursor-pointer active:scale-95 touch-manipulation ${
                         newBetAmount === amount
-                          ? 'bg-amber-400 text-black border-amber-400'
-                          : 'bg-white/[0.04] text-zinc-300 border-white/10 hover:bg-white/10'
+                          ? 'bg-foreground text-background font-bold border-foreground shadow-xs'
+                          : 'bg-surface-raised text-foreground-muted border-border hover:text-foreground'
                       }`}
                     >
                       {amount}
@@ -349,12 +353,12 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
                   max={Math.min(user?.coins ?? 500, 500)}
                   value={newBetAmount}
                   onChange={(e) => setNewBetAmount(Math.min(500, parseInt(e.target.value, 10) || 25))}
-                  className="w-full px-3 py-2 rounded-xl bg-black border border-white/10 text-xs text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400"
+                  className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-surface-raised border border-border text-base sm:text-xs text-amber-500 font-mono font-bold focus:outline-none focus:border-border-focus"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs text-zinc-400 font-medium">
+              <div className="space-y-1.5">
+                <label className="text-xs text-foreground-muted font-medium">
                   Número Máximo de Jugadores (2 a 6)
                 </label>
                 <div className="grid grid-cols-5 gap-2">
@@ -363,10 +367,10 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
                       type="button"
                       key={num}
                       onClick={() => setNewMaxPlayers(num)}
-                      className={`py-1.5 rounded-xl text-xs font-mono font-semibold border transition-all cursor-pointer ${
+                      className={`min-h-[42px] py-1.5 rounded-xl text-xs font-mono font-semibold border transition-all cursor-pointer active:scale-95 touch-manipulation ${
                         newMaxPlayers === num
-                          ? 'bg-white text-black border-white'
-                          : 'bg-white/[0.04] text-zinc-300 border-white/10 hover:bg-white/10'
+                          ? 'bg-foreground text-background font-bold border-foreground shadow-xs'
+                          : 'bg-surface-raised text-foreground-muted border-border hover:text-foreground'
                       }`}
                     >
                       {num}
@@ -375,20 +379,13 @@ export const RussianRouletteLobby: React.FC<RussianRouletteLobbyProps> = ({
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 text-xs"
-                >
-                  Volver
-                </button>
+              <div className="pt-2">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs shadow-md transition-all active:scale-95"
+                  className="w-full min-h-[48px] py-3 rounded-xl bg-foreground text-background font-bold text-xs uppercase tracking-wider transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50 touch-manipulation shadow-md"
                 >
-                  {isSubmitting ? 'Creando...' : `Confirmar y Pagar ${newBetAmount} Fichas`}
+                  {isSubmitting ? 'Creando sala...' : 'Crear Sala y Entrar'}
                 </button>
               </div>
             </form>

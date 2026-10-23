@@ -45,28 +45,28 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
   const topStudents = leaderboard.slice(0, 3);
 
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-3.5">
       {/* Widget 1: Aula en Vivo */}
-      <Card className="space-y-3">
+      <Card className="rounded-2xl border-border/70 p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span
               className={`w-2 h-2 rounded-full ${
                 liveStatus.status === 'in_class'
-                  ? 'bg-success'
+                  ? 'bg-success animate-pulse'
                   : liveStatus.status === 'recreo'
-                  ? 'bg-accent'
+                  ? 'bg-accent animate-pulse'
                   : 'bg-foreground-subtle'
               }`}
             />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-muted font-mono">
-              Horario actual
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
+              Horario en directo
             </h3>
           </div>
           <span className="text-[11px] font-mono text-foreground-subtle">Aula 204</span>
         </div>
 
-        <div className="p-2.5 rounded-[var(--radius)] bg-surface-raised border border-border space-y-1">
+        <div className="p-3 rounded-xl bg-surface-raised border border-border/60 space-y-1">
           <div className="text-xs font-semibold text-foreground">
             {liveStatus.currentSubject?.name ||
               (liveStatus.status === 'recreo' ? 'Recreo' : 'Fuera de horario lectivo')}
@@ -80,7 +80,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
         <Button
           variant="secondary"
           size="sm"
-          className="w-full justify-between"
+          className="w-full justify-between rounded-xl"
           onClick={onOpenSchedule}
         >
           <span className="flex items-center gap-1.5">
@@ -91,10 +91,10 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
         </Button>
       </Card>
 
-      {/* Widget 2: Próximas Entregas (Solo datos reales de Supabase) */}
-      <Card className="space-y-3">
+      {/* Widget 2: Próximas Entregas */}
+      <Card className="rounded-2xl border-border/70 p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-muted font-mono flex items-center gap-1.5">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted flex items-center gap-1.5">
             <AlertCircle className="w-3.5 h-3.5 text-accent" />
             <span>Próximas entregas</span>
           </h3>
@@ -109,7 +109,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
               <div
                 key={ev.id}
                 onClick={onOpenSchedule}
-                className="p-2 rounded-[var(--radius)] bg-surface-raised border border-border-subtle hover:border-border transition-colors cursor-pointer space-y-0.5"
+                className="p-2.5 rounded-xl bg-surface-raised border border-border/50 hover:border-border transition-colors cursor-pointer space-y-0.5"
               >
                 <div className="flex items-center justify-between text-[11px] font-mono">
                   <span className="font-semibold text-accent">{ev.subject}</span>
@@ -120,15 +120,15 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
             ))}
           </div>
         ) : (
-          <p className="text-xs text-foreground-subtle font-mono text-center py-2">
-            Sin entregas registradas
+          <p className="text-xs text-foreground-subtle text-center py-2">
+            Sin entregas pendientes
           </p>
         )}
 
         <Button
           variant="secondary"
           size="sm"
-          className="w-full justify-between"
+          className="w-full justify-between rounded-xl"
           onClick={onOpenSchedule}
         >
           <span>Abrir agenda</span>
@@ -136,29 +136,29 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
         </Button>
       </Card>
 
-      {/* Widget 3: Clasificación (Solo perfiles reales de Supabase) */}
-      <Card className="space-y-3">
+      {/* Widget 3: Clasificación */}
+      <Card className="rounded-2xl border-border/70 p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-muted font-mono flex items-center gap-1.5">
-            <Trophy className="w-3.5 h-3.5 text-accent" />
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted flex items-center gap-1.5">
+            <Trophy className="w-3.5 h-3.5 text-amber-500" />
             <span>Clasificación</span>
           </h3>
           <button
             type="button"
             onClick={onOpenFaucet}
-            className="text-[11px] font-mono text-accent hover:underline flex items-center gap-1 cursor-pointer"
+            className="text-[11px] text-accent hover:underline flex items-center gap-1 cursor-pointer"
           >
-            <Coins className="w-3 h-3" />
+            <Coins className="w-3 h-3 text-amber-500" />
             <span>Fondo diario</span>
           </button>
         </div>
 
         {topStudents.length > 0 ? (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {topStudents.map((st, i) => (
               <div
                 key={st.id}
-                className="flex items-center justify-between p-2 rounded-[var(--radius)] bg-surface-raised border border-border-subtle text-xs"
+                className="flex items-center justify-between p-2 rounded-xl bg-surface-raised border border-border/50 text-xs"
               >
                 <div className="flex items-center gap-2">
                   <span className="w-4 text-center font-mono text-foreground-subtle text-[11px]">
@@ -166,22 +166,22 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
                   </span>
                   <span className="font-mono text-foreground">@{st.username}</span>
                 </div>
-                <span className="font-mono text-accent font-medium">
+                <span className="font-mono text-foreground font-semibold">
                   {st.coins.toLocaleString('es-ES')}
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-foreground-subtle font-mono text-center py-2">
-            Sin datos de clasificación
+          <p className="text-xs text-foreground-subtle text-center py-2">
+            Sin datos en el ranking
           </p>
         )}
 
         <Button
           variant="secondary"
           size="sm"
-          className="w-full justify-between"
+          className="w-full justify-between rounded-xl"
           onClick={onOpenLeaderboard}
         >
           <span>Ver ranking completo</span>

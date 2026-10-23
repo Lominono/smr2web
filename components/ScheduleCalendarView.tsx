@@ -152,29 +152,29 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   return (
     <div className="space-y-4">
       {/* 1. Header & Tab Switcher */}
-      <Card className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
+      <Card className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl border-border/70">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-foreground">
-              Horario lectivo y tareas
+            <h2 className="text-sm font-semibold text-foreground tracking-tight">
+              Horario lectivo y entregas
             </h2>
             <Badge variant="default" size="sm">
               Aula 204
             </Badge>
           </div>
-          <p className="text-xs text-foreground-muted mt-0.5 font-mono">
+          <p className="text-xs text-foreground-muted mt-0.5">
             {liveStatus.message}
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="inline-flex p-1 rounded-[var(--radius)] bg-surface-raised border border-border">
+          <div className="inline-flex p-1 rounded-full bg-surface-raised border border-border/60">
             <button
               type="button"
               onClick={() => setActiveSubTab('grid')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-sm)] text-xs font-medium transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
                 activeSubTab === 'grid'
-                  ? 'bg-foreground text-background font-semibold'
+                  ? 'bg-foreground text-background font-semibold shadow-xs'
                   : 'text-foreground-muted hover:text-foreground'
               }`}
             >
@@ -185,9 +185,9 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
             <button
               type="button"
               onClick={() => setActiveSubTab('agenda')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-sm)] text-xs font-medium transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
                 activeSubTab === 'agenda'
-                  ? 'bg-foreground text-background font-semibold'
+                  ? 'bg-foreground text-background font-semibold shadow-xs'
                   : 'text-foreground-muted hover:text-foreground'
               }`}
             >
@@ -200,6 +200,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
             variant="secondary"
             size="sm"
             onClick={() => setIsTaskAdminOpen(true)}
+            className="rounded-xl"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-accent" />
             <span>Delegado</span>
@@ -215,7 +216,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
             <button
               type="button"
               onClick={() => setSelectedSubject(null)}
-              className={`px-2.5 py-1 rounded-[var(--radius-sm)] text-xs font-mono transition-colors shrink-0 cursor-pointer border ${
+              className={`px-3 py-1 rounded-full text-xs font-mono transition-all shrink-0 cursor-pointer border ${
                 selectedSubject === null
                   ? 'bg-foreground text-background font-semibold border-foreground'
                   : 'bg-surface text-foreground-muted border-border hover:text-foreground'
@@ -345,8 +346,8 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
           </div>
 
           {/* Mobile Fast View */}
-          <div className="md:hidden space-y-2">
-            <div className="flex items-center gap-1 p-1 rounded-[var(--radius)] bg-surface border border-border">
+          <div className="md:hidden space-y-3">
+            <div className="flex items-center gap-1.5 p-1.5 rounded-[var(--radius)] bg-surface border border-border">
               {DAYS.map((d) => {
                 const isSelected = mobileDay === d.key;
                 return (
@@ -354,9 +355,9 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                     key={d.key}
                     type="button"
                     onClick={() => setMobileDay(d.key)}
-                    className={`flex-1 py-1 text-xs font-mono font-medium text-center rounded-[var(--radius-sm)] transition-colors ${
+                    className={`flex-1 min-h-[44px] text-xs font-mono font-medium text-center rounded-[var(--radius-sm)] transition-all flex items-center justify-center active:scale-95 touch-manipulation cursor-pointer ${
                       isSelected
-                        ? 'bg-foreground text-background font-semibold'
+                        ? 'bg-foreground text-background font-semibold shadow-xs'
                         : 'text-foreground-muted hover:text-foreground'
                     }`}
                   >
@@ -369,13 +370,13 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
             {(mobileDay === 'all' ? DAYS : DAYS.filter((d) => d.key === mobileDay)).map((day) => (
               <div
                 key={day.key}
-                className="rounded-[var(--radius-lg)] border border-border bg-surface overflow-hidden"
+                className="rounded-[var(--radius-lg)] border border-border bg-surface overflow-hidden shadow-xs"
               >
-                <div className="px-3 py-2 bg-surface-raised border-b border-border flex items-center justify-between text-xs font-mono">
+                <div className="px-4 py-2.5 bg-surface-raised border-b border-border flex items-center justify-between text-xs font-mono">
                   <span className="font-semibold text-foreground">{day.label}</span>
                 </div>
 
-                <div className="p-2 space-y-1">
+                <div className="p-2.5 space-y-1.5">
                   {TIME_SLOTS.map((slot, slotIdx) => {
                     const subjectCode = SCHEDULE_GRID[day.key][slotIdx];
                     const subject = SMR2_SUBJECTS[subjectCode];
@@ -384,7 +385,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                       return (
                         <div
                           key={slot.index}
-                          className="p-2 rounded-[var(--radius-sm)] bg-surface-raised/40 border border-border text-center text-xs font-mono text-foreground-subtle"
+                          className="min-h-[40px] p-2.5 rounded-[var(--radius-sm)] bg-surface-raised/40 border border-border text-center text-xs font-mono text-foreground-subtle flex items-center justify-center"
                         >
                           Recreo (10:55 — 11:25)
                         </div>
@@ -395,13 +396,13 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                       <div
                         key={slot.index}
                         onClick={() => subject && setInspectedSubject(subject)}
-                        className="p-2 rounded-[var(--radius-sm)] bg-surface-raised border border-border flex items-center justify-between text-xs cursor-pointer hover:border-zinc-700"
+                        className="min-h-[44px] p-2.5 rounded-[var(--radius-sm)] bg-surface-raised hover:bg-surface-hover border border-border flex items-center justify-between text-xs cursor-pointer active:scale-[0.99] transition-all touch-manipulation"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-mono text-foreground-subtle w-14">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-[11px] font-mono text-foreground-subtle w-14 shrink-0">
                             {slot.label.split('—')[0].trim()}
                           </span>
-                          <span className="font-semibold text-foreground">
+                          <span className="font-semibold text-foreground truncate">
                             {subjectCode} · {subject?.name}
                           </span>
                         </div>
@@ -419,7 +420,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
       {activeSubTab === 'agenda' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-1 text-xs">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5 text-xs">
               {(
                 [
                   { id: 'all', label: 'Todas' },
@@ -432,9 +433,9 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                   key={f.id}
                   type="button"
                   onClick={() => setTaskFilter(f.id)}
-                  className={`px-2.5 py-1 rounded-[var(--radius-sm)] text-xs font-mono transition-colors cursor-pointer border ${
+                  className={`min-h-[44px] sm:min-h-0 px-3 py-1.5 sm:py-1 rounded-[var(--radius-sm)] text-xs font-mono transition-all cursor-pointer border active:scale-95 touch-manipulation shrink-0 ${
                     taskFilter === f.id
-                      ? 'bg-foreground text-background font-semibold border-foreground'
+                      ? 'bg-foreground text-background font-semibold border-foreground shadow-xs'
                       : 'bg-surface text-foreground-muted border-border hover:text-foreground'
                   }`}
                 >
@@ -461,7 +462,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
             <EmptyState
               icon={<CalendarIcon className="w-8 h-8 opacity-40" />}
               title="Aún no hay entregas ni exámenes programados"
-              description="Las tareas añadidas por el delegado o alumnos aparecerán aquí sincronizadas con Supabase."
+              description="Las tareas y exámenes añadidos por el delegado o los profesores aparecerán aquí."
             />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -544,9 +545,10 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               <button
                 type="button"
                 onClick={() => setInspectedSubject(null)}
-                className="text-foreground-subtle hover:text-foreground p-1 cursor-pointer"
+                aria-label="Cerrar modal"
+                className="w-10 h-10 rounded-[var(--radius-sm)] text-foreground-subtle hover:text-foreground flex items-center justify-center cursor-pointer active:scale-95 touch-manipulation"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 

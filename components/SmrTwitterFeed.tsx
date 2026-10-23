@@ -201,11 +201,11 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   const charCount = inputText.length;
 
   return (
-    <div className="w-full flex flex-col border-x border-border min-h-[calc(100vh-3.5rem)] bg-background">
+    <div className="w-full flex flex-col sm:rounded-2xl border-y sm:border border-border/70 min-h-[calc(100dvh-5rem)] bg-surface shadow-xs overflow-hidden">
       {/* Header and Filter Tabs */}
-      <div className="sticky top-14 z-20 bg-background/95 backdrop-blur-xs border-b border-border">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
+      <div className="sticky top-14 z-20 bg-surface/90 backdrop-blur-xl border-b border-border/70">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3">
+          <div className="flex items-center gap-2.5">
             <h2 className="text-sm font-semibold text-foreground tracking-tight">
               Feed de clase
             </h2>
@@ -213,32 +213,37 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
               {messages.length}
             </Badge>
           </div>
+          <span className="text-[11px] text-foreground-subtle hidden sm:inline">
+            Avisos, dudas y novedades de 2º SMR
+          </span>
         </div>
 
-        {/* Tab row */}
-        <div className="flex items-center border-t border-border px-2">
-          {FEED_TAGS.map((tab) => {
-            const isActive = activeFeedTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveFeedTab(tab.id)}
-                className={`flex-1 py-2 text-xs font-medium text-center border-b-2 transition-colors cursor-pointer select-none ${
-                  isActive
-                    ? 'border-foreground text-foreground font-semibold'
-                    : 'border-transparent text-foreground-subtle hover:text-foreground'
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* Tab row - Apple Segmented Style */}
+        <div className="px-3 sm:px-5 pb-2.5">
+          <div className="flex items-center p-1 rounded-xl bg-surface-raised border border-border/60">
+            {FEED_TAGS.map((tab) => {
+              const isActive = activeFeedTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveFeedTab(tab.id)}
+                  className={`flex-1 py-1.5 text-xs font-medium text-center rounded-lg transition-all cursor-pointer select-none active:scale-95 touch-manipulation ${
+                    isActive
+                      ? 'bg-foreground text-background font-semibold shadow-xs'
+                      : 'text-foreground-muted hover:text-foreground'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Composer Box */}
-      <div className="p-4 border-b border-border bg-surface">
+      <div className="p-4 sm:p-5 border-b border-border/70 bg-surface-raised/40">
         <div className="space-y-3">
           <textarea
             ref={textareaRef}
@@ -251,8 +256,8 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             }}
             placeholder={
               currentUser
-                ? `Escribe una publicación o consulta, @${currentUser.username}...`
-                : 'Inicia sesión para publicar en el feed...'
+                ? `Escribe un aviso o consulta para el grupo, @${currentUser.username}...`
+                : 'Inicia sesión para compartir con la clase...'
             }
             rows={2}
             maxLength={280}
@@ -260,7 +265,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
           />
 
           {/* Tag selector chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 pt-0.5">
             {['General', 'AvisoAula', 'Examen', 'DudaSMR', 'Recreo'].map((tag) => {
               const isSelected = selectedTag === tag;
               return (
@@ -268,10 +273,10 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                   key={tag}
                   type="button"
                   onClick={() => setSelectedTag(tag)}
-                  className={`px-2 py-0.5 rounded-[var(--radius-sm)] text-[11px] font-mono transition-colors cursor-pointer border ${
+                  className={`px-3 py-1 rounded-full text-xs font-mono transition-all cursor-pointer border active:scale-95 touch-manipulation shrink-0 ${
                     isSelected
                       ? 'bg-foreground text-background font-semibold border-foreground'
-                      : 'bg-surface-raised text-foreground-muted border-border hover:text-foreground'
+                      : 'bg-surface text-foreground-muted border-border/80 hover:text-foreground hover:border-foreground/30'
                   }`}
                 >
                   #{tag}
@@ -280,9 +285,9 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             })}
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-border">
-            <span className="text-[11px] font-mono text-foreground-subtle">
-              {280 - charCount} caracteres restantes
+          <div className="flex items-center justify-between pt-2.5 border-t border-border/60">
+            <span className="text-xs font-mono text-foreground-subtle">
+              {280 - charCount} caracteres
             </span>
 
             <Button
@@ -291,6 +296,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
               onClick={() => handlePublish()}
               disabled={!inputText.trim() || isPosting || charCount > 280}
               isLoading={isPosting}
+              className="rounded-full px-4"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Publicar</span>
@@ -300,13 +306,13 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
       </div>
 
       {/* Posts Stream */}
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border/60">
         {filteredMessages.length === 0 ? (
-          <div className="p-10">
+          <div className="p-12">
             <EmptyState
               icon={<MessageSquare className="w-8 h-8 opacity-40" />}
               title="Aún no hay publicaciones"
-              description="Sé el primero en compartir un aviso sobre prácticas, exámenes o el recreo."
+              description="Sé el primero en compartir un aviso sobre prácticas, exámenes o el horario de clase."
             />
           </div>
         ) : (
@@ -316,7 +322,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             // System victory message
             if (msg.is_system_win) {
               return (
-                <article key={msg.id} className="p-4 bg-surface/30">
+                <article key={msg.id} className="p-4 sm:p-5 bg-surface-raised/20 hover:bg-surface-raised/40 transition-colors">
                   <div className="flex items-start justify-between gap-3 text-xs">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -343,10 +349,14 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             }
 
             return (
-              <article key={msg.id} className="p-4 hover:bg-surface-raised/40 transition-colors">
-                <div className="space-y-2">
+              <article key={msg.id} className="p-4 sm:p-5 hover:bg-surface-raised/30 transition-colors">
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <div className="w-7 h-7 rounded-full bg-surface-raised border border-border/70 flex items-center justify-center font-mono font-medium text-xs text-foreground uppercase shrink-0">
+                        {msg.username.charAt(0)}
+                      </div>
+
                       <span className="font-semibold text-xs text-foreground font-mono">
                         @{msg.username}
                       </span>
@@ -363,24 +373,26 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {!isMe && currentUser && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        <button
+                          type="button"
                           onClick={() => handleTip(msg.id, msg.username)}
                           title={`Enviar 50 fichas a @${msg.username}`}
+                          aria-label={`Enviar 50 fichas a @${msg.username}`}
+                          className="h-8 px-2.5 rounded-lg bg-surface-raised hover:bg-surface-hover text-foreground flex items-center gap-1.5 text-xs font-mono font-medium border border-border/70 active:scale-95 transition-all touch-manipulation cursor-pointer"
                         >
-                          <Coins className="w-3 h-3 text-accent" />
+                          <Coins className="w-3.5 h-3.5 text-amber-500" />
                           <span>{tipSuccessId === msg.id ? 'Enviado' : '50'}</span>
-                        </Button>
+                        </button>
                       )}
 
                       <button
                         type="button"
                         onClick={() => handleShare(msg)}
                         title="Copiar texto"
-                        className="p-1.5 rounded-[var(--radius-sm)] text-foreground-subtle hover:text-foreground hover:bg-surface-raised cursor-pointer"
+                        aria-label="Copiar texto del tweet"
+                        className="w-8 h-8 rounded-lg text-foreground-subtle hover:text-foreground hover:bg-surface-raised flex items-center justify-center cursor-pointer active:scale-95 transition-all touch-manipulation border border-border/70"
                       >
                         {copiedId === msg.id ? (
                           <Check className="w-3.5 h-3.5 text-success" />
@@ -391,7 +403,9 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                     </div>
                   </div>
 
-                  {renderFormattedText(msg.text)}
+                  <div className="break-words [overflow-wrap:anywhere] pl-9.5">
+                    {renderFormattedText(msg.text)}
+                  </div>
                 </div>
               </article>
             );

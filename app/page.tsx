@@ -582,14 +582,16 @@ export default function Home() {
   // Loading splash screen
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-3">
-          <img
-            src="/logo.png"
-            alt="SMR2 Logo"
-            className="w-12 h-12 object-contain"
-          />
-          <span className="text-sm font-semibold tracking-tight text-foreground font-mono">
+      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3.5 animate-in fade-in duration-300">
+          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-black ring-1 ring-border/80 shadow-md flex items-center justify-center">
+            <img
+              src="/logo.png"
+              alt="SMR2 Logo"
+              className="w-full h-full object-cover scale-[1.04]"
+            />
+          </div>
+          <span className="text-xs font-semibold tracking-wider uppercase text-foreground-muted font-mono">
             SMR2
           </span>
         </div>
@@ -614,7 +616,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen relative flex flex-col bg-background text-foreground selection:bg-accent selection:text-accent-foreground overflow-x-hidden">
-      {/* 1. Top Navbar with Hamburger Menu Button */}
+      {/* 1. Top Navbar */}
       <AppleNavbar
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
@@ -633,15 +635,10 @@ export default function Home() {
 
       {/* 2. Main Workspace Layout */}
       <main className="relative z-10 flex-1 w-full pb-24 lg:pb-12">
-        {/* Community Minecraft Project (dismissible) */}
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 pt-3">
-          <MinecraftBanner />
-        </div>
-
         {/* VIEW 1: TWITTER FEED (Hero Experience) */}
         {activeView === 'feed' ? (
-          <div className="max-w-7xl mx-auto w-full px-0 sm:px-4 lg:px-6 pt-2">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-6 items-start">
+          <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 pt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* Left Sidebar Rail (Desktop) */}
               <div className="hidden lg:block lg:col-span-3">
                 <DesktopSidebar
@@ -662,7 +659,10 @@ export default function Home() {
               </div>
 
               {/* Center Feed Column (Twitter Timeline) */}
-              <div className="col-span-1 lg:col-span-6 w-full min-w-0">
+              <div className="col-span-1 lg:col-span-6 w-full min-w-0 space-y-3.5">
+                {/* Community Minecraft Project (Aligned with center column) */}
+                <MinecraftBanner />
+
                 <SmrTwitterFeed
                   messages={chatMessages}
                   currentUser={user}
@@ -690,36 +690,41 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          /* VIEW 2: HORARIO O JUEGOS CON BARRA "← VOLVER AL FEED" */
-          <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 pt-3 space-y-4">
-            {/* Sleek Top Banner to return to the Twitter Feed */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-[var(--radius)] bg-surface border border-border">
+          /* VIEW 2: HORARIO O JUEGOS */
+          <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 pt-4 space-y-4">
+            {/* Apple-style Top Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-3.5 rounded-2xl bg-surface border border-border/70 shadow-xs">
               <div className="flex items-center gap-3">
                 <Button
-                  variant="primary"
+                  variant="secondary"
                   size="sm"
                   onClick={() => {
                     setActiveView('feed');
                     sound.tap();
                   }}
-                  className="shrink-0"
+                  className="shrink-0 rounded-xl"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Volver al feed</span>
                 </Button>
 
-                <span className="text-xs font-mono font-medium text-foreground-muted hidden sm:inline">
-                  {activeView === 'calendar'
-                    ? 'Horario Lectivo & Tareas'
-                    : activeView === 'russian_roulette'
-                    ? 'Ruleta Rusa Multijugador'
-                    : 'Recreo Arcade'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground tracking-tight">
+                    {activeView === 'calendar'
+                      ? 'Horario lectivo y entregas'
+                      : activeView === 'russian_roulette'
+                      ? 'Ruleta Rusa'
+                      : 'Recreo Arcade'}
+                  </span>
+                  <span className="text-[11px] text-foreground-subtle hidden sm:inline">
+                    · 2º SMR
+                  </span>
+                </div>
               </div>
 
-              {/* Quick Game Switcher Bar */}
+              {/* Segmented Game Switcher Bar */}
               {activeView !== 'calendar' && (
-                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+                <div className="flex items-center p-1 rounded-full bg-surface-raised border border-border/60 overflow-x-auto scrollbar-none gap-0.5">
                   {[
                     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
                     { id: 'crash', label: 'Crash', icon: TrendingUp },
@@ -737,13 +742,13 @@ export default function Home() {
                           setActiveView(g.id as ViewMode);
                           sound.tap();
                         }}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-sm)] text-xs font-mono font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-95 touch-manipulation ${
                           isActive
-                            ? 'bg-accent text-accent-foreground font-semibold'
-                            : 'text-foreground-muted hover:text-foreground hover:bg-surface-raised'
+                            ? 'bg-foreground text-background font-semibold shadow-xs'
+                            : 'text-foreground-muted hover:text-foreground'
                         }`}
                       >
-                        <IconComponent className="w-3 h-3" />
+                        <IconComponent className="w-3.5 h-3.5" />
                         <span>{g.label}</span>
                       </button>
                     );
@@ -807,7 +812,7 @@ export default function Home() {
             sound.tap();
           }}
           aria-label="Publicar en el feed"
-          className="lg:hidden fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 w-12 h-12 rounded-[var(--radius)] bg-accent hover:bg-accent-hover text-accent-foreground flex items-center justify-center border border-border shadow-md cursor-pointer active:scale-95 transition-transform"
+          className="lg:hidden fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-30 w-13 h-13 min-w-[52px] min-h-[52px] rounded-full bg-accent hover:opacity-95 text-accent-foreground flex items-center justify-center border border-border shadow-lg cursor-pointer active:scale-95 transition-all touch-manipulation"
         >
           <PenSquare className="w-5 h-5" />
         </button>
@@ -883,25 +888,27 @@ export default function Home() {
       />
 
       {/* 7. Footer */}
-      <footer className="border-t border-border bg-surface py-4 mt-8 mb-16 lg:mb-0 text-center text-xs text-foreground-muted font-mono">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="SMR2" className="w-4 h-4 object-contain" />
-            <span>SMR2 · 2º Sistemas Microinformáticos y Redes</span>
+      <footer className="border-t border-border/70 bg-surface/80 py-5 mt-10 mb-16 lg:mb-0 text-center text-xs text-foreground-muted">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-5 h-5 rounded-md overflow-hidden bg-black ring-1 ring-border/70 flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="SMR2" className="w-full h-full object-cover scale-[1.04]" />
+            </div>
+            <span className="font-medium text-foreground tracking-tight">SMR2 · 2º Sistemas Microinformáticos y Redes</span>
           </div>
 
-          <div className="flex items-center gap-4 text-foreground-subtle">
+          <div className="flex items-center gap-4 text-foreground-subtle text-[11px]">
             <button
               type="button"
               onClick={() => {
                 setIsTermsOpen(true);
                 sound.tap();
               }}
-              className="hover:text-accent transition-colors cursor-pointer underline underline-offset-2"
+              className="hover:text-foreground transition-colors cursor-pointer"
             >
-              Normas, Cookies & Contacto legal
+              Normas, Cookies y Contacto
             </button>
-            <span>Curso 2024–2025</span>
+            <span>Curso lectivo</span>
           </div>
         </div>
       </footer>

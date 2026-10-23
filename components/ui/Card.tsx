@@ -10,19 +10,19 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ children, variant = 'default', interactive = false, className = '', ...props }, ref) => {
     const variantStyles = {
-      default: 'bg-surface border-border',
-      raised: 'bg-surface-raised border-border',
-      subtle: 'bg-surface-subtle border-border-subtle',
+      default: 'bg-surface border-border shadow-xs',
+      raised: 'bg-surface-raised border-border shadow-xs',
+      subtle: 'bg-surface-raised/60 border-border-subtle',
     }[variant];
 
     const interactiveStyles = interactive
-      ? 'hover:border-zinc-700 hover:bg-surface-raised cursor-pointer transition-colors active:scale-[0.99]'
+      ? 'hover:border-foreground/20 hover:bg-surface-raised cursor-pointer transition-all active:scale-[0.99] touch-manipulation'
       : '';
 
     return (
       <div
         ref={ref}
-        className={`border rounded-[var(--radius-lg)] p-4 ${variantStyles} ${interactiveStyles} ${className}`}
+        className={`border rounded-[var(--radius-lg)] p-4 sm:p-5 ${variantStyles} ${interactiveStyles} ${className}`}
         {...props}
       >
         {children}

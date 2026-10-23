@@ -29,11 +29,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || generatedId;
 
     return (
-      <div className="w-full space-y-1">
+      <div className="w-full space-y-1.5">
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-xs font-medium text-foreground-muted"
+            className="block text-xs font-medium text-foreground-muted select-none"
           >
             {label}
           </label>
@@ -41,7 +41,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 
         <div className="relative flex items-center">
           {leftIcon && (
-            <div className="absolute left-3 text-foreground-subtle pointer-events-none flex items-center justify-center">
+            <div className="absolute left-3.5 text-foreground-subtle pointer-events-none flex items-center justify-center">
               {leftIcon}
             </div>
           )}
@@ -50,9 +50,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             type={type}
-            className={`w-full h-10 px-3 bg-surface border rounded-[var(--radius)] text-sm text-foreground placeholder:text-foreground-subtle transition-colors focus:outline-none focus:border-border-focus focus:ring-1 focus:ring-border-focus disabled:opacity-40 disabled:cursor-not-allowed ${
-              leftIcon ? 'pl-9' : ''
-            } ${rightElement ? 'pr-10' : ''} ${
+            className={`w-full min-h-[44px] sm:min-h-[40px] px-3.5 bg-surface border rounded-[var(--radius)] text-base sm:text-sm text-foreground placeholder:text-foreground-subtle transition-colors focus:outline-none focus:border-border-focus focus:ring-1 focus:ring-border-focus disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation ${
+              leftIcon ? 'pl-10' : ''
+            } ${rightElement ? 'pr-11' : ''} ${
               error ? 'border-danger focus:border-danger focus:ring-danger' : 'border-border'
             } ${className}`}
             {...props}

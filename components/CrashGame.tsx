@@ -420,8 +420,8 @@ export const CrashGame: React.FC<CrashGameProps> = ({
       </div>
 
       {/* Auto Cashout Controls Bar */}
-      <div className="w-full flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-white/[0.06] text-xs font-mono">
-        <div className="flex items-center gap-2">
+      <div className="w-full flex flex-wrap items-center justify-between gap-2.5 mt-3 pt-3 border-t border-border text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={gameState === 'running'}
@@ -429,18 +429,18 @@ export const CrashGame: React.FC<CrashGameProps> = ({
               setAutoCashoutEnabled(!autoCashoutEnabled);
               sound.tap();
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono transition-all cursor-pointer ${
+            className={`min-h-[42px] flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-mono transition-all cursor-pointer active:scale-95 touch-manipulation ${
               autoCashoutEnabled
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold'
-                : 'bg-white/[0.02] text-zinc-400 border-white/[0.06] hover:text-white'
+                ? 'bg-amber-500/15 text-amber-500 border-amber-500/30 font-bold'
+                : 'bg-surface-raised text-foreground-muted border-border hover:text-foreground'
             }`}
           >
-            <Activity className="w-3.5 h-3.5 text-amber-400" />
-            <span>Auto-Cobro: {autoCashoutEnabled ? 'ON' : 'OFF'}</span>
+            <Activity className="w-4 h-4 text-amber-500" />
+            <span>Auto-Cobro: {autoCashoutEnabled ? 'ACTIVADO' : 'DESACTIVADO'}</span>
           </button>
 
           {autoCashoutEnabled && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
               {[1.5, 2.0, 3.0, 5.0].map((preset) => (
                 <button
                   key={preset}
@@ -450,10 +450,10 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                     setAutoCashoutMult(preset);
                     sound.tap();
                   }}
-                  className={`px-2 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                  className={`min-h-[42px] px-3 py-1 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer active:scale-95 touch-manipulation ${
                     autoCashoutMult === preset
-                      ? 'bg-white text-black font-bold'
-                      : 'text-zinc-400 hover:text-white bg-white/[0.04]'
+                      ? 'bg-foreground text-background font-bold shadow-xs'
+                      : 'text-foreground-muted hover:text-foreground bg-surface-raised border border-border'
                   }`}
                 >
                   {preset.toFixed(1)}x
@@ -463,21 +463,46 @@ export const CrashGame: React.FC<CrashGameProps> = ({
           )}
         </div>
 
-        <span className="text-[11px] text-zinc-500">
-          {autoCashoutEnabled ? `Cobro automático fijado en x${autoCashoutMult.toFixed(2)}` : 'Cobro manual'}
+        <span className="text-[11px] text-foreground-subtle">
+          {autoCashoutEnabled ? `Fijado en x${autoCashoutMult.toFixed(2)}` : 'Cobro manual activo'}
         </span>
       </div>
 
       {/* Cockpit Bet Console */}
       <div className="w-full flex flex-col sm:grid sm:grid-cols-12 gap-3 mt-3">
         {/* Quick Bet Buttons */}
-        <div className="sm:col-span-7 flex items-center justify-between gap-1.5 bg-black/50 p-2 rounded-2xl border border-white/[0.08] overflow-x-auto scrollbar-none shadow-inner">
-          <span className="text-xs font-mono text-zinc-400 pl-1.5 flex items-center gap-1.5 shrink-0 font-medium">
-            <Coins className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden xs:inline">Apuesta:</span>
-          </span>
+        <div className="sm:col-span-7 bg-surface-raised p-2.5 rounded-xl border border-border space-y-2">
+          <div className="flex items-center justify-between text-xs font-mono">
+            <span className="text-foreground-muted flex items-center gap-1.5 font-medium">
+              <Coins className="w-4 h-4 text-amber-500" />
+              <span>Apuesta:</span>
+            </span>
+            <span className="text-amber-500 font-bold">{bet.toLocaleString()} fichas</span>
+          </div>
 
-          <div className="flex items-center gap-1">
+          {/* Presets row */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+            {[10, 25, 50, 100, 250].map((amt) => (
+              <button
+                key={amt}
+                disabled={gameState === 'running'}
+                onClick={() => {
+                  setBet(amt);
+                  sound.tap();
+                }}
+                className={`flex-1 min-h-[42px] px-2.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation disabled:opacity-40 ${
+                  bet === amt
+                    ? 'bg-foreground text-background font-black shadow-xs'
+                    : 'text-foreground-muted hover:text-foreground bg-surface border border-border'
+                }`}
+              >
+                {amt}
+              </button>
+            ))}
+          </div>
+
+          {/* Modifiers row */}
+          <div className="grid grid-cols-3 gap-1 pt-1 border-t border-border-subtle">
             <button
               type="button"
               disabled={gameState === 'running'}
@@ -486,9 +511,9 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                 sound.tap();
               }}
               title="Dividir apuesta entre 2"
-              className="min-h-[40px] px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.08] hover:border-white/20 active:scale-95 cursor-pointer disabled:opacity-40"
+              className="min-h-[40px] px-2 py-1 rounded-lg text-xs font-mono font-bold text-foreground-muted hover:text-foreground bg-surface border border-border active:scale-95 touch-manipulation cursor-pointer disabled:opacity-40"
             >
-              ½
+              ½ Mitad
             </button>
             <button
               type="button"
@@ -498,27 +523,10 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                 sound.tap();
               }}
               title="Duplicar apuesta"
-              className="min-h-[40px] px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.08] hover:border-white/20 active:scale-95 cursor-pointer disabled:opacity-40"
+              className="min-h-[40px] px-2 py-1 rounded-lg text-xs font-mono font-bold text-foreground-muted hover:text-foreground bg-surface border border-border active:scale-95 touch-manipulation cursor-pointer disabled:opacity-40"
             >
-              2×
+              2× Doble
             </button>
-            {[10, 25, 50, 100, 250].map((amt) => (
-              <button
-                key={amt}
-                disabled={gameState === 'running'}
-                onClick={() => {
-                  setBet(amt);
-                  sound.tap();
-                }}
-                className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 disabled:opacity-40 ${
-                  bet === amt
-                    ? 'bg-white text-black shadow-md shadow-white/20 font-black'
-                    : 'text-zinc-400 hover:text-white bg-white/[0.03] border border-white/[0.06]'
-                }`}
-              >
-                {amt}
-              </button>
-            ))}
             <button
               type="button"
               disabled={gameState === 'running'}
@@ -526,10 +534,10 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                 setBet(Math.min(userCoins > 0 ? userCoins : 100, 500));
                 sound.tap();
               }}
-              className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-mono font-black transition-all cursor-pointer shrink-0 active:scale-95 disabled:opacity-40 ${
+              className={`min-h-[40px] px-2 py-1 rounded-lg text-xs font-mono font-black transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation disabled:opacity-40 ${
                 bet >= 500 || bet === userCoins
-                  ? 'bg-amber-400 text-black shadow-md shadow-amber-400/30'
-                  : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/25'
+                  ? 'bg-amber-500 text-black shadow-xs'
+                  : 'text-amber-500 bg-amber-500/10 border border-amber-500/25'
               }`}
             >
               MÁX
@@ -538,15 +546,15 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         </div>
 
         {/* Primary Action Button */}
-        <div className="sm:col-span-5">
+        <div className="sm:col-span-5 flex items-stretch">
           {gameState === 'running' ? (
             <button
               onClick={cashOut}
               disabled={hasCashedOut}
-              className={`w-full min-h-[52px] py-3.5 px-4 rounded-2xl font-mono text-sm font-black tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xl active:scale-[0.98] ${
+              className={`w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-black tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xl active:scale-[0.98] touch-manipulation ${
                 hasCashedOut
-                  ? 'bg-zinc-800 text-zinc-500 border border-white/[0.06] cursor-not-allowed'
-                  : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/30 ring-2 ring-emerald-400/50'
+                  ? 'bg-surface-raised text-foreground-subtle border border-border cursor-not-allowed'
+                  : 'bg-success hover:opacity-90 text-white shadow-success/30 ring-2 ring-success/40'
               }`}
             >
               <span>

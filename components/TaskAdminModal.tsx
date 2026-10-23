@@ -192,13 +192,13 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-in fade-in duration-150">
-      <div className="border border-border rounded-[var(--radius-lg)] w-full max-w-xl max-h-[90vh] bg-surface shadow-xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] animate-in fade-in duration-200">
+      <div className="border border-border rounded-t-[20px] sm:rounded-[var(--radius-lg)] w-full max-w-xl max-h-[92dvh] bg-surface shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-surface-raised">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <ShieldCheck className="w-4 h-4 text-accent" />
-            <h3 className="text-xs font-semibold text-foreground">
+            <h3 className="text-sm font-semibold text-foreground">
               Gestión de tareas de clase
             </h3>
           </div>
@@ -206,9 +206,9 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
           <button
             onClick={onClose}
             aria-label="Cerrar modal"
-            className="p-1 rounded-[var(--radius-sm)] text-foreground-muted hover:text-foreground hover:bg-surface cursor-pointer"
+            className="w-11 h-11 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface flex items-center justify-center cursor-pointer active:scale-95 touch-manipulation"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -265,21 +265,21 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveTab('create')}
-                  className={`px-3 py-1 rounded-[var(--radius-sm)] text-xs font-medium transition-colors cursor-pointer ${
+                  className={`min-h-[44px] px-3.5 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-all cursor-pointer active:scale-95 touch-manipulation flex items-center gap-1.5 ${
                     activeTab === 'create'
-                      ? 'bg-foreground text-background font-semibold'
+                      ? 'bg-foreground text-background font-semibold shadow-xs'
                       : 'text-foreground-muted hover:text-foreground'
                   }`}
                 >
-                  <Plus className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+                  <Plus className="w-3.5 h-3.5" />
                   <span>Nueva tarea</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('list')}
-                  className={`px-3 py-1 rounded-[var(--radius-sm)] text-xs font-medium transition-colors cursor-pointer ${
+                  className={`min-h-[44px] px-3.5 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-all cursor-pointer active:scale-95 touch-manipulation flex items-center ${
                     activeTab === 'list'
-                      ? 'bg-foreground text-background font-semibold'
+                      ? 'bg-foreground text-background font-semibold shadow-xs'
                       : 'text-foreground-muted hover:text-foreground'
                   }`}
                 >
@@ -293,13 +293,13 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
             </div>
 
             {activeTab === 'create' ? (
-              <form onSubmit={handleCreateTask} className="p-4 space-y-3">
+              <form onSubmit={handleCreateTask} className="p-4 space-y-3.5">
                 {/* Module selection */}
                 <div>
-                  <label className="block text-xs font-medium text-foreground-muted mb-1">
+                  <label className="block text-xs font-medium text-foreground-muted mb-1.5">
                     Módulo
                   </label>
-                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1">
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
                     {Object.keys(SMR2_SUBJECTS).map((code) => {
                       if (code === 'RECREO') return null;
                       const isSelected = subject === code;
@@ -308,9 +308,9 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
                           key={code}
                           type="button"
                           onClick={() => setSubject(code)}
-                          className={`py-1.5 text-center rounded-[var(--radius-sm)] border text-xs font-mono transition-colors cursor-pointer ${
+                          className={`min-h-[42px] py-1.5 text-center rounded-[var(--radius-sm)] border text-xs font-mono transition-all cursor-pointer active:scale-95 touch-manipulation ${
                             isSelected
-                              ? 'bg-foreground text-background font-bold border-foreground'
+                              ? 'bg-foreground text-background font-bold border-foreground shadow-xs'
                               : 'bg-surface-raised border-border text-foreground-muted hover:text-foreground'
                           }`}
                         >
@@ -337,7 +337,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
                     <select
                       value={eventType}
                       onChange={(e) => setEventType(e.target.value as any)}
-                      className="w-full h-10 px-3 bg-surface border border-border rounded-[var(--radius)] text-xs font-mono text-foreground focus:outline-none focus:border-border-focus"
+                      className="w-full min-h-[44px] px-3.5 bg-surface border border-border rounded-[var(--radius)] text-base sm:text-xs font-mono text-foreground focus:outline-none focus:border-border-focus"
                     >
                       <option value="homework">Entrega / Práctica</option>
                       <option value="exam">Examen</option>

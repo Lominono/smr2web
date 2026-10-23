@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { X } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { AuthForm } from '@/components/AuthForm';
@@ -19,22 +20,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-in fade-in duration-150">
-      <div className="border border-border rounded-[var(--radius-lg)] w-full max-w-sm bg-surface shadow-md overflow-hidden flex flex-col">
-        <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-surface-raised">
-          <h2 className="text-xs font-semibold text-foreground">
-            Acceso a la cuenta
-          </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="border border-border/80 rounded-2xl w-full max-w-sm bg-surface shadow-2xl overflow-hidden flex flex-col">
+        <div className="px-5 py-3.5 border-b border-border/70 flex items-center justify-between bg-surface-raised/50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-md overflow-hidden bg-black ring-1 ring-border/70 flex items-center justify-center shrink-0">
+              <Image
+                src="/logo.png"
+                alt="SMR2 Logo"
+                width={24}
+                height={24}
+                className="w-full h-full object-cover scale-[1.04]"
+              />
+            </div>
+            <h2 className="text-xs font-semibold text-foreground tracking-tight">
+              Acceso al portal
+            </h2>
+          </div>
           <button
             onClick={onClose}
             aria-label="Cerrar modal"
-            className="p-1 rounded-[var(--radius-sm)] text-foreground-muted hover:text-foreground hover:bg-surface-hover cursor-pointer"
+            className="w-8 h-8 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-hover flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-5">
           <AuthForm
             isModal
             onSuccess={(user) => {

@@ -1047,7 +1047,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
           </div>
 
           {/* Level Switcher */}
-          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/[0.06]">
+          <div className="flex items-center gap-1 bg-surface-raised p-1 rounded-xl border border-border">
             {[1, 2, 3].map((lvl) => (
               <button
                 key={lvl}
@@ -1058,10 +1058,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                   resetLevel(lvl);
                   sound.tap();
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+                className={`min-h-[40px] px-3 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer active:scale-95 touch-manipulation ${
                   currentLevel === lvl
-                    ? 'bg-white text-black font-bold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-foreground text-background font-bold shadow-xs'
+                    : 'text-foreground-muted hover:text-foreground'
                 }`}
               >
                 Nivel {lvl}
@@ -1075,16 +1075,17 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               sound.tap();
             }}
             title="Reiniciar torre"
-            className="p-1.5 rounded-xl text-zinc-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] transition-all cursor-pointer ml-auto sm:ml-2 active:scale-95"
+            aria-label="Reiniciar torre"
+            className="w-11 h-11 rounded-xl text-foreground-muted hover:text-foreground bg-surface-raised border border-border transition-all cursor-pointer ml-auto sm:ml-2 active:scale-95 touch-manipulation flex items-center justify-center"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-4 h-4" />
           </button>
         </div>
 
         {/* Bet Switcher */}
-        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1 bg-black/50 p-2 rounded-2xl border border-white/[0.08] overflow-x-auto scrollbar-none shadow-inner">
-          <span className="text-xs font-mono text-zinc-400 px-1.5 flex items-center gap-1.5 shrink-0 font-medium">
-            <Coins className="w-3.5 h-3.5 text-amber-400" />
+        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1.5 bg-surface-raised p-2 rounded-xl border border-border overflow-x-auto scrollbar-none shadow-xs">
+          <span className="text-xs font-mono text-foreground-muted px-1.5 flex items-center gap-1.5 shrink-0 font-medium">
+            <Coins className="w-4 h-4 text-amber-500" />
             <span className="hidden xs:inline">Apuesta:</span>
           </span>
           <div className="flex items-center gap-1">
@@ -1095,7 +1096,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                 setBet((prev) => Math.max(10, Math.floor(prev / 2)));
                 sound.tap();
               }}
-              className="min-h-[36px] px-2 py-1 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.06] active:scale-95 cursor-pointer"
+              className="min-h-[40px] px-2.5 py-1 rounded-lg text-xs font-mono font-bold text-foreground-muted hover:text-foreground bg-surface border border-border active:scale-95 touch-manipulation cursor-pointer"
             >
               ½
             </button>
@@ -1106,7 +1107,7 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                 setBet((prev) => Math.min(Math.min(userCoins, 500), prev * 2));
                 sound.tap();
               }}
-              className="min-h-[36px] px-2 py-1 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.06] active:scale-95 cursor-pointer"
+              className="min-h-[40px] px-2.5 py-1 rounded-lg text-xs font-mono font-bold text-foreground-muted hover:text-foreground bg-surface border border-border active:scale-95 touch-manipulation cursor-pointer"
             >
               2×
             </button>
@@ -1118,10 +1119,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                   setBet(amount);
                   sound.tap();
                 }}
-                className={`min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer shrink-0 active:scale-95 ${
+                className={`min-h-[40px] px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation ${
                   bet === amount
-                    ? 'bg-zinc-200 text-black font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.04]'
+                    ? 'bg-foreground text-background font-black shadow-xs'
+                    : 'text-foreground-muted hover:text-foreground bg-surface border border-border'
                 }`}
               >
                 {amount}
@@ -1134,10 +1135,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
                 setBet(Math.min(userCoins > 0 ? userCoins : 100, 500));
                 sound.tap();
               }}
-              className={`min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 ${
+              className={`min-h-[40px] px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation ${
                 bet >= 500 || bet === userCoins
-                  ? 'bg-amber-400 text-black shadow-sm'
-                  : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/20'
+                  ? 'bg-amber-500 text-black shadow-xs'
+                  : 'text-amber-500 bg-amber-500/10 border border-amber-500/20'
               }`}
             >
               MÁX
@@ -1148,8 +1149,8 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
 
       {/* Cable Selector Bar */}
       <div className="w-full flex items-center justify-between gap-2 mb-3 px-1">
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none w-full sm:w-auto">
-          <span className="text-[11px] font-mono text-zinc-500 shrink-0 mr-1">Proyectil:</span>
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none w-full sm:w-auto py-0.5">
+          <span className="text-xs font-mono text-foreground-subtle shrink-0 mr-1">Proyectil:</span>
           
           <button
             type="button"
@@ -1158,13 +1159,13 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               setCableType('rj45');
               sound.tap();
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer shrink-0 ${
+            className={`min-h-[42px] flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation ${
               cableType === 'rj45'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
-                : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.05]'
+                ? 'bg-success-subtle text-success border border-success/40 font-bold'
+                : 'text-foreground-muted hover:text-foreground bg-surface-raised border border-border'
             }`}
           >
-            <Cable className="w-3.5 h-3.5 text-emerald-400" />
+            <Cable className="w-3.5 h-3.5 text-success" />
             <span>RJ-45 Cat6</span>
           </button>
 
@@ -1175,10 +1176,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               setCableType('fiber');
               sound.tap();
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer shrink-0 ${
+            className={`min-h-[42px] flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation ${
               cableType === 'fiber'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
-                : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.05]'
+                : 'text-foreground-muted hover:text-foreground bg-surface-raised border border-border'
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-cyan-400" />
@@ -1192,10 +1193,10 @@ export const AngryCableGame: React.FC<AngryCableGameProps> = ({
               setCableType('coaxial');
               sound.tap();
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer shrink-0 ${
+            className={`min-h-[42px] flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation ${
               cableType === 'coaxial'
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
-                : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.05]'
+                : 'text-foreground-muted hover:text-foreground bg-surface-raised border border-border'
             }`}
           >
             <Flame className="w-3.5 h-3.5 text-amber-400" />

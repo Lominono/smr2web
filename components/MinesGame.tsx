@@ -322,7 +322,7 @@ export const MinesGame: React.FC<MinesGameProps> = ({
               <span className="text-white font-bold">{mineCount}</span>
             </div>
 
-            <div className="grid grid-cols-4 gap-1 bg-black/40 p-1.5 rounded-2xl border border-white/[0.06]">
+            <div className="grid grid-cols-4 gap-1.5 bg-surface-raised p-1.5 rounded-xl border border-border">
               {[1, 3, 5, 10].map((count) => (
                 <button
                   key={count}
@@ -332,10 +332,10 @@ export const MinesGame: React.FC<MinesGameProps> = ({
                     setMineCount(count);
                     sound.tap();
                   }}
-                  className={`py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer disabled:opacity-40 ${
+                  className={`min-h-[42px] rounded-lg text-xs font-mono font-medium transition-all cursor-pointer disabled:opacity-40 active:scale-95 touch-manipulation ${
                     mineCount === count
-                      ? 'bg-white text-black font-bold shadow-sm'
-                      : 'text-zinc-400 hover:text-white'
+                      ? 'bg-foreground text-background font-bold shadow-xs'
+                      : 'text-foreground-muted hover:text-foreground'
                   }`}
                 >
                   {count} {count === 1 ? 'Mina' : 'Minas'}
@@ -347,84 +347,91 @@ export const MinesGame: React.FC<MinesGameProps> = ({
           {/* Quick Bet Buttons */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-zinc-400 flex items-center gap-1.5">
-                <Coins className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-foreground-muted flex items-center gap-1.5">
+                <Coins className="w-3.5 h-3.5 text-amber-500" />
                 <span>Apuesta:</span>
               </span>
-              <span className="text-amber-300 font-bold">{bet.toLocaleString()} fichas</span>
+              <span className="text-amber-500 font-bold">{bet.toLocaleString()} fichas</span>
             </div>
 
-            <div className="flex items-center gap-1 bg-black/40 p-1.5 rounded-2xl border border-white/[0.06]">
-              <button
-                type="button"
-                disabled={gameState === 'playing'}
-                onClick={() => {
-                  setBet((prev) => Math.max(10, Math.floor(prev / 2)));
-                  sound.tap();
-                }}
-                className="flex-1 py-1.5 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.04] disabled:opacity-40 cursor-pointer"
-              >
-                ½
-              </button>
-              <button
-                type="button"
-                disabled={gameState === 'playing'}
-                onClick={() => {
-                  setBet((prev) => Math.min(Math.min(userCoins, 500), prev * 2));
-                  sound.tap();
-                }}
-                className="flex-1 py-1.5 rounded-xl text-xs font-mono font-medium text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.04] disabled:opacity-40 cursor-pointer"
-              >
-                2×
-              </button>
-              {[10, 25, 50, 100, 250].map((amt) => (
+            <div className="space-y-1.5 bg-surface-raised p-2 rounded-xl border border-border">
+              {/* Presets row */}
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
+                {[10, 25, 50, 100, 250].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    disabled={gameState === 'playing'}
+                    onClick={() => {
+                      setBet(amt);
+                      sound.tap();
+                    }}
+                    className={`flex-1 min-h-[42px] px-2 rounded-lg text-xs font-mono transition-all disabled:opacity-40 cursor-pointer active:scale-95 touch-manipulation shrink-0 ${
+                      bet === amt
+                        ? 'bg-foreground text-background font-bold shadow-xs'
+                        : 'text-foreground-muted hover:text-foreground bg-surface border border-border'
+                    }`}
+                  >
+                    {amt}
+                  </button>
+                ))}
+              </div>
+
+              {/* Modifiers row */}
+              <div className="grid grid-cols-3 gap-1 pt-0.5 border-t border-border-subtle">
                 <button
-                  key={amt}
                   type="button"
                   disabled={gameState === 'playing'}
                   onClick={() => {
-                    setBet(amt);
+                    setBet((prev) => Math.max(10, Math.floor(prev / 2)));
                     sound.tap();
                   }}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-mono transition-all disabled:opacity-40 cursor-pointer ${
-                    bet === amt
-                      ? 'bg-zinc-200 text-black font-bold shadow-sm'
-                      : 'text-zinc-400 hover:text-white bg-white/[0.02] border border-white/[0.04]'
+                  className="min-h-[40px] rounded-lg text-xs font-mono font-semibold text-foreground-muted hover:text-foreground bg-surface border border-border disabled:opacity-40 cursor-pointer active:scale-95 touch-manipulation"
+                >
+                  ½ Mitad
+                </button>
+                <button
+                  type="button"
+                  disabled={gameState === 'playing'}
+                  onClick={() => {
+                    setBet((prev) => Math.min(Math.min(userCoins, 500), prev * 2));
+                    sound.tap();
+                  }}
+                  className="min-h-[40px] rounded-lg text-xs font-mono font-semibold text-foreground-muted hover:text-foreground bg-surface border border-border disabled:opacity-40 cursor-pointer active:scale-95 touch-manipulation"
+                >
+                  2× Doble
+                </button>
+                <button
+                  type="button"
+                  disabled={gameState === 'playing'}
+                  onClick={() => {
+                    setBet(Math.min(userCoins > 0 ? userCoins : 100, 500));
+                    sound.tap();
+                  }}
+                  className={`min-h-[40px] rounded-lg text-xs font-mono font-bold transition-all disabled:opacity-40 cursor-pointer active:scale-95 touch-manipulation ${
+                    bet >= 500 || bet === userCoins
+                      ? 'bg-amber-500 text-black font-black'
+                      : 'text-amber-500 bg-amber-500/10 border border-amber-500/20'
                   }`}
                 >
-                  {amt}
+                  MÁX
                 </button>
-              ))}
-              <button
-                type="button"
-                disabled={gameState === 'playing'}
-                onClick={() => {
-                  setBet(Math.min(userCoins > 0 ? userCoins : 100, 500));
-                  sound.tap();
-                }}
-                className={`flex-1 py-1.5 rounded-xl text-xs font-mono font-bold transition-all disabled:opacity-40 cursor-pointer ${
-                  bet >= 500 || bet === userCoins
-                    ? 'bg-amber-400 text-black'
-                    : 'text-amber-400 hover:text-amber-300 bg-amber-500/10'
-                }`}
-              >
-                MÁX
-              </button>
+              </div>
             </div>
           </div>
 
           {/* Current telemetry when playing */}
           {gameState === 'playing' && (
-            <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.08] space-y-2 text-xs font-mono">
+            <div className="p-3.5 rounded-xl bg-surface-raised border border-border space-y-2 text-xs font-mono">
               <div className="flex items-center justify-between">
-                <span className="text-zinc-400">Gemas descubiertas:</span>
-                <span className="text-white font-bold">
+                <span className="text-foreground-muted">Gemas descubiertas:</span>
+                <span className="text-foreground font-bold">
                   {revealedCount} / {TOTAL_TILES - mineCount}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-zinc-400">Siguiente multiplicador:</span>
-                <span className="text-emerald-400 font-bold">
+                <span className="text-foreground-muted">Siguiente multiplicador:</span>
+                <span className="text-success font-bold">
                   x{nextMultiplier.toFixed(2)}
                 </span>
               </div>
@@ -437,10 +444,10 @@ export const MinesGame: React.FC<MinesGameProps> = ({
               type="button"
               disabled={revealedCount === 0}
               onClick={handleCashOut}
-              className={`w-full py-4 rounded-2xl font-mono text-sm font-bold tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg active:scale-95 ${
+              className={`w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-bold tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg active:scale-95 touch-manipulation ${
                 revealedCount === 0
-                  ? 'bg-zinc-800 text-zinc-500 border border-white/[0.06] cursor-not-allowed'
-                  : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/30'
+                  ? 'bg-surface-raised text-foreground-subtle border border-border cursor-not-allowed'
+                  : 'bg-success hover:opacity-90 text-white shadow-success/20 ring-2 ring-success/30'
               }`}
             >
               <span>
@@ -453,9 +460,9 @@ export const MinesGame: React.FC<MinesGameProps> = ({
             <button
               type="button"
               onClick={startGame}
-              className="w-full py-4 rounded-2xl font-mono text-sm font-bold tracking-wider bg-white hover:bg-zinc-200 text-black shadow-lg shadow-white/10 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+              className="w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-bold tracking-wider bg-foreground text-background hover:opacity-90 shadow-lg active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 touch-manipulation"
             >
-              <Zap className="w-4 h-4 fill-black" />
+              <Zap className="w-4 h-4 fill-current" />
               <span>INICIAR PARTIDA (-{bet} FICHAS)</span>
             </button>
           )}

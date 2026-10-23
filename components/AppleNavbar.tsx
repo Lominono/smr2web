@@ -18,7 +18,6 @@ import {
 import { UserProfile } from '@/lib/types';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 
 interface AppleNavbarProps {
   user: UserProfile | null;
@@ -59,16 +58,16 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur-xs">
-      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-surface/85 backdrop-blur-xl pt-[env(safe-area-inset-top,0px)] transition-colors">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Menu Hamburger & Brand */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <button
             type="button"
             onClick={onOpenDrawer}
             title="Menú de navegación"
             aria-label="Abrir menú"
-            className="w-8 h-8 rounded-[var(--radius)] bg-surface-raised hover:bg-surface-hover border border-border text-foreground-muted hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+            className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg bg-surface-raised hover:bg-surface-hover border border-border/70 text-foreground-muted hover:text-foreground flex items-center justify-center transition-all cursor-pointer active:scale-95 touch-manipulation"
           >
             <Menu className="w-4 h-4" />
           </button>
@@ -76,50 +75,52 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
           <button
             type="button"
             onClick={() => onSelectTab && onSelectTab('feed')}
-            className="flex items-center gap-2 cursor-pointer text-left select-none"
+            className="flex items-center gap-2.5 cursor-pointer text-left select-none touch-manipulation active:opacity-80 group"
           >
-            <Image
-              src="/logo.png"
-              alt="2º SMR"
-              width={24}
-              height={24}
-              className="w-6 h-6 object-contain"
-              priority
-            />
+            <div className="w-8 h-8 rounded-lg overflow-hidden bg-black ring-1 ring-border/80 shadow-xs flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
+              <Image
+                src="/logo.png"
+                alt="2º SMR"
+                width={32}
+                height={32}
+                className="w-full h-full object-cover scale-[1.04]"
+                priority
+              />
+            </div>
             <div className="flex flex-col">
-              <span className="text-xs font-semibold text-foreground font-mono leading-none">
+              <span className="text-xs font-semibold text-foreground tracking-tight leading-none">
                 2º SMR
               </span>
-              <span className="text-[10px] text-foreground-subtle leading-tight">
+              <span className="text-[10px] text-foreground-subtle leading-tight hidden xs:inline">
                 Portal de clase
               </span>
             </div>
           </button>
 
           {/* Schedule status pill */}
-          <div className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded-[var(--radius-sm)] bg-surface-raised border border-border text-[11px] text-foreground-muted font-mono">
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-raised border border-border/70 text-[11px] text-foreground-muted">
             <span
-              className={`w-1.5 h-1.5 rounded-full ${
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                 liveStatus.status === 'in_class'
-                  ? 'bg-success'
+                  ? 'bg-success animate-pulse'
                   : liveStatus.status === 'recreo'
-                  ? 'bg-accent'
+                  ? 'bg-accent animate-pulse'
                   : 'bg-foreground-subtle'
               }`}
             />
-            <span>{liveStatus.message}</span>
+            <span className="font-medium truncate max-w-[220px]">{liveStatus.message}</span>
           </div>
         </div>
 
-        {/* Center: Navigation tabs */}
+        {/* Center: Navigation tabs (Desktop only) - Apple Segmented Control */}
         {onSelectTab && (
-          <nav aria-label="Navegación principal" className="hidden md:flex items-center p-1 rounded-[var(--radius)] bg-surface-raised border border-border">
+          <nav aria-label="Navegación principal" className="hidden md:flex items-center p-1 rounded-full bg-surface-raised border border-border/70 shadow-2xs">
             <button
               type="button"
               onClick={() => onSelectTab('feed')}
-              className={`px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+              className={`px-3.5 py-1 text-xs font-medium rounded-full transition-all cursor-pointer ${
                 activeTab === 'feed'
-                  ? 'bg-foreground text-background font-semibold'
+                  ? 'bg-foreground text-background font-semibold shadow-xs'
                   : 'text-foreground-muted hover:text-foreground'
               }`}
             >
@@ -129,9 +130,9 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             <button
               type="button"
               onClick={() => onSelectTab('calendar')}
-              className={`px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+              className={`px-3.5 py-1 text-xs font-medium rounded-full transition-all cursor-pointer ${
                 activeTab === 'calendar'
-                  ? 'bg-foreground text-background font-semibold'
+                  ? 'bg-foreground text-background font-semibold shadow-xs'
                   : 'text-foreground-muted hover:text-foreground'
               }`}
             >
@@ -141,9 +142,9 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             <button
               type="button"
               onClick={() => onSelectTab('russian_roulette')}
-              className={`px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+              className={`px-3.5 py-1 text-xs font-medium rounded-full transition-all cursor-pointer ${
                 activeTab === 'russian_roulette'
-                  ? 'bg-foreground text-background font-semibold'
+                  ? 'bg-foreground text-background font-semibold shadow-xs'
                   : 'text-foreground-muted hover:text-foreground'
               }`}
             >
@@ -153,58 +154,59 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
         )}
 
         {/* Right: Sound, Leaderboard, Coins & User Profile */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Sound Toggle */}
           <button
             type="button"
             onClick={onToggleSound}
             title={soundEnabled ? 'Silenciar sonidos' : 'Activar sonidos'}
-            className="w-8 h-8 rounded-[var(--radius)] bg-surface-raised border border-border text-foreground-muted hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+            aria-label={soundEnabled ? 'Silenciar sonidos' : 'Activar sonidos'}
+            className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg bg-surface-raised border border-border/70 text-foreground-muted hover:text-foreground flex items-center justify-center transition-all cursor-pointer active:scale-95 touch-manipulation"
           >
             {soundEnabled ? (
-              <Volume2 className="w-3.5 h-3.5 text-foreground" />
+              <Volume2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-foreground" />
             ) : (
-              <VolumeX className="w-3.5 h-3.5 text-foreground-subtle" />
+              <VolumeX className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-foreground-subtle" />
             )}
           </button>
 
-          {/* Ranking Button */}
+          {/* Ranking Button (Tablet / Desktop) */}
           <button
             type="button"
             onClick={onOpenLeaderboard}
             title="Clasificación"
-            className="hidden sm:flex items-center gap-1.5 px-2.5 h-8 rounded-[var(--radius)] bg-surface-raised border border-border text-xs text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
+            className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground-muted hover:text-foreground transition-all cursor-pointer active:scale-95"
           >
-            <Trophy className="w-3.5 h-3.5 text-accent" />
-            <span className="font-mono">Top</span>
+            <Trophy className="w-3.5 h-3.5 text-amber-500" />
+            <span className="font-medium">Top</span>
           </button>
 
           {/* User Status / Coins */}
           {user ? (
-            <div className="flex items-center gap-2 pl-2 border-l border-border">
+            <div className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-border/70">
               {/* Coin Pill */}
-              <div className="flex items-center gap-1.5 bg-surface-raised border border-border rounded-[var(--radius)] px-2.5 h-8">
-                <Coins className="w-3.5 h-3.5 text-accent shrink-0" />
+              <button
+                type="button"
+                onClick={onOpenFaucet}
+                title="Reclamar fichas diarias"
+                className="flex items-center gap-1.5 bg-surface-raised hover:bg-surface-hover border border-border/70 rounded-full px-2.5 h-9 sm:h-8 transition-all cursor-pointer active:scale-95 touch-manipulation select-none"
+              >
+                <Coins className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                 <span className="text-xs font-mono font-medium text-foreground tabular-nums">
                   {user.coins.toLocaleString('es-ES')}
                 </span>
-                <button
-                  type="button"
-                  onClick={onOpenFaucet}
-                  title="Reclamar fondo diario"
-                  className="w-4 h-4 rounded-[var(--radius-sm)] bg-accent/20 hover:bg-accent/30 text-accent flex items-center justify-center text-[10px] cursor-pointer"
-                >
-                  <Plus className="w-2.5 h-2.5" />
-                </button>
-              </div>
+                <span className="w-4 h-4 rounded-full bg-accent/15 text-accent flex items-center justify-center text-[10px] ml-0.5">
+                  <Plus className="w-3 h-3" />
+                </span>
+              </button>
 
-              {/* User Settings */}
+              {/* User Settings (Desktop) */}
               {onOpenSettings && (
                 <button
                   type="button"
                   onClick={onOpenSettings}
                   title="Ajustes de cuenta"
-                  className="hidden sm:flex w-8 h-8 rounded-[var(--radius)] bg-surface-raised hover:bg-surface-hover text-foreground-muted hover:text-foreground border border-border items-center justify-center transition-colors cursor-pointer"
+                  className="hidden sm:flex w-8 h-8 rounded-lg bg-surface-raised hover:bg-surface-hover text-foreground-muted hover:text-foreground border border-border/70 items-center justify-center transition-colors cursor-pointer"
                 >
                   <Settings className="w-3.5 h-3.5" />
                 </button>
@@ -215,7 +217,7 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                 <Link
                   href="/admin"
                   title="Panel de administración"
-                  className="hidden sm:flex w-8 h-8 rounded-[var(--radius)] bg-accent-subtle hover:bg-accent/20 text-accent border border-accent/20 items-center justify-center transition-colors cursor-pointer"
+                  className="hidden sm:flex w-8 h-8 rounded-lg bg-accent/10 hover:bg-accent/20 text-accent border border-accent/25 items-center justify-center transition-colors cursor-pointer"
                 >
                   <ShieldCheck className="w-3.5 h-3.5" />
                 </Link>
@@ -226,17 +228,18 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                 type="button"
                 onClick={onOpenSettings}
                 title={`@${user.username} - Perfil`}
-                className="w-8 h-8 rounded-[var(--radius)] bg-surface-raised border border-border flex items-center justify-center font-mono font-semibold text-xs text-foreground uppercase cursor-pointer hover:border-zinc-700 transition-colors"
+                aria-label={`Perfil de @${user.username}`}
+                className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg bg-surface-raised border border-border/70 flex items-center justify-center font-mono font-medium text-xs text-foreground uppercase cursor-pointer hover:border-foreground/30 active:scale-95 transition-all touch-manipulation"
               >
                 {user.username.charAt(0)}
               </button>
 
-              {/* Sign out */}
+              {/* Sign out (Desktop) */}
               <button
                 type="button"
                 onClick={onSignOut}
                 title="Cerrar sesión"
-                className="hidden sm:flex w-8 h-8 rounded-[var(--radius)] text-foreground-subtle hover:text-danger hover:bg-danger-subtle items-center justify-center transition-colors cursor-pointer"
+                className="hidden sm:flex w-8 h-8 rounded-lg text-foreground-subtle hover:text-danger hover:bg-danger-subtle items-center justify-center transition-colors cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>

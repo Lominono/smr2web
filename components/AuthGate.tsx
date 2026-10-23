@@ -12,33 +12,35 @@ interface AuthGateProps {
 
 export const AuthGate: React.FC<AuthGateProps> = ({ onAuthSuccess }) => {
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-background text-foreground p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center text-center space-y-2">
-          <Image
-            src="/logo.png"
-            alt="SMR2 Logo"
-            width={48}
-            height={48}
-            className="w-12 h-12 object-contain"
-            priority
-          />
-          <div>
-            <h1 className="text-base font-semibold tracking-tight text-foreground">
+    <div className="min-h-[100dvh] flex flex-col justify-center items-center bg-background text-foreground p-4 sm:p-6 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="w-full max-w-sm space-y-7">
+        <div className="flex flex-col items-center text-center space-y-3">
+          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-black ring-1 ring-border/80 shadow-md flex items-center justify-center shrink-0">
+            <Image
+              src="/logo.png"
+              alt="SMR2 Logo"
+              width={64}
+              height={64}
+              className="w-full h-full object-cover scale-[1.04]"
+              priority
+            />
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
               Portal 2º SMR
             </h1>
-            <p className="text-xs text-foreground-muted">
-              Identifícate para acceder al horario y al feed de clase
+            <p className="text-xs text-foreground-muted leading-relaxed">
+              Inicia sesión con tu cuenta de clase para consultar el horario, tareas y avisos.
             </p>
           </div>
         </div>
 
-        <div className="p-5 rounded-[var(--radius-lg)] border border-border bg-surface shadow-xs">
+        <div className="p-6 rounded-2xl border border-border/70 bg-surface shadow-xs">
           <AuthForm onSuccess={onAuthSuccess} />
         </div>
 
-        <p className="text-center text-[11px] text-foreground-subtle font-mono">
-          2º Sistemas Microinformáticos y Redes
+        <p className="text-center text-[11px] text-foreground-subtle tracking-tight">
+          2º Sistemas Microinformáticos y Redes · Curso lectivo
         </p>
       </div>
     </div>

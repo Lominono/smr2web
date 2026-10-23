@@ -18,15 +18,15 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] animate-in fade-in duration-200">
       <Card
-        className="w-full max-w-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-2xl p-0 overflow-hidden flex flex-col max-h-[92dvh] rounded-t-[20px] sm:rounded-[var(--radius-lg)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between bg-surface">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-surface-raised border border-border flex items-center justify-center text-accent">
+            <div className="w-9 h-9 rounded-[var(--radius-sm)] bg-surface-raised border border-border flex items-center justify-center text-accent">
               <FileText className="w-4 h-4" />
             </div>
             <div>
@@ -38,17 +38,17 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={() => {
               onClose();
               sound.tap();
             }}
             aria-label="Cerrar modal"
+            className="w-11 h-11 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-all cursor-pointer active:scale-95 touch-manipulation"
           >
-            <X className="w-4 h-4" />
-          </Button>
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Tab navigation */}

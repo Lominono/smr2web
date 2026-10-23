@@ -24,32 +24,32 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   const sorted = [...entries].sort((a, b) => b.coins - a.coins);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
-      <Card className="w-full max-w-lg max-h-[90dvh] overflow-hidden flex flex-col p-0">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
+      <Card className="w-full max-w-lg max-h-[90dvh] overflow-hidden flex flex-col p-0 rounded-t-[20px] sm:rounded-[var(--radius-lg)] border-border shadow-2xl">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-border/70 flex items-center justify-between bg-surface-raised/40">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-[var(--radius-sm)] bg-surface-raised text-accent border border-border">
+            <div className="p-2 rounded-xl bg-surface-raised text-amber-500 border border-border/70">
               <Trophy className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground font-mono">
-                Clasificación
+              <h3 className="text-sm font-semibold text-foreground tracking-tight">
+                Clasificación general
               </h3>
-              <p className="text-xs text-foreground-muted font-mono">
-                Ranking de alumnos registrado en Supabase
+              <p className="text-xs text-foreground-muted">
+                Ranking de alumnos por balance de fichas
               </p>
             </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={onClose}
             aria-label="Cerrar modal"
+            className="w-9 h-9 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-all cursor-pointer active:scale-95 touch-manipulation"
           >
             <X className="w-4 h-4" />
-          </Button>
+          </button>
         </div>
 
         {/* List */}

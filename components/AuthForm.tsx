@@ -174,16 +174,16 @@ export const AuthForm: React.FC<AuthFormProps> = ({
   return (
     <div className="space-y-4">
       {/* Mode Switcher */}
-      <div className="grid grid-cols-2 p-1 rounded-[var(--radius)] bg-surface border border-border">
+      <div className="grid grid-cols-2 p-1.5 rounded-[var(--radius)] bg-surface-raised border border-border">
         <button
           type="button"
           onClick={() => {
             setMode('login');
             setError(null);
           }}
-          className={`py-1.5 text-xs font-medium rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+          className={`min-h-[44px] text-xs sm:text-xs font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer flex items-center justify-center active:scale-95 touch-manipulation ${
             mode === 'login'
-              ? 'bg-foreground text-background font-semibold'
+              ? 'bg-foreground text-background shadow-xs'
               : 'text-foreground-muted hover:text-foreground'
           }`}
         >
@@ -195,9 +195,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             setMode('register');
             setError(null);
           }}
-          className={`py-1.5 text-xs font-medium rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+          className={`min-h-[44px] text-xs sm:text-xs font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer flex items-center justify-center active:scale-95 touch-manipulation ${
             mode === 'register'
-              ? 'bg-foreground text-background font-semibold'
+              ? 'bg-foreground text-background shadow-xs'
               : 'text-foreground-muted hover:text-foreground'
           }`}
         >
@@ -206,13 +206,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({
       </div>
 
       {error && (
-        <div className="p-3 rounded-[var(--radius)] bg-danger-subtle border border-danger/25 text-xs text-danger flex items-start gap-2">
+        <div className="p-3.5 rounded-[var(--radius)] bg-danger-subtle border border-danger/25 text-xs text-danger flex items-start gap-2.5">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         {mode === 'register' ? (
           <>
             <div>
@@ -220,6 +220,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 label="Usuario"
                 required
                 autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 placeholder="ej: usuario_smr"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
@@ -244,6 +246,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
               type="email"
               required
               autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              spellCheck={false}
               placeholder="alumno@ejemplo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -264,10 +269,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-foreground-subtle hover:text-foreground p-1 cursor-pointer"
+                  className="w-10 h-10 flex items-center justify-center text-foreground-subtle hover:text-foreground active:scale-90 touch-manipulation cursor-pointer"
                   title={showPassword ? 'Ocultar' : 'Mostrar'}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
-                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               }
             />
@@ -291,6 +297,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
               label="Correo o usuario"
               required
               autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               placeholder="alumno@ejemplo.com o tu usuario"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
@@ -311,10 +319,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-foreground-subtle hover:text-foreground p-1 cursor-pointer"
+                  className="w-10 h-10 flex items-center justify-center text-foreground-subtle hover:text-foreground active:scale-90 touch-manipulation cursor-pointer"
                   title={showPassword ? 'Ocultar' : 'Mostrar'}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
-                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               }
             />
@@ -324,14 +333,14 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         <div className="pt-1">
           <label
             htmlFor={rememberCheckboxId}
-            className="flex items-center gap-2 text-xs text-foreground-muted hover:text-foreground cursor-pointer select-none"
+            className="min-h-[44px] flex items-center gap-2.5 text-xs text-foreground-muted hover:text-foreground cursor-pointer select-none touch-manipulation py-1"
           >
             <input
               id={rememberCheckboxId}
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-3.5 h-3.5 rounded-[var(--radius-sm)] border-border bg-surface text-foreground accent-accent cursor-pointer"
+              className="w-4 h-4 rounded-[var(--radius-sm)] border-border bg-surface text-foreground accent-accent cursor-pointer"
             />
             <span>Recordar sesión en este equipo</span>
           </label>
@@ -342,7 +351,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             <Button
               type="button"
               variant="secondary"
-              size="md"
+              size="lg"
               className="flex-1"
               onClick={onCancel}
             >
@@ -353,7 +362,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           <Button
             type="submit"
             variant="primary"
-            size="md"
+            size="lg"
             className={onCancel ? 'flex-1' : 'w-full'}
             isLoading={loading}
             disabled={mode === 'register' && passwordsMismatch}

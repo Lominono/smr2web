@@ -132,36 +132,35 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-150">
-      <Card className="w-full max-w-md max-h-[92dvh] overflow-y-auto p-0 flex flex-col bg-[#0c0d12] border-white/[0.12] shadow-2xl rounded-3xl">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] animate-in fade-in duration-200">
+      <Card className="w-full max-w-md max-h-[92dvh] overflow-y-auto p-0 flex flex-col bg-surface border border-border shadow-2xl rounded-t-[20px] sm:rounded-[var(--radius-lg)]">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between sticky top-0 bg-[#0c0d12]/95 backdrop-blur-md z-10">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between sticky top-0 bg-surface/95 backdrop-blur-md z-10">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-400/10 text-amber-400 border border-amber-400/20">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
               <Gift className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white font-mono flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-foreground font-mono flex items-center gap-1.5">
                 Economía & Recompensas
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/10 text-zinc-300 font-normal">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-raised text-foreground-muted border border-border">
                   SMR2
                 </span>
               </h3>
-              <p className="text-xs text-zinc-400 font-mono">
-                Saldo: <span className="text-amber-400 font-semibold">{currentCoins.toLocaleString('es-ES')}</span> fichas
+              <p className="text-xs text-foreground-muted font-mono">
+                Saldo: <span className="text-amber-500 font-semibold">{currentCoins.toLocaleString('es-ES')}</span> fichas
               </p>
             </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={onClose}
             aria-label="Cerrar modal"
-            className="text-zinc-400 hover:text-white"
+            className="w-11 h-11 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-all cursor-pointer active:scale-95 touch-manipulation"
           >
-            <X className="w-4 h-4" />
-          </Button>
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Content */}
@@ -170,8 +169,8 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
           <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <Flame className="w-4 h-4 text-amber-400" />
-                <span className="text-xs font-mono font-semibold text-white">
+                <Flame className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-mono font-semibold text-foreground">
                   Racha diaria (Día {streak})
                 </span>
               </div>
@@ -192,10 +191,10 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
                     key={dayNum}
                     className={`py-2 px-1 text-center rounded-xl border text-[10px] font-mono transition-colors ${
                       isCurrent
-                        ? 'bg-amber-400/15 border-amber-400 text-amber-300 font-bold shadow-sm'
+                        ? 'bg-amber-500/15 border-amber-500 text-amber-500 font-bold shadow-xs'
                         : isPassed
-                        ? 'bg-white/[0.06] border-white/15 text-white'
-                        : 'bg-white/[0.02] border-white/[0.06] text-zinc-500'
+                        ? 'bg-surface border-border text-foreground'
+                        : 'bg-surface-raised/40 border-border-subtle text-foreground-subtle'
                     }`}
                   >
                     <div>Día {dayNum}</div>
@@ -207,7 +206,7 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
 
             <Button
               variant="primary"
-              size="md"
+              size="lg"
               className="w-full font-mono text-xs font-bold"
               onClick={handleClaimDaily}
               disabled={!isDailyAvailable}
@@ -217,8 +216,8 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
                   <Sparkles className="w-3.5 h-3.5" /> Reclamar +{dailyAmount} fichas hoy
                 </span>
               ) : (
-                <span className="flex items-center justify-center gap-1.5 text-zinc-400">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> Racha reclamada hoy
+                <span className="flex items-center justify-center gap-1.5 text-foreground-muted">
+                  <Check className="w-3.5 h-3.5 text-success" /> Racha reclamada hoy
                 </span>
               )}
             </Button>
@@ -231,31 +230,31 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
               type="button"
               onClick={handleRescueClaim}
               disabled={!isRescueAvailable}
-              className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden ${
+              className={`min-h-[52px] p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden active:scale-95 touch-manipulation ${
                 isRescueAvailable
-                  ? 'bg-rose-500/10 border-rose-500/30 text-white hover:bg-rose-500/15 cursor-pointer active:scale-98 shadow-sm'
-                  : 'bg-white/[0.02] border-white/[0.06] text-zinc-500 cursor-not-allowed opacity-70'
+                  ? 'bg-danger-subtle border-danger/30 text-foreground hover:bg-danger/15 cursor-pointer shadow-xs'
+                  : 'bg-surface-raised border-border text-foreground-subtle cursor-not-allowed opacity-60'
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className={`text-xs font-mono font-semibold ${isRescueAvailable ? 'text-rose-400' : 'text-zinc-500'}`}>
+                <span className={`text-xs font-mono font-semibold ${isRescueAvailable ? 'text-danger' : 'text-foreground-subtle'}`}>
                   Fondo Rescate
                 </span>
-                <ShieldAlert className={`w-3.5 h-3.5 ${isRescueAvailable ? 'text-rose-400' : 'text-zinc-600'}`} />
+                <ShieldAlert className={`w-3.5 h-3.5 ${isRescueAvailable ? 'text-danger' : 'text-foreground-subtle'}`} />
               </div>
-              <div className="text-base font-bold font-mono text-white mb-0.5">
-                +{RESCUE_AMOUNT} <span className="text-[10px] text-zinc-400 font-normal">fichas</span>
+              <div className="text-base font-bold font-mono text-foreground mb-0.5">
+                +{RESCUE_AMOUNT} <span className="text-[10px] text-foreground-muted font-normal">fichas</span>
               </div>
-              <p className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
+              <p className="text-[10px] text-foreground-muted font-mono flex items-center gap-1">
                 {!isRescueEligible ? (
                   <span>Solo con saldo &lt; {RESCUE_THRESHOLD}</span>
                 ) : rescueRemainingMs > 0 ? (
                   <>
-                    <Clock className="w-3 h-3 text-amber-400" />
+                    <Clock className="w-3 h-3 text-amber-500" />
                     <span>Espera {formatCooldown(rescueRemainingMs)}</span>
                   </>
                 ) : (
-                  <span className="text-emerald-400 font-semibold">Disponible ahora</span>
+                  <span className="text-success font-semibold">Disponible ahora</span>
                 )}
               </p>
             </button>
@@ -265,39 +264,39 @@ export const FaucetModal: React.FC<FaucetModalProps> = ({
               type="button"
               onClick={handleSpinRoulette}
               disabled={!isSpinAvailable}
-              className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden ${
+              className={`min-h-[52px] p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden active:scale-95 touch-manipulation ${
                 isSpinAvailable
-                  ? 'bg-amber-400/[0.07] border-amber-400/30 text-white hover:bg-amber-400/[0.12] cursor-pointer active:scale-98 shadow-sm'
-                  : 'bg-white/[0.02] border-white/[0.06] text-zinc-500 cursor-not-allowed opacity-70'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-foreground hover:bg-amber-500/15 cursor-pointer shadow-xs'
+                  : 'bg-surface-raised border-border text-foreground-subtle cursor-not-allowed opacity-60'
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className={`text-xs font-mono font-semibold ${isSpinAvailable ? 'text-amber-400' : 'text-zinc-500'}`}>
+                <span className={`text-xs font-mono font-semibold ${isSpinAvailable ? 'text-amber-500' : 'text-foreground-subtle'}`}>
                   Ruleta Diaria
                 </span>
-                <Dices className={`w-3.5 h-3.5 ${isSpinAvailable ? 'text-amber-400' : 'text-zinc-600'}`} />
+                <Dices className={`w-3.5 h-3.5 ${isSpinAvailable ? 'text-amber-500' : 'text-foreground-subtle'}`} />
               </div>
-              <div className="text-base font-bold font-mono text-white mb-0.5">
+              <div className="text-base font-bold font-mono text-foreground mb-0.5">
                 {isSpinning && spinResult ? `${spinResult} fichas` : '15 — 120'}
               </div>
-              <p className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
+              <p className="text-[10px] text-foreground-muted font-mono flex items-center gap-1">
                 {isSpinning ? (
-                  <span className="text-amber-300 animate-pulse">Girando...</span>
+                  <span className="text-amber-500 animate-pulse">Girando...</span>
                 ) : spinRemainingMs > 0 ? (
                   <>
-                    <Clock className="w-3 h-3 text-amber-400" />
+                    <Clock className="w-3 h-3 text-amber-500" />
                     <span>Espera {formatCooldown(spinRemainingMs)}</span>
                   </>
                 ) : (
-                  <span className="text-emerald-400 font-semibold">1 giro listo</span>
+                  <span className="text-success font-semibold">1 giro listo</span>
                 )}
               </p>
             </button>
           </div>
 
           {/* Fair Economy Disclaimer Notice */}
-          <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-between text-[11px] text-zinc-400 font-mono">
-            <span>Economía equilibrada SMR2: sin dinero real, basada en habilidad y constancia.</span>
+          <div className="p-3 rounded-xl bg-surface-raised border border-border flex items-center justify-between text-[11px] text-foreground-muted font-mono">
+            <span>Economía equilibrada SMR2: sin dinero real, basada en constancia.</span>
           </div>
         </div>
       </Card>

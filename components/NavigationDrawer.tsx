@@ -101,31 +101,38 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/70 transition-opacity animate-in fade-in duration-150"
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
       />
 
       {/* Drawer Surface */}
-      <div className="relative w-full max-w-xs sm:max-w-sm bg-surface border-r border-border h-[100dvh] flex flex-col shadow-xl z-10 overflow-y-auto scrollbar-none animate-in slide-in-from-left duration-150">
+      <div className="relative w-full max-w-xs sm:max-w-sm bg-surface border-r border-border h-[100dvh] flex flex-col shadow-2xl z-10 overflow-y-auto scrollbar-none animate-in slide-in-from-left duration-250 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
         {/* Header */}
-        <div className="sticky top-0 z-20 px-4 py-3 bg-surface border-b border-border flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Image
-              src="/logo.png"
-              alt="SMR2 Logo"
-              width={24}
-              height={24}
-              className="w-6 h-6 object-contain"
-            />
-            <span className="text-xs font-semibold text-foreground font-mono">
-              2º SMR · Menú
-            </span>
+        <div className="sticky top-0 z-20 px-4 py-3 bg-surface/90 backdrop-blur-xl border-b border-border/70 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg overflow-hidden bg-black ring-1 ring-border/80 shadow-xs flex items-center justify-center shrink-0">
+              <Image
+                src="/logo.png"
+                alt="SMR2 Logo"
+                width={32}
+                height={32}
+                className="w-full h-full object-cover scale-[1.04]"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold text-foreground tracking-tight leading-tight">
+                2º SMR · Menú
+              </span>
+              <span className="text-[10px] text-foreground-subtle leading-tight truncate max-w-[170px]">
+                {liveStatus.message}
+              </span>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar menú"
-            className="p-1 rounded-[var(--radius-sm)] text-foreground-muted hover:text-foreground hover:bg-surface-raised cursor-pointer"
+            className="w-9 h-9 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-all cursor-pointer active:scale-95 touch-manipulation"
           >
             <X className="w-4 h-4" />
           </button>
@@ -133,15 +140,15 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
 
         {/* User Card */}
         {currentUser && (
-          <div className="p-3 mx-3 mt-3 rounded-[var(--radius)] bg-surface-raised border border-border space-y-2.5">
+          <div className="p-3.5 mx-3 mt-3 rounded-[var(--radius)] bg-surface-raised border border-border space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-surface border border-border flex items-center justify-center font-mono font-bold text-xs uppercase shrink-0 text-foreground">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-surface border border-border flex items-center justify-center font-mono font-bold text-sm uppercase shrink-0 text-foreground">
                   {currentUser.username.charAt(0)}
                 </div>
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-foreground font-mono truncate">
+                    <span className="text-sm font-semibold text-foreground font-mono truncate">
                       @{currentUser.username}
                     </span>
                     {(currentUser.role === 'admin' || currentUser.role === 'delegado') && (
@@ -151,7 +158,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                     )}
                   </div>
                   {rank && (
-                    <span className="text-[10px] text-foreground-subtle font-mono">
+                    <span className="text-xs text-foreground-subtle font-mono">
                       Rango {rank.name}
                     </span>
                   )}
@@ -165,16 +172,17 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                   onClose();
                 }}
                 title="Ajustes de perfil"
-                className="p-1 rounded-[var(--radius-sm)] text-foreground-muted hover:text-foreground hover:bg-surface cursor-pointer"
+                aria-label="Ajustes de perfil"
+                className="w-10 h-10 rounded-[var(--radius-sm)] text-foreground-muted hover:text-foreground hover:bg-surface flex items-center justify-center cursor-pointer active:scale-95 touch-manipulation"
               >
                 <Settings className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-border-subtle text-xs font-mono">
-              <div className="flex items-center gap-1.5 text-accent">
-                <Coins className="w-3.5 h-3.5" />
-                <span className="font-medium">{currentUser.coins.toLocaleString('es-ES')}</span>
+            <div className="flex items-center justify-between pt-2.5 border-t border-border-subtle text-xs font-mono">
+              <div className="flex items-center gap-1.5 text-amber-500">
+                <Coins className="w-4 h-4" />
+                <span className="font-semibold">{currentUser.coins.toLocaleString('es-ES')} fichas</span>
               </div>
               <Button
                 variant="secondary"
@@ -197,17 +205,17 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
             <button
               type="button"
               onClick={() => handleNavigate('feed')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius)] text-xs font-medium transition-colors cursor-pointer border ${
+              className={`w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium transition-all cursor-pointer border active:scale-[0.98] touch-manipulation ${
                 activeView === 'feed'
-                  ? 'bg-surface-raised text-foreground font-semibold border-border'
+                  ? 'bg-surface-raised text-foreground font-semibold border-border shadow-xs'
                   : 'bg-transparent text-foreground-muted border-transparent hover:text-foreground hover:bg-surface-raised'
               }`}
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
                 <MessageSquare className="w-4 h-4 text-accent" />
-                <span>Feed de clase</span>
+                <span className="text-sm font-sans">Feed de clase</span>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+              <ChevronRight className="w-4 h-4 text-foreground-subtle" />
             </button>
           </div>
 
@@ -219,24 +227,24 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
             <button
               type="button"
               onClick={() => handleNavigate('calendar')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius)] text-xs font-medium transition-colors cursor-pointer border ${
+              className={`w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium transition-all cursor-pointer border active:scale-[0.98] touch-manipulation ${
                 activeView === 'calendar'
-                  ? 'bg-surface-raised text-foreground font-semibold border-border'
+                  ? 'bg-surface-raised text-foreground font-semibold border-border shadow-xs'
                   : 'bg-transparent text-foreground-muted border-transparent hover:text-foreground hover:bg-surface-raised'
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <Calendar className="w-4 h-4" />
-                <span>Horario y tareas</span>
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-accent" />
+                <span className="text-sm font-sans">Horario y tareas</span>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+              <ChevronRight className="w-4 h-4 text-foreground-subtle" />
             </button>
           </div>
 
           {/* Recreo & Juegos */}
           <div className="space-y-1">
             <span className="px-2 text-[10px] font-mono uppercase tracking-wider text-foreground-subtle">
-              Minijuegos
+              Recreo Arcade
             </span>
             {[
               { id: 'russian_roulette', label: 'Ruleta Rusa (Multijugador)', icon: Zap },
@@ -252,17 +260,17 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                   key={g.id}
                   type="button"
                   onClick={() => handleNavigate(g.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius)] text-xs font-medium transition-colors cursor-pointer border ${
+                  className={`w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium transition-all cursor-pointer border active:scale-[0.98] touch-manipulation ${
                     isActive
-                      ? 'bg-surface-raised text-foreground font-semibold border-border'
+                      ? 'bg-surface-raised text-foreground font-semibold border-border shadow-xs'
                       : 'bg-transparent text-foreground-muted border-transparent hover:text-foreground hover:bg-surface-raised'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-3">
                     <Icon className="w-4 h-4 text-foreground-subtle" />
-                    <span>{g.label}</span>
+                    <span className="text-sm font-sans">{g.label}</span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+                  <ChevronRight className="w-4 h-4 text-foreground-subtle" />
                 </button>
               );
             })}
@@ -279,13 +287,13 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 onOpenLeaderboard();
                 onClose();
               }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+              className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
             >
-              <div className="flex items-center gap-2.5">
-                <Trophy className="w-4 h-4 text-foreground-subtle" />
-                <span>Clasificación</span>
+              <div className="flex items-center gap-3">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                <span className="text-sm font-sans">Clasificación</span>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+              <ChevronRight className="w-4 h-4 text-foreground-subtle" />
             </button>
 
             <button
@@ -294,13 +302,13 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 onOpenFaucet();
                 onClose();
               }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+              className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
             >
-              <div className="flex items-center gap-2.5">
-                <Coins className="w-4 h-4 text-foreground-subtle" />
-                <span>Fondo diario</span>
+              <div className="flex items-center gap-3">
+                <Coins className="w-4 h-4 text-amber-500" />
+                <span className="text-sm font-sans">Fondo diario</span>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+              <ChevronRight className="w-4 h-4 text-foreground-subtle" />
             </button>
           </div>
 
@@ -312,15 +320,15 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
             <button
               type="button"
               onClick={onToggleSound}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+              className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
                 {soundEnabled ? (
                   <Volume2 className="w-4 h-4 text-foreground" />
                 ) : (
                   <VolumeX className="w-4 h-4 text-foreground-subtle" />
                 )}
-                <span>Efectos de sonido</span>
+                <span className="text-sm font-sans">Efectos de sonido</span>
               </div>
               <Badge variant={soundEnabled ? 'success' : 'default'} size="sm">
                 {soundEnabled ? 'On' : 'Off'}
@@ -333,26 +341,26 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 onOpenSettings();
                 onClose();
               }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+              className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
                 <Settings className="w-4 h-4 text-foreground-subtle" />
-                <span>Ajustes de perfil</span>
+                <span className="text-sm font-sans">Ajustes de perfil</span>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+              <ChevronRight className="w-4 h-4 text-foreground-subtle" />
             </button>
 
             {currentUser && (currentUser.role === 'admin' || currentUser.role === 'delegado') && (
               <Link
                 href="/admin"
                 onClick={onClose}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius)] text-xs font-medium text-accent hover:bg-accent-subtle transition-colors"
+                className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-accent hover:bg-accent/10 transition-all active:scale-[0.98] touch-manipulation"
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Panel de administración</span>
+                  <span className="text-sm font-sans">Panel de administración</span>
                 </div>
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-4 h-4" />
               </Link>
             )}
 
@@ -362,30 +370,30 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 onOpenTerms();
                 onClose();
               }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+              className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-foreground-subtle" />
-                <span>Normas y privacidad</span>
+                <span className="text-sm font-sans">Normas y privacidad</span>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+              <ChevronRight className="w-4 h-4 text-foreground-subtle" />
             </button>
           </div>
         </div>
 
         {/* Footer */}
         {currentUser && (
-          <div className="p-3 border-t border-border mt-auto">
+          <div className="p-3.5 border-t border-border mt-auto">
             <Button
               variant="danger"
-              size="md"
+              size="lg"
               className="w-full justify-center"
               onClick={() => {
                 onSignOut();
                 onClose();
               }}
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-4 h-4" />
               <span>Cerrar sesión</span>
             </Button>
           </div>

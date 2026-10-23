@@ -249,11 +249,11 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-background text-foreground font-mono antialiased pb-20">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-30 border-b border-border bg-surface">
+      <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link href="/">
-              <Button variant="secondary" size="sm">
+              <Button variant="secondary" size="sm" className="min-h-[40px] px-3 touch-manipulation">
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Volver</span>
               </Button>
@@ -273,10 +273,10 @@ export default function AdminPage() {
             <a
               href="/api/admin/logs?format=csv"
               download
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius)] bg-surface-raised border border-border text-foreground hover:bg-surface text-xs font-medium transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 min-h-[40px] rounded-[var(--radius)] bg-surface-raised border border-border text-foreground hover:bg-surface text-xs font-medium transition-colors cursor-pointer active:scale-95 touch-manipulation"
             >
               <Download className="w-3.5 h-3.5 text-accent" />
-              <span>Exportar CSV</span>
+              <span className="hidden xs:inline">Exportar CSV</span>
             </a>
           </div>
         </div>
@@ -323,26 +323,26 @@ export default function AdminPage() {
             <div className="p-3 rounded-[var(--radius)] bg-surface border border-border flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
                 <div className="relative flex-1 min-w-[180px]">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && fetchLogs(1)}
                     placeholder="Buscar por usuario, IP, detalle..."
-                    className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-black/60 border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/50"
+                    className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl bg-surface-raised border border-border text-base sm:text-xs text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-border-focus"
                   />
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  <Filter className="w-3.5 h-3.5 text-zinc-400" />
+                <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                  <Filter className="w-4 h-4 text-foreground-subtle shrink-0" />
                   <select
                     value={eventTypeFilter}
                     onChange={(e) => {
                       setEventTypeFilter(e.target.value);
                       setPage(1);
                     }}
-                    className="px-2.5 py-1.5 rounded-[var(--radius)] bg-background border border-border text-xs text-foreground focus:outline-none focus:border-accent"
+                    className="w-full sm:w-auto min-h-[44px] px-3 py-2 rounded-[var(--radius)] bg-surface-raised border border-border text-base sm:text-xs text-foreground focus:outline-none focus:border-border-focus"
                   >
                     <option value="">Todos los eventos</option>
                     <option value="user_register">Registro de usuario</option>

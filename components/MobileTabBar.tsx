@@ -19,69 +19,74 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   return (
     <nav
       aria-label="Navegación móvil"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-xs border-t border-border px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/85 backdrop-blur-xl border-t border-border/70 px-2 pt-1 pb-[calc(0.4rem+env(safe-area-inset-bottom,0px))] shadow-sm select-none transition-colors"
     >
       <div className="max-w-md mx-auto grid grid-cols-5 gap-1 items-center">
         {/* 1. Feed */}
         <button
           type="button"
           onClick={() => onSelectTab('feed')}
-          className={`flex flex-col items-center justify-center py-1.5 rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+          aria-label="Ir al Feed"
+          className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-xl transition-all cursor-pointer active:scale-95 touch-manipulation ${
             activeTab === 'feed'
               ? 'text-foreground font-semibold'
-              : 'text-foreground-subtle hover:text-foreground'
+              : 'text-foreground-muted hover:text-foreground'
           }`}
         >
-          <MessageSquare className="w-4 h-4" />
-          <span className="text-[10px] mt-1 font-mono">Feed</span>
+          <MessageSquare className="w-5 h-5" strokeWidth={activeTab === 'feed' ? 2.2 : 1.7} />
+          <span className="text-[10px] mt-1 tracking-tight">Feed</span>
         </button>
 
         {/* 2. Horario */}
         <button
           type="button"
           onClick={() => onSelectTab('calendar')}
-          className={`flex flex-col items-center justify-center py-1.5 rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+          aria-label="Ver horario y tareas"
+          className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-xl transition-all cursor-pointer active:scale-95 touch-manipulation ${
             activeTab === 'calendar'
               ? 'text-foreground font-semibold'
-              : 'text-foreground-subtle hover:text-foreground'
+              : 'text-foreground-muted hover:text-foreground'
           }`}
         >
-          <Calendar className="w-4 h-4" />
-          <span className="text-[10px] mt-1 font-mono">Horario</span>
+          <Calendar className="w-5 h-5" strokeWidth={activeTab === 'calendar' ? 2.2 : 1.7} />
+          <span className="text-[10px] mt-1 tracking-tight">Horario</span>
         </button>
 
         {/* 3. Ruleta Rusa */}
         <button
           type="button"
           onClick={() => onSelectTab('russian_roulette')}
-          className={`flex flex-col items-center justify-center py-1.5 rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+          aria-label="Jugar Ruleta Rusa"
+          className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-xl transition-all cursor-pointer active:scale-95 touch-manipulation ${
             activeTab === 'russian_roulette'
-              ? 'text-accent font-semibold'
-              : 'text-foreground-subtle hover:text-foreground'
+              ? 'text-foreground font-semibold'
+              : 'text-foreground-muted hover:text-foreground'
           }`}
         >
-          <Zap className="w-4 h-4" />
-          <span className="text-[10px] mt-1 font-mono">R. Rusa</span>
+          <Zap className="w-5 h-5" strokeWidth={activeTab === 'russian_roulette' ? 2.2 : 1.7} />
+          <span className="text-[10px] mt-1 tracking-tight">R. Rusa</span>
         </button>
 
         {/* 4. Ranking */}
         <button
           type="button"
           onClick={onOpenLeaderboard}
-          className="flex flex-col items-center justify-center py-1.5 rounded-[var(--radius-sm)] text-foreground-subtle hover:text-foreground transition-colors cursor-pointer"
+          aria-label="Ver clasificación"
+          className="min-h-[48px] flex flex-col items-center justify-center py-1 rounded-xl text-foreground-muted hover:text-foreground transition-all cursor-pointer active:scale-95 touch-manipulation"
         >
-          <Trophy className="w-4 h-4" />
-          <span className="text-[10px] mt-1 font-mono">Top</span>
+          <Trophy className="w-5 h-5 text-amber-500" strokeWidth={1.7} />
+          <span className="text-[10px] mt-1 tracking-tight">Ranking</span>
         </button>
 
         {/* 5. Menú */}
         <button
           type="button"
           onClick={onOpenDrawer}
-          className="flex flex-col items-center justify-center py-1.5 rounded-[var(--radius-sm)] text-foreground-subtle hover:text-foreground transition-colors cursor-pointer"
+          aria-label="Abrir menú completo"
+          className="min-h-[48px] flex flex-col items-center justify-center py-1 rounded-xl text-foreground-muted hover:text-foreground transition-all cursor-pointer active:scale-95 touch-manipulation"
         >
-          <Menu className="w-4 h-4" />
-          <span className="text-[10px] mt-1 font-mono">Menú</span>
+          <Menu className="w-5 h-5" strokeWidth={1.7} />
+          <span className="text-[10px] mt-1 tracking-tight">Más</span>
         </button>
       </div>
     </nav>

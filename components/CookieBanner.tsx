@@ -38,19 +38,20 @@ export const CookieBanner: React.FC<CookieBannerProps> = ({ onOpenTerms }) => {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-16 sm:bottom-4 left-3 right-3 sm:left-auto sm:right-4 z-40 max-w-lg w-auto">
-      <Card className="p-4 space-y-3 shadow-lg">
+    <aside
+      aria-label="Aviso de privacidad y cookies"
+      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-4 left-3 right-3 sm:left-auto sm:right-4 z-40 max-w-lg w-auto animate-in slide-in-from-bottom-4 duration-250 select-none"
+    >
+      <Card className="p-4 space-y-3 shadow-xl bg-surface/95 backdrop-blur-md border border-border">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-surface-raised border border-border flex items-center justify-center text-accent shrink-0">
-            <Cookie className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-[var(--radius-sm)] bg-surface-raised border border-border flex items-center justify-center text-accent shrink-0">
+            <Cookie className="w-5 h-5" />
           </div>
 
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-semibold text-foreground">
-                Cookies técnicas
-              </span>
-            </div>
+            <span className="text-xs font-mono font-semibold text-foreground block">
+              Cookies técnicas
+            </span>
             <p className="text-xs text-foreground-muted leading-relaxed">
               Utilizamos almacenamiento local para recordar tu sesión y preferencias de sonido. Sin rastreo publicitario.
             </p>
@@ -66,8 +67,8 @@ export const CookieBanner: React.FC<CookieBannerProps> = ({ onOpenTerms }) => {
               sound.tap();
             }}
           >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Ver normativa</span>
+            <FileText className="w-4 h-4" />
+            <span>Normativa</span>
           </Button>
 
           <div className="flex items-center gap-2 ml-auto">
@@ -84,12 +85,12 @@ export const CookieBanner: React.FC<CookieBannerProps> = ({ onOpenTerms }) => {
               size="sm"
               onClick={handleAccept}
             >
-              <Check className="w-3.5 h-3.5" />
+              <Check className="w-4 h-4" />
               <span>Aceptar</span>
             </Button>
           </div>
         </div>
       </Card>
-    </div>
+    </aside>
   );
 };

@@ -581,9 +581,9 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
         {/* Right Column: Betting Table & Chips */}
         <div className="lg:col-span-7 flex flex-col space-y-3">
           {/* Chip Value Selector Bar */}
-          <div className="flex items-center justify-between gap-2 p-2 rounded-2xl bg-black/50 border border-white/[0.08]">
-            <span className="text-xs font-mono text-zinc-400 pl-1 shrink-0">Ficha:</span>
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-surface-raised border border-border">
+            <span className="text-xs font-mono text-foreground-muted pl-1 shrink-0 font-medium">Ficha:</span>
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
               {[5, 10, 25, 50, 100, 250].map((val) => (
                 <button
                   key={val}
@@ -593,10 +593,10 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
                     setSelectedChip(val);
                     sound.tap();
                   }}
-                  className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer border active:scale-95 ${
+                  className={`min-h-[44px] min-w-[44px] rounded-full font-mono text-xs font-bold transition-all cursor-pointer border active:scale-90 touch-manipulation flex items-center justify-center shrink-0 ${
                     selectedChip === val
-                      ? 'bg-amber-400 text-black border-amber-300 shadow-md shadow-amber-400/30 ring-1 ring-white/50'
-                      : 'bg-white/[0.03] text-zinc-300 hover:text-white border-white/[0.08]'
+                      ? 'bg-amber-500 text-black border-amber-400 shadow-md ring-2 ring-foreground/20 font-black'
+                      : 'bg-surface text-foreground-muted hover:text-foreground border-border'
                   }`}
                 >
                   {val}
@@ -604,13 +604,14 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
               ))}
             </div>
 
-            <div className="flex items-center gap-1 shrink-0 border-l border-white/10 pl-2">
+            <div className="flex items-center gap-1 shrink-0 border-l border-border pl-2">
               <button
                 type="button"
                 disabled={isSpinning || totalBet === 0}
                 onClick={handleClearBets}
                 title="Limpiar tapete"
-                className="p-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-rose-400 border border-white/[0.06] transition-all cursor-pointer disabled:opacity-40"
+                aria-label="Limpiar tapete"
+                className="w-11 h-11 rounded-lg bg-surface hover:bg-surface-hover text-foreground-muted hover:text-danger border border-border transition-all cursor-pointer disabled:opacity-40 flex items-center justify-center active:scale-95 touch-manipulation"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -619,7 +620,8 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
                 disabled={isSpinning}
                 onClick={handleRepeatBets}
                 title="Repetir anterior"
-                className="p-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-amber-400 border border-white/[0.06] transition-all cursor-pointer disabled:opacity-40"
+                aria-label="Repetir apuesta anterior"
+                className="w-11 h-11 rounded-lg bg-surface hover:bg-surface-hover text-foreground-muted hover:text-amber-500 border border-border transition-all cursor-pointer disabled:opacity-40 flex items-center justify-center active:scale-95 touch-manipulation"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
@@ -627,28 +629,28 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
           </div>
 
           {/* Betting Grid Table */}
-          <div className="rounded-2xl bg-[#09090d] border border-white/[0.08] p-2.5 sm:p-3 space-y-2 select-none shadow-inner">
+          <div className="rounded-xl bg-surface border border-border p-2.5 sm:p-3.5 space-y-2 select-none shadow-xs">
             {/* 0 Row */}
             <button
               type="button"
               disabled={isSpinning}
               onClick={() => handlePlaceBet('0')}
-              className={`w-full py-2 rounded-xl font-mono text-xs font-bold border transition-all cursor-pointer relative flex items-center justify-center ${
+              className={`w-full min-h-[44px] py-2.5 rounded-lg font-mono text-xs font-bold border transition-all cursor-pointer relative flex items-center justify-center active:scale-[0.99] touch-manipulation ${
                 bets['0']
-                  ? 'bg-emerald-600/40 border-emerald-400 text-emerald-200 ring-1 ring-emerald-400'
-                  : 'bg-emerald-950/20 hover:bg-emerald-900/30 text-emerald-400 border-emerald-500/30'
+                  ? 'bg-emerald-600/30 border-emerald-500 text-emerald-400 ring-1 ring-emerald-500'
+                  : 'bg-emerald-950/20 hover:bg-emerald-900/30 text-emerald-500 border-emerald-500/30'
               }`}
             >
               <span>0 (Verde · Pleno 35:1)</span>
               {bets['0'] && (
-                <span className="absolute right-2 px-1.5 py-0.2 rounded text-[10px] bg-amber-400 text-black font-black">
+                <span className="absolute right-2 px-1.5 py-0.5 rounded text-[10px] bg-amber-500 text-black font-black">
                   {bets['0']}
                 </span>
               )}
             </button>
 
             {/* Numbers 1 to 36 (3 columns of 12) */}
-            <div className="grid grid-cols-6 sm:grid-cols-12 gap-1">
+            <div className="grid grid-cols-6 sm:grid-cols-12 gap-1 sm:gap-1.5">
               {Array.from({ length: 36 }, (_, idx) => {
                 const num = idx + 1;
                 const isRed = RED_NUMBERS.has(num);
@@ -660,19 +662,19 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
                     type="button"
                     disabled={isSpinning}
                     onClick={() => handlePlaceBet(String(num))}
-                    className={`h-9 rounded-lg font-mono text-xs font-bold border transition-all cursor-pointer relative flex items-center justify-center ${
+                    className={`min-h-[42px] sm:h-9 rounded-lg font-mono text-xs font-bold border transition-all cursor-pointer relative flex items-center justify-center active:scale-90 touch-manipulation ${
                       betAmount
-                        ? 'ring-2 ring-amber-400 border-amber-400'
-                        : 'border-white/[0.06]'
+                        ? 'ring-2 ring-amber-500 border-amber-500'
+                        : 'border-border'
                     } ${
                       isRed
-                        ? 'bg-rose-950/40 hover:bg-rose-900/50 text-rose-300'
-                        : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300'
+                        ? 'bg-rose-950/30 hover:bg-rose-900/40 text-rose-400'
+                        : 'bg-surface-raised hover:bg-surface-hover text-foreground'
                     }`}
                   >
                     <span>{num}</span>
                     {betAmount && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black text-[9px] font-black flex items-center justify-center shadow">
+                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-black text-[9px] font-black flex items-center justify-center shadow">
                         {betAmount >= 1000 ? `${betAmount / 1000}k` : betAmount}
                       </span>
                     )}
@@ -682,7 +684,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
             </div>
 
             {/* Dozens (1st, 2nd, 3rd) */}
-            <div className="grid grid-cols-3 gap-1 pt-1">
+            <div className="grid grid-cols-3 gap-1.5 pt-1">
               {[
                 { key: 'doz1' as const, label: '1ª Docena (1-12)' },
                 { key: 'doz2' as const, label: '2ª Docena (13-24)' },
@@ -693,15 +695,15 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
                   type="button"
                   disabled={isSpinning}
                   onClick={() => handlePlaceBet(d.key)}
-                  className={`py-2 rounded-xl font-mono text-[11px] font-bold border transition-all cursor-pointer relative flex items-center justify-center ${
+                  className={`min-h-[44px] py-2 rounded-lg font-mono text-xs font-bold border transition-all cursor-pointer relative flex items-center justify-center active:scale-95 touch-manipulation ${
                     bets[d.key]
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-400 ring-1 ring-amber-400'
-                      : 'bg-white/[0.03] text-zinc-400 hover:text-white border-white/[0.06]'
+                      ? 'bg-amber-500/20 text-amber-500 border-amber-500 ring-1 ring-amber-500'
+                      : 'bg-surface-raised text-foreground-muted hover:text-foreground border-border'
                   }`}
                 >
-                  <span>{d.label}</span>
+                  <span className="text-[11px] sm:text-xs text-center">{d.label}</span>
                   {bets[d.key] && (
-                    <span className="absolute right-1 px-1 rounded text-[9px] bg-amber-400 text-black font-black">
+                    <span className="absolute right-1 px-1 rounded text-[9px] bg-amber-500 text-black font-black">
                       {bets[d.key]}
                     </span>
                   )}
@@ -710,7 +712,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
             </div>
 
             {/* Outside 1:1 bets (Red/Black, Even/Odd, Low/High) */}
-            <div className="grid grid-cols-2 sm:grid-cols-6 gap-1 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-1.5 pt-1">
               {[
                 { key: 'low' as const, label: '1-18 (Bajo)' },
                 { key: 'even' as const, label: 'Par (Even)' },
@@ -724,21 +726,21 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
                   type="button"
                   disabled={isSpinning}
                   onClick={() => handlePlaceBet(b.key)}
-                  className={`py-2 px-1 rounded-xl font-mono text-[11px] font-bold border transition-all cursor-pointer relative flex items-center justify-center ${
+                  className={`min-h-[44px] py-2 px-1 rounded-lg font-mono text-xs font-bold border transition-all cursor-pointer relative flex items-center justify-center active:scale-95 touch-manipulation ${
                     bets[b.key]
-                      ? 'ring-1 ring-amber-400 border-amber-400 shadow-sm'
-                      : 'border-white/[0.06]'
+                      ? 'ring-2 ring-amber-500 border-amber-500 shadow-sm'
+                      : 'border-border'
                   } ${
                     b.isColor === 'red'
-                      ? 'bg-rose-950/40 text-rose-300 hover:bg-rose-900/50'
+                      ? 'bg-rose-950/40 text-rose-400 hover:bg-rose-900/50'
                       : b.isColor === 'black'
-                      ? 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
-                      : 'bg-white/[0.03] text-zinc-400 hover:text-white'
+                      ? 'bg-surface-raised text-foreground hover:bg-surface-hover'
+                      : 'bg-surface-raised text-foreground-muted hover:text-foreground'
                   }`}
                 >
                   <span>{b.label}</span>
                   {bets[b.key] && (
-                    <span className="absolute right-1 px-1 rounded text-[9px] bg-amber-400 text-black font-black">
+                    <span className="absolute right-1 px-1 rounded text-[9px] bg-amber-500 text-black font-black">
                       {bets[b.key]}
                     </span>
                   )}
@@ -749,9 +751,9 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
 
           {/* Bet controls footer bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-            <div className="flex items-center gap-3 font-mono text-xs">
-              <span className="text-zinc-400">Total apostado:</span>
-              <span className="text-sm font-bold text-amber-300 tabular-nums">
+            <div className="flex items-center gap-2.5 font-mono text-xs">
+              <span className="text-foreground-muted">Total apostado:</span>
+              <span className="text-sm font-bold text-amber-500 tabular-nums">
                 {totalBet.toLocaleString()} fichas
               </span>
             </div>
@@ -761,18 +763,20 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
                 type="button"
                 disabled={isSpinning || totalBet === 0}
                 onClick={handleDoubleBets}
-                className="px-3 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-xs font-mono font-bold text-zinc-300 hover:text-white border border-white/10 transition-all cursor-pointer disabled:opacity-40"
+                title="Doblar todas las apuestas"
+                aria-label="Doblar apuestas"
+                className="min-h-[48px] px-4 rounded-xl bg-surface-raised hover:bg-surface-hover text-xs font-mono font-bold text-foreground border border-border transition-all cursor-pointer disabled:opacity-40 active:scale-95 touch-manipulation"
               >
-                2×
+                2× Doble
               </button>
 
               <button
                 type="button"
                 disabled={isSpinning || totalBet === 0}
                 onClick={spinWheel}
-                className="flex-1 sm:flex-none px-6 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-black font-mono text-xs font-black shadow-lg shadow-amber-400/25 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40"
+                className="flex-1 sm:flex-none min-h-[52px] px-6 py-3.5 rounded-xl bg-foreground text-background font-mono text-sm font-black shadow-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40 touch-manipulation"
               >
-                <Play className="w-4 h-4 fill-black" />
+                <Play className="w-4 h-4 fill-current" />
                 <span>{isSpinning ? 'GIRANDO...' : 'GIRAR RULETA'}</span>
               </button>
             </div>

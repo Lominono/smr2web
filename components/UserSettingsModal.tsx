@@ -207,12 +207,12 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   const activeColorObj = AVATAR_COLORS.find((c) => c.id === selectedColor) || AVATAR_COLORS[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
-      <Card className="max-w-xl w-full p-0 overflow-hidden flex flex-col max-h-[90dvh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
+      <Card className="max-w-xl w-full p-0 overflow-hidden flex flex-col max-h-[92dvh] rounded-t-[20px] sm:rounded-[var(--radius-lg)] border-border shadow-2xl">
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between bg-surface">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-[var(--radius-sm)] bg-surface-raised border border-border text-accent">
+            <div className="p-2.5 rounded-[var(--radius-sm)] bg-surface-raised border border-border text-accent">
               <Settings className="w-4 h-4" />
             </div>
             <div>
@@ -221,17 +221,17 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={() => {
               onClose();
               sound.tap();
             }}
             aria-label="Cerrar modal"
+            className="w-11 h-11 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-all cursor-pointer active:scale-95 touch-manipulation"
           >
-            <X className="w-4 h-4" />
-          </Button>
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* User Quick Identity Bar */}
@@ -255,7 +255,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyId}
-                  className="hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
+                  className="hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer py-1"
                   title="Copiar ID"
                 >
                   <span>ID: {user.id.slice(0, 8)}...</span>
@@ -265,8 +265,8 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] bg-surface border border-border text-xs font-mono font-semibold text-accent">
-            <Coins className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-surface border border-border text-xs font-mono font-semibold text-amber-500">
+            <Coins className="w-4 h-4" />
             <span>{user.coins.toLocaleString('es-ES')}</span>
           </div>
         </div>
@@ -282,18 +282,22 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             const Icon = t.icon;
             const isActive = activeTab === t.id;
             return (
-              <Button
+              <button
                 key={t.id}
-                variant={isActive ? 'primary' : 'ghost'}
-                size="sm"
+                type="button"
                 onClick={() => {
                   setActiveTab(t.id as any);
                   sound.tap();
                 }}
+                className={`min-h-[44px] px-3.5 py-2 rounded-[var(--radius-sm)] text-xs font-medium flex items-center gap-2 transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation ${
+                  isActive
+                    ? 'bg-foreground text-background font-semibold shadow-xs'
+                    : 'text-foreground-muted hover:text-foreground hover:bg-surface-raised'
+                }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-4 h-4" />
                 <span>{t.label}</span>
-              </Button>
+              </button>
             );
           })}
         </div>
@@ -325,14 +329,14 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                         setSelectedColor(c.id);
                         sound.tap();
                       }}
-                      className={`h-9 rounded-[var(--radius-sm)] ${c.bg} flex items-center justify-center transition-transform cursor-pointer border ${
+                      className={`min-h-[44px] rounded-[var(--radius-sm)] ${c.bg} flex items-center justify-center transition-all cursor-pointer border active:scale-95 touch-manipulation ${
                         selectedColor === c.id
                           ? 'ring-2 ring-foreground scale-105 border-foreground'
-                          : 'border-transparent opacity-70 hover:opacity-100'
+                          : 'border-transparent opacity-80 hover:opacity-100'
                       }`}
                       title={c.label}
                     >
-                      {selectedColor === c.id && <Check className="w-4 h-4 text-white" />}
+                      {selectedColor === c.id && <Check className="w-5 h-5 text-white" />}
                     </button>
                   ))}
                 </div>
