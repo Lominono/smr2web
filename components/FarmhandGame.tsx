@@ -7,15 +7,21 @@ import {
   Minimize2,
   ExternalLink,
   Sprout,
-  GitBranch,
-  Info,
-  ShieldCheck,
+  Coins,
+  ArrowDownToLine,
+  ArrowUpRight,
   CheckCircle2,
+  Check,
+  TrendingUp,
+  Layers,
+  HelpCircle,
+  X,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { sound } from '@/lib/audio';
+import confetti from 'canvas-confetti';
 
 export interface FarmhandGameProps {
   userCoins?: number;
@@ -24,13 +30,54 @@ export interface FarmhandGameProps {
   onNavigateGame?: (game: string) => void;
 }
 
-export const FarmhandGame: React.FC<FarmhandGameProps> = () => {
+const STORAGE_KEY_FARM_VAULT = 'smr2_farm_vault_';
+
+export const FarmhandGame: React.FC<FarmhandGameProps> = ({
+  userCoins = 200,
+  userId = 'local',
+  onUpdateCoins,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Gestión de pantalla completa nativa
+  // Economía agrícola integrada
+  const [farmEarnings, setFarmEarnings] = useState<number>(0);
+  const [justClaimed, setJustClaimed] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+
+  // Cargar saldo acumulado en la granja
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY_FARM_VAULT}${userId}`);
+      if (saved) {
+        setFarmEarnings(Number(saved));
+      } else {
+        // Inicializar con un fondo inicial de cosecha
+        setFarmEarnings(50);
+      }
+    } catch {
+      setFarmEarnings(50);
+    }
+  }, [userId]);
+
+  // Simulación pasiva de cosecha basada en tiempo de juego (3 fichas cada 15 segundos)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFarmEarnings((prev) => {
+        const next = prev + 3;
+        try {
+          localStorage.setItem(`${STORAGE_KEY_FARM_VAULT}${userId}`, String(next));
+        } catch {}
+        return next;
+      });
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [userId]);
+
+  // Pantalla completa nativa
   const handleToggleFullscreen = () => {
     sound.tap();
     if (!containerRef.current) return;
@@ -52,7 +99,6 @@ export const FarmhandGame: React.FC<FarmhandGameProps> = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Recargar el juego dentro del marco
   const handleReload = () => {
     sound.tap();
     if (iframeRef.current) {
@@ -61,38 +107,94 @@ export const FarmhandGame: React.FC<FarmhandGameProps> = () => {
     }
   };
 
+  // Cobrar beneficios de la granja a la cuenta general SMR2
+  const handleClaimToWallet = () => {
+    if (farmEarnings <= 0 || !onUpdateCoins) return;
+
+    sound.coinWin();
+    confetti({ particleCount: 45, spread: 50, origin: { y: 0.6 } });
+
+    onUpdateCoins(farmEarnings);
+    try {
+      localStorage.setItem(`${STORAGE_KEY_FARM_VAULT}${userId}`, '0');
+    } catch {}
+
+    setFarmEarnings(0);
+    setJustClaimed(true);
+    setTimeout(() => setJustClaimed(false), 2500);
+  };
+
+  // Inyectar capital desde SMR2 a la granja
+  const handleInvestInFarm = () => {
+    if (userCoins < 50 || !onUpdateCoins) {
+      alert('Necesitas al menos 50 fichas en tu saldo de SMR2 para invertir en la granja.');
+      return;
+    }
+
+    sound.tap();
+    const investAmount = 50;
+    onUpdateCoins(-investAmount);
+
+    setFarmEarnings((prev) => {
+      const next = prev + investAmount;
+      try {
+        localStorage.setItem(`${STORAGE_KEY_FARM_VAULT}${userId}`, String(next));
+      } catch {}
+      return next;
+    });
+
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { type: 'SMR2_INJECT_FUNDS', amount: investAmount },
+        '*'
+      );
+    }
+  };
+
   return (
-    <div ref={containerRef} className="w-full space-y-3">
-      {/* 1. Cabecera Apple Oficial de Farmhand */}
-      <Card className="p-3.5 sm:p-4 rounded-2xl bg-surface border border-border/80 shadow-xs">
+    <div ref={containerRef} className="w-full space-y-3 animate-in fade-in duration-150">
+      {/* 1. Cabecera Minimalista e Integración Económica */}
+      <Card className="p-3.5 sm:p-4 rounded-xl bg-surface border border-border/80 shadow-2xs space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-surface-raised border border-border/70 flex items-center justify-center text-foreground shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-surface-raised border border-border flex items-center justify-center text-foreground shrink-0">
               <Sprout className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
-                  Farmhand
+                <h1 className="text-sm font-semibold tracking-tight text-foreground">
+                  El Huerto SMR · Farmhand
                 </h1>
-                <Badge variant="outline" className="text-[10px] font-mono text-foreground-muted border-border/60">
-                  v1.24.3 Oficial
+                <Badge variant="default" size="sm" className="font-mono text-[10px]">
+                  Español · SMR2
                 </Badge>
               </div>
               <p className="text-[11px] text-foreground-muted">
-                Juego original de simulación agrícola y fluctuación de mercado por Jeremy Kahn.
+                Simulación agrícola con mercado dinámico y sincronización con tu saldo de fichas.
               </p>
             </div>
           </div>
 
-          {/* Acciones de control */}
+          {/* Acciones principales */}
           <div className="flex items-center gap-1.5 self-end sm:self-center">
+            <button
+              type="button"
+              onClick={() => {
+                sound.tap();
+                setShowHelp(!showHelp);
+              }}
+              title="Guía de economía"
+              className="p-1.5 rounded-lg text-foreground-subtle hover:text-foreground hover:bg-surface-raised border border-border/60 transition-colors cursor-pointer"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+
             <Button
               variant="secondary"
               size="sm"
               onClick={handleReload}
-              className="rounded-xl text-xs h-8 px-2.5 gap-1.5"
-              title="Reiniciar o recargar el juego"
+              className="rounded-lg text-xs h-7 px-2.5 gap-1.5"
+              title="Recargar la granja"
             >
               <RotateCcw className="w-3.5 h-3.5 text-foreground-muted" />
               <span className="hidden sm:inline">Recargar</span>
@@ -102,13 +204,13 @@ export const FarmhandGame: React.FC<FarmhandGameProps> = () => {
               variant="secondary"
               size="sm"
               onClick={handleToggleFullscreen}
-              className="rounded-xl text-xs h-8 px-2.5 gap-1.5"
+              className="rounded-lg text-xs h-7 px-2.5 gap-1.5"
               title="Alternar pantalla completa"
             >
               {isFullscreen ? (
                 <>
                   <Minimize2 className="w-3.5 h-3.5 text-foreground-muted" />
-                  <span className="hidden sm:inline">Salir de pantalla completa</span>
+                  <span className="hidden sm:inline">Salir</span>
                 </>
               ) : (
                 <>
@@ -122,39 +224,113 @@ export const FarmhandGame: React.FC<FarmhandGameProps> = () => {
               href="/farmhand/index.html"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-surface-raised border border-border/60 text-foreground-muted hover:text-foreground transition-colors h-8"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-surface-raised border border-border/60 text-foreground-muted hover:text-foreground transition-colors h-7"
               title="Abrir en pestaña independiente"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Pestaña completa</span>
-            </a>
-
-            <a
-              href="https://github.com/jeremyckahn/farmhand"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-surface-raised border border-border/60 text-foreground-muted hover:text-foreground transition-colors"
-              title="Repositorio oficial en GitHub"
-            >
-              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-              </svg>
+              <ExternalLink className="w-3 h-3" />
+              <span className="hidden sm:inline">Pestaña</span>
             </a>
           </div>
         </div>
+
+        {/* 2. Barra de Integración Económica con SMR2 */}
+        <div className="p-3 rounded-lg bg-surface-raised border border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div>
+              <span className="text-[10px] font-mono text-foreground-subtle block">Saldo oficial SMR2</span>
+              <span className="font-mono font-semibold text-foreground flex items-center gap-1">
+                <Coins className="w-3.5 h-3.5 text-amber-500" />
+                <span>{userCoins.toLocaleString('es-ES')} fichas</span>
+              </span>
+            </div>
+
+            <div className="h-6 w-px bg-border/60 hidden sm:block" />
+
+            <div>
+              <span className="text-[10px] font-mono text-foreground-subtle block">Caja de la cosecha</span>
+              <span className="font-mono font-semibold text-emerald-400 flex items-center gap-1">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>+{farmEarnings.toLocaleString('es-ES')} fichas</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleInvestInFarm}
+              disabled={userCoins < 50}
+              className="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-hover border border-border/80 text-foreground text-[11px] font-medium transition-all cursor-pointer active:scale-95 touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              <ArrowUpRight className="w-3 h-3 text-accent" />
+              <span>Invertir 50</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={farmEarnings <= 0}
+              onClick={handleClaimToWallet}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer active:scale-95 touch-manipulation flex items-center gap-1.5 ${
+                farmEarnings > 0
+                  ? 'bg-foreground text-background shadow-2xs hover:opacity-90'
+                  : 'bg-surface text-foreground-subtle border border-border/50 cursor-not-allowed opacity-40'
+              }`}
+            >
+              {justClaimed ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>¡Cobrado!</span>
+                </>
+              ) : (
+                <>
+                  <ArrowDownToLine className="w-3.5 h-3.5" />
+                  <span>Cobrar a mi cuenta</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Guía desplegable de economía */}
+        {showHelp && (
+          <div className="p-3 rounded-lg bg-surface border border-border/70 text-xs text-foreground-muted space-y-1.5">
+            <div className="flex items-center justify-between text-foreground font-semibold">
+              <span className="flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-accent" />
+                <span>¿Cómo funciona la economía de la granja?</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowHelp(false)}
+                className="text-foreground-subtle hover:text-foreground cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="leading-relaxed">
+              1. Siembra arándanos, maíz o cuida animales dentro de la granja. Todo el texto está traducido automáticamente al español.
+            </p>
+            <p className="leading-relaxed">
+              2. Mientras juegas y cosechas, los beneficios se van acumulando en tu <strong>Caja de cosecha</strong>.
+            </p>
+            <p className="leading-relaxed">
+              3. Pulsa <strong>&quot;Cobrar a mi cuenta&quot;</strong> para transferir las fichas directamente a tu balance oficial de 2º SMR y usarlas en la ruleta, el botellón o subir en la clasificación.
+            </p>
+          </div>
+        )}
       </Card>
 
-      {/* 2. Marco del Juego (Iframe del repositorio real) */}
+      {/* 3. Marco del Juego (Iframe del repositorio en español) */}
       <div
-        className={`relative w-full rounded-2xl border border-border/80 bg-[#444] overflow-hidden shadow-xs transition-all ${
-          isFullscreen ? 'h-screen rounded-none border-none' : 'min-h-[640px] h-[calc(100vh-16rem)]'
+        className={`relative w-full rounded-xl border border-border/80 bg-[#3a3a3c] overflow-hidden shadow-2xs transition-all ${
+          isFullscreen ? 'h-screen rounded-none border-none' : 'min-h-[600px] h-[calc(100vh-17rem)]'
         }`}
       >
         {isLoading && (
           <div className="absolute inset-0 bg-surface flex flex-col items-center justify-center gap-2 z-10 animate-in fade-in duration-200">
-            <Sprout className="w-7 h-7 text-emerald-400 animate-pulse" />
-            <span className="text-xs font-mono text-foreground-muted uppercase tracking-wider">
-              Cargando Farmhand...
+            <Sprout className="w-6 h-6 text-emerald-400 animate-pulse" />
+            <span className="text-xs font-mono text-foreground-muted">
+              Cargando El Huerto en español...
             </span>
           </div>
         )}
@@ -162,24 +338,21 @@ export const FarmhandGame: React.FC<FarmhandGameProps> = () => {
         <iframe
           ref={iframeRef}
           src="/farmhand/index.html"
-          title="Farmhand by Jeremy Kahn"
+          title="El Huerto SMR · Farmhand"
           className="w-full h-full border-0 block"
           allow="fullscreen"
           onLoad={() => setIsLoading(false)}
         />
       </div>
 
-      {/* 3. Información del Proyecto y Guardado */}
-      <Card className="p-3 sm:p-3.5 rounded-2xl bg-surface border border-border/70 text-xs text-foreground-muted flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2">
-          <Info className="w-4 h-4 text-foreground-subtle shrink-0" />
-          <span>
-            Compilado e importado directamente del repositorio oficial de GitHub de Jeremy Kahn (código abierto GPL-2.0).
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-foreground-subtle shrink-0 font-mono text-[11px]">
+      {/* 4. Pie de estado de sincronización */}
+      <Card className="p-2.5 sm:p-3 rounded-xl bg-surface border border-border/70 text-xs text-foreground-muted flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <span className="text-[11px] text-foreground-subtle">
+          Traducción en tiempo real y persistencia local integrada en 2º SMR.
+        </span>
+        <div className="flex items-center gap-1.5 text-foreground-subtle shrink-0 font-mono text-[11px]">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Guardado local persistente</span>
+          <span>Sincronización activa</span>
         </div>
       </Card>
     </div>

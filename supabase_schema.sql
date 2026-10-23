@@ -3,7 +3,7 @@
 -- ==============================================================
 
 -- ==============================================================
--- INSTRUCCIONES DE ACTUALIZACIÓN EN TIEMPO REAL:
+-- INSTRUCCIONES DE ACTUALIZACIÓN EN TIEMPO REAL (SEGURO E IDEMPOTENTE):
 -- Copia y pega este bloque en el SQL Editor de tu panel de Supabase:
 --
 -- 1. Crear tabla de actualizaciones del sistema en tiempo real
@@ -28,11 +28,22 @@
 -- ALTER TABLE public.calendar_events REPLICA IDENTITY FULL;
 -- ALTER TABLE public.app_updates REPLICA IDENTITY FULL;
 --
--- 4. Añadir tablas a la publicación de Supabase Realtime
--- ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
--- ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
--- ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
--- ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates;
+-- 4. Añadir tablas a la publicación de Supabase Realtime (con verificación previa para evitar error 42710)
+-- DO $$
+-- BEGIN
+--   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'chat_messages') THEN
+--     ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+--   END IF;
+--   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'calendar_events') THEN
+--     ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
+--   END IF;
+--   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'profiles') THEN
+--     ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+--   END IF;
+--   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'app_updates') THEN
+--     ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates;
+--   END IF;
+-- END $$;
 -- ==============================================================
 
 -- 1. TABLA DE PERFILES REALES DE USUARIOS (Vinculada a auth.users)
@@ -159,8 +170,19 @@ ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
 ALTER TABLE public.calendar_events REPLICA IDENTITY FULL;
 ALTER TABLE public.app_updates REPLICA IDENTITY FULL;
 
--- 7. HABILITAR PUBLICACIÓN SUPABASE REALTIME
-ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates;
+-- 7. HABILITAR PUBLICACIÓN SUPABASE REALTIME (con verificación para evitar error 42710)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'chat_messages') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'calendar_events') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'profiles') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'app_updates') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates;
+  END IF;
+END $$;

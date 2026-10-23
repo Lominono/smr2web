@@ -35,6 +35,8 @@ import {
   Target,
   Trophy,
   ChevronRight,
+  HelpCircle,
+  X,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -369,6 +371,26 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [purchasedPerks, setPurchasedPerks] = useState<string[]>([]);
   const [totalDrinksTaken, setTotalDrinksTaken] = useState<number>(0);
   const [beerPongWins, setBeerPongWins] = useState<number>(0);
+
+  // Tutorial interactivo de primera visita
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem('smr2_botellon_tutorial_seen');
+      if (!seen) {
+        setShowTutorial(true);
+      }
+    } catch {}
+  }, []);
+
+  const handleCloseTutorial = () => {
+    setShowTutorial(false);
+    try {
+      localStorage.setItem('smr2_botellon_tutorial_seen', 'true');
+    } catch {}
+  };
 
   // Estados de interfaz y feedback
   const [offlineReport, setOfflineReport] = useState<{
@@ -958,8 +980,21 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           </div>
         </div>
 
-        {/* Rango de Fiestero */}
+        {/* Rango de Fiestero & Botón de Ayuda */}
         <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+          <button
+            type="button"
+            onClick={() => {
+              sound.tap();
+              setTutorialStep(0);
+              setShowTutorial(true);
+            }}
+            title="Ver guía de cómo jugar"
+            className="p-2 rounded-xl bg-surface hover:bg-surface-hover border border-border/70 text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+
           <div className="text-right">
             <div className="text-[10px] font-mono text-foreground-subtle uppercase tracking-wider">
               Tu reputación
@@ -1571,6 +1606,133 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             >
               <span>Minas</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mini-tutorial interactivo (primera visita y bajo demanda) */}
+      {showTutorial && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-200"
+        >
+          <div className="fixed inset-0" onClick={handleCloseTutorial} />
+          <div className="relative z-10 w-full max-w-md rounded-2xl bg-surface border border-border/80 shadow-2xl overflow-hidden p-5 space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <Wine className="w-4 h-4 text-accent" />
+                <h3 className="text-sm font-semibold text-foreground tracking-tight">
+                  Guía de El Botellón · Paso {tutorialStep + 1} de 3
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseTutorial}
+                className="p-1 rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-raised cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Step Content */}
+            <div className="py-2 space-y-3">
+              {tutorialStep === 0 && (
+                <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
+                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-border flex items-center justify-center text-accent mx-auto mb-2">
+                    <Wine className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-foreground text-center">
+                    1. Tragos manuales y farmeo pasivo
+                  </h4>
+                  <p className="leading-relaxed text-center">
+                    Pulsa la litrona central para ganar fichas manuales. Después, compra y sube de nivel los suministros en la primera pestaña para generar fichas automáticamente por segundo, incluso cuando estés desconectado.
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 1 && (
+                <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
+                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-border flex items-center justify-center text-emerald-400 mx-auto mb-2">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-foreground text-center">
+                    2. Fases de fiesta y multiplicadores
+                  </h4>
+                  <p className="leading-relaxed text-center">
+                    A medida que tu recaudación crezca, avanzarás por las zonas de la noche (Parque, Piso de colegas, Discoteca y Villa VIP). Cada nueva fase multiplica la velocidad de toda tu producción pasiva.
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 2 && (
+                <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
+                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-border flex items-center justify-center text-amber-500 mx-auto mb-2">
+                    <ArrowDownToLine className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-foreground text-center">
+                    3. Cobro íntegro a tu balance oficial
+                  </h4>
+                  <p className="leading-relaxed text-center">
+                    Tus fichas se acumulan en <strong>&quot;En la saca&quot;</strong>. Pulsa <strong>&quot;Meter a la saca&quot;</strong> cuando quieras para transferir todas las ganancias directamente a tu saldo oficial de 2º SMR y competir en el ranking.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Step Indicators and Nav Buttons */}
+            <div className="flex items-center justify-between pt-2 border-t border-border/60">
+              <div className="flex items-center gap-1.5">
+                {[0, 1, 2].map((s) => (
+                  <span
+                    key={s}
+                    className={`h-1.5 rounded-full transition-all ${
+                      tutorialStep === s ? 'w-5 bg-foreground' : 'w-2 bg-border'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {tutorialStep > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.tap();
+                      setTutorialStep((prev) => prev - 1);
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-foreground-muted hover:text-foreground bg-surface-raised border border-border/70 cursor-pointer"
+                  >
+                    Anterior
+                  </button>
+                )}
+
+                {tutorialStep < 2 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.tap();
+                      setTutorialStep((prev) => prev + 1);
+                    }}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-foreground text-background cursor-pointer active:scale-95"
+                  >
+                    Siguiente
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.tap();
+                      handleCloseTutorial();
+                    }}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-foreground text-background cursor-pointer active:scale-95 shadow-xs"
+                  >
+                    ¡Comenzar fiesta!
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
