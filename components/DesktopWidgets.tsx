@@ -106,21 +106,24 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
       const raw = localStorage.getItem(key);
       if (!raw) return;
       const parsed: BotellonState = JSON.parse(raw);
-      const toClaim = Math.floor(parsed.pendingVault || 0);
-      if (toClaim <= 0) return;
+      const rawFichas = Math.floor(parsed.pendingVault || 0);
+      const coinsToClaim = Math.floor(rawFichas / 5);
+      if (coinsToClaim <= 0) return;
 
       sound.coinWin();
       confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 } });
 
       if (onUpdateCoins) {
-        onUpdateCoins(toClaim);
+        onUpdateCoins(coinsToClaim);
       }
 
-      parsed.pendingVault = 0;
+      const fichasDeducted = coinsToClaim * 5;
+      const remainingVault = Math.max(0, rawFichas - fichasDeducted);
+      parsed.pendingVault = remainingVault;
       parsed.lastTickMs = Date.now();
       localStorage.setItem(key, JSON.stringify(parsed));
 
-      setBotellonState((prev) => ({ ...prev, vault: 0 }));
+      setBotellonState((prev) => ({ ...prev, vault: remainingVault }));
       setJustClaimedWidget(true);
       setTimeout(() => setJustClaimedWidget(false), 2000);
     } catch {}
@@ -301,7 +304,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
         <div className="p-2.5 rounded-lg bg-surface-raised border border-border/60 flex items-center justify-between gap-2">
           <div>
             <div className="text-[10px] text-foreground-subtle font-mono">
-              En la saca
+              En la saca ({Math.floor(botellonState.vault / 5).toLocaleString()} 🪙)
             </div>
             <div className="text-sm font-semibold font-mono text-foreground">
               +{botellonState.vault.toLocaleString()}{' '}
@@ -311,10 +314,10 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
 
           <button
             type="button"
-            disabled={botellonState.vault <= 0}
+            disabled={botellonState.vault < 5}
             onClick={handleClaimFromWidget}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
-              botellonState.vault > 0
+              botellonState.vault >= 5
                 ? 'bg-foreground text-background shadow-xs hover:opacity-90'
                 : 'bg-surface text-foreground-subtle border border-border/50 cursor-not-allowed opacity-40'
             }`}
@@ -327,7 +330,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
             ) : (
               <>
                 <ArrowDownToLine className="w-3.5 h-3.5" />
-                <span>Cobrar</span>
+                <span>Cobrar (+{Math.floor(botellonState.vault / 5).toLocaleString()} 🪙)</span>
               </>
             )}
           </button>

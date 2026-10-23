@@ -37,6 +37,11 @@ import {
   ChevronRight,
   HelpCircle,
   X,
+  Siren,
+  ShieldAlert,
+  AlertTriangle,
+  Droplets,
+  Activity,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -66,56 +71,56 @@ export const TIERS: TierConfig[] = [
     id: 'litronas',
     name: 'Litronas del chino',
     desc: 'Lo básico para empezar a beber en el parque.',
-    baseCost: 25,
-    baseRate: 0.2, // ~1 ficha cada 5 segundos
+    baseCost: 35,
+    baseRate: 0.10, // ~1 ficha cada 10 segundos
     icon: BottleWine,
   },
   {
     id: 'hielos',
     name: 'Bolsa de hielos y vasos',
     desc: 'Para que no se caliente el trago a los 5 minutos.',
-    baseCost: 95,
-    baseRate: 0.8,
+    baseCost: 120,
+    baseRate: 0.40,
     icon: GlassWater,
   },
   {
     id: 'chupitos',
     name: 'Ronda de chupitos',
     desc: 'Tequila y Jäger para que la peña se anime rápido.',
-    baseCost: 380,
-    baseRate: 2.8,
+    baseCost: 450,
+    baseRate: 1.50,
     icon: Wine,
   },
   {
     id: 'botellas',
     name: 'Nevera con botellas y mezcla',
     desc: 'Ron-cola y ginebra sin escatimar con los hielos.',
-    baseCost: 1400,
-    baseRate: 9.5,
+    baseCost: 1700,
+    baseRate: 5.00,
     icon: CupSoda,
   },
   {
     id: 'altavoz',
     name: 'Altavoz a toda mecha',
     desc: 'Suena el reguetón y se acerca tol mundo a la fiesta.',
-    baseCost: 4800,
-    baseRate: 32,
+    baseCost: 6000,
+    baseRate: 16.00,
     icon: Music,
   },
   {
     id: 'barra_libre',
     name: 'Barra libre en el local',
     desc: 'Desmadre total y copas sin fin hasta el amanecer.',
-    baseCost: 18000,
-    baseRate: 105,
+    baseCost: 22000,
+    baseRate: 50.00,
     icon: Flame,
   },
   {
     id: 'vip',
     name: 'Reservado VIP y champán',
     desc: 'Botellazas con bengalas para los reyes de la noche.',
-    baseCost: 65000,
-    baseRate: 320,
+    baseCost: 80000,
+    baseRate: 160.00,
     icon: Sparkles,
   },
 ];
@@ -130,58 +135,86 @@ export interface ZoneConfig {
   requiredProduction: number;
   badge: string;
   icon: string;
+  policeRisk: number; // 0 a 1
 }
 
 export const ZONES: ZoneConfig[] = [
   {
     id: 'parque',
-    name: 'El Parque y los Bancos',
+    name: 'El Parque Escondido',
     subtitle: '22:00h · Comienza la previa',
-    desc: 'Bancos de madera, litronas frescas y las primeras risas entre colegas.',
+    desc: 'Bancos apartados, litronas frescas y las primeras risas entre colegas.',
     multiplier: 1.0,
     requiredProduction: 0,
     badge: 'Inicio',
     icon: 'trees',
+    policeRisk: 0,
+  },
+  {
+    id: 'portal',
+    name: 'Portal de Vecinos',
+    subtitle: '23:30h · La previa se calienta',
+    desc: 'Refugiados del frío bajo el portal. Los vecinos del primero vigilan por el balcón.',
+    multiplier: 1.25,
+    requiredProduction: 1500,
+    badge: 'Fase 2',
+    icon: 'home',
+    policeRisk: 0.06,
   },
   {
     id: 'piso',
-    name: 'Piso de Colegas (Pre-Fiesta)',
-    subtitle: '00:00h · Calentando motores',
+    name: 'Piso de Colegas Ruidoso',
+    subtitle: '01:00h · Música y vasos llenos',
     desc: 'Música en altavoces, cubatas en vasos de tubo y la gente dándolo todo.',
-    multiplier: 1.35,
-    requiredProduction: 1000,
-    badge: 'Fase 2',
-    icon: 'home',
+    multiplier: 1.6,
+    requiredProduction: 8000,
+    badge: 'Fase 3',
+    icon: 'speaker',
+    policeRisk: 0.14,
+  },
+  {
+    id: 'callejon',
+    name: 'Callejón de los Bares',
+    subtitle: '02:30h · Rumbo a la zona',
+    desc: 'Transeúntes, copas en la calle y patrullas de la municipal pasando por la esquina.',
+    multiplier: 2.1,
+    requiredProduction: 35000,
+    badge: 'Fase 4',
+    icon: 'map-pin',
+    policeRisk: 0.24,
   },
   {
     id: 'discoteca',
     name: 'La Discoteca Central',
-    subtitle: '02:30h · Desmadre en pista',
-    desc: 'Luces estroboscópicas, DJ en directo, barra libre y la pista a reventar.',
-    multiplier: 1.8,
-    requiredProduction: 6000,
-    badge: 'Fase 3',
+    subtitle: '03:45h · Desmadre en pista',
+    desc: 'Luces estroboscópicas, porteros estrictos, barra libre y la pista a reventar.',
+    multiplier: 2.8,
+    requiredProduction: 120000,
+    badge: 'Fase 5',
     icon: 'disc',
+    policeRisk: 0.36,
   },
   {
     id: 'macrofestival',
     name: 'Macro-Festival Fin de Curso SMR',
-    subtitle: '05:00h · El fiestón del año',
-    desc: 'Escenario masivo al aire libre, pantallas gigantes y barras por doquier.',
-    multiplier: 2.5,
-    requiredProduction: 30000,
-    badge: 'Fase 4',
+    subtitle: '05:30h · El fiestón masivo',
+    desc: 'Escenario masivo al aire libre, pantallas gigantes y controles de seguridad en cada acceso.',
+    multiplier: 3.8,
+    requiredProduction: 400000,
+    badge: 'Fase 6',
     icon: 'tent',
+    policeRisk: 0.50,
   },
   {
-    id: 'ibiza_vip',
-    name: 'Villa VIP en Ibiza (Leyenda SMR)',
-    subtitle: '07:30h · El After de los elegidos',
-    desc: 'Piscina infinita, champán ilimitado y los reyes indiscutibles del curso.',
-    multiplier: 4.0,
-    requiredProduction: 120000,
+    id: 'after_clandestino',
+    name: 'El After Clandestino (Nivel Leyenda)',
+    subtitle: '07:30h · Fiesta extrema',
+    desc: 'Piscina privada, champán ilimitado y vigilancia constante para evitar que nos cierren el local.',
+    multiplier: 5.0,
+    requiredProduction: 1200000,
     badge: 'Leyenda',
     icon: 'crown',
+    policeRisk: 0.65,
   },
 ];
 
@@ -303,6 +336,7 @@ export interface BotellonState {
   purchasedPerks?: string[];
   totalDrinksTaken?: number;
   beerPongWins?: number;
+  hangoverLevel?: number;
 }
 
 export const STORAGE_KEY_PREFIX = 'smr2_botellon_data_';
@@ -313,10 +347,14 @@ export const renderZoneIcon = (iconName: string) => {
       return <Trees className="w-5 h-5 text-emerald-400" />;
     case 'home':
       return <Home className="w-5 h-5 text-blue-400" />;
+    case 'speaker':
+      return <Volume2 className="w-5 h-5 text-cyan-400" />;
+    case 'map-pin':
+      return <MapPin className="w-5 h-5 text-amber-400" />;
     case 'disc':
       return <Disc className="w-5 h-5 text-purple-400" />;
     case 'tent':
-      return <Tent className="w-5 h-5 text-amber-400" />;
+      return <Tent className="w-5 h-5 text-rose-400" />;
     case 'crown':
       return <Crown className="w-5 h-5 text-amber-500" />;
     default:
@@ -414,6 +452,15 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [pongResult, setPongResult] = useState<{ success: boolean; reward: number; text: string } | null>(null);
   const [pongCooldown, setPongCooldown] = useState<number>(0);
 
+  // Estados de dificultad, riesgo y resaca (Nerf orgánico)
+  const [policeAlert, setPoliceAlert] = useState<{
+    secondsLeft: number;
+    penaltyResult?: string;
+  } | null>(null);
+  const [productionFrozenUntilMs, setProductionFrozenUntilMs] = useState<number>(0);
+  const [hangoverLevel, setHangoverLevel] = useState<number>(0);
+  const [waterCooldown, setWaterCooldown] = useState<number>(0);
+
   // Zona actual y multiplicador de zona
   const activeZone = useMemo(() => {
     return ZONES.find((z) => z.id === currentZoneId) || ZONES[0];
@@ -438,6 +485,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const drinkPowerMult = hasPerk('aguante_hierro') ? 3.0 : 1.0;
   const rankBonusMult = 1 + currentRank.bonusPercent / 100;
 
+  // Resaca y congelación de producción por patrulla
+  const isHungover = hangoverLevel >= 100;
+  const isProductionFrozen = productionFrozenUntilMs > Date.now();
+
   // Tasa de producción pasiva base (por segundo) con hitos, zona y rango
   const baseRatePerSecond = useMemo(() => {
     const rawRate = TIERS.reduce((acc, tier) => {
@@ -449,11 +500,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     return rawRate * activeZone.multiplier * rankBonusMult;
   }, [levels, activeZone.multiplier, rankBonusMult]);
 
-  // Tasa real con multiplicadores aplicados (Prestigio + Modo Fiesta Loca)
+  // Tasa real con multiplicadores aplicados (Prestigio + Modo Fiesta Loca - Resaca - Redada)
   const effectiveRatePerSecond = useMemo(() => {
+    if (isProductionFrozen) return 0;
     const frenzyMult = isCrazyParty ? 2 : 1;
-    return baseRatePerSecond * prestigeMultiplier * frenzyMult;
-  }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty]);
+    const hangoverMult = isHungover ? 0.35 : 1.0;
+    return baseRatePerSecond * prestigeMultiplier * frenzyMult * hangoverMult;
+  }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, isProductionFrozen, isHungover]);
 
   // 1. Cargar estado inicial y calcular farmeo offline
   useEffect(() => {
@@ -474,6 +527,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       setPurchasedPerks(saved.purchasedPerks || []);
       setTotalDrinksTaken(saved.totalDrinksTaken || 0);
       setBeerPongWins(saved.beerPongWins || 0);
+      if (typeof saved.hangoverLevel === 'number') setHangoverLevel(saved.hangoverLevel);
 
       // Calcular farmeo mientras no estaba con límite de horas del perk
       const maxOfflineHours = (saved.purchasedPerks || []).includes('pase_vip') ? 16 : 8;
@@ -556,6 +610,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         purchasedPerks,
         totalDrinksTaken,
         beerPongWins,
+        hangoverLevel,
       });
     }, 5000);
 
@@ -569,6 +624,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     purchasedPerks,
     totalDrinksTaken,
     beerPongWins,
+    hangoverLevel,
     saveState,
   ]);
 
@@ -588,6 +644,140 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
     return () => clearInterval(timer);
   }, [isCrazyParty]);
+
+  // 5.1 Sistema de Alerta Policial / Quejas Vecinales (Chequeo cada 12 segundos)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      if (policeAlert || productionFrozenUntilMs > now || pendingVault < 80) return;
+      if (activeZone.policeRisk <= 0) return;
+
+      // Probabilidad ajustada por zona y volumen del bote
+      const vaultFactor = Math.min(2.0, pendingVault / 400);
+      const raidChance = activeZone.policeRisk * 0.28 * vaultFactor;
+
+      if (Math.random() < raidChance) {
+        sound.whoosh();
+        setPoliceAlert({ secondsLeft: 12 });
+      }
+    }, 12000);
+
+    return () => clearInterval(interval);
+  }, [policeAlert, productionFrozenUntilMs, pendingVault, activeZone.policeRisk]);
+
+  // 5.2 Cuenta atrás de Alerta Policial (12s para actuar o sanción AFK)
+  useEffect(() => {
+    if (!policeAlert || policeAlert.secondsLeft <= 0) return;
+
+    const timer = setInterval(() => {
+      setPoliceAlert((prev) => {
+        if (!prev) return null;
+        if (prev.secondsLeft <= 1) {
+          // TIEMPO AGOTADO: Sanción automática por descuido
+          sound.broke();
+          const confiscated = Math.floor(pendingVault * 0.5);
+          setPendingVault((v) => Math.max(0, v - confiscated));
+          return {
+            secondsLeft: 0,
+            penaltyResult: `¡Tiempo agotado! La patrulla llegó sin avisar y requisó ${confiscated.toLocaleString()} fichas del bote.`,
+          };
+        }
+        return { ...prev, secondsLeft: prev.secondsLeft - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [policeAlert?.secondsLeft, pendingVault]);
+
+  // Cierre automático del resultado de alerta policial tras 4.5 segundos
+  useEffect(() => {
+    if (policeAlert?.penaltyResult) {
+      const t = setTimeout(() => {
+        setPoliceAlert(null);
+      }, 4500);
+      return () => clearTimeout(t);
+    }
+  }, [policeAlert?.penaltyResult]);
+
+  // 5.3 Descenso natural de resaca y cooldown de agua mineral
+  useEffect(() => {
+    const hangoverTimer = setInterval(() => {
+      setHangoverLevel((prev) => Math.max(0, prev - 1));
+    }, 4000);
+
+    return () => clearInterval(hangoverTimer);
+  }, []);
+
+  useEffect(() => {
+    if (waterCooldown <= 0) return;
+    const cooldownTimer = setInterval(() => {
+      setWaterCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(cooldownTimer);
+  }, [waterCooldown]);
+
+  // Acciones tácticas ante la alerta policial:
+  const handlePoliceHide = () => {
+    if (!policeAlert || policeAlert.secondsLeft <= 0) return;
+    sound.tap();
+    setProductionFrozenUntilMs(Date.now() + 40000);
+    setPoliceAlert({
+      secondsLeft: 0,
+      penaltyResult: '¡Habéis escondido los vasos a tiempo! La patrulla pasó de largo. Producción pausada durante 40 segundos.',
+    });
+  };
+
+  const handlePoliceRun = () => {
+    if (!policeAlert || policeAlert.secondsLeft <= 0) return;
+    sound.tap();
+    const lost = Math.floor(pendingVault * 0.4);
+    setPendingVault((v) => Math.max(0, v - lost));
+    setPoliceAlert({
+      secondsLeft: 0,
+      penaltyResult: `¡Salisteis corriendo! Salvaste el 60% del bote, pero se cayeron ${lost.toLocaleString()} fichas en la huida.`,
+    });
+  };
+
+  const handlePoliceBluff = () => {
+    if (!policeAlert || policeAlert.secondsLeft <= 0) return;
+    sound.tap();
+    const isSuccess = Math.random() < 0.5;
+
+    if (isSuccess) {
+      sound.coinWin();
+      setPoliceAlert({
+        secondsLeft: 0,
+        penaltyResult: '¡Increíble! Les dijisteis que estabais esperando el autobús y os dejaron marchar sin sanción.',
+      });
+    } else {
+      sound.broke();
+      const lost = Math.floor(pendingVault * 0.75);
+      setPendingVault((v) => Math.max(0, v - lost));
+
+      // Reducir 1 nivel del suministro más alto
+      const tierKeys = Object.keys(levels).reverse();
+      const highestKey = tierKeys.find((k) => (levels[k] || 0) > 0);
+      if (highestKey) {
+        setLevels((prev) => ({
+          ...prev,
+          [highestKey]: Math.max(0, (prev[highestKey] || 0) - 1),
+        }));
+      }
+
+      setPoliceAlert({
+        secondsLeft: 0,
+        penaltyResult: `¡No coló! Multa municipal grave: requisan ${lost.toLocaleString()} fichas del bote y 1 nivel de suministros.`,
+      });
+    }
+  };
+
+  // Acción: Beber vaso de agua mineral para aliviar resaca
+  const handleDrinkWater = () => {
+    if (waterCooldown > 0 || hangoverLevel <= 0) return;
+    sound.tap();
+    setHangoverLevel((prev) => Math.max(0, prev - 45));
+    setWaterCooldown(45);
+  };
 
   // 6. Ticker de noticias y oscilador de ciclo visual
   useEffect(() => {
@@ -660,6 +850,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     setPendingVault((prev) => prev + clickPower);
     setTotalLifetimeProduced((prev) => prev + clickPower);
     setTotalDrinksTaken((prev) => prev + 1);
+    setHangoverLevel((prev) => Math.min(100, prev + 2.5));
 
     // Partícula visual flotante
     const pId = Date.now() + Math.random();
@@ -696,7 +887,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       const targetCount = multiplier === 'max' ? 100 : multiplier;
 
       for (let i = 0; i < targetCount; i++) {
-        const rawCost = Math.floor(tier.baseCost * Math.pow(1.15, currentLevel + i));
+        const rawCost = Math.floor(tier.baseCost * Math.pow(1.22, currentLevel + i));
         const finalCost = Math.max(1, Math.floor(rawCost * costDiscount));
 
         if (multiplier === 'max') {
@@ -711,7 +902,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       if (multiplier === 'max' && count === 0) {
         count = 1;
-        const rawCost = Math.floor(tier.baseCost * Math.pow(1.15, currentLevel));
+        const rawCost = Math.floor(tier.baseCost * Math.pow(1.22, currentLevel));
         totalCost = Math.max(1, Math.floor(rawCost * costDiscount));
       }
 
@@ -851,27 +1042,33 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     }, 600);
   };
 
-  // Acción: Meter las fichas acumuladas en la cartera real
+  // Acción: Meter las fichas acumuladas en la cartera real (Canje oficial: 5 fichas = 1 moneda real)
   const handleClaimVault = () => {
-    const toClaim = Math.floor(pendingVault);
-    if (toClaim <= 0) return;
+    const rawFichas = Math.floor(pendingVault);
+    const coinsToClaim = Math.floor(rawFichas / 5);
+    if (coinsToClaim <= 0) {
+      alert('Necesitas acumular al menos 5 fichas de botellón para canjear 1 moneda real.');
+      return;
+    }
 
     sound.coinWin();
     confetti({
-      particleCount: Math.min(100, 30 + Math.floor(toClaim / 5)),
+      particleCount: Math.min(100, 30 + Math.floor(coinsToClaim / 3)),
       spread: 60,
       origin: { y: 0.8 },
       colors: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'],
     });
 
-    onUpdateCoins(toClaim);
-    setPendingVault(pendingVault - toClaim);
+    onUpdateCoins(coinsToClaim);
+    const fichasDeducted = coinsToClaim * 5;
+    const remainingFichas = Math.max(0, pendingVault - fichasDeducted);
+    setPendingVault(remainingFichas);
     setJustClaimed(true);
     setTimeout(() => setJustClaimed(false), 2000);
 
     saveState({
       levels,
-      pendingVault: pendingVault - toClaim,
+      pendingVault: remainingFichas,
       totalLifetimeProduced,
       afterPrestigeCount,
       lastTickMs: Date.now(),
@@ -879,6 +1076,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       purchasedPerks,
       totalDrinksTaken,
       beerPongWins,
+      hangoverLevel,
     });
   };
 
@@ -895,9 +1093,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     sound.coinWin();
     confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
 
-    const leftover = Math.floor(pendingVault);
-    if (leftover > 0) {
-      onUpdateCoins(leftover);
+    const leftoverCoins = Math.floor(pendingVault / 5);
+    if (leftoverCoins > 0) {
+      onUpdateCoins(leftoverCoins);
     }
 
     const resetLevels = {
@@ -912,6 +1110,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
     setLevels(resetLevels);
     setPendingVault(0);
+    setHangoverLevel(0);
     setAfterPrestigeCount((prev) => prev + 1);
 
     saveState({
@@ -924,13 +1123,82 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       purchasedPerks,
       totalDrinksTaken,
       beerPongWins,
+      hangoverLevel: 0,
     });
   };
 
   const roundedVault = Math.floor(pendingVault);
+  const coinsToClaim = Math.floor(roundedVault / 5);
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-5">
+      {/* Alerta de Redada Policial / Vecinos */}
+      {policeAlert && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-red-950/30 border border-red-500/50 shadow-lg shadow-red-500/10 animate-in fade-in zoom-in-95 duration-200 space-y-3">
+          <div className="flex items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-red-500/20 border border-red-500/40 text-red-400 flex items-center justify-center shrink-0 animate-bounce">
+                <Siren className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-red-200 tracking-tight">
+                    ¡CONTROL POLICIAL / QUEJAS DE VECINOS!
+                  </h3>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40 font-semibold">
+                    {policeAlert.secondsLeft > 0 ? `${policeAlert.secondsLeft}s para actuar` : 'Resolviendo'}
+                  </span>
+                </div>
+                <p className="text-xs text-red-300/80 mt-0.5">
+                  {policeAlert.penaltyResult || 'La patrulla se acerca por la esquina. Si no reaccionas a tiempo te requisarán el 50% del bote acumulado.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {!policeAlert.penaltyResult && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handlePoliceHide}
+                className="rounded-xl text-xs h-9 px-3 flex items-center justify-center font-medium bg-surface-raised hover:bg-surface border border-border/80 text-foreground cursor-pointer transition-all active:scale-98"
+              >
+                <span>Esconder vasos (Pausa 40s)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePoliceRun}
+                className="rounded-xl text-xs h-9 px-3 flex items-center justify-center font-medium bg-surface-raised hover:bg-surface border border-border/80 text-amber-300 cursor-pointer transition-all active:scale-98"
+              >
+                <span>Correr y dispersarse (-40%)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePoliceBluff}
+                className="rounded-xl text-xs h-9 px-3 flex items-center justify-center font-medium bg-surface-raised hover:bg-surface border border-border/80 text-rose-300 cursor-pointer transition-all active:scale-98"
+              >
+                <span>Hacerse el loco (50/50)</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Aviso de Producción Congelada por Redada */}
+      {isProductionFrozen && (
+        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>Fiesta en silencio: La policía está patrullando cerca. La música y farmeo están pausados.</span>
+          </div>
+          <span className="font-mono text-[11px] shrink-0 font-semibold">
+            {Math.ceil((productionFrozenUntilMs - Date.now()) / 1000)}s
+          </span>
+        </div>
+      )}
+
       {/* Aviso de farmeo offline */}
       {offlineReport && (
         <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-raised border border-border shadow-xs animate-in fade-in slide-in-from-top-2">
@@ -975,6 +1243,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold border border-accent/20">
                 x{activeZone.multiplier.toFixed(1)} Zona
               </span>
+              {activeZone.policeRisk > 0 && (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-semibold border border-red-500/20">
+                  Riesgo redada: {Math.round(activeZone.policeRisk * 100)}%
+                </span>
+              )}
             </div>
             <p className="text-xs text-foreground-muted mt-0.5">{activeZone.desc}</p>
           </div>
@@ -1023,17 +1296,20 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               {roundedVault.toLocaleString()}{' '}
               <span className="text-xs font-sans text-foreground-muted font-normal">fichas</span>
             </div>
-            <p className="text-[11px] text-foreground-subtle mt-0.5">
-              Acumulación automática activa en tu zona actual.
-            </p>
+            <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-emerald-400 font-mono">
+              <span>≈ {coinsToClaim.toLocaleString()} monedas reales</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                5:1
+              </span>
+            </div>
           </div>
 
           <button
             type="button"
-            disabled={roundedVault <= 0}
+            disabled={coinsToClaim <= 0}
             onClick={handleClaimVault}
             className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98] ${
-              roundedVault > 0
+              coinsToClaim > 0
                 ? 'bg-foreground text-background shadow-xs hover:opacity-95'
                 : 'bg-surface-raised text-foreground-subtle border border-border/50 cursor-not-allowed opacity-60'
             }`}
@@ -1041,33 +1317,37 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             {justClaimed ? (
               <>
                 <Check className="w-4 h-4 text-emerald-400" />
-                <span>¡Metidas a la cartera!</span>
+                <span>¡Canjeado al monedero!</span>
               </>
             ) : (
               <>
                 <ArrowDownToLine className="w-4 h-4" />
-                <span>Meter a la saca (+{roundedVault.toLocaleString()})</span>
+                <span>Canjear al Monedero (+{coinsToClaim.toLocaleString()} 🪙)</span>
               </>
             )}
           </button>
         </div>
 
-        {/* Panel 2: Ritmo de fiesta (Fichas por segundo) */}
-        <div className="p-5 rounded-3xl bg-surface-raised border border-border/70 shadow-xs flex flex-col justify-between space-y-4">
+        {/* Panel 2: Ritmo de fiesta (Fichas por segundo y Resaca) */}
+        <div className="p-5 rounded-3xl bg-surface-raised border border-border/70 shadow-xs flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-foreground-muted uppercase tracking-wider font-mono">
               Ritmo de farmeo
             </span>
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
+            <TrendingUp className={`w-4 h-4 ${isProductionFrozen ? 'text-red-400' : isHungover ? 'text-amber-400' : 'text-emerald-400'}`} />
           </div>
 
           <div>
             <div className="text-3xl font-bold tracking-tight text-foreground font-mono">
-              +{effectiveRatePerSecond.toFixed(1)}{' '}
+              {isProductionFrozen ? '0.0' : `+${effectiveRatePerSecond.toFixed(1)}`}{' '}
               <span className="text-xs font-sans text-foreground-muted font-normal">fichas / seg</span>
             </div>
             <p className="text-[11px] text-foreground-subtle mt-0.5">
-              {afterPrestigeCount > 0 ? (
+              {isProductionFrozen ? (
+                <span className="text-amber-400 font-medium">Pausa por presencia policial</span>
+              ) : isHungover ? (
+                <span className="text-red-400 font-medium">Resaca mortal activa (-65% velocidad)</span>
+              ) : afterPrestigeCount > 0 ? (
                 <span className="text-purple-400 font-medium">
                   Multiplicador After: x{prestigeMultiplier.toFixed(1)}
                 </span>
@@ -1077,12 +1357,39 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             </p>
           </div>
 
-          {/* Saldo disponible en cartera */}
-          <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
-            <span className="text-foreground-muted">Tu saldo para comprar:</span>
-            <span className="font-semibold text-foreground font-mono">
-              {userCoins.toLocaleString()} fichas
-            </span>
+          {/* Medidor de Resaca / Fatiga y Botón de Agua */}
+          <div className="pt-2 border-t border-border/50 space-y-1.5">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-foreground-muted flex items-center gap-1">
+                <Activity className="w-3.5 h-3.5 text-foreground-subtle" />
+                <span>Nivel de Resaca:</span>
+              </span>
+              <span className={`font-mono font-semibold ${isHungover ? 'text-red-400' : 'text-foreground'}`}>
+                {Math.round(hangoverLevel)}% {isHungover && '(Mortal)'}
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-surface rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  isHungover ? 'bg-red-500' : hangoverLevel > 60 ? 'bg-amber-500' : 'bg-emerald-500'
+                }`}
+                style={{ width: `${Math.min(100, hangoverLevel)}%` }}
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={waterCooldown > 0 || hangoverLevel <= 0}
+              onClick={handleDrinkWater}
+              className={`w-full py-1.5 px-2.5 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                waterCooldown > 0 || hangoverLevel <= 0
+                  ? 'bg-surface text-foreground-subtle border border-border/40 cursor-not-allowed opacity-60'
+                  : 'bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25'
+              }`}
+            >
+              <Droplets className="w-3.5 h-3.5" />
+              <span>{waterCooldown > 0 ? `Agua en ${waterCooldown}s` : 'Beber Vaso de Agua (-45% resaca)'}</span>
+            </button>
           </div>
         </div>
 
@@ -1383,11 +1690,20 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                       {renderZoneIcon(zone.icon)}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-bold text-foreground">{zone.name}</span>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
                           x{zone.multiplier.toFixed(1)} Producción
                         </span>
+                        {zone.policeRisk > 0 ? (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-semibold border border-red-500/20">
+                            Riesgo redada: {Math.round(zone.policeRisk * 100)}%
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20">
+                            Zona Segura (0% riesgo)
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-foreground-subtle mt-0.5">{zone.subtitle}</p>
                       <p className="text-[11px] text-foreground-muted mt-0.5">{zone.desc}</p>
