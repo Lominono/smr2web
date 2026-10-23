@@ -39,12 +39,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Email confirmation state
-  const [pendingConfirmation, setPendingConfirmation] = useState<{
-    email: string;
-    message: string;
-  } | null>(null);
-
   // Debounced username availability
   const [usernameStatus, setUsernameStatus] = useState<{
     checking: boolean;
@@ -111,14 +105,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           rememberMe,
         });
 
-        if (result.requiresEmailConfirmation && result.confirmationEmail) {
-          setPendingConfirmation({
-            email: result.confirmationEmail,
-            message: result.message || 'Confirma tu correo para activar la cuenta.',
-          });
-          return;
-        }
-
         if (result.user) {
           onSuccess(result.user);
         }
@@ -139,37 +125,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({
       setLoading(false);
     }
   };
-
-  if (pendingConfirmation) {
-    return (
-      <div className="p-6 text-center space-y-4">
-        <div className="w-10 h-10 rounded-[var(--radius)] bg-surface-raised border border-border flex items-center justify-center mx-auto text-foreground">
-          <Mail className="w-5 h-5 text-accent" />
-        </div>
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-foreground">
-            Confirma tu correo
-          </h3>
-          <p className="text-xs text-foreground-muted">
-            Enlace enviado a <span className="font-mono text-foreground">{pendingConfirmation.email}</span>.
-          </p>
-        </div>
-        <Button
-          variant="primary"
-          size="md"
-          className="w-full"
-          onClick={() => {
-            setPendingConfirmation(null);
-            setMode('login');
-            setIdentifier(pendingConfirmation.email);
-            setError(null);
-          }}
-        >
-          Ir a Iniciar sesión
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">

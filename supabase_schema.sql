@@ -2,12 +2,36 @@
 -- SCHEMA SUPABASE: RECREO // ARCADE, CHAT Y HORARIO SMR2
 -- ==============================================================
 
+-- ==============================================================
+-- MIGRACIÓN RÁPIDA PARA PROYECTOS YA EXISTENTES:
+-- Copia y pega esto en tu SQL Editor de Supabase si ya tienes la tabla:
+--
+-- ALTER TABLE public.profiles
+--   ADD COLUMN IF NOT EXISTS full_name TEXT,
+--   ADD COLUMN IF NOT EXISTS student_number TEXT UNIQUE;
+--
+-- CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_student_number
+--   ON public.profiles(student_number)
+--   WHERE student_number IS NOT NULL;
+-- ==============================================================
+
 -- 1. TABLA DE PERFILES REALES DE USUARIOS (Vinculada a auth.users)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
+  full_name TEXT,
+  student_number TEXT UNIQUE,
+  email TEXT,
+  role TEXT DEFAULT 'student',
+  avatar_color TEXT DEFAULT 'emerald',
   coins BIGINT DEFAULT 1000 NOT NULL,
   biggest_win BIGINT DEFAULT 0 NOT NULL,
+  streak_count INT DEFAULT 1,
+  last_claim_date DATE,
+  games_played INT DEFAULT 0,
+  games_won INT DEFAULT 0,
+  is_banned BOOLEAN DEFAULT false,
+  ban_reason TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

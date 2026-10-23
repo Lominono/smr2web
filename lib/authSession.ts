@@ -12,6 +12,8 @@ interface StoredLocalAccount {
   id: string;
   username: string;
   email: string;
+  full_name?: string;
+  student_number?: string;
   passwordHash: string;
   coins: number;
   biggest_win: number;
@@ -161,6 +163,8 @@ export function updateUserProfileSession(updates: Partial<UserProfile>): UserPro
       const idx = accounts.findIndex((a) => a.id === current.id);
       if (idx !== -1) {
         if (updates.username) accounts[idx].username = updates.username;
+        if (updates.full_name) accounts[idx].full_name = updates.full_name;
+        if (updates.student_number) accounts[idx].student_number = updates.student_number;
         saveLocalAccounts(accounts);
       }
     } catch {}

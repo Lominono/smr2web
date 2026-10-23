@@ -27,6 +27,8 @@ interface AdminUser {
   id: string;
   username: string;
   email?: string;
+  full_name?: string;
+  student_number?: string;
   coins: number;
   biggest_win: number;
   games_played: number;
@@ -525,6 +527,7 @@ export default function AdminPage() {
                 <thead>
                   <tr className="border-b border-border bg-surface-raised text-foreground-muted font-medium">
                     <th className="py-2.5 px-3">Usuario</th>
+                    <th className="py-2.5 px-3">Identificación (Nombre / Nº)</th>
                     <th className="py-2.5 px-3">Rol</th>
                     <th className="py-2.5 px-3">Saldo Fichas</th>
                     <th className="py-2.5 px-3">Partidas (G / J)</th>
@@ -537,7 +540,19 @@ export default function AdminPage() {
                     <tr key={u.id} className="hover:bg-surface-raised transition-colors">
                       <td className="py-2.5 px-3">
                         <div className="font-semibold text-foreground">@{u.username}</div>
-                        <div className="text-[10px] text-foreground-subtle font-mono">{u.id}</div>
+                        <div className="text-[10px] text-foreground-subtle font-mono">{u.email || u.id}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {u.full_name ? (
+                          <div>
+                            <div className="font-medium text-foreground text-xs">{u.full_name}</div>
+                            <div className="text-[10px] text-accent font-mono font-semibold">
+                              Nº {u.student_number || 'S/N'}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-foreground-subtle text-xs italic">Pendiente</span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3">
                         <Badge variant={u.role === 'admin' ? 'accent' : 'default'} size="sm">

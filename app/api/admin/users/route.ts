@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       if (client) {
         const { data: users, error } = await client
           .from('profiles')
-          .select('id, username, email, coins, biggest_win, games_played, games_won, role, is_banned, ban_reason, created_at')
+          .select('id, username, email, full_name, student_number, coins, biggest_win, games_played, games_won, role, is_banned, ban_reason, created_at')
           .order('coins', { ascending: false });
 
         if (!error && users) {

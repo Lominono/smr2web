@@ -1,6 +1,8 @@
 export interface UserProfile {
   id: string;
   username: string;
+  full_name?: string;
+  student_number?: string;
   email?: string;
   coins: number;
   biggest_win: number;

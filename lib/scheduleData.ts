@@ -62,7 +62,7 @@ export const SMR2_SUBJECTS: Record<string, SubjectInfo> = {
   },
   IP2: {
     code: 'IP2',
-    name: 'Inglés Profesional 2',
+    name: 'Inglés Profesional 2 (Tortura de materia)',
     description: 'Vocabulario técnico de redes, soporte a usuarios y documentación en inglés.',
     badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
     cardBg: 'bg-cyan-500/[0.04] hover:bg-cyan-500/[0.08]',

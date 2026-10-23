@@ -249,7 +249,19 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                   {rank.name}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-foreground-subtle font-mono mt-0.5">
+              <div className="flex items-center gap-2 text-[11px] text-foreground-subtle font-mono mt-0.5 flex-wrap">
+                {user.full_name && (
+                  <>
+                    <span className="text-foreground font-sans font-medium">{user.full_name}</span>
+                    <span>•</span>
+                  </>
+                )}
+                {user.student_number && (
+                  <>
+                    <span className="text-accent font-semibold">Nº {user.student_number}</span>
+                    <span>•</span>
+                  </>
+                )}
                 <span>{user.email || 'Cuenta SMR2'}</span>
                 <span>•</span>
                 <button

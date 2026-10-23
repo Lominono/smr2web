@@ -21,6 +21,7 @@ import { MinecraftBanner } from '@/components/MinecraftBanner';
 import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
 import { UserSettingsModal } from '@/components/UserSettingsModal';
+import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
 import { UserProfile, ChatMessage, LeaderboardEntry, CalendarEvent } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
@@ -100,6 +101,8 @@ export default function Home() {
         const profile: UserProfile = {
           id: data.id,
           username: data.username,
+          full_name: data.full_name || undefined,
+          student_number: data.student_number || undefined,
           email: data.email || email,
           coins: Number(data.coins ?? 200),
           biggest_win: Number(data.biggest_win ?? 0),
@@ -881,6 +884,16 @@ export default function Home() {
       <TermsModal
         isOpen={isTermsOpen}
         onClose={() => setIsTermsOpen(false)}
+      />
+
+      {/* 7. Student Identification Onboarding Gate (Required: Real Name & Unique Student Number) */}
+      <StudentIdentificationModal
+        isOpen={Boolean(user && (!user.full_name || !user.student_number))}
+        user={user}
+        onSuccess={(updated) => {
+          setUser(updated);
+        }}
+        onSignOut={handleSignOut}
       />
 
       <CookieBanner

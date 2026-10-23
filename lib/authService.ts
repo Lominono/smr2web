@@ -7,6 +7,7 @@ import {
   registerLocalUser,
   loginLocalUser,
   translateAuthError,
+  updateUserProfileSession,
 } from '@/lib/authSession';
 
 export interface SignUpParams {
@@ -198,18 +199,17 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
           auth_provider: 'supabase',
         };
 
-        // If email confirmation is enabled, data.session will be null
+        // Iniciar sesión automáticamente sin esperar confirmación de correo
         if (!data.session) {
-          return {
-            success: true,
-            requiresEmailConfirmation: true,
-            confirmationEmail: cleanEmail,
-            user: profile,
-            message: `¡Cuenta creada con éxito! Hemos enviado un correo de confirmación a "${cleanEmail}". Por favor, verifica tu bandeja de entrada o carpeta de spam antes de iniciar sesión.`,
-          };
+          try {
+            await supabase.auth.signInWithPassword({
+              email: cleanEmail,
+              password: params.password,
+            });
+          } catch {}
         }
 
-        // Full session active
+        // Full session active inmediatamente
         saveUserSession(profile, rememberMe);
         return {
           success: true,
@@ -368,4 +368,135 @@ export async function logoutAccount(): Promise<void> {
       await supabase.auth.signOut();
     } catch {}
   }
+}
+
+/**
+ * Checks whether a student number is available (not already registered by another student)
+ */
+export async function checkStudentNumberAvailability(
+  studentNumber: string,
+  excludeUserId?: string
+): Promise<{ available: boolean; message?: string }> {
+  const clean = studentNumber.trim().toUpperCase();
+  if (clean.length < 2) {
+    return { available: false, message: 'El número de estudiante debe tener al menos 2 caracteres.' };
+  }
+
+  // 1. Check via API endpoint
+  try {
+    const url = `/api/user/identify?number=${encodeURIComponent(clean)}${
+      excludeUserId ? `&userId=${encodeURIComponent(excludeUserId)}` : ''
+    }`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data;
+  } catch {}
+
+  // 2. Direct Supabase check
+  const hasSupabase = isSupabaseConfigured();
+  const supabase = createClient();
+  if (hasSupabase && supabase) {
+    try {
+      let query = supabase
+        .from('profiles')
+        .select('id')
+        .eq('student_number', clean);
+
+      if (excludeUserId) {
+        query = query.neq('id', excludeUserId);
+      }
+
+      const { data, error } = await query.maybeSingle();
+
+      if (!error && data) {
+        return {
+          available: false,
+          message: `El número "${clean}" ya pertenece a otro estudiante. Cada alumno debe tener su propio número.`,
+        };
+      }
+    } catch {}
+  }
+
+  // 3. Local fallback check
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('smr2_local_db_users');
+      if (stored) {
+        const accounts: any[] = JSON.parse(stored);
+        const match = accounts.find(
+          (a) => a.student_number?.toUpperCase() === clean && a.id !== excludeUserId
+        );
+        if (match) {
+          return {
+            available: false,
+            message: `El número "${clean}" ya pertenece a otro estudiante.`,
+          };
+        }
+      }
+    } catch {}
+  }
+
+  return { available: true, message: 'Número de estudiante disponible' };
+}
+
+/**
+ * Saves real name and unique student number for user identification
+ */
+export async function saveStudentIdentification(
+  userId: string,
+  fullName: string,
+  studentNumber: string
+): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+  const cleanName = fullName.trim();
+  const cleanNumber = studentNumber.trim().toUpperCase();
+
+  if (cleanName.length < 3) {
+    return { success: false, error: 'Por favor, introduce tu nombre y apellidos reales (mínimo 3 caracteres).' };
+  }
+  if (cleanNumber.length < 2) {
+    return { success: false, error: 'Por favor, introduce tu número de estudiante o NIA.' };
+  }
+
+  // 1. Try server API route
+  try {
+    const res = await fetch('/api/user/identify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        fullName: cleanName,
+        studentNumber: cleanNumber,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.error || 'Error al guardar la identificación.' };
+    }
+  } catch (err: any) {
+    console.warn('Network error calling /api/user/identify:', err);
+  }
+
+  // 2. Direct Supabase update as well
+  const hasSupabase = isSupabaseConfigured();
+  const supabase = createClient();
+  if (hasSupabase && supabase) {
+    try {
+      await supabase
+        .from('profiles')
+        .update({
+          full_name: cleanName,
+          student_number: cleanNumber,
+        })
+        .eq('id', userId);
+    } catch {}
+  }
+
+  // 3. Update session
+  const updated = updateUserProfileSession({
+    full_name: cleanName,
+    student_number: cleanNumber,
+  });
+
+  return { success: true, user: updated || undefined };
 }
