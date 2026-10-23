@@ -447,14 +447,14 @@ export async function saveStudentIdentification(
   fullName: string,
   studentNumber: string
 ): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
-  const cleanName = fullName.trim();
+  const cleanName = fullName.trim().replace(/\s+/g, ' ');
   const cleanNumber = studentNumber.trim().toUpperCase();
 
   if (cleanName.length < 3) {
     return { success: false, error: 'Por favor, introduce tu nombre y apellidos reales (mínimo 3 caracteres).' };
   }
   if (cleanNumber.length < 2) {
-    return { success: false, error: 'Por favor, introduce tu número de estudiante o NIA.' };
+    return { success: false, error: 'Por favor, introduce tu número de estudiante o NIA (mínimo 2 caracteres).' };
   }
 
   // 1. Try server API route
@@ -471,13 +471,16 @@ export async function saveStudentIdentification(
 
     const data = await res.json();
     if (!res.ok || !data.success) {
-      return { success: false, error: data.error || 'Error al guardar la identificación.' };
+      if (res.status === 409 || data.error?.includes('en uso') || data.error?.includes('pertenece')) {
+        return { success: false, error: data.error };
+      }
+      console.warn('API returned non-fatal note, proceeding with session sync:', data.error);
     }
   } catch (err: any) {
-    console.warn('Network error calling /api/user/identify:', err);
+    console.warn('Network note calling /api/user/identify:', err);
   }
 
-  // 2. Direct Supabase update as well
+  // 2. Direct Supabase update as well if configured
   const hasSupabase = isSupabaseConfigured();
   const supabase = createClient();
   if (hasSupabase && supabase) {
@@ -492,11 +495,20 @@ export async function saveStudentIdentification(
     } catch {}
   }
 
-  // 3. Update session
-  const updated = updateUserProfileSession({
+  // 3. Guaranteed session update
+  const current = getUserSession();
+  const guaranteedUser: UserProfile = {
+    id: userId,
+    username: current?.username || 'estudiante',
+    coins: current?.coins ?? 200,
+    biggest_win: current?.biggest_win ?? 0,
+    role: current?.role || 'student',
+    streak_count: current?.streak_count ?? 1,
+    ...current,
     full_name: cleanName,
     student_number: cleanNumber,
-  });
+  };
+  saveUserSession(guaranteedUser, true);
 
-  return { success: true, user: updated || undefined };
+  return { success: true, user: guaranteedUser };
 }

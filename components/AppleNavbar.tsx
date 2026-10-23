@@ -77,13 +77,13 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             onClick={() => onSelectTab && onSelectTab('feed')}
             className="flex items-center gap-2.5 cursor-pointer text-left select-none touch-manipulation active:opacity-80 group"
           >
-            <div className="w-8 h-8 rounded-lg overflow-hidden bg-black ring-1 ring-border/80 shadow-xs flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
+            <div className="w-8 h-8 rounded-xl overflow-hidden bg-white p-0.5 ring-1 ring-border/80 shadow-xs flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
               <Image
                 src="/logo.png"
                 alt="2º SMR"
                 width={32}
                 height={32}
-                className="w-full h-full object-cover scale-[1.04]"
+                className="w-full h-full object-contain"
                 priority
               />
             </div>

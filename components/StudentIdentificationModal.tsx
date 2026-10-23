@@ -105,8 +105,7 @@ export const StudentIdentificationModal: React.FC<StudentIdentificationModalProp
   const isFormValid =
     fullName.trim().length >= 3 &&
     studentNumber.trim().length >= 2 &&
-    numberStatus.available !== false &&
-    !numberStatus.checking;
+    numberStatus.available !== false;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
@@ -114,8 +113,8 @@ export const StudentIdentificationModal: React.FC<StudentIdentificationModalProp
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-border/60 bg-surface-raised/40">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden bg-white p-0.5 ring-1 ring-border/80 shadow-xs flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="SMR" className="w-full h-full object-contain" />
             </div>
             <div>
               <h2 className="text-base font-semibold text-foreground tracking-tight">
@@ -130,10 +129,15 @@ export const StudentIdentificationModal: React.FC<StudentIdentificationModalProp
 
         {/* Content & Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="p-3 rounded-xl bg-accent-subtle/50 border border-accent/20 text-xs text-foreground-muted leading-relaxed">
-            Para mantener el aula organizada y evitar cuentas anónimas o suplantaciones,
-            debes vincular tu <strong className="text-foreground">nombre real</strong> y tu{' '}
-            <strong className="text-foreground">número de estudiante único</strong>.
+          <div className="p-3 rounded-xl bg-surface-raised border border-border/70 text-xs text-foreground-muted leading-relaxed space-y-1.5">
+            <p>
+              Para mantener el portal organizado y evitar cuentas anónimas o suplantaciones,
+              debes registrar tu <strong className="text-foreground">nombre real</strong> y tu{' '}
+              <strong className="text-foreground">número de estudiante único</strong>.
+            </p>
+            <p className="text-[11px] text-danger font-medium">
+              ⚠️ Portal exclusivo para alumnos. Los profesores no tienen acceso a esta plataforma.
+            </p>
           </div>
 
           {error && (

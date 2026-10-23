@@ -109,13 +109,13 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
         {/* Header */}
         <div className="sticky top-0 z-20 px-4 py-3 bg-surface/90 backdrop-blur-xl border-b border-border/70 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg overflow-hidden bg-black ring-1 ring-border/80 shadow-xs flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl overflow-hidden bg-white p-0.5 ring-1 ring-border/80 shadow-xs flex items-center justify-center shrink-0">
               <Image
                 src="/logo.png"
                 alt="SMR2 Logo"
                 width={32}
                 height={32}
-                className="w-full h-full object-cover scale-[1.04]"
+                className="w-full h-full object-contain"
               />
             </div>
             <div className="flex flex-col">

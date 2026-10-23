@@ -72,16 +72,7 @@ export default function AdminPage() {
     if (user && (user.role === 'admin' || user.role === 'delegado')) {
       setIsAdmin(true);
     } else {
-      // Check server API to see if user has admin privileges
-      fetch('/api/admin/logs?limit=1')
-        .then((res) => {
-          if (res.ok) {
-            setIsAdmin(true);
-          } else {
-            setIsAdmin(false);
-          }
-        })
-        .catch(() => setIsAdmin(false));
+      setIsAdmin(false);
     }
   }, []);
 
@@ -225,21 +216,26 @@ export default function AdminPage() {
 
   if (isAdmin === false) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 font-mono">
-        <Card className="max-w-md w-full p-6 text-center space-y-4">
-          <div className="w-12 h-12 rounded-[var(--radius)] bg-surface-raised border border-border text-danger flex items-center justify-center mx-auto">
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
+        <Card className="max-w-md w-full p-6 text-center space-y-4 rounded-2xl border-border/80 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-danger-subtle border border-danger/25 text-danger flex items-center justify-center mx-auto">
             <ShieldAlert className="w-6 h-6" />
           </div>
-          <h1 className="text-lg font-bold tracking-tight text-foreground">403 — Acceso Restringido</h1>
+          <div className="space-y-1">
+            <h1 className="text-base font-semibold tracking-tight text-foreground">Acceso Restringido · Solo Delegados</h1>
+            <p className="text-xs text-danger font-medium">
+              Los profesores y personas ajenas al alumnado no están permitidos en esta plataforma.
+            </p>
+          </div>
           <p className="text-xs text-foreground-muted leading-relaxed">
-            Esta zona está restringida a administradores del sistema. Tu cuenta (@
-            {sessionUser?.username || 'invitado'}) no tiene privilegios de auditoría.
+            Esta zona está reservada estrictamente a la delegación de alumnos de 2º SMR.
+            Tu cuenta (@{sessionUser?.username || 'invitado'}) no tiene permisos de delegado.
           </p>
           <div className="pt-2">
             <Link href="/">
-              <Button variant="primary" size="sm">
+              <Button variant="primary" size="sm" className="rounded-xl">
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Volver a SMR2</span>
+                <span>Volver al portal</span>
               </Button>
             </Link>
           </div>

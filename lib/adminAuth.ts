@@ -42,7 +42,7 @@ export async function verifyAdminSession(req?: Request): Promise<AdminAuthResult
             if (profile.is_banned) {
               return { authorized: false, user: null, status: 403, error: 'Cuenta suspendida por un administrador.' };
             }
-            if (profile.role === 'admin') {
+            if (profile.role === 'admin' || profile.role === 'delegado') {
               return {
                 authorized: true,
                 status: 200,
@@ -52,7 +52,7 @@ export async function verifyAdminSession(req?: Request): Promise<AdminAuthResult
                   email: profile.email || authUser.email,
                   coins: Number(profile.coins),
                   biggest_win: Number(profile.biggest_win),
-                  role: 'admin',
+                  role: profile.role,
                 },
               };
             }
@@ -60,7 +60,7 @@ export async function verifyAdminSession(req?: Request): Promise<AdminAuthResult
               authorized: false,
               user: null,
               status: 403,
-              error: 'Acceso denegado: Se requiere rol de administrador.',
+              error: 'Acceso denegado: Esta zona es exclusiva para la delegación de estudiantes de 2º SMR. Profesores y terceros no permitidos.',
             };
           }
         }

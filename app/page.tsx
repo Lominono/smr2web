@@ -587,11 +587,11 @@ export default function Home() {
     return (
       <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3.5 animate-in fade-in duration-300">
-          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-black ring-1 ring-border/80 shadow-md flex items-center justify-center">
+          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white p-1 ring-1 ring-border/80 shadow-md flex items-center justify-center">
             <img
               src="/logo.png"
               alt="SMR2 Logo"
-              className="w-full h-full object-cover scale-[1.04]"
+              className="w-full h-full object-contain"
             />
           </div>
           <span className="text-xs font-semibold tracking-wider uppercase text-foreground-muted font-mono">
@@ -904,8 +904,8 @@ export default function Home() {
       <footer className="border-t border-border/70 bg-surface/80 py-5 mt-10 mb-16 lg:mb-0 text-center text-xs text-foreground-muted">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-5 h-5 rounded-md overflow-hidden bg-black ring-1 ring-border/70 flex items-center justify-center shrink-0">
-              <img src="/logo.png" alt="SMR2" className="w-full h-full object-cover scale-[1.04]" />
+            <div className="w-6 h-6 rounded-lg overflow-hidden bg-white p-0.5 ring-1 ring-border/70 flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="SMR2" className="w-full h-full object-contain" />
             </div>
             <span className="font-medium text-foreground tracking-tight">SMR2 · 2º Sistemas Microinformáticos y Redes</span>
           </div>
