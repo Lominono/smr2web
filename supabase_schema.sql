@@ -3,16 +3,36 @@
 -- ==============================================================
 
 -- ==============================================================
--- MIGRACIÓN RÁPIDA PARA PROYECTOS YA EXISTENTES:
--- Copia y pega esto en tu SQL Editor de Supabase si ya tienes la tabla:
+-- INSTRUCCIONES DE ACTUALIZACIÓN EN TIEMPO REAL:
+-- Copia y pega este bloque en el SQL Editor de tu panel de Supabase:
 --
--- ALTER TABLE public.profiles
---   ADD COLUMN IF NOT EXISTS full_name TEXT,
---   ADD COLUMN IF NOT EXISTS student_number TEXT UNIQUE;
+-- 1. Crear tabla de actualizaciones del sistema en tiempo real
+-- CREATE TABLE IF NOT EXISTS public.app_updates (
+--   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+--   version TEXT NOT NULL,
+--   title TEXT NOT NULL,
+--   description TEXT,
+--   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+-- );
 --
--- CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_student_number
---   ON public.profiles(student_number)
---   WHERE student_number IS NOT NULL;
+-- 2. Habilitar RLS y políticas
+-- ALTER TABLE public.app_updates ENABLE ROW LEVEL SECURITY;
+-- DROP POLICY IF EXISTS "Lectura pública de actualizaciones" ON public.app_updates;
+-- DROP POLICY IF EXISTS "Creación de actualizaciones" ON public.app_updates;
+-- CREATE POLICY "Lectura pública de actualizaciones" ON public.app_updates FOR SELECT USING (true);
+-- CREATE POLICY "Creación de actualizaciones" ON public.app_updates FOR INSERT WITH CHECK (true);
+--
+-- 3. Habilitar Replicación en Tiempo Real completa (Full Replica Identity)
+-- ALTER TABLE public.profiles REPLICA IDENTITY FULL;
+-- ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
+-- ALTER TABLE public.calendar_events REPLICA IDENTITY FULL;
+-- ALTER TABLE public.app_updates REPLICA IDENTITY FULL;
+--
+-- 4. Añadir tablas a la publicación de Supabase Realtime
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates;
 -- ==============================================================
 
 -- 1. TABLA DE PERFILES REALES DE USUARIOS (Vinculada a auth.users)
@@ -86,12 +106,22 @@ CREATE TABLE IF NOT EXISTS public.calendar_events (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. POLÍTICAS RLS (Row Level Security)
+-- 4. TABLA DE ACTUALIZACIONES Y AVISOS DEL SISTEMA EN TIEMPO REAL
+CREATE TABLE IF NOT EXISTS public.app_updates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  version TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 5. POLÍTICAS RLS (Row Level Security)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_updates ENABLE ROW LEVEL SECURITY;
 
--- Limpieza de políticas previas si ya existían para evitar errores
+-- Limpieza de políticas previas
 DROP POLICY IF EXISTS "Lectura pública de perfiles" ON public.profiles;
 DROP POLICY IF EXISTS "Creación de perfiles" ON public.profiles;
 DROP POLICY IF EXISTS "Actualizar saldo de usuario" ON public.profiles;
@@ -104,24 +134,33 @@ DROP POLICY IF EXISTS "Creación de eventos" ON public.calendar_events;
 DROP POLICY IF EXISTS "Modificación de eventos" ON public.calendar_events;
 DROP POLICY IF EXISTS "Borrado de eventos" ON public.calendar_events;
 
--- Creación de políticas limpias para perfiles
+DROP POLICY IF EXISTS "Lectura pública de actualizaciones" ON public.app_updates;
+DROP POLICY IF EXISTS "Creación de actualizaciones" ON public.app_updates;
+
+-- Creación de políticas
 CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Creación de perfiles" ON public.profiles FOR INSERT WITH CHECK (true);
 CREATE POLICY "Actualizar saldo de usuario" ON public.profiles FOR UPDATE USING (true);
 
--- Creación de políticas limpias para chat
 CREATE POLICY "Lectura pública de chat" ON public.chat_messages FOR SELECT USING (true);
 CREATE POLICY "Creación de mensajes" ON public.chat_messages FOR INSERT WITH CHECK (true);
 
--- Creación de políticas limpias para calendario y agenda
 CREATE POLICY "Lectura pública de eventos" ON public.calendar_events FOR SELECT USING (true);
 CREATE POLICY "Creación de eventos" ON public.calendar_events FOR INSERT WITH CHECK (true);
 CREATE POLICY "Modificación de eventos" ON public.calendar_events FOR UPDATE USING (true);
 CREATE POLICY "Borrado de eventos" ON public.calendar_events FOR DELETE USING (true);
 
--- 5. HABILITAR REALTIME
--- Nota: Puedes ejecutar estas líneas una a una. Si alguna tabla ya estaba habilitada previamente,
--- puedes ignorar el aviso o activarla visualmente desde: Database -> Replication en el panel de Supabase.
+CREATE POLICY "Lectura pública de actualizaciones" ON public.app_updates FOR SELECT USING (true);
+CREATE POLICY "Creación de actualizaciones" ON public.app_updates FOR INSERT WITH CHECK (true);
+
+-- 6. REPLICA IDENTITY (Para asegurar que los payloads de realtime incluyan todos los campos)
+ALTER TABLE public.profiles REPLICA IDENTITY FULL;
+ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
+ALTER TABLE public.calendar_events REPLICA IDENTITY FULL;
+ALTER TABLE public.app_updates REPLICA IDENTITY FULL;
+
+-- 7. HABILITAR PUBLICACIÓN SUPABASE REALTIME
 ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates;

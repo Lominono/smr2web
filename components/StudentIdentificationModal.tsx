@@ -135,8 +135,9 @@ export const StudentIdentificationModal: React.FC<StudentIdentificationModalProp
               debes registrar tu <strong className="text-foreground">nombre real</strong> y tu{' '}
               <strong className="text-foreground">número de estudiante único</strong>.
             </p>
-            <p className="text-[11px] text-danger font-medium">
-              ⚠️ Portal exclusivo para alumnos. Los profesores no tienen acceso a esta plataforma.
+            <p className="text-[11px] text-danger font-medium flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>Portal exclusivo para alumnos. Los profesores no tienen acceso a esta plataforma.</span>
             </p>
           </div>
 

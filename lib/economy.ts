@@ -12,7 +12,7 @@ export function getUserRank(coins: number): RankInfo {
   if (coins >= 5000) {
     return {
       name: 'Root',
-      badge: '★ ROOT',
+      badge: 'ROOT',
       color: 'text-amber-300',
       border: 'border-amber-500/30',
       bg: 'bg-amber-500/10',

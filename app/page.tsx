@@ -24,6 +24,7 @@ import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
 import { UserSettingsModal } from '@/components/UserSettingsModal';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
+import { RealtimeToast, RealtimeNotification } from '@/components/RealtimeToast';
 import { UserProfile, ChatMessage, LeaderboardEntry, CalendarEvent } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
@@ -75,8 +76,14 @@ export default function Home() {
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
+  const [realtimeNotification, setRealtimeNotification] = useState<RealtimeNotification | null>(null);
 
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const userRef = useRef<UserProfile | null>(user);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   // Load sound preference on mount
   useEffect(() => {
@@ -293,9 +300,9 @@ export default function Home() {
     fetchCalendarEvents();
     fetchLeaderboard();
 
-    // Realtime chat subscription
+    // Multi-table Realtime subscription: Chat, Calendar, System Updates and Profiles
     const channel = supabase
-      .channel('chat_feed_realtime')
+      .channel('portal_global_realtime')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
@@ -308,6 +315,69 @@ export default function Home() {
             },
             ...prev,
           ]);
+
+          // Trigger realtime toast notification if message is from a classmate
+          if (userRef.current && newMsg.user_id !== userRef.current.id) {
+            if (newMsg.is_system_win) {
+              setRealtimeNotification({
+                id: String(Date.now()),
+                type: 'win',
+                title: 'Victoria en el recreo',
+                description: `@${newMsg.username} ha ganado ${Number(newMsg.win_amount || 0).toLocaleString('es-ES')} fichas`,
+                actionLabel: 'Ver feed',
+                onAction: () => setActiveView('feed'),
+              });
+            } else {
+              setRealtimeNotification({
+                id: String(Date.now()),
+                type: 'chat',
+                title: `Aviso de @${newMsg.username}`,
+                description: newMsg.text.replace(/^\[#.*?\]\s*/, ''),
+                actionLabel: 'Ver feed',
+                onAction: () => setActiveView('feed'),
+              });
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'calendar_events' },
+        (payload) => {
+          fetchCalendarEvents();
+          const ev = (payload.new || payload.old) as any;
+          setRealtimeNotification({
+            id: String(Date.now()),
+            type: 'calendar',
+            title: 'Agenda de clase actualizada',
+            description: ev?.title
+              ? `Evento: ${ev.title} (${ev.subject || ''})`
+              : 'Se han actualizado fechas o tareas en directo.',
+            actionLabel: 'Ver horario',
+            onAction: () => setActiveView('calendar'),
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'app_updates' },
+        (payload) => {
+          const upd = payload.new as any;
+          setRealtimeNotification({
+            id: String(Date.now()),
+            type: 'system_update',
+            title: upd.title || 'Actualización en tiempo real',
+            description: upd.description || `Nueva versión ${upd.version || ''} disponible.`,
+            actionLabel: 'Recargar',
+            onAction: () => window.location.reload(),
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        () => {
+          fetchLeaderboard();
         }
       )
       .subscribe();
@@ -953,7 +1023,13 @@ export default function Home() {
         onOpenTerms={() => setIsTermsOpen(true)}
       />
 
-      {/* 7. Footer */}
+      {/* 8. Live Realtime Notification Banner */}
+      <RealtimeToast
+        notification={realtimeNotification}
+        onDismiss={() => setRealtimeNotification(null)}
+      />
+
+      {/* 9. Footer */}
       <footer className="border-t border-border/70 bg-surface/80 py-5 mt-10 mb-16 lg:mb-0 text-center text-xs text-foreground-muted">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">

@@ -54,12 +54,12 @@ export async function GET() {
       const ch = (currentRoom.active_game?.current_chamber ?? 0) + 1;
 
       const actionResult = await triggerActionServer(actingUser, room.id, false);
-      const resText = actionResult.turn.result === 'discharge' ? '💥 DESCARGA (Eliminado)' : '🟢 BLANCO (Sobrevivió)';
+      const resText = actionResult.turn.result === 'discharge' ? '[DESCARGA - Eliminado]' : '[BLANCO - Sobrevivió]';
       steps.push(`Turno #${stepCount}: @${actingUser.username} disparó recámara #${ch} -> ${resText}`);
 
       if (actionResult.isWinner && actionResult.winnerPlayer) {
         winnerName = actionResult.winnerPlayer.username;
-        steps.push(`👑 ¡GANADOR DECLARADO! @${winnerName} se lleva el bote de ${actionResult.potWon} fichas`);
+        steps.push(`[GANADOR] @${winnerName} se lleva el bote de ${actionResult.potWon} fichas`);
         break;
       }
 

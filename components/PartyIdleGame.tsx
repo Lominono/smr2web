@@ -21,9 +21,20 @@ import {
   MapPin,
   Award,
   Lock,
-  ChevronRight,
+  Trees,
+  Home,
+  Disc,
+  Tent,
+  Crown,
+  Shield,
+  Tag,
+  Volume2,
+  Ticket,
+  CircleDot,
+  Star,
   Target,
   Trophy,
+  ChevronRight,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -128,7 +139,7 @@ export const ZONES: ZoneConfig[] = [
     multiplier: 1.0,
     requiredProduction: 0,
     badge: 'Inicio',
-    icon: '🌳',
+    icon: 'trees',
   },
   {
     id: 'piso',
@@ -138,7 +149,7 @@ export const ZONES: ZoneConfig[] = [
     multiplier: 1.35,
     requiredProduction: 1000,
     badge: 'Fase 2',
-    icon: '🏠',
+    icon: 'home',
   },
   {
     id: 'discoteca',
@@ -148,7 +159,7 @@ export const ZONES: ZoneConfig[] = [
     multiplier: 1.8,
     requiredProduction: 6000,
     badge: 'Fase 3',
-    icon: '🪩',
+    icon: 'disc',
   },
   {
     id: 'macrofestival',
@@ -158,7 +169,7 @@ export const ZONES: ZoneConfig[] = [
     multiplier: 2.5,
     requiredProduction: 30000,
     badge: 'Fase 4',
-    icon: '🎪',
+    icon: 'tent',
   },
   {
     id: 'ibiza_vip',
@@ -168,7 +179,7 @@ export const ZONES: ZoneConfig[] = [
     multiplier: 4.0,
     requiredProduction: 120000,
     badge: 'Leyenda',
-    icon: '👑',
+    icon: 'crown',
   },
 ];
 
@@ -189,7 +200,7 @@ export const PERKS: PerkConfig[] = [
     name: 'Hígado de Acero',
     desc: 'Tus tragos manuales dan el triple de fichas directas (x3).',
     cost: 300,
-    icon: '🦾',
+    icon: 'shield',
     effectType: 'drink_mult',
     value: 3,
   },
@@ -198,7 +209,7 @@ export const PERKS: PerkConfig[] = [
     name: 'Colega del Tendero',
     desc: 'El chino de confianza te hace un 15% de descuento en todas las bebidas.',
     cost: 1100,
-    icon: '🏷️',
+    icon: 'tag',
     effectType: 'discount',
     value: 0.85,
   },
@@ -207,7 +218,7 @@ export const PERKS: PerkConfig[] = [
     name: 'Altavoces JBL Conectados',
     desc: 'El subidón de Fiesta Loca dura 25 segundos en vez de 10.',
     cost: 3200,
-    icon: '🔊',
+    icon: 'speaker',
     effectType: 'crazy_time',
     value: 25,
   },
@@ -216,7 +227,7 @@ export const PERKS: PerkConfig[] = [
     name: 'Enchufe en Barra',
     desc: 'Cada trago manual tiene un 12% de probabilidad de soltar un bonus sorpresa.',
     cost: 8500,
-    icon: '🍸',
+    icon: 'sparkles',
     effectType: 'jackpot_chance',
     value: 0.12,
   },
@@ -225,7 +236,7 @@ export const PERKS: PerkConfig[] = [
     name: 'Pase VIP Permanente',
     desc: 'El límite de recaudación offline aumenta de 8 horas a 16 horas seguidas.',
     cost: 24000,
-    icon: '🎟️',
+    icon: 'ticket',
     effectType: 'offline_hours',
     value: 16,
   },
@@ -293,6 +304,40 @@ export interface BotellonState {
 }
 
 export const STORAGE_KEY_PREFIX = 'smr2_botellon_data_';
+
+export const renderZoneIcon = (iconName: string) => {
+  switch (iconName) {
+    case 'trees':
+      return <Trees className="w-5 h-5 text-emerald-400" />;
+    case 'home':
+      return <Home className="w-5 h-5 text-blue-400" />;
+    case 'disc':
+      return <Disc className="w-5 h-5 text-purple-400" />;
+    case 'tent':
+      return <Tent className="w-5 h-5 text-amber-400" />;
+    case 'crown':
+      return <Crown className="w-5 h-5 text-amber-500" />;
+    default:
+      return <MapPin className="w-5 h-5 text-foreground-muted" />;
+  }
+};
+
+export const renderPerkIcon = (iconName: string) => {
+  switch (iconName) {
+    case 'shield':
+      return <Shield className="w-5 h-5 text-blue-400" />;
+    case 'tag':
+      return <Tag className="w-5 h-5 text-emerald-400" />;
+    case 'speaker':
+      return <Volume2 className="w-5 h-5 text-amber-400" />;
+    case 'sparkles':
+      return <Sparkles className="w-5 h-5 text-purple-400" />;
+    case 'ticket':
+      return <Ticket className="w-5 h-5 text-rose-400" />;
+    default:
+      return <Zap className="w-5 h-5 text-foreground-muted" />;
+  }
+};
 
 export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   userCoins,
@@ -596,13 +641,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
     // Partícula visual flotante
     const pId = Date.now() + Math.random();
-    const emojis = hasJackpotBonus ? ['🍸', '💥', '💰'] : ['🍺', '⚡', '🥂', '🍹', '🍷'];
-    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
     const newParticle = {
       id: pId,
       x: (Math.random() - 0.5) * 80,
       y: (Math.random() - 0.5) * 30,
-      text: `+${Math.floor(clickPower)} ${randomEmoji}`,
+      text: hasJackpotBonus ? `+${Math.floor(clickPower)} BONUS` : `+${Math.floor(clickPower)}`,
     };
     setParticles((prev) => [...prev.slice(-8), newParticle]);
     setTimeout(() => {
@@ -899,8 +942,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       {/* Banner de Zona Actual y Rango de Fiestero */}
       <div className="p-4 rounded-3xl bg-surface-raised border border-border/70 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-surface border border-border/60 flex items-center justify-center text-2xl shrink-0 shadow-2xs">
-            {activeZone.icon}
+          <div className="w-11 h-11 rounded-2xl bg-surface border border-border/60 flex items-center justify-center shrink-0 shadow-2xs">
+            {renderZoneIcon(activeZone.icon)}
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -1145,8 +1188,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <h2 className="text-sm font-semibold text-foreground">Suministros del Botellón</h2>
               <p className="text-xs text-foreground-muted">
                 {costDiscount < 1 && (
-                  <span className="text-emerald-400 font-medium mr-1.5">
-                    🏷️ 15% descuento aplicado
+                  <span className="text-emerald-400 font-medium inline-flex items-center gap-1 mr-1.5">
+                    <Tag className="w-3 h-3" />
+                    <span>15% descuento aplicado</span>
                   </span>
                 )}
                 Multiplica tu producción pasiva en tiempo real.
@@ -1220,7 +1264,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                           </span>
                           {milestone > 1 && (
                             <span className="text-[9px] font-mono font-semibold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-                              ★ x{milestone}
+                              x{milestone}
                             </span>
                           )}
                         </div>
@@ -1300,8 +1344,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   }`}
                 >
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-surface border border-border/60 flex items-center justify-center text-2xl shrink-0">
-                      {zone.icon}
+                    <div className="w-12 h-12 rounded-2xl bg-surface border border-border/60 flex items-center justify-center shrink-0">
+                      {renderZoneIcon(zone.icon)}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -1368,8 +1412,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-surface border border-border/60 flex items-center justify-center text-xl shrink-0">
-                      {perk.icon}
+                    <div className="w-10 h-10 rounded-xl bg-surface border border-border/60 flex items-center justify-center shrink-0">
+                      {renderPerkIcon(perk.icon)}
                     </div>
                     <div className="min-w-0">
                       <div className="text-xs font-bold text-foreground truncate">
@@ -1424,9 +1468,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
           <div className="p-6 rounded-3xl bg-surface-raised border border-border/70 shadow-xs text-center space-y-6">
             <div className="flex items-center justify-center gap-3">
-              <span className="text-3xl">🏓</span>
-              <div className="text-4xl">🥤</div>
-              <span className="text-3xl">🏓</span>
+              <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center text-accent">
+                <Target className="w-6 h-6" />
+              </div>
             </div>
 
             {/* Barra de puntería interactiva */}
