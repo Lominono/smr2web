@@ -11,6 +11,7 @@ import {
   Server,
   Target,
   CircleDot,
+  Wine,
   Trophy,
   Coins,
   Settings,
@@ -247,6 +248,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               Recreo Arcade
             </span>
             {[
+              { id: 'party_idle', label: 'El Botellón (Idle)', icon: Wine },
               { id: 'russian_roulette', label: 'Ruleta Rusa (Multijugador)', icon: Zap },
               { id: 'crash', label: 'Crash multiplicador', icon: TrendingUp },
               { id: 'mines', label: 'Minas', icon: Server },

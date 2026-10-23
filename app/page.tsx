@@ -11,6 +11,7 @@ import { CrashGame } from '@/components/CrashGame';
 import { MinesGame } from '@/components/MinesGame';
 import { RouletteGame } from '@/components/RouletteGame';
 import { RussianRouletteGame } from '@/components/RussianRouletteGame';
+import { PartyIdleGame } from '@/components/PartyIdleGame';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { FaucetModal } from '@/components/FaucetModal';
 import { AuthModal } from '@/components/AuthModal';
@@ -40,10 +41,11 @@ import {
   Server,
   Target,
   Zap,
+  Wine,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
-type ViewMode = 'feed' | 'calendar' | 'russian_roulette' | 'crash' | 'mines' | 'angry' | 'roulette';
+type ViewMode = 'feed' | 'calendar' | 'russian_roulette' | 'crash' | 'mines' | 'angry' | 'roulette' | 'party_idle';
 
 export default function Home() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -729,6 +731,7 @@ export default function Home() {
               {activeView !== 'calendar' && (
                 <div className="flex items-center p-1 rounded-full bg-surface-raised border border-border/60 overflow-x-auto scrollbar-none gap-0.5">
                   {[
+                    { id: 'party_idle', label: 'El Botellón', icon: Wine },
                     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
                     { id: 'crash', label: 'Crash', icon: TrendingUp },
                     { id: 'mines', label: 'Minas', icon: Server },
@@ -762,7 +765,14 @@ export default function Home() {
 
             {/* Active Component */}
             <div className="animate-in fade-in duration-150">
-              {activeView === 'angry' ? (
+              {activeView === 'party_idle' ? (
+                <PartyIdleGame
+                  userCoins={user ? user.coins : 200}
+                  userId={user?.id}
+                  onUpdateCoins={handleUpdateCoins}
+                  onBroadcastWin={handleBroadcastWin}
+                />
+              ) : activeView === 'angry' ? (
                 <AngryCableGame
                   userCoins={user ? user.coins : 200}
                   onUpdateCoins={handleUpdateCoins}

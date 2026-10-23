@@ -56,7 +56,10 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       <div className="space-y-4">
         <nav aria-label="Navegación lateral" className="space-y-1">
           {navItems.map((item) => {
-            const isActive = activeView === item.id;
+            const isActive =
+              item.id === 'crash'
+                ? ['crash', 'mines', 'angry', 'roulette', 'party_idle'].includes(activeView)
+                : activeView === item.id;
             const Icon = item.icon;
             return (
               <button
