@@ -17,7 +17,14 @@ import { getCurrentScheduleStatus } from '@/lib/scheduleData';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { TIERS, STORAGE_KEY_PREFIX, BotellonState, getTierMilestoneMultiplier } from '@/components/PartyIdleGame';
+import {
+  TIERS,
+  ZONES,
+  PARTY_RANKS,
+  STORAGE_KEY_PREFIX,
+  BotellonState,
+  getTierMilestoneMultiplier,
+} from '@/components/PartyIdleGame';
 import { sound } from '@/lib/audio';
 import confetti from 'canvas-confetti';
 
@@ -69,10 +76,16 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
             const l = lvl[t.id] || 0;
             return acc + l * t.baseRate * getTierMilestoneMultiplier(l);
           }, 0);
-          const mult = 1 + (parsed.afterPrestigeCount || 0) * 0.5;
+          const zone = ZONES.find((z) => z.id === parsed.currentZoneId) || ZONES[0];
+          const rank =
+            [...PARTY_RANKS]
+              .reverse()
+              .find((r) => (parsed.totalLifetimeProduced || 0) >= r.minProd) || PARTY_RANKS[0];
+          const rankMult = 1 + rank.bonusPercent / 100;
+          const prestigeMult = 1 + (parsed.afterPrestigeCount || 0) * 0.5;
           setBotellonState({
             vault: Math.floor(parsed.pendingVault || 0),
-            rate: baseRate * mult,
+            rate: Math.floor(baseRate * (zone?.multiplier || 1) * rankMult * prestigeMult * 10) / 10,
           });
         }
       } catch {}
