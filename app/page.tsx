@@ -20,6 +20,7 @@ import { AuthGate } from '@/components/AuthGate';
 import { ScheduleCalendarView } from '@/components/ScheduleCalendarView';
 import { MobileTabBar } from '@/components/MobileTabBar';
 import { MinecraftBanner } from '@/components/MinecraftBanner';
+import { MobileWipBanner } from '@/components/MobileWipBanner';
 import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
 import { UserSettingsModal } from '@/components/UserSettingsModal';
@@ -191,6 +192,7 @@ export default function Home() {
         setChatMessages(
           data.map((m: any) => ({
             ...m,
+            likes_count: Number(m.likes_count || 0),
             created_at: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           }))
         );
@@ -337,6 +339,25 @@ export default function Home() {
                 onAction: () => setActiveView('feed'),
               });
             }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'chat_messages' },
+        (payload) => {
+          const updatedMsg = payload.new as any;
+          if (updatedMsg?.id) {
+            setChatMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === updatedMsg.id
+                  ? {
+                      ...msg,
+                      likes_count: Number(updatedMsg.likes_count || 0),
+                    }
+                  : msg
+              )
+            );
           }
         }
       )
@@ -672,6 +693,37 @@ export default function Home() {
     sound.coinWin();
   };
 
+  const handleToggleLike = async (messageId: string) => {
+    sound.tap();
+
+    setChatMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id === messageId) {
+          const isLiked = !msg.is_liked_by_me;
+          return {
+            ...msg,
+            is_liked_by_me: isLiked,
+            likes_count: Math.max(0, (msg.likes_count || 0) + (isLiked ? 1 : -1)),
+          };
+        }
+        return msg;
+      })
+    );
+
+    const supabase = createClient();
+    if (!supabase) return;
+
+    try {
+      const msg = chatMessages.find((m) => m.id === messageId);
+      const isLiked = msg?.is_liked_by_me;
+      const nextCount = Math.max(0, (msg?.likes_count || 0) + (isLiked ? -1 : 1));
+      await supabase
+        .from('chat_messages')
+        .update({ likes_count: nextCount })
+        .eq('id', messageId);
+    } catch {}
+  };
+
   // Loading splash screen
   if (authLoading) {
     return (
@@ -728,6 +780,8 @@ export default function Home() {
 
       {/* 2. Main Workspace Layout */}
       <main className="relative z-10 flex-1 w-full pb-24 lg:pb-12">
+        <MobileWipBanner />
+
         {/* VIEW 1: TWITTER FEED (Hero Experience) */}
         {activeView === 'feed' ? (
           <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 pt-4">
@@ -762,6 +816,7 @@ export default function Home() {
                   onOpenAuth={() => setIsAuthOpen(true)}
                   onSendMessage={handleSendMessage}
                   onTipUser={handleTipUser}
+                  onToggleLike={handleToggleLike}
                   onOpenSchedule={() => setActiveView('calendar')}
                   onOpenRussianRoulette={() => setActiveView('russian_roulette')}
                   composerRef={composerRef}

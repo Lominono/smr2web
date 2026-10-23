@@ -29,6 +29,9 @@ export interface ChatMessage {
   win_amount?: number;
   multiplier?: number;
   game?: 'angry' | 'crash' | 'mines' | 'roulette';
+  likes_count?: number;
+  is_liked_by_me?: boolean;
+  tag?: string;
 }
 
 export interface LeaderboardEntry {

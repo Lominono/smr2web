@@ -9,10 +9,13 @@ import {
   MessageSquare,
   ShieldCheck,
   Check,
+  Heart,
+  Trophy,
+  Tag,
+  CornerDownRight,
 } from 'lucide-react';
 import { ChatMessage, UserProfile } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { sound } from '@/lib/audio';
 
@@ -22,6 +25,7 @@ interface SmrTwitterFeedProps {
   onOpenAuth: () => void;
   onSendMessage: (text: string) => void;
   onTipUser: (targetUsername: string, amount: number) => void;
+  onToggleLike?: (messageId: string) => void;
   onOpenSchedule?: () => void;
   onOpenTasks?: () => void;
   onOpenRussianRoulette?: () => void;
@@ -30,9 +34,9 @@ interface SmrTwitterFeedProps {
 
 const FEED_TAGS = [
   { id: 'all', label: 'Todos' },
-  { id: 'avisos', label: 'Avisos' },
+  { id: 'avisos', label: 'Avisos de clase' },
   { id: 'dudas', label: 'Dudas' },
-  { id: 'recreo', label: 'Recreo' },
+  { id: 'recreo', label: 'Recreo & Victorias' },
 ] as const;
 
 export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
@@ -41,6 +45,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   onOpenAuth,
   onSendMessage,
   onTipUser,
+  onToggleLike,
   composerRef: externalComposerRef,
 }) => {
   const [activeFeedTab, setActiveFeedTab] = useState<'all' | 'avisos' | 'dudas' | 'recreo'>('all');
@@ -49,6 +54,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   const [isPosting, setIsPosting] = useState(false);
   const [tipSuccessId, setTipSuccessId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [localLikedIds, setLocalLikedIds] = useState<Set<string>>(new Set());
 
   const localTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalComposerRef || localTextareaRef;
@@ -111,6 +117,23 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
     }
   };
 
+  const handleLike = (msgId: string) => {
+    sound.tap();
+    setLocalLikedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(msgId)) {
+        next.delete(msgId);
+      } else {
+        next.add(msgId);
+      }
+      return next;
+    });
+
+    if (onToggleLike) {
+      onToggleLike(msgId);
+    }
+  };
+
   const filteredMessages = messages.filter((msg) => {
     if (activeFeedTab === 'all') return true;
     const lower = msg.text.toLowerCase();
@@ -161,13 +184,14 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
     const words = cleanText.split(/(\s+)/);
 
     return (
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {extractedTag && (
-          <span className="inline-block text-[10px] font-mono font-medium px-2 py-0.2 rounded bg-surface-raised border border-border/80 text-foreground-muted">
-            #{extractedTag}
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.2 rounded bg-surface-raised border border-border/80 text-foreground-muted">
+            <Tag className="w-2.5 h-2.5 text-accent" />
+            <span>#{extractedTag}</span>
           </span>
         )}
-        <p className="text-[13.5px] text-foreground leading-relaxed break-words font-sans max-w-[75ch]">
+        <p className="text-[13.5px] text-foreground leading-relaxed break-words font-sans max-w-[70ch]">
           {words.map((word, i) => {
             if (word.startsWith('#') && word.length > 1) {
               return (
@@ -205,28 +229,30 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   };
 
   const charCount = inputText.length;
+  const isNearLimit = charCount > 240;
 
   return (
     <div className="w-full flex flex-col rounded-xl border border-border/70 min-h-[calc(100dvh-5.5rem)] bg-surface overflow-hidden shadow-2xs">
-      {/* 1. Sticky Header and Filter Tabs */}
+      {/* 1. Sticky Header and Refined Filter Tabs */}
       <div className="sticky top-14 z-20 bg-surface/90 backdrop-blur-md border-b border-border/60">
         <div className="flex items-center justify-between px-4 sm:px-5 py-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground tracking-tight">
               Feed de clase
             </h2>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-surface-raised border border-border text-foreground-muted">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="En directo" />
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-raised border border-border text-foreground-muted">
               {messages.length}
             </span>
           </div>
           <span className="text-[11px] text-foreground-subtle hidden sm:inline">
-            Avisos, dudas y novedades de 2º SMR
+            Canal oficial · 2º SMR
           </span>
         </div>
 
         {/* Tab row */}
-        <div className="px-3 sm:px-5 pb-2.5">
-          <div className="flex items-center p-1 rounded-lg bg-surface-raised border border-border/50">
+        <div className="px-3 sm:px-5 pb-2">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
             {FEED_TAGS.map((tab) => {
               const isActive = activeFeedTab === tab.id;
               return (
@@ -237,10 +263,10 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                     sound.tap();
                     setActiveFeedTab(tab.id);
                   }}
-                  className={`flex-1 py-1 text-xs font-medium text-center rounded-md transition-all cursor-pointer select-none active:scale-95 touch-manipulation ${
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer select-none active:scale-95 touch-manipulation whitespace-nowrap shrink-0 ${
                     isActive
                       ? 'bg-foreground text-background font-semibold shadow-2xs'
-                      : 'text-foreground-muted hover:text-foreground'
+                      : 'text-foreground-muted hover:text-foreground hover:bg-surface-raised'
                   }`}
                 >
                   {tab.label}
@@ -251,67 +277,79 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
         </div>
       </div>
 
-      {/* 2. Minimalist Composer Box */}
-      <div className="p-3.5 sm:p-4 border-b border-border/60 bg-surface-raised/20 space-y-2.5">
-        <textarea
-          ref={textareaRef}
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onKeyDown={(e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-              handlePublish();
-            }
-          }}
-          placeholder={
-            currentUser
-              ? `Escribe un aviso o duda para la clase, @${currentUser.username}...`
-              : 'Inicia sesión para publicar en el feed...'
-          }
-          rows={2}
-          maxLength={280}
-          className="w-full bg-transparent text-sm text-foreground placeholder:text-foreground-subtle resize-none outline-none leading-relaxed font-sans"
-        />
+      {/* 2. Sleek Post Composer Box */}
+      <div className="p-3.5 sm:p-4 border-b border-border/60 bg-surface-raised/20">
+        <div className="flex items-start gap-3">
+          {/* User Avatar */}
+          <div className="w-8 h-8 rounded-full bg-surface-raised border border-border flex items-center justify-center font-mono font-semibold text-xs text-foreground uppercase shrink-0 mt-0.5">
+            {currentUser ? currentUser.username.charAt(0) : '?'}
+          </div>
 
-        {/* Tag selector chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
-          {['General', 'AvisoAula', 'Examen', 'DudaSMR', 'Recreo'].map((tag) => {
-            const isSelected = selectedTag === tag;
-            return (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => {
-                  sound.tap();
-                  setSelectedTag(tag);
-                }}
-                className={`px-2.5 py-0.5 rounded-md text-xs font-mono transition-all cursor-pointer border active:scale-95 touch-manipulation shrink-0 ${
-                  isSelected
-                    ? 'bg-foreground text-background font-semibold border-foreground'
-                    : 'bg-surface text-foreground-muted border-border hover:text-foreground'
-                }`}
+          <div className="flex-1 min-w-0 space-y-2.5">
+            <textarea
+              ref={textareaRef}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                  handlePublish();
+                }
+              }}
+              placeholder={
+                currentUser
+                  ? `Escribe un aviso, duda o novedad para el grupo, @${currentUser.username}...`
+                  : 'Inicia sesión para participar en el feed de clase...'
+              }
+              rows={2}
+              maxLength={280}
+              className="w-full bg-transparent text-sm text-foreground placeholder:text-foreground-subtle resize-none outline-none leading-relaxed font-sans"
+            />
+
+            {/* Tag selector chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+              {['General', 'AvisoAula', 'Examen', 'DudaSMR', 'Recreo'].map((tag) => {
+                const isSelected = selectedTag === tag;
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => {
+                      sound.tap();
+                      setSelectedTag(tag);
+                    }}
+                    className={`px-2.5 py-0.5 rounded-md text-xs font-mono transition-all cursor-pointer border active:scale-95 touch-manipulation shrink-0 ${
+                      isSelected
+                        ? 'bg-foreground text-background font-semibold border-foreground'
+                        : 'bg-surface text-foreground-muted border-border hover:text-foreground'
+                    }`}
+                  >
+                    #{tag}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-border/50">
+              <div className="flex items-center gap-2 text-[11px] font-mono text-foreground-subtle">
+                <span className={isNearLimit ? 'text-amber-500 font-semibold' : ''}>
+                  {280 - charCount} caracteres
+                </span>
+                <span className="hidden sm:inline opacity-60">· Ctrl + Enter para publicar</span>
+              </div>
+
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handlePublish()}
+                disabled={!inputText.trim() || isPosting || charCount > 280}
+                isLoading={isPosting}
+                className="rounded-lg px-3.5 h-8 text-xs font-medium"
               >
-                #{tag}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center justify-between pt-2 border-t border-border/50">
-          <span className="text-[11px] font-mono text-foreground-subtle">
-            {280 - charCount} caracteres
-          </span>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => handlePublish()}
-            disabled={!inputText.trim() || isPosting || charCount > 280}
-            isLoading={isPosting}
-            className="rounded-lg px-3.5 h-8 text-xs font-medium"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Publicar</span>
-          </Button>
+                <Send className="w-3.5 h-3.5" />
+                <span>Publicar</span>
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -321,39 +359,46 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
           <div className="p-10">
             <EmptyState
               icon={<MessageSquare className="w-8 h-8 opacity-40" />}
-              title="Aún no hay publicaciones"
-              description="Sé el primero en compartir un aviso sobre prácticas, exámenes o el temario."
+              title="Aún no hay publicaciones en esta sección"
+              description="Sé el primero en compartir un aviso sobre prácticas, exámenes o dudas del temario."
             />
           </div>
         ) : (
           filteredMessages.map((msg) => {
             const isMe = currentUser && msg.user_id === currentUser.id;
+            const isLiked = localLikedIds.has(msg.id) || msg.is_liked_by_me;
+            const effectiveLikes = (msg.likes_count || 0) + (localLikedIds.has(msg.id) ? 1 : 0);
 
             // System victory message
             if (msg.is_system_win) {
               return (
                 <article
                   key={msg.id}
-                  className="p-3.5 sm:p-4 bg-surface-raised/20 hover:bg-surface-raised/40 transition-colors content-auto"
+                  className="p-3.5 sm:p-4 bg-surface-raised/25 hover:bg-surface-raised/45 transition-colors content-auto"
                 >
                   <div className="flex items-start justify-between gap-3 text-xs">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface border border-border text-foreground-muted">
-                          Recreo
-                        </span>
-                        <span className="text-foreground-subtle font-mono text-[11px]">
-                          {msg.created_at}
-                        </span>
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-surface border border-border/70 flex items-center justify-center text-amber-500 shrink-0 mt-0.5">
+                        <Trophy className="w-3.5 h-3.5" />
                       </div>
-                      <p className="text-xs text-foreground-muted font-sans">
-                        {msg.text}
-                      </p>
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface border border-border text-foreground-muted">
+                            Victoria recreo
+                          </span>
+                          <span className="text-foreground-subtle font-mono text-[11px]">
+                            {msg.created_at}
+                          </span>
+                        </div>
+                        <p className="text-xs text-foreground font-sans">
+                          {msg.text}
+                        </p>
+                      </div>
                     </div>
 
                     {msg.win_amount && (
-                      <span className="font-mono text-xs font-semibold text-emerald-500 shrink-0">
-                        +{Number(msg.win_amount).toLocaleString('es-ES')}
+                      <span className="font-mono text-xs font-semibold text-emerald-400 shrink-0 pl-2">
+                        +{Number(msg.win_amount).toLocaleString('es-ES')} fichas
                       </span>
                     )}
                   </div>
@@ -364,63 +409,91 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             return (
               <article
                 key={msg.id}
-                className="p-3.5 sm:p-4 hover:bg-surface-raised/25 transition-colors content-auto"
+                className="p-3.5 sm:p-4 hover:bg-surface-raised/20 transition-colors content-auto"
               >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-6 h-6 rounded-md bg-surface-raised border border-border flex items-center justify-center font-mono font-semibold text-[11px] text-foreground uppercase shrink-0">
-                        {msg.username.charAt(0)}
+                <div className="flex items-start gap-3">
+                  {/* Avatar */}
+                  <div className="w-8 h-8 rounded-full bg-surface-raised border border-border flex items-center justify-center font-mono font-semibold text-xs text-foreground uppercase shrink-0 mt-0.5">
+                    {msg.username.charAt(0)}
+                  </div>
+
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <span className="font-semibold text-xs text-foreground font-mono truncate">
+                          @{msg.username}
+                        </span>
+
+                        {(msg.username === 'admin' || msg.username.toLowerCase().includes('delegado')) && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.2 rounded bg-accent/10 text-accent font-medium shrink-0">
+                            <ShieldCheck className="w-2.5 h-2.5" />
+                            <span>Delegado</span>
+                          </span>
+                        )}
+
+                        <span className="text-foreground-subtle text-[11px]">·</span>
+
+                        <span className="text-[11px] text-foreground-subtle font-mono shrink-0">
+                          {msg.created_at}
+                        </span>
                       </div>
 
-                      <span className="font-semibold text-xs text-foreground font-mono truncate">
-                        @{msg.username}
-                      </span>
-
-                      {(msg.username === 'admin' || msg.username.toLowerCase().includes('delegado')) && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.2 rounded bg-accent/10 text-accent font-medium shrink-0">
-                          <ShieldCheck className="w-2.5 h-2.5" />
-                          <span>Delegado</span>
-                        </span>
-                      )}
-
-                      <span className="text-[11px] text-foreground-subtle font-mono shrink-0">
-                        {msg.created_at}
-                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleShare(msg)}
+                          title="Copiar texto"
+                          aria-label="Copiar texto del mensaje"
+                          className="w-7 h-7 rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-raised flex items-center justify-center cursor-pointer active:scale-95 transition-all touch-manipulation"
+                        >
+                          {copiedId === msg.id ? (
+                            <Check className="w-3 h-3 text-success" />
+                          ) : (
+                            <Share2 className="w-3 h-3" />
+                          )}
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
+                    {/* Body */}
+                    <div>
+                      {renderFormattedText(msg.text)}
+                    </div>
+
+                    {/* Actions bar */}
+                    <div className="flex items-center gap-4 pt-1 text-[11px] font-mono text-foreground-subtle">
+                      {/* Like */}
+                      <button
+                        type="button"
+                        onClick={() => handleLike(msg.id)}
+                        className={`inline-flex items-center gap-1 hover:text-rose-500 transition-colors cursor-pointer ${
+                          isLiked ? 'text-rose-500 font-semibold' : ''
+                        }`}
+                        title="Me gusta"
+                      >
+                        <Heart
+                          className={`w-3.5 h-3.5 ${
+                            isLiked ? 'fill-rose-500 stroke-rose-500' : ''
+                          }`}
+                        />
+                        <span>{effectiveLikes > 0 ? effectiveLikes : ''}</span>
+                      </button>
+
+                      {/* Tip button */}
                       {!isMe && currentUser && (
                         <button
                           type="button"
                           onClick={() => handleTip(msg.id, msg.username)}
-                          title={`Enviar 50 fichas a @${msg.username}`}
+                          title={`Enviar 50 fichas de propina a @${msg.username}`}
                           aria-label={`Enviar 50 fichas a @${msg.username}`}
-                          className="h-7 px-2 rounded-md bg-surface-raised hover:bg-surface-hover text-foreground flex items-center gap-1 text-[11px] font-mono border border-border/70 active:scale-95 transition-all touch-manipulation cursor-pointer"
+                          className="inline-flex items-center gap-1 hover:text-amber-500 transition-colors cursor-pointer"
                         >
-                          <Coins className="w-3 h-3 text-amber-500" />
-                          <span>{tipSuccessId === msg.id ? '¡Enviado!' : '50'}</span>
+                          <Coins className="w-3.5 h-3.5 text-amber-500" />
+                          <span>{tipSuccessId === msg.id ? '¡Enviado!' : 'Dar propina (50)'}</span>
                         </button>
                       )}
-
-                      <button
-                        type="button"
-                        onClick={() => handleShare(msg)}
-                        title="Copiar texto"
-                        aria-label="Copiar texto del mensaje"
-                        className="w-7 h-7 rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-raised flex items-center justify-center cursor-pointer active:scale-95 transition-all touch-manipulation border border-border/70"
-                      >
-                        {copiedId === msg.id ? (
-                          <Check className="w-3 h-3 text-success" />
-                        ) : (
-                          <Share2 className="w-3 h-3" />
-                        )}
-                      </button>
                     </div>
-                  </div>
-
-                  <div className="pl-8">
-                    {renderFormattedText(msg.text)}
                   </div>
                 </div>
               </article>
