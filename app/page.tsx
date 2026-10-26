@@ -269,8 +269,7 @@ export default function Home() {
         const { data, error } = await supabase
           .from('profiles')
           .select('id, username, full_name, coins, biggest_win, streak_count, avatar_color, role')
-          .order('coins', { ascending: false })
-          .limit(100);
+          .order('coins', { ascending: false });
 
         if (!error && data && data.length > 0) {
           data.forEach((p: any) => {
@@ -1268,6 +1267,7 @@ export default function Home() {
         entries={leaderboard}
         currentUser={user}
         onlineUsers={onlineUsers}
+        onRefresh={fetchLeaderboard}
       />
 
       <FaucetModal

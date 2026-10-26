@@ -13,17 +13,15 @@ export async function GET() {
         const { data, error } = await client
           .from('profiles')
           .select('id, username, full_name, coins, biggest_win, streak_count, avatar_color, role, is_banned')
-          .eq('is_banned', false)
-          .order('coins', { ascending: false })
-          .limit(100);
+          .order('coins', { ascending: false });
 
         if (!error && data) {
           const entries: LeaderboardEntry[] = data.map((p: any) => ({
             id: p.id,
             username: p.username,
             full_name: p.full_name || undefined,
-            coins: Number(p.coins ?? 0),
-            biggest_win: Number(p.biggest_win ?? 0),
+            coins: Math.max(0, Number(p.coins ?? 1000)),
+            biggest_win: Math.max(0, Number(p.biggest_win ?? 0)),
             streak_count: p.streak_count ? Number(p.streak_count) : 1,
             avatar_color: p.avatar_color || undefined,
             role: p.role || undefined,

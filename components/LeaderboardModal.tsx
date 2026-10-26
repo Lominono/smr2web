@@ -16,6 +16,7 @@ import {
   User,
   ArrowDown,
   Users,
+  RefreshCw,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -28,6 +29,7 @@ interface LeaderboardModalProps {
   entries: LeaderboardEntry[];
   currentUser?: UserProfile | null;
   onlineUsers?: OnlineUser[];
+  onRefresh?: () => void;
 }
 
 type SortCategory = 'coins' | 'biggest_win' | 'streak';
@@ -38,6 +40,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   entries,
   currentUser,
   onlineUsers = [],
+  onRefresh,
 }) => {
   const [activeTab, setActiveTab] = useState<SortCategory>('coins');
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,7 +112,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   if (!isOpen) return null;
 
   const top3 = !searchQuery.trim() && sortedAndFiltered.length >= 3 ? sortedAndFiltered.slice(0, 3) : [];
-  const listItems = !searchQuery.trim() && sortedAndFiltered.length >= 3 ? sortedAndFiltered.slice(3) : sortedAndFiltered;
+  const listItems = sortedAndFiltered; // Todos los alumnos en la lista completa
 
   return (
     <div
@@ -134,25 +137,40 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-accent" />
               <h2 id="leaderboard-title" className="text-base font-semibold text-foreground tracking-tight">
-                Clasificación de alumnos
+                Clasificación de alumnos ({sortedAndFiltered.length})
               </h2>
             </div>
             <p className="text-xs text-foreground-muted mt-0.5">
-              2º SMR · Ranking por fichas, mayor bote y actividad
+              2º SMR · Ranking completo con todos los usuarios y sus monedas en vivo
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              sound.tap();
-              onClose();
-            }}
-            aria-label="Cerrar clasificación"
-            className="w-8 h-8 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised border border-border/50 flex items-center justify-center transition-colors cursor-pointer active:scale-95 touch-manipulation"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onRefresh && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.tap();
+                  onRefresh();
+                }}
+                title="Actualizar ranking"
+                className="w-8 h-8 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised border border-border/50 flex items-center justify-center transition-colors cursor-pointer active:scale-95 touch-manipulation"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                sound.tap();
+                onClose();
+              }}
+              aria-label="Cerrar clasificación"
+              className="w-8 h-8 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised border border-border/50 flex items-center justify-center transition-colors cursor-pointer active:scale-95 touch-manipulation"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* 2. Global Quick Stats Strip */}
@@ -410,32 +428,57 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                 </div>
               )}
 
-              {/* LIST: 4th Place Onwards (or Full List if Searching) */}
-              <div className="space-y-1.5">
+              {/* LIST: Todos los alumnos en orden continuo */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between text-xs font-semibold text-foreground px-1 pb-0.5">
+                  <span className="flex items-center gap-1.5">
+                    <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Listado de todos los alumnos ({listItems.length})</span>
+                  </span>
+                  <span className="text-[11px] text-foreground-subtle font-mono font-normal">
+                    {activeTab === 'coins'
+                      ? 'Ranking por saldo de monedas'
+                      : activeTab === 'biggest_win'
+                      ? 'Ranking por mayor bote'
+                      : 'Ranking por racha'}
+                  </span>
+                </div>
+
                 {listItems.map((item, index) => {
-                  const actualRank = !searchQuery.trim() && top3.length === 3 ? index + 4 : index + 1;
+                  const actualRank = index + 1;
+                  const isFirst = actualRank === 1;
+                  const isSecond = actualRank === 2;
+                  const isThird = actualRank === 3;
                   const isUser = item.is_current_user || (currentUser && item.id === currentUser.id);
 
                   return (
                     <div
                       key={item.id}
                       ref={isUser ? userRowRef : undefined}
-                      className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-colors ${
+                      className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all ${
                         isUser
-                          ? 'bg-surface-raised border-accent/60 shadow-2xs'
+                          ? 'bg-surface-raised border-accent/70 shadow-xs'
+                          : isFirst
+                          ? 'bg-amber-500/[0.04] border-amber-500/30 hover:border-amber-500/50'
                           : 'bg-surface border-border/60 hover:border-border hover:bg-surface-raised/40'
                       }`}
                     >
                       {/* Left: Rank & User details */}
                       <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center font-mono font-semibold text-xs shrink-0 ${
-                            isUser
-                              ? 'bg-foreground text-background'
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 select-none ${
+                            isFirst
+                              ? 'bg-amber-500/20 text-amber-500 border border-amber-500/40 shadow-xs'
+                              : isSecond
+                              ? 'bg-slate-300/20 text-slate-200 border border-slate-300/40'
+                              : isThird
+                              ? 'bg-amber-700/20 text-amber-600 border border-amber-700/40'
+                              : isUser
+                              ? 'bg-foreground text-background shadow-xs'
                               : 'bg-surface-raised border border-border/70 text-foreground-muted'
                           }`}
                         >
-                          {actualRank}
+                          {isFirst ? '🥇' : isSecond ? '🥈' : isThird ? '🥉' : `#${actualRank}`}
                         </div>
 
                         <div className="min-w-0">
@@ -485,26 +528,25 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       </div>
 
                       {/* Right: Currency / Stat */}
-                      <div className="text-right shrink-0 pl-2">
-                        <div className="flex items-center justify-end gap-1 font-mono font-semibold text-xs text-foreground">
-                          {activeTab === 'coins' && <Coins className="w-3.5 h-3.5 text-amber-500" />}
-                          {activeTab === 'biggest_win' && <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />}
-                          {activeTab === 'streak' && <Flame className="w-3.5 h-3.5 text-amber-500" />}
-                          <span>
-                            {activeTab === 'coins'
-                              ? item.coins.toLocaleString('es-ES')
-                              : activeTab === 'biggest_win'
-                              ? item.biggest_win.toLocaleString('es-ES')
-                              : `${item.streak_count || 1} días`}
-                          </span>
+                      <div className="flex flex-col items-end shrink-0 pl-2 space-y-0.5">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 font-mono font-bold text-xs text-amber-500 tabular-nums">
+                          <Coins className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          <span>{item.coins.toLocaleString('es-ES')}</span>
+                          <span className="text-[10px] text-amber-500/75 font-sans font-normal">fichas</span>
                         </div>
-                        <span className="text-[10px] text-foreground-subtle font-mono">
-                          {activeTab === 'coins'
-                            ? 'fichas'
-                            : activeTab === 'biggest_win'
-                            ? 'bote récord'
-                            : 'actividad'}
-                        </span>
+
+                        {activeTab === 'biggest_win' && (
+                          <div className="flex items-center gap-1 text-[10px] font-mono text-emerald-400">
+                            <TrendingUp className="w-3 h-3" />
+                            <span>Bote: {item.biggest_win.toLocaleString('es-ES')}</span>
+                          </div>
+                        )}
+                        {activeTab === 'streak' && (
+                          <div className="flex items-center gap-1 text-[10px] font-mono text-amber-400">
+                            <Flame className="w-3 h-3 text-amber-500" />
+                            <span>Racha: {item.streak_count || 1} días</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

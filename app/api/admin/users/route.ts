@@ -149,6 +149,13 @@ export async function POST(req: NextRequest) {
           });
 
           return NextResponse.json({ success: true, isBanned });
+        } else if (action === 'set_role') {
+          const newRole = body.role === 'admin' ? 'admin' : body.role === 'delegado' ? 'delegado' : 'student';
+          await client.from('profiles').update({ role: newRole }).eq('id', targetUserId);
+          return NextResponse.json({ success: true, newRole });
+        } else if (action === 'delete_user') {
+          await client.from('profiles').delete().eq('id', targetUserId);
+          return NextResponse.json({ success: true, message: 'Usuario eliminado correctamente.' });
         }
       }
     }

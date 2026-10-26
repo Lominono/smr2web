@@ -226,6 +226,50 @@ export default function AdminPage() {
     }
   };
 
+  const handleToggleRole = async (u: AdminUser) => {
+    const newRole = u.role === 'admin' ? 'student' : 'admin';
+    const ok = confirm(`¿Cambiar el rol de @${u.username} a "${newRole}"?`);
+    if (!ok) return;
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set_role', targetUserId: u.id, role: newRole }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        fetchUsers();
+      } else {
+        alert(data.error || 'Error al cambiar rol');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error de conexión');
+    }
+  };
+
+  const handleDeleteUser = async (u: AdminUser) => {
+    const ok = confirm(
+      `¿Eliminar permanentemente al usuario @${u.username}?\n\nEsta acción borrará su perfil y no se puede deshacer.`
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_user', targetUserId: u.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Usuario @${u.username} eliminado correctamente.`);
+        fetchUsers();
+      } else {
+        alert(data.error || 'Error al eliminar usuario');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error de conexión');
+    }
+  };
+
   // Reset database handler
   const handleResetDatabase = async () => {
     const confirmation = confirm(
@@ -751,22 +795,41 @@ export default function AdminPage() {
                           </span>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-right space-x-1.5">
+                      <td className="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
                         <Button
                           variant="secondary"
                           size="sm"
                           className="h-7 text-xs rounded-lg"
                           onClick={() => setAdjustModalUser(u)}
+                          title="Sumar o restar monedas"
                         >
-                          Ajustar
+                          Monedas
                         </Button>
                         <Button
-                          variant={u.is_banned ? 'secondary' : 'danger'}
+                          variant={u.role === 'admin' ? 'secondary' : 'primary'}
                           size="sm"
                           className="h-7 text-xs rounded-lg"
+                          onClick={() => handleToggleRole(u)}
+                          title="Alternar entre rol Administrador y Estudiante"
+                        >
+                          {u.role === 'admin' ? 'Quitar Admin' : 'Hacer Admin'}
+                        </Button>
+                        <Button
+                          variant={u.is_banned ? 'secondary' : 'ghost'}
+                          size="sm"
+                          className="h-7 text-xs rounded-lg text-amber-500"
                           onClick={() => handleToggleBan(u)}
                         >
                           {u.is_banned ? 'Reactivar' : 'Suspender'}
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          className="h-7 text-xs rounded-lg"
+                          onClick={() => handleDeleteUser(u)}
+                          title="Eliminar permanentemente este usuario"
+                        >
+                          Borrar
                         </Button>
                       </td>
                     </tr>
