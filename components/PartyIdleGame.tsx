@@ -455,6 +455,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [isCrazyParty, setIsCrazyParty] = useState<boolean>(false);
   const [crazyPartyTimeRemaining, setCrazyPartyTimeRemaining] = useState<number>(0);
   const [justClaimed, setJustClaimed] = useState<boolean>(false);
+  const [isClaimingVault, setIsClaimingVault] = useState<boolean>(false);
+  const isClaimingRef = useRef<boolean>(false);
+  const lastCloudSyncRef = useRef<number>(0);
   const [buyMultiplier, setBuyMultiplier] = useState<1 | 5 | 10 | 'max'>(1);
   const [currentNewsIndex, setCurrentNewsIndex] = useState<number>(0);
   const [cycleTick, setCycleTick] = useState<number>(Date.now());
@@ -535,7 +538,46 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     return baseRatePerSecond * prestigeMultiplier * frenzyMult * hangoverMult;
   }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, isProductionFrozen, isHungover]);
 
-  // 1. Cargar estado inicial y calcular farmeo offline
+  // Referencia actualizada del estado completo para evitar pérdida de propiedades al guardar
+  const stateRef = useRef<BotellonState>({
+    levels,
+    pendingVault,
+    totalLifetimeProduced,
+    afterPrestigeCount,
+    lastTickMs: Date.now(),
+    currentZoneId,
+    purchasedPerks,
+    totalDrinksTaken,
+    beerPongWins,
+    hangoverLevel,
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      levels,
+      pendingVault,
+      totalLifetimeProduced,
+      afterPrestigeCount,
+      lastTickMs: Date.now(),
+      currentZoneId,
+      purchasedPerks,
+      totalDrinksTaken,
+      beerPongWins,
+      hangoverLevel,
+    };
+  }, [
+    levels,
+    pendingVault,
+    totalLifetimeProduced,
+    afterPrestigeCount,
+    currentZoneId,
+    purchasedPerks,
+    totalDrinksTaken,
+    beerPongWins,
+    hangoverLevel,
+  ]);
+
+  // 1. Cargar estado inicial (localStorage primero para carga instantánea, luego Supabase Cloud)
   useEffect(() => {
     let saved: BotellonState | null = null;
     try {
@@ -545,66 +587,124 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
     const now = Date.now();
 
-    if (saved) {
-      setLevels(saved.levels || {});
-      setPendingVault(saved.pendingVault || 0);
-      setTotalLifetimeProduced(saved.totalLifetimeProduced || 0);
-      setAfterPrestigeCount(saved.afterPrestigeCount || 0);
-      setCurrentZoneId(saved.currentZoneId || 'parque');
-      setPurchasedPerks(saved.purchasedPerks || []);
-      setTotalDrinksTaken(saved.totalDrinksTaken || 0);
-      setBeerPongWins(saved.beerPongWins || 0);
-      if (typeof saved.hangoverLevel === 'number') setHangoverLevel(saved.hangoverLevel);
+    const applyState = (stateToApply: BotellonState, allowOfflineReport: boolean = true) => {
+      setLevels(stateToApply.levels || {});
+      setPendingVault(stateToApply.pendingVault || 0);
+      setTotalLifetimeProduced(stateToApply.totalLifetimeProduced || 0);
+      setAfterPrestigeCount(stateToApply.afterPrestigeCount || 0);
+      setCurrentZoneId(stateToApply.currentZoneId || 'parque');
+      setPurchasedPerks(stateToApply.purchasedPerks || []);
+      setTotalDrinksTaken(stateToApply.totalDrinksTaken || 0);
+      setBeerPongWins(stateToApply.beerPongWins || 0);
+      if (typeof stateToApply.hangoverLevel === 'number') {
+        setHangoverLevel(Math.min(100, Math.max(0, stateToApply.hangoverLevel)));
+      }
 
-      // Calcular farmeo mientras no estaba con límite de horas del perk
-      const maxOfflineHours = (saved.purchasedPerks || []).includes('pase_vip') ? 8 : 4;
-      if (saved.lastTickMs && saved.lastTickMs < now) {
+      // Calcular farmeo offline con límite de horas del perk
+      const maxOfflineHours = (stateToApply.purchasedPerks || []).includes('pase_vip') ? 8 : 4;
+      if (stateToApply.lastTickMs && stateToApply.lastTickMs < now) {
         const elapsedSec = Math.min(
-          Math.floor((now - saved.lastTickMs) / 1000),
+          Math.floor((now - stateToApply.lastTickMs) / 1000),
           maxOfflineHours * 3600
         );
 
         if (elapsedSec > 10) {
-          const zoneObj = ZONES.find((z) => z.id === saved?.currentZoneId) || ZONES[0];
-          const mult = 1 + (saved.afterPrestigeCount || 0) * 0.5;
-          const hangoverDebuff = (saved.hangoverLevel || 0) >= 80 ? 0.35 : 1.0;
+          const zoneObj = ZONES.find((z) => z.id === stateToApply.currentZoneId) || ZONES[0];
+          const mult = 1 + (stateToApply.afterPrestigeCount || 0) * 0.5;
+          const hangoverDebuff = (stateToApply.hangoverLevel || 0) >= 80 ? 0.35 : 1.0;
           const savedBaseRate = TIERS.reduce((acc, tier) => {
-            const lvl = saved?.levels?.[tier.id] || 0;
+            const lvl = stateToApply.levels?.[tier.id] || 0;
             return acc + lvl * tier.baseRate * getTierMilestoneMultiplier(lvl);
           }, 0) * zoneObj.multiplier;
 
           const offlineEarned = Math.floor(elapsedSec * savedBaseRate * mult * hangoverDebuff);
-          if (offlineEarned > 0) {
+          if (offlineEarned > 0 && isFinite(offlineEarned)) {
             setPendingVault((prev) => prev + offlineEarned);
             setTotalLifetimeProduced((prev) => prev + offlineEarned);
-            setOfflineReport({
-              seconds: elapsedSec,
-              earned: offlineEarned,
-            });
+            if (allowOfflineReport) {
+              setOfflineReport({
+                seconds: elapsedSec,
+                earned: offlineEarned,
+              });
+            }
           }
         }
       }
-    }
-  }, [storageKey]);
+    };
 
-  // 2. Guardar periódicamente en localStorage y Supabase
+    if (saved) {
+      applyState(saved, true);
+    }
+
+    // Comprobar y sincronizar con la nube de Supabase para juego multidispositivo
+    if (userId) {
+      const supabase = createClient();
+      if (supabase) {
+        (async () => {
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('party_farm_data')
+              .eq('id', userId)
+              .maybeSingle();
+
+            if (!error && data?.party_farm_data && typeof data.party_farm_data === 'object' && Object.keys(data.party_farm_data).length > 0) {
+              const cloudState = data.party_farm_data as BotellonState;
+              const localProd = saved?.totalLifetimeProduced || 0;
+              const cloudProd = cloudState.totalLifetimeProduced || 0;
+
+              // Si la nube tiene mayor progreso o el dispositivo actual estaba a cero
+              if (cloudProd > localProd || !saved) {
+                applyState(cloudState, false);
+                try {
+                  localStorage.setItem(storageKey, JSON.stringify(cloudState));
+                } catch {}
+              } else if (localProd > cloudProd && saved) {
+                // Si el dispositivo actual tiene más avance, actualizar la nube
+                await supabase
+                  .from('profiles')
+                  .update({ party_farm_data: saved })
+                  .eq('id', userId);
+              }
+            }
+          } catch (err) {
+            console.warn('Sincronización en la nube de El Botellón no disponible:', err);
+          }
+        })();
+      }
+    }
+  }, [storageKey, userId]);
+
+  // 2. Guardar con protección de integridad: nunca omite campos y controla peticiones a Supabase
   const saveState = useCallback(
-    (currentState: BotellonState) => {
+    (overrides?: Partial<BotellonState>, isUrgent: boolean = false) => {
+      const fullState: BotellonState = {
+        ...stateRef.current,
+        ...(overrides || {}),
+        lastTickMs: Date.now(),
+      };
+
+      // Guardar siempre en local de forma inmediata
       try {
-        localStorage.setItem(storageKey, JSON.stringify(currentState));
+        localStorage.setItem(storageKey, JSON.stringify(fullState));
       } catch {}
 
+      // Sincronizar en Supabase si está autenticado (control de frecuencia: máx 1 cada 4s salvo que sea urgente)
       if (userId) {
-        const supabase = createClient();
-        if (supabase) {
-          (async () => {
-            try {
-              await supabase
-                .from('profiles')
-                .update({ party_farm_data: currentState })
-                .eq('id', userId);
-            } catch {}
-          })();
+        const now = Date.now();
+        if (isUrgent || now - lastCloudSyncRef.current >= 4000) {
+          lastCloudSyncRef.current = now;
+          const supabase = createClient();
+          if (supabase) {
+            (async () => {
+              try {
+                await supabase
+                  .from('profiles')
+                  .update({ party_farm_data: fullState })
+                  .eq('id', userId);
+              } catch {}
+            })();
+          }
         }
       }
     },
@@ -628,33 +728,31 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   // 4. Temporizador de guardado automático cada 5 segundos
   useEffect(() => {
     const interval = setInterval(() => {
-      saveState({
-        levels,
-        pendingVault,
-        totalLifetimeProduced,
-        afterPrestigeCount,
-        lastTickMs: Date.now(),
-        currentZoneId,
-        purchasedPerks,
-        totalDrinksTaken,
-        beerPongWins,
-        hangoverLevel,
-      });
+      saveState();
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [
-    levels,
-    pendingVault,
-    totalLifetimeProduced,
-    afterPrestigeCount,
-    currentZoneId,
-    purchasedPerks,
-    totalDrinksTaken,
-    beerPongWins,
-    hangoverLevel,
-    saveState,
-  ]);
+  }, [saveState]);
+
+  // Guardado urgente al cambiar de pestaña o salir del navegador
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        saveState(undefined, true);
+      }
+    };
+    const handleBeforeUnload = () => {
+      saveState(undefined, true);
+    };
+
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [saveState]);
 
   // 5. Temporizador para el modo fiesta loca (doble producción temporal)
   useEffect(() => {
@@ -859,11 +957,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         sound.toastClink();
         confetti({ particleCount: 50, spread: 60 });
         setPendingVault((v) => v + 70);
+        setTotalLifetimeProduced((t) => t + 70);
         setPartyComboCount((c) => Math.min(10, c + 5));
         setSpontaneousEvent((prev) => prev ? { ...prev, resultText: '¡El parque se viene arriba! Toda la peña bailando (+70 fichas al bote).' } : null);
       } else {
         sound.tap();
         setPendingVault((v) => v + 25);
+        setTotalLifetimeProduced((t) => t + 25);
         setSpontaneousEvent((prev) => prev ? { ...prev, resultText: 'Música tranquila de fondo. Ningún vecino se ha quejado (+25 fichas).' } : null);
       }
     } else if (spontaneousEvent.id === 'chupito') {
@@ -872,6 +972,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           sound.coinWin();
           confetti({ particleCount: 80, spread: 70 });
           setPendingVault((v) => v + 140);
+          setTotalLifetimeProduced((t) => t + 140);
           setSpontaneousEvent((prev) => prev ? { ...prev, resultText: '¡Menudo trago te has pegado! Licor del bueno (+140 fichas al bote).' } : null);
         } else {
           sound.broke();
@@ -912,6 +1013,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         confetti({ particleCount: 90, spread: 60 });
         const prize = Math.min(250, Math.max(30, Math.floor(effectiveRatePerSecond * 4 + 35)));
         setPendingVault((prev) => prev + prize);
+        setTotalLifetimeProduced((prev) => prev + prize);
         setGlassResult({
           type: 'gold',
           text: `¡CHUPITO DORADO! Has encontrado el vaso premium de la fiesta (+${prize.toLocaleString()} fichas al bote).`,
@@ -1242,6 +1344,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         confetti({ particleCount: 100, spread: 70 });
         const prize = Math.min(200, Math.max(15, Math.floor(effectiveRatePerSecond * 3.5)));
         setPendingVault((prev) => prev + prize);
+        setTotalLifetimeProduced((prev) => prev + prize);
         setBeerPongWins((prev) => prev + 1);
         setPongResult({
           success: true,
@@ -1252,6 +1355,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         sound.coinWin();
         const prize = Math.min(80, Math.max(8, Math.floor(effectiveRatePerSecond * 1.5)));
         setPendingVault((prev) => prev + prize);
+        setTotalLifetimeProduced((prev) => prev + prize);
         setPongResult({
           success: true,
           reward: prize,
@@ -1270,40 +1374,43 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
   // Acción: Meter las fichas acumuladas en la cartera real (Canje oficial: 5 fichas = 1 moneda real)
   const handleClaimVault = () => {
-    const rawFichas = Math.floor(pendingVault);
+    if (isClaimingRef.current) return;
+
+    const safeVault = Math.max(0, isNaN(pendingVault) || !isFinite(pendingVault) ? 0 : pendingVault);
+    const rawFichas = Math.floor(safeVault);
     const coinsToClaim = Math.floor(rawFichas / 5);
     if (coinsToClaim <= 0) {
       alert('Necesitas acumular al menos 5 fichas de botellón para canjear 1 moneda real.');
       return;
     }
 
-    sound.coinWin();
-    confetti({
-      particleCount: Math.min(100, 30 + Math.floor(coinsToClaim / 3)),
-      spread: 60,
-      origin: { y: 0.8 },
-      colors: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'],
-    });
+    isClaimingRef.current = true;
+    setIsClaimingVault(true);
 
-    onUpdateCoins(coinsToClaim);
-    const fichasDeducted = coinsToClaim * 5;
-    const remainingFichas = Math.max(0, pendingVault - fichasDeducted);
-    setPendingVault(remainingFichas);
-    setJustClaimed(true);
-    setTimeout(() => setJustClaimed(false), 2000);
+    try {
+      sound.coinWin();
+      confetti({
+        particleCount: Math.min(100, 30 + Math.floor(coinsToClaim / 3)),
+        spread: 60,
+        origin: { y: 0.8 },
+        colors: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'],
+      });
 
-    saveState({
-      levels,
-      pendingVault: remainingFichas,
-      totalLifetimeProduced,
-      afterPrestigeCount,
-      lastTickMs: Date.now(),
-      currentZoneId,
-      purchasedPerks,
-      totalDrinksTaken,
-      beerPongWins,
-      hangoverLevel,
-    });
+      const fichasDeducted = coinsToClaim * 5;
+      const remainingFichas = Math.max(0, safeVault - fichasDeducted);
+      setPendingVault(remainingFichas);
+      setJustClaimed(true);
+      setTimeout(() => setJustClaimed(false), 2000);
+
+      onUpdateCoins(coinsToClaim);
+
+      saveState({ pendingVault: remainingFichas }, true);
+    } finally {
+      setTimeout(() => {
+        isClaimingRef.current = false;
+        setIsClaimingVault(false);
+      }, 400);
+    }
   };
 
   // Acción: El After (Prestigio)
@@ -1339,18 +1446,15 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     setHangoverLevel(0);
     setAfterPrestigeCount((prev) => prev + 1);
 
-    saveState({
-      levels: resetLevels,
-      pendingVault: 0,
-      totalLifetimeProduced,
-      afterPrestigeCount: afterPrestigeCount + 1,
-      lastTickMs: Date.now(),
-      currentZoneId,
-      purchasedPerks,
-      totalDrinksTaken,
-      beerPongWins,
-      hangoverLevel: 0,
-    });
+    saveState(
+      {
+        levels: resetLevels,
+        pendingVault: 0,
+        hangoverLevel: 0,
+        afterPrestigeCount: afterPrestigeCount + 1,
+      },
+      true
+    );
   };
 
   const roundedVault = Math.floor(pendingVault);
@@ -1594,15 +1698,20 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
           <button
             type="button"
-            disabled={coinsToClaim <= 0}
+            disabled={coinsToClaim <= 0 || isClaimingVault}
             onClick={handleClaimVault}
             className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98] ${
-              coinsToClaim > 0
+              coinsToClaim > 0 && !isClaimingVault
                 ? 'bg-foreground text-background shadow-xs hover:opacity-95'
                 : 'bg-surface-raised text-foreground-subtle border border-border/50 cursor-not-allowed opacity-60'
             }`}
           >
-            {justClaimed ? (
+            {isClaimingVault ? (
+              <>
+                <Clock className="w-4 h-4 animate-spin text-accent" />
+                <span>Canjeando fichas...</span>
+              </>
+            ) : justClaimed ? (
               <>
                 <Check className="w-4 h-4 text-emerald-400" />
                 <span>¡Canjeado al monedero!</span>

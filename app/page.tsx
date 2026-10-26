@@ -127,10 +127,12 @@ export default function Home() {
           full_name: data.full_name || undefined,
           student_number: data.student_number || undefined,
           email: data.email || email,
-          coins: Number(data.coins ?? 200),
+          coins: Number(data.coins ?? 1000),
           biggest_win: Number(data.biggest_win ?? 0),
           streak_count: data.streak_count ? Number(data.streak_count) : 1,
           last_claim_date: data.last_claim_date || undefined,
+          last_spin_date: data.last_spin_date || undefined,
+          last_rescue_date: data.last_rescue_date || undefined,
           role: data.role || (data.username === 'admin' ? 'admin' : 'student'),
           avatar_color: data.avatar_color,
           created_at: data.created_at,
@@ -225,6 +227,7 @@ export default function Home() {
 
   const fetchLeaderboard = useCallback(async () => {
     const entriesMap = new Map<string, LeaderboardEntry>();
+    const activeUser = userRef.current;
 
     // 1. Consultar perfiles oficiales de Supabase
     const supabase = createClient();
@@ -247,7 +250,7 @@ export default function Home() {
               streak_count: p.streak_count ? Number(p.streak_count) : 1,
               avatar_color: p.avatar_color || undefined,
               role: p.role || undefined,
-              is_current_user: user ? (p.id === user.id || p.username.toLowerCase() === user.username.toLowerCase()) : false,
+              is_current_user: activeUser ? (p.id === activeUser.id || p.username.toLowerCase() === activeUser.username.toLowerCase()) : false,
             });
           });
         }
@@ -270,25 +273,25 @@ export default function Home() {
             biggest_win: Number(loc.biggest_win ?? 0),
             streak_count: Number(loc.streak_count ?? 1),
             role: loc.role,
-            is_current_user: user ? (loc.id === user.id || key === user.username.toLowerCase()) : false,
+            is_current_user: activeUser ? (loc.id === activeUser.id || key === activeUser.username.toLowerCase()) : false,
           });
         }
       });
     } catch {}
 
     // 3. Asegurar que el usuario activo esté presente con sus monedas exactas en tiempo real
-    if (user) {
-      const userKey = user.username.toLowerCase();
+    if (activeUser) {
+      const userKey = activeUser.username.toLowerCase();
       const existing = entriesMap.get(userKey);
       entriesMap.set(userKey, {
-        id: user.id,
-        username: user.username,
-        full_name: user.full_name || existing?.full_name,
-        coins: user.coins,
-        biggest_win: Math.max(user.biggest_win, existing?.biggest_win || 0),
-        streak_count: user.streak_count || existing?.streak_count || 1,
-        avatar_color: user.avatar_color || existing?.avatar_color,
-        role: user.role || existing?.role,
+        id: activeUser.id,
+        username: activeUser.username,
+        full_name: activeUser.full_name || existing?.full_name,
+        coins: activeUser.coins,
+        biggest_win: Math.max(activeUser.biggest_win, existing?.biggest_win || 0),
+        streak_count: activeUser.streak_count || existing?.streak_count || 1,
+        avatar_color: activeUser.avatar_color || existing?.avatar_color,
+        role: activeUser.role || existing?.role,
         is_current_user: true,
       });
     }
@@ -305,7 +308,12 @@ export default function Home() {
     });
 
     setLeaderboard(sorted);
-  }, [user]);
+  }, []);
+
+  const fetchLeaderboardRef = useRef(fetchLeaderboard);
+  useEffect(() => {
+    fetchLeaderboardRef.current = fetchLeaderboard;
+  }, [fetchLeaderboard]);
 
   useEffect(() => {
     // 1. Synchronously read local cookie session first for instant resume without flashing
@@ -452,9 +460,61 @@ export default function Home() {
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles' },
-        () => {
-          fetchLeaderboard();
+        { event: '*', schema: 'public', table: 'profiles' },
+        (payload) => {
+          const updated = payload.new as any;
+          if (updated && updated.username) {
+            setLeaderboard((prev) => {
+              const active = userRef.current;
+              const uKey = String(updated.username).toLowerCase();
+              const idx = prev.findIndex(
+                (e) => e.id === updated.id || e.username.toLowerCase() === uKey
+              );
+              const isCurrent = active
+                ? (updated.id === active.id || uKey === active.username.toLowerCase())
+                : false;
+              const finalCoins = isCurrent && active
+                ? Math.max(Number(updated.coins ?? 0), active.coins)
+                : Number(updated.coins ?? 0);
+
+              let nextList: LeaderboardEntry[];
+              if (idx !== -1) {
+                nextList = [...prev];
+                nextList[idx] = {
+                  ...nextList[idx],
+                  coins: finalCoins,
+                  biggest_win: Number(updated.biggest_win ?? nextList[idx].biggest_win),
+                  streak_count: Number(updated.streak_count ?? nextList[idx].streak_count ?? 1),
+                  avatar_color: updated.avatar_color || nextList[idx].avatar_color,
+                  role: updated.role || nextList[idx].role,
+                  is_current_user: isCurrent,
+                };
+              } else {
+                nextList = [
+                  ...prev,
+                  {
+                    id: updated.id,
+                    username: updated.username,
+                    full_name: updated.full_name || undefined,
+                    coins: finalCoins,
+                    biggest_win: Number(updated.biggest_win ?? 0),
+                    streak_count: Number(updated.streak_count ?? 1),
+                    avatar_color: updated.avatar_color || undefined,
+                    role: updated.role || undefined,
+                    is_current_user: isCurrent,
+                  },
+                ];
+              }
+
+              return nextList.sort((a, b) => {
+                if ((b.coins ?? 0) !== (a.coins ?? 0)) return (b.coins ?? 0) - (a.coins ?? 0);
+                if ((b.biggest_win ?? 0) !== (a.biggest_win ?? 0)) return (b.biggest_win ?? 0) - (a.biggest_win ?? 0);
+                return (b.streak_count ?? 1) - (a.streak_count ?? 1);
+              });
+            });
+          }
+
+          fetchLeaderboardRef.current?.();
         }
       )
       .subscribe();
