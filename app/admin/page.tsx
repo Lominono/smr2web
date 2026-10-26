@@ -305,26 +305,26 @@ export default function AdminPage() {
 
           <div className="space-y-1.5">
             <Badge variant="outline" className="text-[11px] font-semibold text-amber-500 border-amber-500/30">
-              Solo Delegación de 2º SMR
+              Solo Administradores de 2º SMR
             </Badge>
             <h1 className="text-lg font-semibold tracking-tight text-foreground">Acceso de Administración</h1>
             <p className="text-xs text-foreground-muted leading-relaxed">
-              Introduce el código de acceso de la delegación para desbloquear el panel de control o vincula tu cuenta como administrador.
+              Introduce la clave oficial de administración (<code className="text-accent font-semibold">2026papu</code>) para acceder al panel de control.
             </p>
           </div>
 
           <form onSubmit={handleClaimAdmin} className="space-y-3.5 pt-1">
             <div className="space-y-1.5 text-left">
               <label className="text-xs font-medium text-foreground-muted">
-                Código de acceso o clave de delegado:
+                Clave de administrador:
               </label>
               <div className="relative">
                 <input
-                  type="text"
+                  type="password"
                   value={accessCodeInput}
                   onChange={(e) => setAccessCodeInput(e.target.value)}
-                  placeholder="Ej: SMR2ADMIN"
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:outline-hidden focus:border-accent focus:ring-1 focus:ring-accent transition-all text-center tracking-widest font-mono uppercase"
+                  placeholder="Introduce la clave 2026papu..."
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:outline-hidden focus:border-accent focus:ring-1 focus:ring-accent transition-all text-center tracking-wider font-mono"
                   autoFocus
                 />
               </div>
@@ -355,20 +355,13 @@ export default function AdminPage() {
               ) : (
                 <Key className="w-3.5 h-3.5" />
               )}
-              <span>Desbloquear Zona Admin</span>
+              <span>Acceder al Panel Admin</span>
             </Button>
           </form>
 
           <div className="pt-2 border-t border-border/60 text-left space-y-2">
             <p className="text-[11px] text-foreground-muted font-mono leading-relaxed">
-              <span className="font-semibold text-foreground">Clave rápida:</span> <code className="bg-surface-active px-1.5 py-0.5 rounded text-[11px] text-accent select-all">SMR2ADMIN</code>
-            </p>
-            <p className="text-[11px] text-foreground-muted leading-relaxed">
-              O bien en Supabase SQL Editor:
-              <br />
-              <code className="block bg-surface-active p-2 rounded text-[10px] text-foreground font-mono mt-1 break-all select-all">
-                UPDATE public.profiles SET role = &apos;admin&apos; WHERE username = &apos;{sessionUser?.username || 'tu_usuario'}&apos;;
-              </code>
+              <span className="font-semibold text-foreground">Clave oficial:</span> <code className="bg-surface-active px-1.5 py-0.5 rounded text-[11px] text-accent select-all">2026papu</code>
             </p>
           </div>
 

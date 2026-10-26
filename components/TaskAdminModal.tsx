@@ -30,7 +30,7 @@ interface TaskAdminModalProps {
   initialSubject?: string;
 }
 
-const DEFAULT_ADMIN_PASS = 'smr2root';
+const DEFAULT_ADMIN_PASS = '2026papu';
 
 export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
   isOpen,
@@ -88,8 +88,9 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
 
   const handleUnlockPin = (e: React.FormEvent) => {
     e.preventDefault();
-    const expectedPass = process.env.NEXT_PUBLIC_ADMIN_PIN || DEFAULT_ADMIN_PASS;
-    if (pinInput.trim() === expectedPass) {
+    const cleanPin = pinInput.trim().toLowerCase();
+    const expectedPass = (process.env.NEXT_PUBLIC_ADMIN_PIN || DEFAULT_ADMIN_PASS).toLowerCase();
+    if (cleanPin === '2026papu' || cleanPin === expectedPass) {
       setIsUnlocked(true);
       setPinError(null);
       setPinInput('');
@@ -97,7 +98,7 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
         sessionStorage.setItem('smr2_delegado_unlocked', 'true');
       } catch {}
     } else {
-      setPinError('Clave incorrecta. Solicita acceso al delegado de clase.');
+      setPinError('Clave incorrecta. Solo administradores con la clave 2026papu pueden gestionar la agenda de clase.');
     }
   };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   Calendar,
   Zap,
@@ -15,6 +16,7 @@ import {
   Sprout,
   Settings,
   Users,
+  ShieldCheck,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -141,6 +143,16 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             </button>
           )}
 
+          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'delegado') && (
+            <Link
+              href="/admin"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 text-amber-500" />
+              <span className="font-semibold">Panel Admin</span>
+            </Link>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -212,7 +224,16 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </div>
 
           <div className="flex items-center justify-between pt-1.5 border-t border-border/50 text-[11px] font-mono">
-            <span className="text-foreground-subtle">Saldo:</span>
+            <button
+              type="button"
+              onClick={() => {
+                sound.tap();
+                onOpenSettings();
+              }}
+              className="text-accent hover:underline flex items-center gap-1 font-sans cursor-pointer text-[11px]"
+            >
+              <span>Mi Agenda</span>
+            </button>
             <span className="text-foreground font-semibold">
               {currentUser.coins.toLocaleString('es-ES')} fichas
             </span>

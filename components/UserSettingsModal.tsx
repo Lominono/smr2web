@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   User,
@@ -19,6 +19,13 @@ import {
   BellOff,
   Radio,
   Play,
+  ListTodo,
+  Sun,
+  Moon,
+  Laptop,
+  Plus,
+  Trash2,
+  Calendar,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -29,6 +36,14 @@ import {
   getRememberMePreference,
   COOKIE_REMEMBER,
 } from '@/lib/authSession';
+import {
+  PersonalTask,
+  getPersonalTasks,
+  savePersonalTask,
+  togglePersonalTask,
+  deletePersonalTask,
+} from '@/lib/agendaService';
+import { SMR2_SUBJECTS } from '@/lib/scheduleData';
 import { setCookie } from '@/lib/cookies';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -71,7 +86,21 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   onToggleNotifications,
   onlineCount = 1,
 }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'stats' | 'preferences' | 'security'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'agenda' | 'stats' | 'preferences' | 'security'>('profile');
+
+  // Theme preference
+  const [themePreference, setThemePreference] = useState<'system' | 'dark' | 'light'>('system');
+
+  // Personal agenda state
+  const [personalTasks, setPersonalTasks] = useState<PersonalTask[]>([]);
+  const [personalFilter, setPersonalFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [isAddingPersonalTask, setIsAddingPersonalTask] = useState(false);
+  const [pTitle, setPTitle] = useState('');
+  const [pSubject, setPSubject] = useState('SOR');
+  const [pDueDate, setPDueDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [pDueTime, setPDueTime] = useState('');
+  const [pPriority, setPPriority] = useState<'high' | 'normal' | 'low'>('normal');
+  const [pDesc, setPDesc] = useState('');
 
   // Profile form
   const [newUsername, setNewUsername] = useState(user?.username || '');
@@ -91,17 +120,85 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   const [rememberMe, setRememberMe] = useState(true);
   const [copiedId, setCopiedId] = useState(false);
 
+  const reloadPersonalTasks = useCallback(() => {
+    if (user?.id) {
+      setPersonalTasks(getPersonalTasks(user.id));
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     if (user) {
       setNewUsername(user.username);
       setFullName(user.full_name || '');
       setStudentNumber(user.student_number || '');
       setSelectedColor(user.avatar_color || 'emerald');
+      reloadPersonalTasks();
     }
+    try {
+      const savedTheme = localStorage.getItem('smr2_theme') as 'system' | 'dark' | 'light' | null;
+      if (savedTheme === 'dark' || savedTheme === 'light' || savedTheme === 'system') {
+        setThemePreference(savedTheme);
+      }
+    } catch {}
     setRememberMe(getRememberMePreference());
     setProfileMsg(null);
     setPasswordMsg(null);
-  }, [isOpen, user]);
+  }, [isOpen, user, reloadPersonalTasks]);
+
+  const handleSetTheme = (theme: 'system' | 'dark' | 'light') => {
+    setThemePreference(theme);
+    try {
+      localStorage.setItem('smr2_theme', theme);
+      const d = document.documentElement;
+      if (theme === 'dark') {
+        d.classList.add('dark');
+        d.classList.remove('light');
+      } else if (theme === 'light') {
+        d.classList.add('light');
+        d.classList.remove('dark');
+      } else {
+        d.classList.remove('dark', 'light');
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          d.classList.add('dark');
+        } else {
+          d.classList.add('light');
+        }
+      }
+    } catch {}
+    sound.tap();
+  };
+
+  const handleCreatePersonalTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id || !pTitle.trim()) return;
+    savePersonalTask(user.id, {
+      title: pTitle.trim(),
+      subject: pSubject,
+      due_date: pDueDate,
+      due_time: pDueTime,
+      priority: pPriority,
+      description: pDesc.trim(),
+    });
+    setPTitle('');
+    setPDesc('');
+    setIsAddingPersonalTask(false);
+    reloadPersonalTasks();
+    sound.coinWin();
+  };
+
+  const handleTogglePersonalTask = (taskId: string) => {
+    if (!user?.id) return;
+    const updated = togglePersonalTask(user.id, taskId);
+    setPersonalTasks(updated);
+    sound.tap();
+  };
+
+  const handleDeletePersonalTask = (taskId: string) => {
+    if (!user?.id) return;
+    const updated = deletePersonalTask(user.id, taskId);
+    setPersonalTasks(updated);
+    sound.tap();
+  };
 
   if (!isOpen || !user) return null;
 
@@ -324,6 +421,12 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
         <div className="flex items-center p-1.5 bg-surface border-b border-border/70 gap-1 overflow-x-auto scrollbar-none">
           {[
             { id: 'profile', label: 'Perfil', icon: User },
+            {
+              id: 'agenda',
+              label: 'Mi Agenda',
+              icon: ListTodo,
+              badge: personalTasks.filter((t) => !t.is_completed).length,
+            },
             { id: 'stats', label: 'Estadísticas', icon: BarChart3 },
             { id: 'preferences', label: 'Preferencias', icon: Palette },
             { id: 'security', label: 'Seguridad', icon: Shield },
@@ -346,6 +449,17 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
               >
                 <Icon className="w-4 h-4" />
                 <span>{t.label}</span>
+                {typeof t.badge === 'number' && t.badge > 0 && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono leading-none ${
+                      isActive
+                        ? 'bg-background text-foreground'
+                        : 'bg-accent text-white'
+                    }`}
+                  >
+                    {t.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -442,6 +556,275 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             </form>
           )}
 
+          {/* TAB: MI AGENDA PERSONAL */}
+          {activeTab === 'agenda' && (
+            <div className="space-y-4">
+              {/* Header with stats */}
+              <div className="p-4 rounded-xl bg-surface-raised border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ListTodo className="w-4 h-4 text-accent" />
+                    <h3 className="text-xs font-semibold text-foreground">Agenda Personal Privada</h3>
+                  </div>
+                  <p className="text-[11px] text-foreground-muted mt-0.5">
+                    Tus tareas, repasos y notas que solo tú puedes ver.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="accent" size="sm">
+                    {personalTasks.filter((t) => !t.is_completed).length} pendientes
+                  </Badge>
+                  <Badge variant="default" size="sm">
+                    {personalTasks.filter((t) => t.is_completed).length} completadas
+                  </Badge>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setIsAddingPersonalTask(!isAddingPersonalTask);
+                      sound.tap();
+                    }}
+                    className="rounded-lg text-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isAddingPersonalTask ? 'Cerrar' : 'Nueva tarea'}</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Creation form */}
+              {isAddingPersonalTask && (
+                <form
+                  onSubmit={handleCreatePersonalTask}
+                  className="p-4 rounded-xl bg-surface border border-accent/40 space-y-3 animate-in fade-in duration-150 shadow-xs"
+                >
+                  <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                    <span className="text-xs font-semibold text-foreground">
+                      Añadir nueva tarea personal
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingPersonalTask(false)}
+                      className="text-foreground-subtle hover:text-foreground text-xs cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+
+                  <Input
+                    label="Título de la tarea"
+                    value={pTitle}
+                    onChange={(e) => setPTitle(e.target.value)}
+                    placeholder="ej. Terminar práctica de servicios DNS y DHCP"
+                    required
+                  />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-foreground-muted">
+                        Materia / Asignatura
+                      </label>
+                      <select
+                        value={pSubject}
+                        onChange={(e) => setPSubject(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-surface-raised border border-border text-foreground focus:outline-hidden focus:border-accent"
+                      >
+                        {Object.keys(SMR2_SUBJECTS).map((code) => {
+                          if (code === 'RECREO') return null;
+                          return (
+                            <option key={code} value={code}>
+                              {code} — {SMR2_SUBJECTS[code].name}
+                            </option>
+                          );
+                        })}
+                        <option value="General">General / Personal</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-foreground-muted">
+                        Fecha límite
+                      </label>
+                      <input
+                        type="date"
+                        value={pDueDate}
+                        onChange={(e) => setPDueDate(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-surface-raised border border-border text-foreground focus:outline-hidden focus:border-accent"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-foreground-muted">
+                        Prioridad
+                      </label>
+                      <select
+                        value={pPriority}
+                        onChange={(e) => setPPriority(e.target.value as any)}
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-surface-raised border border-border text-foreground focus:outline-hidden focus:border-accent"
+                      >
+                        <option value="normal">Normal</option>
+                        <option value="high">Alta (Urgente)</option>
+                        <option value="low">Baja</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-foreground-muted">
+                      Notas o descripción (opcional)
+                    </label>
+                    <textarea
+                      value={pDesc}
+                      onChange={(e) => setPDesc(e.target.value)}
+                      rows={2}
+                      placeholder="Comandos, enlaces o detalles a tener en cuenta..."
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-surface-raised border border-border text-foreground focus:outline-hidden focus:border-accent resize-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <Button type="submit" variant="primary" size="sm" className="rounded-xl">
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Guardar en mi agenda</span>
+                    </Button>
+                  </div>
+                </form>
+              )}
+
+              {/* Filter tabs */}
+              <div className="flex items-center gap-1.5 text-xs">
+                {(
+                  [
+                    { id: 'all', label: 'Todas' },
+                    { id: 'pending', label: 'Pendientes' },
+                    { id: 'completed', label: 'Completadas' },
+                  ] as const
+                ).map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => {
+                      setPersonalFilter(f.id);
+                      sound.tap();
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      personalFilter === f.id
+                        ? 'bg-foreground text-background font-semibold shadow-xs'
+                        : 'bg-surface-raised text-foreground-muted hover:text-foreground'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tasks list */}
+              {personalTasks.length === 0 ? (
+                <div className="p-8 text-center border border-dashed border-border/80 rounded-2xl space-y-2 bg-surface-raised/20">
+                  <ListTodo className="w-8 h-8 text-foreground-subtle mx-auto opacity-40" />
+                  <h4 className="text-xs font-semibold text-foreground">
+                    Tu agenda personal está vacía
+                  </h4>
+                  <p className="text-[11px] text-foreground-muted max-w-xs mx-auto">
+                    Añade tus tareas individuales, ejercicios pendientes y recordatorios de clase.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setIsAddingPersonalTask(true)}
+                    className="rounded-xl mt-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Crear mi primera tarea</span>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {personalTasks
+                    .filter((t) => {
+                      if (personalFilter === 'pending') return !t.is_completed;
+                      if (personalFilter === 'completed') return t.is_completed;
+                      return true;
+                    })
+                    .map((task) => (
+                      <div
+                        key={task.id}
+                        className={`p-3 rounded-xl border transition-all flex items-start justify-between gap-3 ${
+                          task.is_completed
+                            ? 'bg-surface-raised/40 border-border/50 opacity-70'
+                            : 'bg-surface border-border hover:border-foreground/20'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePersonalTask(task.id)}
+                            className={`w-5 h-5 mt-0.5 rounded-md border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                              task.is_completed
+                                ? 'bg-emerald-500 border-emerald-500 text-white'
+                                : 'border-border-focus hover:border-accent bg-surface-raised'
+                            }`}
+                            title={task.is_completed ? 'Marcar como pendiente' : 'Marcar como completada'}
+                          >
+                            {task.is_completed && <Check className="w-3.5 h-3.5 text-white" />}
+                          </button>
+
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`text-xs font-semibold ${
+                                  task.is_completed
+                                    ? 'line-through text-foreground-muted'
+                                    : 'text-foreground'
+                                }`}
+                              >
+                                {task.title}
+                              </span>
+                              {task.subject && (
+                                <Badge variant="default" size="sm">
+                                  {task.subject}
+                                </Badge>
+                              )}
+                              {task.priority === 'high' && (
+                                <Badge variant="danger" size="sm">
+                                  Urgente
+                                </Badge>
+                              )}
+                            </div>
+
+                            {task.description && (
+                              <p className="text-[11px] text-foreground-muted leading-relaxed line-clamp-2">
+                                {task.description}
+                              </p>
+                            )}
+
+                            <div className="flex items-center gap-2 text-[10px] font-mono text-foreground-subtle">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                <span>{task.due_date}</span>
+                              </span>
+                              {task.due_time && <span>• {task.due_time}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePersonalTask(task.id)}
+                          title="Eliminar tarea"
+                          className="text-foreground-subtle hover:text-danger p-1 cursor-pointer transition-colors shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB 2: STATS */}
           {activeTab === 'stats' && (
             <div className="space-y-4">
@@ -508,6 +891,60 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
           {/* TAB 3: PREFERENCES */}
           {activeTab === 'preferences' && (
             <div className="space-y-3">
+              {/* Theme Preference: Dark / Light / System */}
+              <div className="p-3.5 rounded-xl bg-surface-raised border border-border/70 space-y-2.5">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-accent" />
+                    <span className="text-xs font-semibold text-foreground">Tema de la Interfaz</span>
+                  </div>
+                  <p className="text-[11px] text-foreground-muted">
+                    Elige entre modo oscuro, modo claro o sincronización con el sistema.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleSetTheme('light')}
+                    className={`min-h-[46px] p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer active:scale-95 touch-manipulation ${
+                      themePreference === 'light'
+                        ? 'bg-foreground text-background font-semibold border-foreground shadow-xs'
+                        : 'bg-surface text-foreground-muted border-border hover:text-foreground hover:bg-surface-hover'
+                    }`}
+                  >
+                    <Sun className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs">Claro</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSetTheme('dark')}
+                    className={`min-h-[46px] p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer active:scale-95 touch-manipulation ${
+                      themePreference === 'dark'
+                        ? 'bg-foreground text-background font-semibold border-foreground shadow-xs'
+                        : 'bg-surface text-foreground-muted border-border hover:text-foreground hover:bg-surface-hover'
+                    }`}
+                  >
+                    <Moon className="w-4 h-4 text-sky-400" />
+                    <span className="text-xs">Oscuro</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSetTheme('system')}
+                    className={`min-h-[46px] p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer active:scale-95 touch-manipulation ${
+                      themePreference === 'system'
+                        ? 'bg-foreground text-background font-semibold border-foreground shadow-xs'
+                        : 'bg-surface text-foreground-muted border-border hover:text-foreground hover:bg-surface-hover'
+                    }`}
+                  >
+                    <Laptop className="w-4 h-4 text-foreground-subtle" />
+                    <span className="text-xs">Sistema</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Live Presence Status */}
               <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3">
                 <div className="space-y-0.5">

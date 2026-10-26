@@ -39,8 +39,16 @@ export default function RootLayout({
   return (
     <html
       lang="es"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('smr2_theme');var d=document.documentElement;if(t==='dark'){d.classList.add('dark');d.classList.remove('light');}else if(t==='light'){d.classList.add('light');d.classList.remove('dark');}else{if(window.matchMedia('(prefers-color-scheme: dark)').matches){d.classList.add('dark');d.classList.remove('light');}else{d.classList.add('light');d.classList.remove('dark');}}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-[100dvh] flex flex-col bg-background text-foreground font-sans overscroll-none">
         {children}
       </body>

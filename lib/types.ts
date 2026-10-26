@@ -83,4 +83,5 @@ export interface CalendarEvent {
   created_by?: string;
   created_by_name?: string;
   created_at?: string;
+  is_personal?: boolean;
 }

@@ -29,7 +29,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --background: #09090b;
     --surface: #121215;
     --surface-raised: #18181c;
@@ -70,6 +70,27 @@ html.dark {
   --danger-subtle: rgba(255, 69, 58, 0.15);
   --success: #32d74b;
   --success-subtle: rgba(50, 215, 75, 0.15);
+}
+
+html.light {
+  --background: #fbfbfd;
+  --surface: #ffffff;
+  --surface-raised: #f4f4f6;
+  --surface-hover: #ececef;
+  --border: #e2e2e8;
+  --border-subtle: #eeeeef;
+  --border-focus: #0071e3;
+  --foreground: #111113;
+  --foreground-muted: #57575d;
+  --foreground-subtle: #7e7e86;
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-foreground: #ffffff;
+  --accent-subtle: rgba(0, 113, 227, 0.08);
+  --danger: #ff3b30;
+  --danger-subtle: rgba(255, 59, 48, 0.1);
+  --success: #34c759;
+  --success-subtle: rgba(52, 199, 89, 0.1);
 }
 
 @theme inline {

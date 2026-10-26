@@ -9,20 +9,29 @@ export const dynamic = 'force-dynamic';
 
 // Códigos maestros autorizados para acceder a la administración
 const VALID_CODES = [
+  '2026PAPU',
+  '2026papu',
   'SMR2ADMIN',
   'DELEGADO2026',
   'ADMIN2026',
-  (process.env.ADMIN_ACCESS_CODE || '').trim().toUpperCase(),
+  (process.env.ADMIN_ACCESS_CODE || '').trim(),
 ].filter(Boolean);
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const code = String(body?.code || '').trim().toUpperCase();
+    const rawCode = String(body?.code || '').trim();
+    const normalized = rawCode.toLowerCase();
+    const isAuthorized =
+      normalized === '2026papu' ||
+      VALID_CODES.some((c) => c.toLowerCase() === normalized);
 
-    if (!code || !VALID_CODES.includes(code)) {
+    if (!rawCode || !isAuthorized) {
       return NextResponse.json(
-        { success: false, error: 'Código de acceso incorrecto. Verifica la clave de la delegación.' },
+        {
+          success: false,
+          error: 'Clave incorrecta. Solo los administradores autorizados con la clave oficial pueden acceder.',
+        },
         { status: 401 }
       );
     }
@@ -125,7 +134,7 @@ export async function POST(req: NextRequest) {
         req,
         details: {
           action: 'admin_unlocked_via_code',
-          code_used: code,
+          code_used: rawCode,
           timestamp: new Date().toISOString(),
         },
       });
