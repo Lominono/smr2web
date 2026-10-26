@@ -26,8 +26,10 @@ import { CookieBanner } from '@/components/CookieBanner';
 import { UpdateNotificationBanner } from '@/components/UpdateNotificationBanner';
 import { UserSettingsModal } from '@/components/UserSettingsModal';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
+import { OnlineUsersModal } from '@/components/OnlineUsersModal';
 import { RealtimeToast, RealtimeNotification } from '@/components/RealtimeToast';
 import { UserProfile, ChatMessage, LeaderboardEntry, CalendarEvent } from '@/lib/types';
+import { useRealtimePresence } from '@/lib/presenceService';
 import { sound } from '@/lib/audio';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
@@ -77,18 +79,29 @@ export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isOnlineUsersOpen, setIsOnlineUsersOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [dismissedIdentification, setDismissedIdentification] = useState(false);
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
   const [realtimeNotification, setRealtimeNotification] = useState<RealtimeNotification | null>(null);
 
+  // Real-time presence hook (tracks active user view and aggregates online classmates)
+  const { onlineUsers, onlineCount } = useRealtimePresence(user, activeView);
+
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const userRef = useRef<UserProfile | null>(user);
+  const notificationsEnabledRef = useRef(notificationsEnabled);
 
   useEffect(() => {
     userRef.current = user;
   }, [user]);
 
-  // Load sound preference on mount
+  useEffect(() => {
+    notificationsEnabledRef.current = notificationsEnabled;
+  }, [notificationsEnabled]);
+
+  // Load sound and notification preferences on mount
   useEffect(() => {
     try {
       const savedAudio = localStorage.getItem('smr2_sound_enabled');
@@ -96,6 +109,10 @@ export default function Home() {
         const isEnabled = savedAudio === 'true';
         setSoundEnabled(isEnabled);
         sound.enabled = isEnabled;
+      }
+      const savedNotifs = localStorage.getItem('smr2_notifications_enabled');
+      if (savedNotifs !== null) {
+        setNotificationsEnabled(savedNotifs === 'true');
       }
     } catch {}
   }, []);
@@ -106,6 +123,14 @@ export default function Home() {
     sound.enabled = nextState;
     try {
       localStorage.setItem('smr2_sound_enabled', String(nextState));
+    } catch {}
+  };
+
+  const handleToggleNotifications = () => {
+    const nextState = !notificationsEnabled;
+    setNotificationsEnabled(nextState);
+    try {
+      localStorage.setItem('smr2_notifications_enabled', String(nextState));
     } catch {}
   };
 
@@ -134,7 +159,11 @@ export default function Home() {
           last_spin_date: data.last_spin_date || undefined,
           last_rescue_date: data.last_rescue_date || undefined,
           role: data.role || (data.username === 'admin' ? 'admin' : 'student'),
-          avatar_color: data.avatar_color,
+          avatar_color: data.avatar_color || 'emerald',
+          games_played: data.games_played ? Number(data.games_played) : 0,
+          games_won: data.games_won ? Number(data.games_won) : 0,
+          sound_enabled: soundEnabled,
+          notifications_enabled: notificationsEnabled,
           created_at: data.created_at,
           auth_provider: 'supabase',
         };
@@ -153,7 +182,7 @@ export default function Home() {
                 id: userId,
                 username: fallbackUsername,
                 email: email || null,
-                coins: 200,
+                coins: 1000,
                 biggest_win: 0,
                 streak_count: 1,
                 role,
@@ -167,10 +196,15 @@ export default function Home() {
           id: userId,
           username: fallbackUsername,
           email,
-          coins: 200,
+          coins: 1000,
           biggest_win: 0,
           streak_count: 1,
           role,
+          avatar_color: 'emerald',
+          games_played: 0,
+          games_won: 0,
+          sound_enabled: soundEnabled,
+          notifications_enabled: notificationsEnabled,
           auth_provider: 'supabase',
         };
         setUser(newProfile);
@@ -413,7 +447,7 @@ export default function Home() {
           ]);
 
           // Trigger realtime toast notification if message is from a classmate
-          if (userRef.current && newMsg.user_id !== userRef.current.id) {
+          if (notificationsEnabledRef.current && userRef.current && newMsg.user_id !== userRef.current.id) {
             if (newMsg.is_system_win) {
               setRealtimeNotification({
                 id: String(Date.now()),
@@ -472,17 +506,19 @@ export default function Home() {
         { event: '*', schema: 'public', table: 'calendar_events' },
         (payload) => {
           fetchCalendarEvents();
-          const ev = (payload.new || payload.old) as any;
-          setRealtimeNotification({
-            id: String(Date.now()),
-            type: 'calendar',
-            title: 'Agenda de clase actualizada',
-            description: ev?.title
-              ? `Evento: ${ev.title} (${ev.subject || ''})`
-              : 'Se han actualizado fechas o tareas en directo.',
-            actionLabel: 'Ver horario',
-            onAction: () => setActiveView('calendar'),
-          });
+          if (notificationsEnabledRef.current) {
+            const ev = (payload.new || payload.old) as any;
+            setRealtimeNotification({
+              id: String(Date.now()),
+              type: 'calendar',
+              title: 'Agenda de clase actualizada',
+              description: ev?.title
+                ? `Evento: ${ev.title} (${ev.subject || ''})`
+                : 'Se han actualizado fechas o tareas en directo.',
+              actionLabel: 'Ver horario',
+              onAction: () => setActiveView('calendar'),
+            });
+          }
         }
       )
       .on(
@@ -986,6 +1022,8 @@ export default function Home() {
         onOpenDrawer={() => setIsNavDrawerOpen(true)}
         activeTab={activeView}
         onSelectTab={(tab) => setActiveView(tab as ViewMode)}
+        onlineCount={onlineCount}
+        onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
       />
 
       {/* 2. Main Workspace Layout */}
@@ -1008,6 +1046,8 @@ export default function Home() {
                   onOpenSettings={() => setIsSettingsOpen(true)}
                   onSignOut={handleSignOut}
                   onOpenAuth={() => setIsAuthOpen(true)}
+                  onlineCount={onlineCount}
+                  onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
                   onFocusComposer={() => {
                     composerRef.current?.focus();
                     composerRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1039,6 +1079,8 @@ export default function Home() {
                   currentUser={user}
                   events={calendarEvents}
                   leaderboard={leaderboard}
+                  onlineUsers={onlineUsers}
+                  onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
                   onOpenSchedule={() => setActiveView('calendar')}
                   onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
                   onOpenFaucet={() => setIsFaucetOpen(true)}
@@ -1216,7 +1258,7 @@ export default function Home() {
         onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
       />
 
-      {/* 5. The 3-Line Menu Drawer ("demas cosas esten desplegadas si presionas el boton de tres lineas") */}
+      {/* 5. The 3-Line Menu Drawer */}
       <NavigationDrawer
         isOpen={isNavDrawerOpen}
         onClose={() => setIsNavDrawerOpen(false)}
@@ -1230,6 +1272,8 @@ export default function Home() {
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
         onSignOut={handleSignOut}
+        onlineCount={onlineCount}
+        onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
       />
 
       {/* 6. Modals */}
@@ -1238,6 +1282,7 @@ export default function Home() {
         onClose={() => setIsLeaderboardOpen(false)}
         entries={leaderboard}
         currentUser={user}
+        onlineUsers={onlineUsers}
       />
 
       <FaucetModal
@@ -1262,11 +1307,23 @@ export default function Home() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         user={user}
-        onUpdateUser={(updated) => setUser(updated)}
+        onUpdateUser={(updated) => {
+          setUser(updated);
+          fetchLeaderboard();
+        }}
         onSignOut={handleSignOut}
         onOpenFaucet={() => setIsFaucetOpen(true)}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
+        notificationsEnabled={notificationsEnabled}
+        onToggleNotifications={handleToggleNotifications}
+        onlineCount={onlineCount}
+      />
+
+      <OnlineUsersModal
+        isOpen={isOnlineUsersOpen}
+        onClose={() => setIsOnlineUsersOpen(false)}
+        onlineUsers={onlineUsers}
       />
 
       <TermsModal
@@ -1276,12 +1333,20 @@ export default function Home() {
 
       {/* 7. Student Identification Onboarding Gate (Required: Real Name & Unique Student Number) */}
       <StudentIdentificationModal
-        isOpen={Boolean(user && (!user.full_name || !user.student_number))}
+        isOpen={Boolean(
+          user &&
+          user.role !== 'admin' &&
+          user.username !== 'admin' &&
+          !dismissedIdentification &&
+          (!user.full_name || !user.student_number)
+        )}
         user={user}
         onSuccess={(updated) => {
           setUser(updated);
+          fetchLeaderboard();
         }}
         onSignOut={handleSignOut}
+        onSkip={() => setDismissedIdentification(true)}
       />
 
       <CookieBanner

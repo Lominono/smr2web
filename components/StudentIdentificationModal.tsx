@@ -13,6 +13,7 @@ interface StudentIdentificationModalProps {
   user: UserProfile | null;
   onSuccess: (updatedUser: UserProfile) => void;
   onSignOut?: () => void;
+  onSkip?: () => void;
 }
 
 export const StudentIdentificationModal: React.FC<StudentIdentificationModalProps> = ({
@@ -20,6 +21,7 @@ export const StudentIdentificationModal: React.FC<StudentIdentificationModalProp
   user,
   onSuccess,
   onSignOut,
+  onSkip,
 }) => {
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [studentNumber, setStudentNumber] = useState(user?.student_number || '');
@@ -224,6 +226,16 @@ export const StudentIdentificationModal: React.FC<StudentIdentificationModalProp
             >
               Completar identificación y entrar
             </Button>
+
+            {onSkip && (user?.role === 'admin' || user?.username === 'admin') && (
+              <button
+                type="button"
+                onClick={onSkip}
+                className="w-full text-center text-xs font-semibold text-accent hover:underline py-1 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>Acceder como Administrador (Omitir identificación)</span>
+              </button>
+            )}
 
             {onSignOut && (
               <button

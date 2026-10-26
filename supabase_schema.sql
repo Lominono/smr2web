@@ -1,70 +1,20 @@
 -- ==============================================================
--- SCHEMA SUPABASE: RECREO // ARCADE, CHAT Y HORARIO SMR2
+-- SCHEMA SUPABASE COMPLETO: PORTAL 2º SMR (ARCADE, CHAT, HORARIO Y PRESENCIA)
 -- ==============================================================
-
--- ==============================================================
--- INSTRUCCIONES DE ACTUALIZACIÓN (SEGURO, IDEMPOTENTE Y SIN ERRORES):
--- Copia y pega este bloque en el SQL Editor de tu panel de Supabase:
 --
--- 1. SOLUCIÓN AL RANKING (Permitir ver a todos los alumnos de la clase y no solo el propio):
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Users can only read own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Enable read access for all users" ON public.profiles;
-DROP POLICY IF EXISTS "Lectura pública de perfiles" ON public.profiles;
-CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
-
--- 2. Añadir columnas de likes y etiquetas al feed de mensajes si no existen:
-ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0;
-ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS tag TEXT;
-CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON public.chat_messages (created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_chat_messages_tag ON public.chat_messages (tag);
-
--- 3. Permitir actualizar likes en el feed (RLS UPDATE policy):
-DROP POLICY IF EXISTS "Actualizar likes de chat" ON public.chat_messages;
-CREATE POLICY "Actualizar likes de chat" ON public.chat_messages FOR UPDATE USING (true);
-
--- 4. Crear tabla de actualizaciones del sistema en tiempo real si no existe:
-CREATE TABLE IF NOT EXISTS public.app_updates (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  version TEXT NOT NULL,
-  title TEXT NOT NULL,
-  description TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- 5. Habilitar RLS y políticas para app_updates:
-ALTER TABLE public.app_updates ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Lectura pública de actualizaciones" ON public.app_updates;
-DROP POLICY IF EXISTS "Creación de actualizaciones" ON public.app_updates;
-CREATE POLICY "Lectura pública de actualizaciones" ON public.app_updates FOR SELECT USING (true);
-CREATE POLICY "Creación de actualizaciones" ON public.app_updates FOR INSERT WITH CHECK (true);
-
--- 6. Habilitar Replicación en Tiempo Real completa (Full Replica Identity):
-ALTER TABLE public.profiles REPLICA IDENTITY FULL;
-ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
-ALTER TABLE public.calendar_events REPLICA IDENTITY FULL;
-ALTER TABLE public.app_updates REPLICA IDENTITY FULL;
-
--- 7. Añadir tablas a la publicación de Supabase Realtime (con verificación previa para evitar error 42710):
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'chat_messages') THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'calendar_events') THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'profiles') THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'app_updates') THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates;
-  END IF;
-END $$;
+-- INSTRUCCIONES:
+-- Copia y pega este script íntegro en el SQL Editor de tu panel de Supabase
+-- (Project -> SQL Editor -> New Query -> Run).
+--
+-- Este script es 100% IDEMPOTENTE y SEGURO: si ya tienes tablas creadas,
+-- añadirá únicamente las columnas, políticas y tablas que falten sin borrar datos.
 -- ==============================================================
 
--- 1. TABLA DE PERFILES REALES DE USUARIOS (Vinculada a auth.users)
+-- 1. EXTENSIONES NECESARIAS
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- 2. TABLA DE PERFILES DE USUARIO (Vinculada a auth.users)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
@@ -77,6 +27,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   biggest_win BIGINT DEFAULT 0 NOT NULL,
   streak_count INT DEFAULT 1,
   last_claim_date DATE,
+  last_spin_date TIMESTAMP WITH TIME ZONE,
+  last_rescue_date TIMESTAMP WITH TIME ZONE,
   games_played INT DEFAULT 0,
   games_won INT DEFAULT 0,
   is_banned BOOLEAN DEFAULT false,
@@ -84,21 +36,45 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Trigger para crear perfil automáticamente al registrarse en auth.users
+-- Asegurar columnas si la tabla ya existía previamente
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS student_number TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'student';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_color TEXT DEFAULT 'emerald';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS coins BIGINT DEFAULT 1000;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS biggest_win BIGINT DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS streak_count INT DEFAULT 1;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_claim_date DATE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_spin_date TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_rescue_date TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS games_played INT DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS games_won INT DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ban_reason TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_student_number ON public.profiles (student_number) WHERE student_number IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_profiles_coins ON public.profiles (coins DESC);
+CREATE INDEX IF NOT EXISTS idx_profiles_username ON public.profiles (username);
+
+-- Trigger automático al registrarse un usuario en Supabase Auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, coins, biggest_win)
+  INSERT INTO public.profiles (id, username, email, coins, biggest_win, role, avatar_color)
   VALUES (
     new.id,
     COALESCE(
       new.raw_user_meta_data->>'username',
       split_part(new.email, '@', 1)
     ),
+    new.email,
     1000,
-    0
+    0,
+    CASE WHEN COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)) = 'admin' THEN 'admin' ELSE 'student' END,
+    'emerald'
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email;
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -108,7 +84,7 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 2. TABLA DE MENSAJES DE CHAT REALES
+-- 3. TABLA DE MENSAJES DE CHAT REALES
 CREATE TABLE IF NOT EXISTS public.chat_messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -123,21 +99,29 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. TABLA DE CALENDARIO Y AGENDA SMR2 (Exámenes, Entregas y Recordatorios)
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0;
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS tag TEXT;
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON public.chat_messages (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_tag ON public.chat_messages (tag);
+
+-- 4. TABLA DE CALENDARIO Y AGENDA SMR2 (Exámenes, Entregas y Recordatorios)
 CREATE TABLE IF NOT EXISTS public.calendar_events (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
-  subject TEXT NOT NULL, -- 'SR', 'SOR', 'SI', 'AW', 'MEP', 'IP2', 'PI', 'DIG'
-  event_type TEXT DEFAULT 'exam' NOT NULL, -- 'exam', 'homework', 'reminder', 'class'
+  subject TEXT NOT NULL,
+  event_type TEXT DEFAULT 'exam' NOT NULL,
   event_date DATE NOT NULL,
   start_time TIME,
+  end_time TIME,
   description TEXT,
   created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_by_name TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. TABLA DE ACTUALIZACIONES Y AVISOS DEL SISTEMA EN TIEMPO REAL
+CREATE INDEX IF NOT EXISTS idx_calendar_events_date ON public.calendar_events (event_date ASC);
+
+-- 5. TABLA DE ACTUALIZACIONES Y AVISOS DEL SISTEMA
 CREATE TABLE IF NOT EXISTS public.app_updates (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   version TEXT NOT NULL,
@@ -146,53 +130,178 @@ CREATE TABLE IF NOT EXISTS public.app_updates (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 5. POLÍTICAS RLS (Row Level Security)
+-- 6. TABLA DE TRANSACCIONES ECONÓMICAS
+CREATE TABLE IF NOT EXISTS public.balance_transactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  amount BIGINT NOT NULL,
+  balance_before BIGINT NOT NULL,
+  balance_after BIGINT NOT NULL,
+  type TEXT NOT NULL,
+  reference_id TEXT,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_balance_transactions_user ON public.balance_transactions (user_id, created_at DESC);
+
+-- 7. TABLA DE AUDITORÍA Y LOGS DEL SISTEMA
+CREATE TABLE IF NOT EXISTS public.event_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  username TEXT,
+  room_id TEXT,
+  game_id TEXT,
+  ip_address TEXT,
+  user_agent TEXT,
+  details JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_logs_created_at ON public.event_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_event_logs_type ON public.event_logs (event_type);
+CREATE INDEX IF NOT EXISTS idx_event_logs_user ON public.event_logs (user_id);
+
+-- 8. TABLAS DE RULETA RUSA MULTIJUGADOR
+CREATE TABLE IF NOT EXISTS public.rr_rooms (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  host_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  host_username TEXT NOT NULL,
+  bet_amount BIGINT DEFAULT 100 NOT NULL,
+  max_players INT DEFAULT 6 NOT NULL,
+  status TEXT DEFAULT 'waiting' NOT NULL,
+  pot BIGINT DEFAULT 0 NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.rr_room_players (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_id UUID REFERENCES public.rr_rooms(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  username TEXT NOT NULL,
+  seat_order INT NOT NULL,
+  is_alive BOOLEAN DEFAULT true NOT NULL,
+  is_connected BOOLEAN DEFAULT true NOT NULL,
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(room_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.rr_games (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_id UUID REFERENCES public.rr_rooms(id) ON DELETE CASCADE NOT NULL,
+  round_number INT DEFAULT 1 NOT NULL,
+  bullet_chamber INT NOT NULL,
+  current_turn_user_id UUID,
+  current_turn_username TEXT,
+  current_turn_index INT DEFAULT 0,
+  status TEXT DEFAULT 'in_progress' NOT NULL,
+  winner_user_id UUID,
+  winner_username TEXT,
+  started_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  ended_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS public.rr_turns (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  game_id UUID REFERENCES public.rr_games(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID,
+  username TEXT,
+  chamber_index INT NOT NULL,
+  result TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 9. HABILITAR ROW LEVEL SECURITY (RLS) EN TODAS LAS TABLAS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_updates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.balance_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.event_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rr_rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rr_room_players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rr_games ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rr_turns ENABLE ROW LEVEL SECURITY;
 
--- Limpieza de políticas previas
+-- Limpieza y recreación idempotente de políticas
 DROP POLICY IF EXISTS "Lectura pública de perfiles" ON public.profiles;
 DROP POLICY IF EXISTS "Creación de perfiles" ON public.profiles;
 DROP POLICY IF EXISTS "Actualizar saldo de usuario" ON public.profiles;
+CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Creación de perfiles" ON public.profiles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Actualizar saldo de usuario" ON public.profiles FOR UPDATE USING (true);
 
 DROP POLICY IF EXISTS "Lectura pública de chat" ON public.chat_messages;
 DROP POLICY IF EXISTS "Creación de mensajes" ON public.chat_messages;
 DROP POLICY IF EXISTS "Actualizar likes de chat" ON public.chat_messages;
+CREATE POLICY "Lectura pública de chat" ON public.chat_messages FOR SELECT USING (true);
+CREATE POLICY "Creación de mensajes" ON public.chat_messages FOR INSERT WITH CHECK (true);
+CREATE POLICY "Actualizar likes de chat" ON public.chat_messages FOR UPDATE USING (true);
 
 DROP POLICY IF EXISTS "Lectura pública de eventos" ON public.calendar_events;
 DROP POLICY IF EXISTS "Creación de eventos" ON public.calendar_events;
 DROP POLICY IF EXISTS "Modificación de eventos" ON public.calendar_events;
 DROP POLICY IF EXISTS "Borrado de eventos" ON public.calendar_events;
-
-DROP POLICY IF EXISTS "Lectura pública de actualizaciones" ON public.app_updates;
-DROP POLICY IF EXISTS "Creación de actualizaciones" ON public.app_updates;
-
--- Creación de políticas
-CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Creación de perfiles" ON public.profiles FOR INSERT WITH CHECK (true);
-CREATE POLICY "Actualizar saldo de usuario" ON public.profiles FOR UPDATE USING (true);
-
-CREATE POLICY "Lectura pública de chat" ON public.chat_messages FOR SELECT USING (true);
-CREATE POLICY "Creación de mensajes" ON public.chat_messages FOR INSERT WITH CHECK (true);
-CREATE POLICY "Actualizar likes de chat" ON public.chat_messages FOR UPDATE USING (true);
-
 CREATE POLICY "Lectura pública de eventos" ON public.calendar_events FOR SELECT USING (true);
 CREATE POLICY "Creación de eventos" ON public.calendar_events FOR INSERT WITH CHECK (true);
 CREATE POLICY "Modificación de eventos" ON public.calendar_events FOR UPDATE USING (true);
 CREATE POLICY "Borrado de eventos" ON public.calendar_events FOR DELETE USING (true);
 
+DROP POLICY IF EXISTS "Lectura pública de actualizaciones" ON public.app_updates;
+DROP POLICY IF EXISTS "Creación de actualizaciones" ON public.app_updates;
 CREATE POLICY "Lectura pública de actualizaciones" ON public.app_updates FOR SELECT USING (true);
 CREATE POLICY "Creación de actualizaciones" ON public.app_updates FOR INSERT WITH CHECK (true);
 
--- 6. REPLICA IDENTITY (Para asegurar que los payloads de realtime incluyan todos los campos)
+DROP POLICY IF EXISTS "Lectura de transacciones" ON public.balance_transactions;
+DROP POLICY IF EXISTS "Inserción de transacciones" ON public.balance_transactions;
+CREATE POLICY "Lectura de transacciones" ON public.balance_transactions FOR SELECT USING (true);
+CREATE POLICY "Inserción de transacciones" ON public.balance_transactions FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Lectura de logs" ON public.event_logs;
+DROP POLICY IF EXISTS "Inserción de logs" ON public.event_logs;
+CREATE POLICY "Lectura de logs" ON public.event_logs FOR SELECT USING (true);
+CREATE POLICY "Inserción de logs" ON public.event_logs FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Lectura de salas RR" ON public.rr_rooms;
+DROP POLICY IF EXISTS "Inserción de salas RR" ON public.rr_rooms;
+DROP POLICY IF EXISTS "Actualización de salas RR" ON public.rr_rooms;
+CREATE POLICY "Lectura de salas RR" ON public.rr_rooms FOR SELECT USING (true);
+CREATE POLICY "Inserción de salas RR" ON public.rr_rooms FOR INSERT WITH CHECK (true);
+CREATE POLICY "Actualización de salas RR" ON public.rr_rooms FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Lectura jugadores RR" ON public.rr_room_players;
+DROP POLICY IF EXISTS "Inserción jugadores RR" ON public.rr_room_players;
+DROP POLICY IF EXISTS "Actualización jugadores RR" ON public.rr_room_players;
+CREATE POLICY "Lectura jugadores RR" ON public.rr_room_players FOR SELECT USING (true);
+CREATE POLICY "Inserción jugadores RR" ON public.rr_room_players FOR INSERT WITH CHECK (true);
+CREATE POLICY "Actualización jugadores RR" ON public.rr_room_players FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Lectura partidas RR" ON public.rr_games;
+DROP POLICY IF EXISTS "Inserción partidas RR" ON public.rr_games;
+DROP POLICY IF EXISTS "Actualización partidas RR" ON public.rr_games;
+CREATE POLICY "Lectura partidas RR" ON public.rr_games FOR SELECT USING (true);
+CREATE POLICY "Inserción partidas RR" ON public.rr_games FOR INSERT WITH CHECK (true);
+CREATE POLICY "Actualización partidas RR" ON public.rr_games FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Lectura turnos RR" ON public.rr_turns;
+DROP POLICY IF EXISTS "Inserción turnos RR" ON public.rr_turns;
+CREATE POLICY "Lectura turnos RR" ON public.rr_turns FOR SELECT USING (true);
+CREATE POLICY "Inserción turnos RR" ON public.rr_turns FOR INSERT WITH CHECK (true);
+
+-- 10. REPLICA IDENTITY FULL (Para asegurar que los payloads de Supabase Realtime incluyan todos los campos)
 ALTER TABLE public.profiles REPLICA IDENTITY FULL;
 ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
 ALTER TABLE public.calendar_events REPLICA IDENTITY FULL;
 ALTER TABLE public.app_updates REPLICA IDENTITY FULL;
+ALTER TABLE public.rr_rooms REPLICA IDENTITY FULL;
+ALTER TABLE public.rr_games REPLICA IDENTITY FULL;
+ALTER TABLE public.rr_turns REPLICA IDENTITY FULL;
 
--- 7. HABILITAR PUBLICACIÓN SUPABASE REALTIME (con verificación para evitar error 42710)
+-- 11. PUBLICACIÓN SUPABASE REALTIME (Evita error 42710 si ya están añadidas)
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'chat_messages') THEN
@@ -206,5 +315,14 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'app_updates') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'rr_rooms') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.rr_rooms;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'rr_games') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.rr_games;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'rr_turns') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.rr_turns;
   END IF;
 END $$;

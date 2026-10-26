@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await verifyUserSession();
     const body = await req.json();
-    const { userId, newUsername, avatarColor, soundEnabled } = body;
+    const { userId, newUsername, avatarColor, soundEnabled, fullName, studentNumber, notificationsEnabled } = body;
 
     const targetUserId = session.user?.id || userId;
     if (!targetUserId) {
@@ -46,9 +46,32 @@ export async function POST(req: NextRequest) {
 
         const updates: Record<string, any> = {};
         if (cleanUsername) updates.username = cleanUsername;
+        if (avatarColor) updates.avatar_color = avatarColor;
+        if (fullName !== undefined) updates.full_name = fullName.trim();
+
+        if (studentNumber !== undefined && studentNumber.trim().length >= 2) {
+          const cleanNumber = studentNumber.trim().toUpperCase();
+          const { data: existingNumber } = await client
+            .from('profiles')
+            .select('id')
+            .eq('student_number', cleanNumber)
+            .neq('id', targetUserId)
+            .maybeSingle();
+
+          if (existingNumber) {
+            return NextResponse.json(
+              { success: false, error: `El número de estudiante "${cleanNumber}" ya está en uso por otro alumno.` },
+              { status: 409 }
+            );
+          }
+          updates.student_number = cleanNumber;
+        }
 
         if (Object.keys(updates).length > 0) {
-          await client.from('profiles').update(updates).eq('id', targetUserId);
+          const { error: updateError } = await client.from('profiles').update(updates).eq('id', targetUserId);
+          if (updateError) {
+            console.warn('Note updating profiles in Supabase:', updateError.message);
+          }
         }
       }
     }
@@ -62,6 +85,8 @@ export async function POST(req: NextRequest) {
         action: 'profile_updated',
         new_username: cleanUsername,
         avatar_color: avatarColor,
+        full_name: fullName,
+        student_number: studentNumber,
       },
     });
 
@@ -69,7 +94,10 @@ export async function POST(req: NextRequest) {
       success: true,
       username: cleanUsername,
       avatarColor,
+      fullName,
+      studentNumber,
       soundEnabled,
+      notificationsEnabled,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -97,13 +125,18 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    let updatedInSupabase = false;
     if (isServerSupabaseConfigured()) {
       const client = createAdminClient();
       if (client) {
-        // Update auth user password via Supabase admin
-        await client.auth.admin.updateUserById(targetUserId, {
-          password: newPassword,
-        });
+        try {
+          await client.auth.admin.updateUserById(targetUserId, {
+            password: newPassword,
+          });
+          updatedInSupabase = true;
+        } catch (authErr: any) {
+          console.warn('Supabase password change note:', authErr?.message);
+        }
       }
     }
 
@@ -114,10 +147,15 @@ export async function PUT(req: NextRequest) {
       req,
       details: {
         action: 'user_password_changed',
+        supabase_auth_updated: updatedInSupabase,
       },
     });
 
-    return NextResponse.json({ success: true, message: 'Contraseña actualizada correctamente.' });
+    return NextResponse.json({
+      success: true,
+      updatedInSupabase,
+      message: 'Contraseña actualizada correctamente.',
+    });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error?.message || 'Error al actualizar contraseña.' },

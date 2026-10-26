@@ -34,6 +34,8 @@ interface AppleNavbarProps {
   onOpenDrawer: () => void;
   activeTab?: string;
   onSelectTab?: (tab: string) => void;
+  onlineCount?: number;
+  onOpenOnlineUsers?: () => void;
 }
 
 export const AppleNavbar: React.FC<AppleNavbarProps> = ({
@@ -48,6 +50,8 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
   onOpenDrawer,
   activeTab = 'feed',
   onSelectTab,
+  onlineCount,
+  onOpenOnlineUsers,
 }) => {
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
 
@@ -111,6 +115,20 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             />
             <span className="font-medium truncate max-w-[220px]">{liveStatus.message}</span>
           </div>
+
+          {/* Real-time online classmates pill */}
+          {onlineCount !== undefined && onlineCount > 0 && onOpenOnlineUsers && (
+            <button
+              type="button"
+              onClick={onOpenOnlineUsers}
+              title="Ver alumnos conectados en tiempo real"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-[11px] text-emerald-400 font-mono transition-all cursor-pointer active:scale-95 touch-manipulation"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-semibold">{onlineCount}</span>
+              <span className="hidden xs:inline">online</span>
+            </button>
+          )}
         </div>
 
         {/* Center: Navigation tabs (Desktop only) - Apple Segmented Control */}

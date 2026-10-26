@@ -20,6 +20,11 @@ interface StoredLocalAccount {
   streak_count?: number;
   last_claim_date?: string;
   role?: 'admin' | 'delegado' | 'student';
+  avatar_color?: string;
+  games_played?: number;
+  games_won?: number;
+  sound_enabled?: boolean;
+  notifications_enabled?: boolean;
   created_at: string;
 }
 
@@ -163,8 +168,11 @@ export function updateUserProfileSession(updates: Partial<UserProfile>): UserPro
       const idx = accounts.findIndex((a) => a.id === current.id);
       if (idx !== -1) {
         if (updates.username) accounts[idx].username = updates.username;
-        if (updates.full_name) accounts[idx].full_name = updates.full_name;
-        if (updates.student_number) accounts[idx].student_number = updates.student_number;
+        if (updates.full_name !== undefined) accounts[idx].full_name = updates.full_name;
+        if (updates.student_number !== undefined) accounts[idx].student_number = updates.student_number;
+        if (updates.avatar_color) accounts[idx].avatar_color = updates.avatar_color;
+        if (updates.sound_enabled !== undefined) accounts[idx].sound_enabled = updates.sound_enabled;
+        if (updates.notifications_enabled !== undefined) accounts[idx].notifications_enabled = updates.notifications_enabled;
         saveLocalAccounts(accounts);
       }
     } catch {}
@@ -313,10 +321,13 @@ export async function registerLocalUser(
     username: cleanUsername,
     email: cleanEmail,
     passwordHash,
-    coins: 200,
+    coins: 1000,
     biggest_win: 0,
     streak_count: 1,
     role,
+    avatar_color: 'emerald',
+    sound_enabled: true,
+    notifications_enabled: true,
     created_at: now,
   };
 
@@ -331,6 +342,9 @@ export async function registerLocalUser(
     biggest_win: newAccount.biggest_win,
     streak_count: 1,
     role: newAccount.role,
+    avatar_color: newAccount.avatar_color,
+    sound_enabled: true,
+    notifications_enabled: true,
     created_at: newAccount.created_at,
     auth_provider: 'local',
   };
@@ -366,12 +380,19 @@ export async function loginLocalUser(
   const profile: UserProfile = {
     id: account.id,
     username: account.username,
+    full_name: account.full_name,
+    student_number: account.student_number,
     email: account.email,
     coins: account.coins,
     biggest_win: account.biggest_win,
     streak_count: account.streak_count || 1,
     last_claim_date: account.last_claim_date,
     role: account.role || (account.username === 'admin' ? 'admin' : 'student'),
+    avatar_color: account.avatar_color || 'emerald',
+    games_played: account.games_played || 0,
+    games_won: account.games_won || 0,
+    sound_enabled: account.sound_enabled !== undefined ? account.sound_enabled : true,
+    notifications_enabled: account.notifications_enabled !== undefined ? account.notifications_enabled : true,
     created_at: account.created_at,
     auth_provider: 'local',
   };

@@ -15,8 +15,23 @@ export interface UserProfile {
   games_played?: number;
   games_won?: number;
   sound_enabled?: boolean;
+  notifications_enabled?: boolean;
   last_spin_date?: string;
   last_rescue_date?: string;
+}
+
+export interface OnlineUser {
+  id: string;
+  username: string;
+  full_name?: string;
+  student_number?: string;
+  avatar_color?: string;
+  role?: string;
+  coins?: number;
+  current_view?: string;
+  online_at: string;
+  last_ping: number;
+  is_current_user?: boolean;
 }
 
 export interface ChatMessage {

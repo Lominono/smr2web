@@ -14,6 +14,7 @@ import {
   Wine,
   Sprout,
   Settings,
+  Users,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -31,6 +32,8 @@ interface DesktopSidebarProps {
   onSignOut: () => void;
   onOpenAuth: () => void;
   onFocusComposer?: () => void;
+  onlineCount?: number;
+  onOpenOnlineUsers?: () => void;
 }
 
 export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
@@ -44,6 +47,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onSignOut,
   onOpenAuth,
   onFocusComposer,
+  onlineCount,
+  onOpenOnlineUsers,
 }) => {
   const rank = currentUser ? getUserRank(currentUser.coins) : null;
 
@@ -127,6 +132,25 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             <Coins className="w-4 h-4 text-amber-500" />
             <span>Fondo diario</span>
           </button>
+
+          {onOpenOnlineUsers && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.tap();
+                onOpenOnlineUsers();
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <Users className="w-4 h-4 text-emerald-400" />
+                <span className="font-semibold">En directo</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 font-mono font-bold">
+                {onlineCount ?? 0}
+              </span>
+            </button>
+          )}
 
           <button
             type="button"

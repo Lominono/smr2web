@@ -13,8 +13,10 @@ import {
   ArrowDownToLine,
   Check,
   Crown,
+  Users,
 } from 'lucide-react';
-import { UserProfile, CalendarEvent, LeaderboardEntry } from '@/lib/types';
+import { UserProfile, CalendarEvent, LeaderboardEntry, OnlineUser } from '@/lib/types';
+import { getViewLabel } from '@/lib/presenceService';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -41,6 +43,8 @@ interface DesktopWidgetsProps {
   onOpenPartyIdle?: () => void;
   onOpenFarmhand?: () => void;
   onUpdateCoins?: (delta: number) => void;
+  onlineUsers?: OnlineUser[];
+  onOpenOnlineUsers?: () => void;
 }
 
 export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
@@ -53,6 +57,8 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
   onOpenPartyIdle,
   onOpenFarmhand,
   onUpdateCoins,
+  onlineUsers = [],
+  onOpenOnlineUsers,
 }) => {
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
   const [botellonState, setBotellonState] = useState<{ vault: number; rate: number }>({
@@ -141,6 +147,97 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
 
   return (
     <div className="w-full space-y-3 overscroll-contain">
+      {/* Widget 0: Alumnos en Directo (Tiempo Real) */}
+      <Card className="rounded-xl border-border/70 p-3.5 space-y-2.5 bg-surface">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <h3 className="text-xs font-semibold text-foreground tracking-tight flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-emerald-400" />
+              <span>En directo ahora</span>
+            </h3>
+          </div>
+          <span className="text-[11px] font-mono font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+            {onlineUsers.length} {onlineUsers.length === 1 ? 'conectado' : 'conectados'}
+          </span>
+        </div>
+
+        {onlineUsers.length > 0 ? (
+          <div className="space-y-1.5">
+            {onlineUsers.slice(0, 3).map((u) => {
+              const activity = getViewLabel(u.current_view);
+              const colorBg =
+                u.avatar_color === 'blue'
+                  ? 'bg-blue-600'
+                  : u.avatar_color === 'purple'
+                  ? 'bg-purple-600'
+                  : u.avatar_color === 'amber'
+                  ? 'bg-amber-500'
+                  : u.avatar_color === 'rose'
+                  ? 'bg-rose-600'
+                  : u.avatar_color === 'cyan'
+                  ? 'bg-cyan-600'
+                  : 'bg-emerald-600';
+
+              return (
+                <div
+                  key={u.id}
+                  className="flex items-center justify-between p-2 rounded-lg bg-surface-raised border border-border/50 text-xs transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="relative shrink-0">
+                      <div
+                        className={`w-6 h-6 rounded-md ${colorBg} text-white font-mono font-bold text-[10px] flex items-center justify-center uppercase`}
+                      >
+                        {u.username.charAt(0)}
+                      </div>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 border border-surface absolute -bottom-0.5 -right-0.5 animate-pulse" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-foreground font-semibold truncate block">
+                          @{u.username}
+                        </span>
+                        {u.is_current_user && (
+                          <span className="text-[9px] px-1 py-0.2 rounded-full bg-accent/20 text-accent font-mono font-bold">
+                            Tú
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-foreground-muted truncate block">
+                        {activity}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-foreground-subtle text-center py-2">
+            No hay compañeros conectados
+          </p>
+        )}
+
+        {onOpenOnlineUsers && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full justify-between rounded-lg h-8 text-xs font-medium"
+            onClick={() => {
+              sound.tap();
+              onOpenOnlineUsers();
+            }}
+          >
+            <span className="flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Ver todos los alumnos ({onlineUsers.length})</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+          </Button>
+        )}
+      </Card>
+
       {/* Widget 1: Aula en Vivo */}
       <Card className="rounded-xl border-border/70 p-3.5 space-y-2.5 bg-surface">
         <div className="flex items-center justify-between">

@@ -23,6 +23,7 @@ import {
   MessageSquare,
   FileText,
   ChevronRight,
+  Users,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -44,6 +45,8 @@ interface NavigationDrawerProps {
   soundEnabled: boolean;
   onToggleSound: () => void;
   onSignOut: () => void;
+  onlineCount?: number;
+  onOpenOnlineUsers?: () => void;
 }
 
 export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
@@ -59,6 +62,8 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
   soundEnabled,
   onToggleSound,
   onSignOut,
+  onlineCount,
+  onOpenOnlineUsers,
 }) => {
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
 
@@ -290,6 +295,25 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
             <span className="px-2 text-[10px] font-mono uppercase tracking-wider text-foreground-subtle">
               Comunidad
             </span>
+            {onOpenOnlineUsers && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenOnlineUsers();
+                  onClose();
+                }}
+                className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
+              >
+                <div className="flex items-center gap-3">
+                  <Users className="w-4 h-4 text-emerald-400" />
+                  <span className="text-sm font-sans font-semibold">Alumnos en directo</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
+                  {onlineCount ?? 0}
+                </span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => {

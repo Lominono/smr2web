@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef } from 'react';
-import { LeaderboardEntry, UserProfile } from '@/lib/types';
+import { LeaderboardEntry, UserProfile, OnlineUser } from '@/lib/types';
 import {
   Trophy,
   Coins,
@@ -15,6 +15,7 @@ import {
   TrendingUp,
   User,
   ArrowDown,
+  Users,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -26,6 +27,7 @@ interface LeaderboardModalProps {
   onClose: () => void;
   entries: LeaderboardEntry[];
   currentUser?: UserProfile | null;
+  onlineUsers?: OnlineUser[];
 }
 
 type SortCategory = 'coins' | 'biggest_win' | 'streak';
@@ -35,13 +37,24 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   onClose,
   entries,
   currentUser,
+  onlineUsers = [],
 }) => {
   const [activeTab, setActiveTab] = useState<SortCategory>('coins');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterOnlineOnly, setFilterOnlineOnly] = useState(false);
   const userRowRef = useRef<HTMLDivElement | null>(null);
+
+  const onlineUsernamesSet = useMemo(() => {
+    return new Set(onlineUsers.map((u) => u.username.toLowerCase()));
+  }, [onlineUsers]);
 
   const sortedAndFiltered = useMemo(() => {
     let list = [...entries];
+
+    // Online only filter
+    if (filterOnlineOnly) {
+      list = list.filter((item) => onlineUsernamesSet.has(item.username.toLowerCase()));
+    }
 
     // Sorting
     if (activeTab === 'coins') {
@@ -63,7 +76,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
     }
 
     return list;
-  }, [entries, activeTab, searchQuery]);
+  }, [entries, activeTab, searchQuery, filterOnlineOnly, onlineUsernamesSet]);
 
   // Overall stats
   const stats = useMemo(() => {
@@ -196,25 +209,45 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             })}
           </div>
 
-          {/* Search Box */}
-          <div className="relative flex items-center">
-            <Search className="w-3.5 h-3.5 text-foreground-subtle absolute left-3 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por @usuario o nombre..."
-              className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-surface border border-border/70 text-xs text-foreground placeholder:text-foreground-subtle outline-none focus:border-accent transition-colors font-sans"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 text-foreground-subtle hover:text-foreground p-0.5 cursor-pointer"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
+          {/* Search Box & Online Filter */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex items-center flex-1">
+              <Search className="w-3.5 h-3.5 text-foreground-subtle absolute left-3 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por @usuario o nombre..."
+                className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-surface border border-border/70 text-xs text-foreground placeholder:text-foreground-subtle outline-none focus:border-accent transition-colors font-sans"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 text-foreground-subtle hover:text-foreground p-0.5 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.tap();
+                setFilterOnlineOnly(!filterOnlineOnly);
+              }}
+              title="Filtrar por alumnos conectados en tiempo real"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono font-medium transition-all cursor-pointer shrink-0 active:scale-95 ${
+                filterOnlineOnly
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-xs'
+                  : 'bg-surface border-border/70 text-foreground-muted hover:text-foreground'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${filterOnlineOnly ? 'bg-emerald-400 animate-pulse' : 'bg-foreground-subtle'}`} />
+              <span className="hidden xs:inline">En línea</span>
+              <span className="font-bold">({onlineUsers.length})</span>
+            </button>
           </div>
         </div>
 
@@ -252,6 +285,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         <div className="w-10 h-10 rounded-full bg-slate-300/20 text-slate-300 border border-slate-300/40 flex items-center justify-center font-mono font-semibold text-xs">
                           {top3[1].username.slice(0, 2).toUpperCase()}
                         </div>
+                        {onlineUsernamesSet.has(top3[1].username.toLowerCase()) && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border border-surface absolute top-0 right-0 animate-pulse" title="En línea ahora" />
+                        )}
                         <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-300 text-slate-900 flex items-center justify-center text-[10px] font-mono font-bold shadow-xs">
                           2
                         </div>
@@ -297,6 +333,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         <div className="w-12 h-12 rounded-full bg-amber-500/15 text-amber-500 border-2 border-amber-500/40 flex items-center justify-center font-mono font-bold text-sm">
                           {top3[0].username.slice(0, 2).toUpperCase()}
                         </div>
+                        {onlineUsernamesSet.has(top3[0].username.toLowerCase()) && (
+                          <span className="w-3 h-3 rounded-full bg-emerald-400 border border-surface absolute top-0 right-0 animate-pulse" title="En línea ahora" />
+                        )}
                         <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-[10px] font-mono font-bold shadow-xs">
                           1
                         </div>
@@ -337,6 +376,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         <div className="w-10 h-10 rounded-full bg-amber-700/20 text-amber-600 border border-amber-700/40 flex items-center justify-center font-mono font-semibold text-xs">
                           {top3[2].username.slice(0, 2).toUpperCase()}
                         </div>
+                        {onlineUsernamesSet.has(top3[2].username.toLowerCase()) && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border border-surface absolute top-0 right-0 animate-pulse" title="En línea ahora" />
+                        )}
                         <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-700 text-white flex items-center justify-center text-[10px] font-mono font-bold shadow-xs">
                           3
                         </div>
@@ -401,6 +443,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             <span className="text-xs font-semibold text-foreground font-mono truncate">
                               @{item.username}
                             </span>
+                            {onlineUsernamesSet.has(item.username.toLowerCase()) && (
+                              <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-medium bg-emerald-500/10 px-1.5 py-0.2 rounded-full border border-emerald-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span>En línea</span>
+                              </span>
+                            )}
                             {item.role === 'admin' && (
                               <Badge variant="accent" size="sm">
                                 Admin

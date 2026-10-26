@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import {
   ShieldAlert,
@@ -15,6 +15,10 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Coins,
+  CheckCircle2,
+  X,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -59,6 +63,7 @@ export default function AdminPage() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [adjustModalUser, setAdjustModalUser] = useState<AdminUser | null>(null);
   const [adjustAmount, setAdjustAmount] = useState<string>('500');
+  const [isResettingDb, setIsResettingDb] = useState(false);
 
   // Game detail state
   const [gameIdInput, setGameIdInput] = useState('');
@@ -182,25 +187,22 @@ export default function AdminPage() {
     }
   };
 
-  // Full Database Reset handler (Nueva Temporada)
-  const [isResettingDb, setIsResettingDb] = useState(false);
+  // Reset database handler
   const handleResetDatabase = async () => {
-    const confirmation = window.prompt(
-      '¿Estás seguro de que quieres REINICIAR LA BASE DE DATOS DE TODOS LOS ALUMNOS?\n\n' +
-      'Esto restablecerá el saldo de todos a 1.000 monedas, vaciará el chat y reiniciará el ranking de la clase.\n\n' +
-      'Escribe "REINICIAR" para confirmar:'
+    const confirmation = confirm(
+      '¿Estás COMPLETAMENTE seguro de reiniciar la base de datos de toda la clase?\n\n' +
+      '• Todos los saldos volverán a 1.000 monedas.\n' +
+      '• Se reiniciarán las victorias y estadísticas.\n' +
+      '• Se vaciará el chat para empezar la nueva temporada.'
     );
-
-    if (confirmation !== 'REINICIAR') {
-      return;
-    }
+    if (!confirmation) return;
 
     setIsResettingDb(true);
     try {
       const res = await fetch('/api/admin/reset-database', { method: 'POST' });
       const data = await res.json();
       if (res.ok && data.success) {
-        alert('¡Base de datos reiniciada con éxito para toda la clase! Todos vuelven a tener 1.000 monedas.');
+        alert('Base de datos reiniciada con éxito para toda la clase. Todos vuelven a tener 1.000 monedas.');
         fetchUsers();
         fetchLogs(1);
       } else {
@@ -234,12 +236,21 @@ export default function AdminPage() {
     }
   };
 
+  // Computed summary metrics
+  const totalCoinsInCirculation = useMemo(() => {
+    return users.reduce((acc, u) => acc + (Number(u.coins) || 0), 0);
+  }, [users]);
+
+  const bannedUsersCount = useMemo(() => {
+    return users.filter((u) => u.is_banned).length;
+  }, [users]);
+
   if (isAdmin === null) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-mono text-sm">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-sans text-sm">
         <div className="flex items-center gap-3">
           <RefreshCw className="w-4 h-4 text-accent animate-spin" />
-          <span>Verificando credenciales de administrador...</span>
+          <span className="text-foreground-muted">Verificando credenciales de administrador...</span>
         </div>
       </div>
     );
@@ -253,7 +264,7 @@ export default function AdminPage() {
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-base font-semibold tracking-tight text-foreground">Acceso Restringido · Solo Delegados</h1>
+            <h1 className="text-base font-semibold tracking-tight text-foreground">Acceso Restringido · Solo Delegación</h1>
             <p className="text-xs text-danger font-medium">
               Los profesores y personas ajenas al alumnado no están permitidos en esta plataforma.
             </p>
@@ -276,33 +287,33 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-mono antialiased pb-20">
+    <div className="min-h-screen bg-background text-foreground font-sans antialiased pb-20">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
+      <header className="sticky top-0 z-30 border-b border-border/70 bg-surface/85 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link href="/">
-              <Button variant="secondary" size="sm" className="min-h-[40px] px-3 touch-manipulation">
+              <Button variant="secondary" size="sm" className="h-9 px-3 rounded-xl touch-manipulation">
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Volver</span>
               </Button>
             </Link>
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-[var(--radius-sm)] bg-surface-raised border border-border text-accent">
+              <span className="p-1.5 rounded-lg bg-surface-raised border border-border/70 text-accent">
                 <ShieldCheck className="w-4 h-4" />
               </span>
-              <span className="font-semibold text-sm tracking-tight">Panel de Auditoría</span>
+              <span className="font-semibold text-sm tracking-tight text-foreground">Panel de Control SMR2</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-foreground-muted hidden sm:inline">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs text-foreground-muted hidden sm:inline font-mono">
               Admin: <span className="text-accent font-semibold">@{sessionUser?.username || 'delegado'}</span>
             </span>
             <a
               href="/api/admin/logs?format=csv"
               download
-              className="inline-flex items-center gap-1.5 px-3 min-h-[40px] rounded-[var(--radius)] bg-surface-raised border border-border text-foreground hover:bg-surface text-xs font-medium transition-colors cursor-pointer active:scale-95 touch-manipulation"
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-xl bg-surface-raised border border-border/70 text-foreground hover:bg-surface text-xs font-medium transition-colors cursor-pointer active:scale-95 touch-manipulation"
             >
               <Download className="w-3.5 h-3.5 text-accent" />
               <span className="hidden xs:inline">Exportar CSV</span>
@@ -313,34 +324,75 @@ export default function AdminPage() {
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-[var(--radius)] bg-surface border border-border max-w-fit">
-          <Button
-            variant={activeTab === 'logs' ? 'primary' : 'ghost'}
-            size="sm"
+        {/* Minimalist Metrics Strip */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="p-4 rounded-xl bg-surface border border-border/70 space-y-1">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">Alumnos Registrados</span>
+            <div className="text-xl font-bold font-mono text-foreground">{users.length}</div>
+            <span className="text-[11px] text-foreground-muted">2º SMR</span>
+          </div>
+
+          <div className="p-4 rounded-xl bg-surface border border-border/70 space-y-1">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">Fichas en Circulación</span>
+            <div className="text-xl font-bold font-mono text-amber-500 tabular-nums">
+              {totalCoinsInCirculation.toLocaleString('es-ES')}
+            </div>
+            <span className="text-[11px] text-foreground-muted">Economía total</span>
+          </div>
+
+          <div className="p-4 rounded-xl bg-surface border border-border/70 space-y-1">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">Registros de Auditoría</span>
+            <div className="text-xl font-bold font-mono text-accent tabular-nums">{totalLogs}</div>
+            <span className="text-[11px] text-foreground-muted">Eventos guardados</span>
+          </div>
+
+          <div className="p-4 rounded-xl bg-surface border border-border/70 space-y-1">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">Cuentas Suspendidas</span>
+            <div className="text-xl font-bold font-mono text-foreground">{bannedUsersCount}</div>
+            <span className="text-[11px] text-foreground-muted">Por infracciones</span>
+          </div>
+        </div>
+
+        {/* Minimalist Navigation Tabs (Apple Segmented Style) */}
+        <div className="flex items-center p-1 rounded-xl bg-surface-raised border border-border/70 max-w-fit gap-1 shadow-2xs">
+          <button
+            type="button"
             onClick={() => setActiveTab('logs')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              activeTab === 'logs'
+                ? 'bg-foreground text-background font-semibold shadow-xs'
+                : 'text-foreground-muted hover:text-foreground'
+            }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Logs ({totalLogs})</span>
-          </Button>
+            <span>Auditoría de Eventos ({totalLogs})</span>
+          </button>
 
-          <Button
-            variant={activeTab === 'users' ? 'primary' : 'ghost'}
-            size="sm"
+          <button
+            type="button"
             onClick={() => setActiveTab('users')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              activeTab === 'users'
+                ? 'bg-foreground text-background font-semibold shadow-xs'
+                : 'text-foreground-muted hover:text-foreground'
+            }`}
           >
             <Users className="w-3.5 h-3.5" />
-            <span>Usuarios</span>
-          </Button>
+            <span>Alumnos y Fichas ({users.length})</span>
+          </button>
 
-          <Button
-            variant={activeTab === 'game' ? 'primary' : 'ghost'}
-            size="sm"
+          <button
+            type="button"
             onClick={() => setActiveTab('game')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              activeTab === 'game'
+                ? 'bg-foreground text-background font-semibold shadow-xs'
+                : 'text-foreground-muted hover:text-foreground'
+            }`}
           >
             <Gamepad2 className="w-3.5 h-3.5" />
             <span>Inspección de Partida</span>
-          </Button>
+          </button>
         </div>
 
         {/* ============================================================== */}
@@ -349,17 +401,17 @@ export default function AdminPage() {
         {activeTab === 'logs' && (
           <div className="space-y-4">
             {/* Filters Bar */}
-            <div className="p-3 rounded-[var(--radius)] bg-surface border border-border flex flex-wrap items-center justify-between gap-3">
+            <div className="p-3 rounded-xl bg-surface border border-border/70 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
-                <div className="relative flex-1 min-w-[180px]">
+                <div className="relative flex-1 min-w-[200px]">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && fetchLogs(1)}
-                    placeholder="Buscar por usuario, IP, detalle..."
-                    className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl bg-surface-raised border border-border text-base sm:text-xs text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-border-focus"
+                    placeholder="Buscar por usuario, IP, motivo..."
+                    className="w-full h-9 pl-9 pr-3 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground placeholder:text-foreground-subtle focus:outline-none focus:ring-1 focus:ring-accent"
                   />
                 </div>
 
@@ -371,11 +423,11 @@ export default function AdminPage() {
                       setEventTypeFilter(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full sm:w-auto min-h-[44px] px-3 py-2 rounded-[var(--radius)] bg-surface-raised border border-border text-base sm:text-xs text-foreground focus:outline-none focus:border-border-focus"
+                    className="w-full sm:w-auto h-9 px-3 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
                   >
                     <option value="">Todos los eventos</option>
                     <option value="user_register">Registro de usuario</option>
-                    <option value="user_login_success">Inicio de sesión OK</option>
+                    <option value="user_login_success">Inicio de sesión</option>
                     <option value="room_created">Creación de sala</option>
                     <option value="room_joined">Entrada a sala</option>
                     <option value="game_started">Inicio de partida</option>
@@ -391,6 +443,7 @@ export default function AdminPage() {
                 <Button
                   variant="secondary"
                   size="sm"
+                  className="rounded-lg h-9 text-xs"
                   onClick={() => fetchLogs(1)}
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${logsLoading ? 'animate-spin' : ''}`} />
@@ -398,16 +451,16 @@ export default function AdminPage() {
                 </Button>
               </div>
 
-              <div className="text-xs text-foreground-subtle">
+              <div className="text-xs text-foreground-subtle font-mono">
                 Página {page} de {totalPages}
               </div>
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto rounded-[var(--radius)] border border-border bg-surface">
+            <div className="overflow-x-auto rounded-xl border border-border/70 bg-surface">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-border bg-surface-raised text-foreground-muted font-medium">
+                  <tr className="border-b border-border/70 bg-surface-raised text-foreground-muted font-medium">
                     <th className="py-2.5 px-3">Fecha y Hora</th>
                     <th className="py-2.5 px-3">Tipo de Evento</th>
                     <th className="py-2.5 px-3">Usuario</th>
@@ -417,7 +470,7 @@ export default function AdminPage() {
                     <th className="py-2.5 px-3 text-right">Acción</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-subtle">
+                <tbody className="divide-y divide-border/40">
                   {logs.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-8 text-center text-foreground-subtle">
@@ -439,8 +492,8 @@ export default function AdminPage() {
                       const isTurn = log.event_type === 'turn_executed';
 
                       return (
-                        <tr key={log.id} className="hover:bg-surface-raised transition-colors">
-                          <td className="py-2.5 px-3 text-foreground-muted whitespace-nowrap text-[11px]">
+                        <tr key={log.id} className="hover:bg-surface-raised/60 transition-colors">
+                          <td className="py-2.5 px-3 text-foreground-muted whitespace-nowrap text-[11px] font-mono">
                             {dateStr}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
@@ -459,7 +512,7 @@ export default function AdminPage() {
                               {log.event_type}
                             </Badge>
                           </td>
-                          <td className="py-2.5 px-3 text-foreground font-semibold">
+                          <td className="py-2.5 px-3 text-foreground font-semibold font-mono">
                             {log.username ? `@${log.username}` : '—'}
                           </td>
                           <td className="py-2.5 px-3 text-foreground-muted font-mono text-[11px]">
@@ -478,13 +531,14 @@ export default function AdminPage() {
                           <td className="py-2.5 px-3 text-foreground-subtle font-mono text-[11px]">
                             {log.ip_address || '127.0.0.1'}
                           </td>
-                          <td className="py-2.5 px-3 text-foreground-muted max-w-xs truncate text-[11px]">
+                          <td className="py-2.5 px-3 text-foreground-muted max-w-xs truncate text-[11px] font-mono">
                             {JSON.stringify(log.details)}
                           </td>
                           <td className="py-2.5 px-3 text-right">
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-7 text-xs"
                               onClick={() => setSelectedLog(log)}
                             >
                               Inspeccionar
@@ -499,26 +553,28 @@ export default function AdminPage() {
             </div>
 
             {/* Pagination Controls */}
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs text-foreground-subtle">
+            <div className="flex items-center justify-between pt-2 text-xs">
+              <span className="text-foreground-subtle">
                 Mostrando {logs.length} de {totalLogs} registros totales
               </span>
               <div className="flex items-center gap-2">
                 <Button
                   variant="secondary"
                   size="sm"
+                  className="rounded-lg h-8"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                   <span>Anterior</span>
                 </Button>
-                <span className="text-xs text-foreground-muted px-2">
+                <span className="text-foreground-muted px-2 font-mono">
                   {page} / {totalPages}
                 </span>
                 <Button
                   variant="secondary"
                   size="sm"
+                  className="rounded-lg h-8"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
@@ -537,11 +593,12 @@ export default function AdminPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">
-                Cuentas de Usuarios ({users.length})
+                Listado Oficial de Alumnos ({users.length})
               </h2>
               <Button
                 variant="secondary"
                 size="sm"
+                className="rounded-lg h-8"
                 onClick={fetchUsers}
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${usersLoading ? 'animate-spin' : ''}`} />
@@ -549,12 +606,12 @@ export default function AdminPage() {
               </Button>
             </div>
 
-            <div className="overflow-x-auto rounded-[var(--radius)] border border-border bg-surface">
+            <div className="overflow-x-auto rounded-xl border border-border/70 bg-surface">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-border bg-surface-raised text-foreground-muted font-medium">
+                  <tr className="border-b border-border/70 bg-surface-raised text-foreground-muted font-medium">
                     <th className="py-2.5 px-3">Usuario</th>
-                    <th className="py-2.5 px-3">Identificación (Nombre / Nº)</th>
+                    <th className="py-2.5 px-3">Identificación Oficial</th>
                     <th className="py-2.5 px-3">Rol</th>
                     <th className="py-2.5 px-3">Saldo Fichas</th>
                     <th className="py-2.5 px-3">Partidas (G / J)</th>
@@ -562,23 +619,23 @@ export default function AdminPage() {
                     <th className="py-2.5 px-3 text-right">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-subtle">
+                <tbody className="divide-y divide-border/40">
                   {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-surface-raised transition-colors">
+                    <tr key={u.id} className="hover:bg-surface-raised/60 transition-colors">
                       <td className="py-2.5 px-3">
-                        <div className="font-semibold text-foreground">@{u.username}</div>
-                        <div className="text-[10px] text-foreground-subtle font-mono">{u.email || u.id}</div>
+                        <div className="font-semibold text-foreground font-mono">@{u.username}</div>
+                        <div className="text-[10px] text-foreground-subtle font-mono truncate max-w-[160px]">{u.email || u.id}</div>
                       </td>
                       <td className="py-2.5 px-3">
                         {u.full_name ? (
                           <div>
                             <div className="font-medium text-foreground text-xs">{u.full_name}</div>
                             <div className="text-[10px] text-accent font-mono font-semibold">
-                              Nº {u.student_number || 'S/N'}
+                              NIA {u.student_number || 'S/N'}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-foreground-subtle text-xs italic">Pendiente</span>
+                          <span className="text-foreground-subtle text-xs italic">Sin registrar</span>
                         )}
                       </td>
                       <td className="py-2.5 px-3">
@@ -586,23 +643,27 @@ export default function AdminPage() {
                           {u.role}
                         </Badge>
                       </td>
-                      <td className="py-2.5 px-3 font-semibold text-accent">
+                      <td className="py-2.5 px-3 font-semibold font-mono text-amber-500 tabular-nums">
                         {u.coins.toLocaleString('es-ES')}
                       </td>
-                      <td className="py-2.5 px-3 text-foreground-muted">
+                      <td className="py-2.5 px-3 text-foreground-muted font-mono">
                         {u.games_won} / {u.games_played}
                       </td>
                       <td className="py-2.5 px-3">
                         {u.is_banned ? (
                           <Badge variant="danger" size="sm">Suspendido</Badge>
                         ) : (
-                          <Badge variant="default" size="sm">Activo</Badge>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            <span>Activo</span>
+                          </span>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-right space-x-2">
+                      <td className="py-2.5 px-3 text-right space-x-1.5">
                         <Button
                           variant="secondary"
                           size="sm"
+                          className="h-7 text-xs rounded-lg"
                           onClick={() => setAdjustModalUser(u)}
                         >
                           Ajustar
@@ -610,6 +671,7 @@ export default function AdminPage() {
                         <Button
                           variant={u.is_banned ? 'secondary' : 'danger'}
                           size="sm"
+                          className="h-7 text-xs rounded-lg"
                           onClick={() => handleToggleBan(u)}
                         >
                           {u.is_banned ? 'Reactivar' : 'Suspender'}
@@ -622,14 +684,14 @@ export default function AdminPage() {
             </div>
 
             {/* Zona de Mantenimiento / Reinicio General de Temporada */}
-            <div className="p-4 rounded-2xl bg-red-950/20 border border-red-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="p-4 rounded-xl bg-surface border border-border/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h4 className="text-xs font-bold font-mono text-red-300 flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-red-400" />
-                  <span>Reinicio Total de la Base de Datos (Nueva Temporada)</span>
+                <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  <span>Reinicio Total de Temporada</span>
                 </h4>
                 <p className="text-xs text-foreground-muted mt-0.5">
-                  Restablece a 1.000 monedas el saldo de todos los alumnos de la clase, vacía el chat y limpia las partidas para empezar una nueva competición.
+                  Restablece a 1.000 monedas a todos los alumnos de la clase, limpia el chat y las partidas para iniciar una nueva temporada.
                 </p>
               </div>
 
@@ -638,9 +700,9 @@ export default function AdminPage() {
                 size="sm"
                 disabled={isResettingDb}
                 onClick={handleResetDatabase}
-                className="shrink-0"
+                className="shrink-0 rounded-xl"
               >
-                {isResettingDb ? 'Reiniciando...' : 'Reiniciar base de datos de todos'}
+                {isResettingDb ? 'Reiniciando...' : 'Reiniciar temporada'}
               </Button>
             </div>
           </div>
@@ -651,36 +713,37 @@ export default function AdminPage() {
         {/* ============================================================== */}
         {activeTab === 'game' && (
           <div className="space-y-4">
-            <div className="p-3 rounded-[var(--radius)] bg-surface border border-border flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-surface border border-border/70 flex items-center gap-3">
               <input
                 type="text"
                 value={gameIdInput}
                 onChange={(e) => setGameIdInput(e.target.value)}
                 placeholder="Pegar ID de la partida (UUID)..."
-                className="flex-1 px-3 py-1.5 rounded-[var(--radius)] bg-background border border-border text-xs text-foreground placeholder-foreground-subtle focus:outline-none focus:border-accent"
+                className="flex-1 h-9 px-3 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground font-mono placeholder:text-foreground-subtle focus:outline-none focus:ring-1 focus:ring-accent"
               />
               <Button
                 variant="primary"
                 size="sm"
+                className="h-9 rounded-lg"
                 onClick={() => handleFetchGameDetail()}
               >
-                {gameDetailLoading ? 'Buscando...' : 'Reconstruir Partida'}
+                {gameDetailLoading ? 'Buscando...' : 'Inspeccionar'}
               </Button>
             </div>
 
             {gameDetail ? (
-              <Card className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+              <Card className="space-y-4 p-5 rounded-xl border-border/70">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
                   <div>
-                    <h3 className="text-sm font-bold text-foreground">
+                    <h3 className="text-sm font-bold text-foreground font-mono">
                       Partida: {gameDetail.game?.id}
                     </h3>
-                    <p className="text-xs text-foreground-muted">
+                    <p className="text-xs text-foreground-muted mt-0.5">
                       Estado: <span className="text-accent font-semibold">{gameDetail.game?.status}</span> •
-                      Ganador: <span className="text-foreground font-semibold">@{gameDetail.game?.winner_username || 'N/A'}</span>
+                      Ganador: <span className="text-foreground font-semibold font-mono">@{gameDetail.game?.winner_username || 'N/A'}</span>
                     </p>
                   </div>
-                  <div className="px-3 py-1.5 rounded-[var(--radius)] bg-surface-raised border border-border text-xs text-foreground-muted">
+                  <div className="px-3 py-1.5 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground-muted font-mono">
                     Recámara con Descarga:{' '}
                     <span className="text-danger font-bold">#{gameDetail.game?.bullet_chamber}</span>
                   </div>
@@ -692,21 +755,21 @@ export default function AdminPage() {
                   </h4>
 
                   {gameDetail.turns && gameDetail.turns.length > 0 ? (
-                    <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
+                    <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border/70">
                       {gameDetail.turns.map((turn: any, i: number) => {
                         const isDischarge = turn.result === 'discharge' || turn.result === 'timeout';
                         return (
                           <div key={turn.id || i} className="relative flex items-start gap-3">
                             <div
-                              className={`absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 ${
+                              className={`absolute -left-6 top-1 w-3 h-3 rounded-full border-2 ${
                                 isDischarge
                                   ? 'bg-danger border-danger'
                                   : 'bg-accent border-accent'
                               }`}
                             />
-                            <div className="flex-1 p-3 rounded-[var(--radius)] bg-surface-raised border border-border space-y-1">
+                            <div className="flex-1 p-3 rounded-lg bg-surface-raised border border-border/70 space-y-1">
                               <div className="flex items-center justify-between">
-                                <span className="font-semibold text-foreground text-xs">
+                                <span className="font-semibold text-foreground text-xs font-mono">
                                   Paso #{i + 1} — @{turn.player_username}
                                 </span>
                                 <span className="text-[10px] text-foreground-subtle font-mono">
@@ -715,7 +778,7 @@ export default function AdminPage() {
                               </div>
                               <p className="text-xs text-foreground-muted">
                                 Recámara{' '}
-                                <span className="font-bold text-accent">#{turn.chamber_index}</span>:
+                                <span className="font-bold text-accent font-mono">#{turn.chamber_index}</span>:
                                 {isDischarge ? (
                                   <span className="text-danger font-bold ml-1">
                                     Descarga (Eliminado)
@@ -737,7 +800,7 @@ export default function AdminPage() {
                 </div>
               </Card>
             ) : (
-              <div className="p-8 text-center text-foreground-subtle rounded-[var(--radius)] border border-border bg-surface text-xs">
+              <div className="p-8 text-center text-foreground-subtle rounded-xl border border-border/70 bg-surface text-xs">
                 Introduce el identificador de una partida o selecciona una fila de logs para inspeccionarla.
               </div>
             )}
@@ -747,17 +810,17 @@ export default function AdminPage() {
 
       {/* Inspect Log Modal */}
       {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <Card className="max-w-lg w-full p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-bold text-sm text-foreground">Detalle de Auditoría</h3>
-              <Button
-                variant="ghost"
-                size="sm"
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <Card className="max-w-lg w-full p-5 space-y-4 rounded-2xl border-border/80 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border/70 pb-3">
+              <h3 className="font-bold text-sm text-foreground">Detalle del Evento de Auditoría</h3>
+              <button
+                type="button"
                 onClick={() => setSelectedLog(null)}
+                className="w-8 h-8 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-colors cursor-pointer"
               >
-                Cerrar
-              </Button>
+                <X className="w-4 h-4" />
+              </button>
             </div>
             <div className="space-y-2 text-xs font-mono">
               <div>
@@ -781,7 +844,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <span className="text-foreground-subtle block mb-1">Carga de Datos (JSON):</span>
-                <pre className="p-3 rounded-[var(--radius)] bg-surface-raised border border-border text-foreground font-mono overflow-x-auto text-[11px]">
+                <pre className="p-3 rounded-lg bg-surface-raised border border-border/70 text-foreground font-mono overflow-x-auto text-[11px]">
                   {JSON.stringify(selectedLog.details, null, 2)}
                 </pre>
               </div>
@@ -792,26 +855,39 @@ export default function AdminPage() {
 
       {/* Adjust Coins Modal */}
       {adjustModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <Card className="max-w-sm w-full p-5 space-y-4">
-            <h3 className="font-bold text-sm text-foreground">
-              Ajustar Fichas a @{adjustModalUser.username}
-            </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <Card className="max-w-sm w-full p-5 space-y-4 rounded-2xl border-border/80 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-foreground">
+                Ajustar Fichas · @{adjustModalUser.username}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAdjustModalUser(null)}
+                className="w-8 h-8 rounded-lg text-foreground-muted hover:text-foreground flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
             <p className="text-xs text-foreground-muted">
               Saldo actual:{' '}
-              <span className="text-accent font-bold">{adjustModalUser.coins}</span> fichas.
-              Introduce un valor positivo para ingresar o negativo para retirar:
+              <span className="text-amber-500 font-bold font-mono">{adjustModalUser.coins.toLocaleString('es-ES')}</span> fichas.
+              Introduce un valor positivo para ingresar o negativo para descontar:
             </p>
+
             <input
               type="number"
               value={adjustAmount}
               onChange={(e) => setAdjustAmount(e.target.value)}
-              className="w-full px-3 py-2 rounded-[var(--radius)] bg-background border border-border text-sm text-foreground font-mono focus:outline-none focus:border-accent"
+              className="w-full px-3 py-2 rounded-xl bg-surface-raised border border-border/70 text-sm text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-accent"
             />
+
             <div className="flex items-center justify-end gap-2 pt-2">
               <Button
                 variant="secondary"
                 size="sm"
+                className="rounded-xl"
                 onClick={() => setAdjustModalUser(null)}
               >
                 Cancelar
@@ -819,9 +895,10 @@ export default function AdminPage() {
               <Button
                 variant="primary"
                 size="sm"
+                className="rounded-xl"
                 onClick={handleAdjustCoins}
               >
-                Confirmar
+                Confirmar Ajuste
               </Button>
             </div>
           </Card>
