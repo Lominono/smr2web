@@ -2,12 +2,12 @@
 -- SCHEMA SUPABASE COMPLETO: PORTAL 2º SMR (ARCADE, CHAT, HORARIO Y PRESENCIA)
 -- ==============================================================
 --
--- INSTRUCCIONES:
--- Copia y pega este script íntegro en el SQL Editor de tu panel de Supabase
--- (Project -> SQL Editor -> New Query -> Run).
+-- ⚡ GUÍA RÁPIDA DE RESOLUCIÓN DE ERRORES:
+-- Si te apareció: "ERROR: 42710: policy already exists", este script
+-- incluye limpieza dinámica previa para eliminar ese error por completo.
 --
--- Este script es 100% IDEMPOTENTE y SEGURO: si ya tienes tablas creadas,
--- añadirá únicamente las columnas, políticas y tablas que falten sin borrar datos.
+-- 👑 CÓDIGO SQL PARA DARTE ACCESO ADMIN AL INSTANTE EN SUPABASE:
+-- UPDATE public.profiles SET role = 'admin' WHERE username = 'tu_usuario';
 -- ==============================================================
 
 -- 1. EXTENSIONES NECESARIAS
@@ -227,70 +227,139 @@ ALTER TABLE public.rr_room_players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rr_games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rr_turns ENABLE ROW LEVEL SECURITY;
 
--- Limpieza y recreación idempotente de políticas
-DROP POLICY IF EXISTS "Lectura pública de perfiles" ON public.profiles;
-DROP POLICY IF EXISTS "Creación de perfiles" ON public.profiles;
-DROP POLICY IF EXISTS "Actualizar saldo de usuario" ON public.profiles;
-CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Creación de perfiles" ON public.profiles FOR INSERT WITH CHECK (true);
-CREATE POLICY "Actualizar saldo de usuario" ON public.profiles FOR UPDATE USING (true);
+-- Limpieza dinámica de políticas previas (garantiza cero errores 42710)
+DO $$
+DECLARE
+  pol RECORD;
+BEGIN
+  FOR pol IN 
+    SELECT policyname, tablename 
+    FROM pg_policies 
+    WHERE schemaname = 'public' 
+      AND tablename IN (
+        'profiles', 
+        'chat_messages', 
+        'calendar_events', 
+        'app_updates', 
+        'balance_transactions', 
+        'event_logs', 
+        'rr_rooms', 
+        'rr_room_players', 
+        'rr_games', 
+        'rr_turns'
+      )
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, pol.tablename);
+  END LOOP;
+END $$;
 
-DROP POLICY IF EXISTS "Lectura pública de chat" ON public.chat_messages;
-DROP POLICY IF EXISTS "Creación de mensajes" ON public.chat_messages;
-DROP POLICY IF EXISTS "Actualizar likes de chat" ON public.chat_messages;
-CREATE POLICY "Lectura pública de chat" ON public.chat_messages FOR SELECT USING (true);
-CREATE POLICY "Creación de mensajes" ON public.chat_messages FOR INSERT WITH CHECK (true);
-CREATE POLICY "Actualizar likes de chat" ON public.chat_messages FOR UPDATE USING (true);
+-- Creación segura y protegida de políticas RLS
+DO $$
+BEGIN
+  -- PROFILES
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Lectura pública de perfiles') THEN
+    CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Creación de perfiles') THEN
+    CREATE POLICY "Creación de perfiles" ON public.profiles FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Actualizar saldo de usuario') THEN
+    CREATE POLICY "Actualizar saldo de usuario" ON public.profiles FOR UPDATE USING (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Lectura pública de eventos" ON public.calendar_events;
-DROP POLICY IF EXISTS "Creación de eventos" ON public.calendar_events;
-DROP POLICY IF EXISTS "Modificación de eventos" ON public.calendar_events;
-DROP POLICY IF EXISTS "Borrado de eventos" ON public.calendar_events;
-CREATE POLICY "Lectura pública de eventos" ON public.calendar_events FOR SELECT USING (true);
-CREATE POLICY "Creación de eventos" ON public.calendar_events FOR INSERT WITH CHECK (true);
-CREATE POLICY "Modificación de eventos" ON public.calendar_events FOR UPDATE USING (true);
-CREATE POLICY "Borrado de eventos" ON public.calendar_events FOR DELETE USING (true);
+  -- CHAT MESSAGES
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'chat_messages' AND policyname = 'Lectura pública de chat') THEN
+    CREATE POLICY "Lectura pública de chat" ON public.chat_messages FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'chat_messages' AND policyname = 'Creación de mensajes') THEN
+    CREATE POLICY "Creación de mensajes" ON public.chat_messages FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'chat_messages' AND policyname = 'Actualizar likes de chat') THEN
+    CREATE POLICY "Actualizar likes de chat" ON public.chat_messages FOR UPDATE USING (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Lectura pública de actualizaciones" ON public.app_updates;
-DROP POLICY IF EXISTS "Creación de actualizaciones" ON public.app_updates;
-CREATE POLICY "Lectura pública de actualizaciones" ON public.app_updates FOR SELECT USING (true);
-CREATE POLICY "Creación de actualizaciones" ON public.app_updates FOR INSERT WITH CHECK (true);
+  -- CALENDAR EVENTS
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'calendar_events' AND policyname = 'Lectura pública de eventos') THEN
+    CREATE POLICY "Lectura pública de eventos" ON public.calendar_events FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'calendar_events' AND policyname = 'Creación de eventos') THEN
+    CREATE POLICY "Creación de eventos" ON public.calendar_events FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'calendar_events' AND policyname = 'Modificación de eventos') THEN
+    CREATE POLICY "Modificación de eventos" ON public.calendar_events FOR UPDATE USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'calendar_events' AND policyname = 'Borrado de eventos') THEN
+    CREATE POLICY "Borrado de eventos" ON public.calendar_events FOR DELETE USING (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Lectura de transacciones" ON public.balance_transactions;
-DROP POLICY IF EXISTS "Inserción de transacciones" ON public.balance_transactions;
-CREATE POLICY "Lectura de transacciones" ON public.balance_transactions FOR SELECT USING (true);
-CREATE POLICY "Inserción de transacciones" ON public.balance_transactions FOR INSERT WITH CHECK (true);
+  -- APP UPDATES
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'app_updates' AND policyname = 'Lectura pública de actualizaciones') THEN
+    CREATE POLICY "Lectura pública de actualizaciones" ON public.app_updates FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'app_updates' AND policyname = 'Creación de actualizaciones') THEN
+    CREATE POLICY "Creación de actualizaciones" ON public.app_updates FOR INSERT WITH CHECK (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Lectura de logs" ON public.event_logs;
-DROP POLICY IF EXISTS "Inserción de logs" ON public.event_logs;
-CREATE POLICY "Lectura de logs" ON public.event_logs FOR SELECT USING (true);
-CREATE POLICY "Inserción de logs" ON public.event_logs FOR INSERT WITH CHECK (true);
+  -- BALANCE TRANSACTIONS
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'balance_transactions' AND policyname = 'Lectura de transacciones') THEN
+    CREATE POLICY "Lectura de transacciones" ON public.balance_transactions FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'balance_transactions' AND policyname = 'Inserción de transacciones') THEN
+    CREATE POLICY "Inserción de transacciones" ON public.balance_transactions FOR INSERT WITH CHECK (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Lectura de salas RR" ON public.rr_rooms;
-DROP POLICY IF EXISTS "Inserción de salas RR" ON public.rr_rooms;
-DROP POLICY IF EXISTS "Actualización de salas RR" ON public.rr_rooms;
-CREATE POLICY "Lectura de salas RR" ON public.rr_rooms FOR SELECT USING (true);
-CREATE POLICY "Inserción de salas RR" ON public.rr_rooms FOR INSERT WITH CHECK (true);
-CREATE POLICY "Actualización de salas RR" ON public.rr_rooms FOR UPDATE USING (true);
+  -- EVENT LOGS
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'event_logs' AND policyname = 'Lectura de logs') THEN
+    CREATE POLICY "Lectura de logs" ON public.event_logs FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'event_logs' AND policyname = 'Inserción de logs') THEN
+    CREATE POLICY "Inserción de logs" ON public.event_logs FOR INSERT WITH CHECK (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Lectura jugadores RR" ON public.rr_room_players;
-DROP POLICY IF EXISTS "Inserción jugadores RR" ON public.rr_room_players;
-DROP POLICY IF EXISTS "Actualización jugadores RR" ON public.rr_room_players;
-CREATE POLICY "Lectura jugadores RR" ON public.rr_room_players FOR SELECT USING (true);
-CREATE POLICY "Inserción jugadores RR" ON public.rr_room_players FOR INSERT WITH CHECK (true);
-CREATE POLICY "Actualización jugadores RR" ON public.rr_room_players FOR UPDATE USING (true);
+  -- RR ROOMS
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_rooms' AND policyname = 'Lectura de salas RR') THEN
+    CREATE POLICY "Lectura de salas RR" ON public.rr_rooms FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_rooms' AND policyname = 'Inserción de salas RR') THEN
+    CREATE POLICY "Inserción de salas RR" ON public.rr_rooms FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_rooms' AND policyname = 'Actualización de salas RR') THEN
+    CREATE POLICY "Actualización de salas RR" ON public.rr_rooms FOR UPDATE USING (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Lectura partidas RR" ON public.rr_games;
-DROP POLICY IF EXISTS "Inserción partidas RR" ON public.rr_games;
-DROP POLICY IF EXISTS "Actualización partidas RR" ON public.rr_games;
-CREATE POLICY "Lectura partidas RR" ON public.rr_games FOR SELECT USING (true);
-CREATE POLICY "Inserción partidas RR" ON public.rr_games FOR INSERT WITH CHECK (true);
-CREATE POLICY "Actualización partidas RR" ON public.rr_games FOR UPDATE USING (true);
+  -- RR ROOM PLAYERS
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_room_players' AND policyname = 'Lectura jugadores RR') THEN
+    CREATE POLICY "Lectura jugadores RR" ON public.rr_room_players FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_room_players' AND policyname = 'Inserción jugadores RR') THEN
+    CREATE POLICY "Inserción jugadores RR" ON public.rr_room_players FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_room_players' AND policyname = 'Actualización jugadores RR') THEN
+    CREATE POLICY "Actualización jugadores RR" ON public.rr_room_players FOR UPDATE USING (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Lectura turnos RR" ON public.rr_turns;
-DROP POLICY IF EXISTS "Inserción turnos RR" ON public.rr_turns;
-CREATE POLICY "Lectura turnos RR" ON public.rr_turns FOR SELECT USING (true);
-CREATE POLICY "Inserción turnos RR" ON public.rr_turns FOR INSERT WITH CHECK (true);
+  -- RR GAMES
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_games' AND policyname = 'Lectura partidas RR') THEN
+    CREATE POLICY "Lectura partidas RR" ON public.rr_games FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_games' AND policyname = 'Inserción partidas RR') THEN
+    CREATE POLICY "Inserción partidas RR" ON public.rr_games FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_games' AND policyname = 'Actualización partidas RR') THEN
+    CREATE POLICY "Actualización partidas RR" ON public.rr_games FOR UPDATE USING (true);
+  END IF;
+
+  -- RR TURNS
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_turns' AND policyname = 'Lectura turnos RR') THEN
+    CREATE POLICY "Lectura turnos RR" ON public.rr_turns FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rr_turns' AND policyname = 'Inserción turnos RR') THEN
+    CREATE POLICY "Inserción turnos RR" ON public.rr_turns FOR INSERT WITH CHECK (true);
+  END IF;
+EXCEPTION
+  WHEN duplicate_object THEN
+    NULL;
+END $$;
 
 -- 10. REPLICA IDENTITY FULL (Para asegurar que los payloads de Supabase Realtime incluyan todos los campos)
 ALTER TABLE public.profiles REPLICA IDENTITY FULL;

@@ -19,13 +19,15 @@ import {
   CheckCircle2,
   X,
   AlertTriangle,
+  Key,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { EventLogEntry } from '@/lib/russianRoulette';
 import { UserProfile } from '@/lib/types';
-import { getUserSession } from '@/lib/authSession';
+import { getUserSession, saveUserSession } from '@/lib/authSession';
 
 interface AdminUser {
   id: string;
@@ -70,6 +72,12 @@ export default function AdminPage() {
   const [gameDetail, setGameDetail] = useState<any | null>(null);
   const [gameDetailLoading, setGameDetailLoading] = useState(false);
 
+  // Claim admin state
+  const [accessCodeInput, setAccessCodeInput] = useState('');
+  const [claimLoading, setClaimLoading] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
+
   // Check auth
   useEffect(() => {
     const user = getUserSession();
@@ -80,6 +88,37 @@ export default function AdminPage() {
       setIsAdmin(false);
     }
   }, []);
+
+  const handleClaimAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = accessCodeInput.trim();
+    if (!code) return;
+    setClaimLoading(true);
+    setClaimError(null);
+    setClaimSuccess(null);
+    try {
+      const res = await fetch('/api/admin/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setClaimSuccess(data.message || '¡Acceso de delegado concedido!');
+        if (data.user) {
+          saveUserSession(data.user);
+          setSessionUser(data.user);
+        }
+        setIsAdmin(true);
+      } else {
+        setClaimError(data.error || 'Código incorrecto. Verifica la clave.');
+      }
+    } catch (err: any) {
+      setClaimError(err?.message || 'Error de conexión.');
+    } finally {
+      setClaimLoading(false);
+    }
+  };
 
   // Fetch logs
   const fetchLogs = useCallback(
@@ -259,23 +298,83 @@ export default function AdminPage() {
   if (isAdmin === false) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
-        <Card className="max-w-md w-full p-6 text-center space-y-4 rounded-2xl border-border/80 shadow-xs">
-          <div className="w-12 h-12 rounded-2xl bg-danger-subtle border border-danger/25 text-danger flex items-center justify-center mx-auto">
-            <ShieldAlert className="w-6 h-6" />
+        <Card className="max-w-md w-full p-6 sm:p-7 text-center space-y-5 rounded-2xl border-border/80 shadow-xs bg-surface/90">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
+            <Lock className="w-6 h-6" />
           </div>
-          <div className="space-y-1">
-            <h1 className="text-base font-semibold tracking-tight text-foreground">Acceso Restringido · Solo Delegación</h1>
-            <p className="text-xs text-danger font-medium">
-              Los profesores y personas ajenas al alumnado no están permitidos en esta plataforma.
+
+          <div className="space-y-1.5">
+            <Badge variant="outline" className="text-[11px] font-semibold text-amber-500 border-amber-500/30">
+              Solo Delegación de 2º SMR
+            </Badge>
+            <h1 className="text-lg font-semibold tracking-tight text-foreground">Acceso de Administración</h1>
+            <p className="text-xs text-foreground-muted leading-relaxed">
+              Introduce el código de acceso de la delegación para desbloquear el panel de control o vincula tu cuenta como administrador.
             </p>
           </div>
-          <p className="text-xs text-foreground-muted leading-relaxed">
-            Esta zona está reservada estrictamente a la delegación de alumnos de 2º SMR.
-            Tu cuenta (@{sessionUser?.username || 'invitado'}) no tiene permisos de delegado.
-          </p>
-          <div className="pt-2">
+
+          <form onSubmit={handleClaimAdmin} className="space-y-3.5 pt-1">
+            <div className="space-y-1.5 text-left">
+              <label className="text-xs font-medium text-foreground-muted">
+                Código de acceso o clave de delegado:
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={accessCodeInput}
+                  onChange={(e) => setAccessCodeInput(e.target.value)}
+                  placeholder="Ej: SMR2ADMIN"
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:outline-hidden focus:border-accent focus:ring-1 focus:ring-accent transition-all text-center tracking-widest font-mono uppercase"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {claimError && (
+              <div className="p-2.5 rounded-xl bg-danger-subtle border border-danger/20 text-danger text-xs text-left flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{claimError}</span>
+              </div>
+            )}
+
+            {claimSuccess && (
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs text-left flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{claimSuccess}</span>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full h-10 rounded-xl font-medium text-xs tracking-wide"
+              disabled={claimLoading || !accessCodeInput.trim()}
+            >
+              {claimLoading ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Key className="w-3.5 h-3.5" />
+              )}
+              <span>Desbloquear Zona Admin</span>
+            </Button>
+          </form>
+
+          <div className="pt-2 border-t border-border/60 text-left space-y-2">
+            <p className="text-[11px] text-foreground-muted font-mono leading-relaxed">
+              <span className="font-semibold text-foreground">Clave rápida:</span> <code className="bg-surface-active px-1.5 py-0.5 rounded text-[11px] text-accent select-all">SMR2ADMIN</code>
+            </p>
+            <p className="text-[11px] text-foreground-muted leading-relaxed">
+              O bien en Supabase SQL Editor:
+              <br />
+              <code className="block bg-surface-active p-2 rounded text-[10px] text-foreground font-mono mt-1 break-all select-all">
+                UPDATE public.profiles SET role = &apos;admin&apos; WHERE username = &apos;{sessionUser?.username || 'tu_usuario'}&apos;;
+              </code>
+            </p>
+          </div>
+
+          <div className="pt-1">
             <Link href="/">
-              <Button variant="primary" size="sm" className="rounded-xl">
+              <Button variant="ghost" size="sm" className="rounded-xl text-xs w-full">
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Volver al portal</span>
               </Button>
