@@ -1,18 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Sparkles, X, ChevronRight, AlertCircle } from 'lucide-react';
+import { RefreshCw, Sparkles, X, AlertCircle } from 'lucide-react';
 import { sound } from '@/lib/audio';
 import { createClient } from '@/lib/supabase/client';
 
 export const UpdateNotificationBanner: React.FC = () => {
-  const [initialVersion, setInitialVersion] = useState<string | null>(null);
-  const [newVersion, setNewVersion] = useState<string | null>(null);
+  const initialVersionRef = useRef<string | null>(null);
   const [hasUpdate, setHasUpdate] = useState(false);
+  const [updateDetails, setUpdateDetails] = useState<{ title?: string; description?: string; version?: string } | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
-  const checkedRef = useRef(false);
 
-  // Comprobar la versión del servidor contra la versión en ejecución del cliente
+  // Comprobar la versión del servidor contra la versión capturada al cargar la app
   const checkVersion = async () => {
     try {
       const res = await fetch(`/api/version?t=${Date.now()}`, {
@@ -20,30 +19,30 @@ export const UpdateNotificationBanner: React.FC = () => {
       });
       if (!res.ok) return;
       const data = await res.json();
-      const serverVersion = data.version || String(data.buildTimestamp);
+      const serverVersion = data.version || data.commitSha || String(data.serverBootTime);
 
-      if (!initialVersion) {
-        setInitialVersion(serverVersion);
-      } else if (initialVersion !== serverVersion) {
-        setNewVersion(serverVersion);
-        if (!hasUpdate) {
-          setHasUpdate(true);
-          sound.tap();
+      if (!initialVersionRef.current) {
+        initialVersionRef.current = serverVersion;
+      } else if (initialVersionRef.current !== serverVersion) {
+        setHasUpdate(true);
+        if (data.latestUpdate) {
+          setUpdateDetails(data.latestUpdate);
         }
+        sound.tap();
       }
     } catch {
-      // Ignorar errores de red puntuales
+      // Ignorar errores puntuales de red
     }
   };
 
   useEffect(() => {
-    // Comprobación inicial
+    // 1. Comprobación inicial inmediata
     checkVersion();
 
-    // Polling ligero cada 35 segundos
-    const interval = setInterval(checkVersion, 35000);
+    // 2. Comprobación recurrente ligera cada 30 segundos
+    const interval = setInterval(checkVersion, 30000);
 
-    // Comprobar cuando el usuario vuelve a enfocar la pestaña
+    // 3. Comprobación al volver a enfocar la pestaña del navegador
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         checkVersion();
@@ -52,17 +51,19 @@ export const UpdateNotificationBanner: React.FC = () => {
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', checkVersion);
 
-    // Escucha en tiempo real de Supabase por si se emite evento de actualización
+    // 4. Suscripción Realtime en Supabase a la tabla `app_updates`
     const supabase = createClient();
     let channel: any = null;
     if (supabase) {
       channel = supabase
-        .channel('app_updates_broadcast')
+        .channel('app_updates_broadcast_global')
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'app_updates' },
-          () => {
+          (payload) => {
+            const upd = payload.new as any;
             setHasUpdate(true);
+            setUpdateDetails(upd);
             sound.tap();
           }
         )
@@ -77,7 +78,7 @@ export const UpdateNotificationBanner: React.FC = () => {
         supabase.removeChannel(channel);
       }
     };
-  }, [initialVersion, hasUpdate]);
+  }, []);
 
   const handleReload = () => {
     sound.tap();
@@ -86,7 +87,7 @@ export const UpdateNotificationBanner: React.FC = () => {
 
   if (!hasUpdate) return null;
 
-  // Estado minimizado (Píldora flotante para no molestar si está en una partida)
+  // Estado minimizado (Píldora flotante para no molestar)
   if (isMinimized) {
     return (
       <div className="fixed top-3 right-3 sm:right-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -94,7 +95,7 @@ export const UpdateNotificationBanner: React.FC = () => {
           type="button"
           onClick={handleReload}
           className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-foreground text-background font-semibold text-xs shadow-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer border border-border"
-          title="Pulsa para aplicar la nueva versión"
+          title="Pulsa para aplicar la nueva versión de la web"
         >
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -104,7 +105,7 @@ export const UpdateNotificationBanner: React.FC = () => {
     );
   }
 
-  // Estado completo (Banner prominente estilo Apple con aviso claro)
+  // Estado completo (Banner prominente estilo Apple / Linear con aviso claro)
   return (
     <div
       role="alert"
@@ -120,14 +121,15 @@ export const UpdateNotificationBanner: React.FC = () => {
           <div className="space-y-0.5 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-accent/20 text-accent border border-accent/30">
-                Nueva Actualización
+                {updateDetails?.title || 'Nueva Actualización'}
               </span>
               <span className="text-[11px] text-foreground-muted font-mono hidden sm:inline">
                 SMR2 Web
               </span>
             </div>
             <p className="text-xs text-foreground font-medium leading-snug">
-              Hay cambios y mejoras recién desplegados. Reinicia para sincronizar la web y evitar desajustes.
+              {updateDetails?.description ||
+                'Hay cambios y mejoras recién desplegados en el portal. Reinicia para sincronizar la web.'}
             </p>
           </div>
         </div>

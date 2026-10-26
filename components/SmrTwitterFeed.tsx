@@ -18,6 +18,7 @@ import {
   Sparkles,
   RotateCcw,
   BookOpen,
+  ArrowUp,
 } from 'lucide-react';
 import { ChatMessage, UserProfile } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
@@ -113,10 +114,29 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   const [isPosting, setIsPosting] = useState(false);
   const [tipSuccessId, setTipSuccessId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [hasNewMessagesAbove, setHasNewMessagesAbove] = useState(false);
 
+  const prevCountRef = useRef(messages.length);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const localTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalComposerRef || localTextareaRef;
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Detect when new messages arrive while user is scrolled down
+  useEffect(() => {
+    if (messages.length > prevCountRef.current) {
+      if (typeof window !== 'undefined' && window.scrollY > 300) {
+        setHasNewMessagesAbove(true);
+      }
+    }
+    prevCountRef.current = messages.length;
+  }, [messages.length]);
+
+  const scrollToTop = () => {
+    sound.tap();
+    setHasNewMessagesAbove(false);
+    containerRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   // Auto-resize textarea smoothly
   useEffect(() => {
@@ -390,6 +410,25 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             return <React.Fragment key={i}>{word}</React.Fragment>;
           })}
         </p>
+
+        {/* Previsualización limpia si el mensaje incluye enlace directo a imagen */}
+        {words
+          .filter((w) => /^https?:\/\/.*\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(w))
+          .slice(0, 1)
+          .map((imgUrl, idx) => (
+            <div
+              key={idx}
+              className="mt-2 rounded-xl overflow-hidden border border-border/80 max-h-72 max-w-md bg-surface-raised"
+            >
+              <img
+                src={imgUrl}
+                alt="Imagen adjunta en la publicación"
+                loading="lazy"
+                className="w-full h-full object-contain rounded-xl hover:opacity-95 transition-opacity cursor-pointer"
+                onClick={() => window.open(imgUrl, '_blank')}
+              />
+            </div>
+          ))}
       </div>
     );
   };
@@ -398,7 +437,21 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   const isNearLimit = charCount > 240;
 
   return (
-    <div className="w-full flex flex-col rounded-2xl border border-border/70 bg-surface shadow-2xs">
+    <div ref={containerRef} className="relative w-full flex flex-col rounded-2xl border border-border/70 bg-surface shadow-2xs">
+      {/* Píldora flotante cuando llegan nuevos mensajes mientras se hace scroll */}
+      {hasNewMessagesAbove && (
+        <div className="sticky top-28 z-30 flex justify-center w-full pointer-events-none -mb-8">
+          <button
+            type="button"
+            onClick={scrollToTop}
+            className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-foreground text-background font-semibold text-xs shadow-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer animate-in fade-in slide-in-from-top-2 border border-border/60"
+          >
+            <ArrowUp className="w-3.5 h-3.5" />
+            <span>Nuevas publicaciones</span>
+          </button>
+        </div>
+      )}
+
       {/* 1. Header & Segmented Navigation */}
       <div className="sticky top-14 z-20 bg-surface/95 backdrop-blur-md rounded-t-2xl border-b border-border/70 transition-colors">
         {/* Main Title Row */}

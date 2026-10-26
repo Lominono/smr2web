@@ -6,54 +6,62 @@
 -- INSTRUCCIONES DE ACTUALIZACIÓN (SEGURO, IDEMPOTENTE Y SIN ERRORES):
 -- Copia y pega este bloque en el SQL Editor de tu panel de Supabase:
 --
--- 1. Añadir columnas de likes y etiquetas al feed de mensajes si no existen:
--- ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0;
--- ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS tag TEXT;
--- CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON public.chat_messages (created_at DESC);
--- CREATE INDEX IF NOT EXISTS idx_chat_messages_tag ON public.chat_messages (tag);
---
--- 2. Permitir actualizar likes en el feed (RLS UPDATE policy):
--- DROP POLICY IF EXISTS "Actualizar likes de chat" ON public.chat_messages;
--- CREATE POLICY "Actualizar likes de chat" ON public.chat_messages FOR UPDATE USING (true);
---
--- 3. Crear tabla de actualizaciones del sistema en tiempo real si no existe:
--- CREATE TABLE IF NOT EXISTS public.app_updates (
---   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
---   version TEXT NOT NULL,
---   title TEXT NOT NULL,
---   description TEXT,
---   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
--- );
---
--- 4. Habilitar RLS y políticas para app_updates:
--- ALTER TABLE public.app_updates ENABLE ROW LEVEL SECURITY;
--- DROP POLICY IF EXISTS "Lectura pública de actualizaciones" ON public.app_updates;
--- DROP POLICY IF EXISTS "Creación de actualizaciones" ON public.app_updates;
--- CREATE POLICY "Lectura pública de actualizaciones" ON public.app_updates FOR SELECT USING (true);
--- CREATE POLICY "Creación de actualizaciones" ON public.app_updates FOR INSERT WITH CHECK (true);
---
--- 5. Habilitar Replicación en Tiempo Real completa (Full Replica Identity):
--- ALTER TABLE public.profiles REPLICA IDENTITY FULL;
--- ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
--- ALTER TABLE public.calendar_events REPLICA IDENTITY FULL;
--- ALTER TABLE public.app_updates REPLICA IDENTITY FULL;
---
--- 6. Añadir tablas a la publicación de Supabase Realtime (con verificación previa para evitar error 42710):
--- DO $$
--- BEGIN
---   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'chat_messages') THEN
---     ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
---   END IF;
---   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'calendar_events') THEN
---     ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
---   END IF;
---   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'profiles') THEN
---     ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
---   END IF;
---   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'app_updates') THEN
---     ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates;
---   END IF;
--- END $$;
+-- 1. SOLUCIÓN AL RANKING (Permitir ver a todos los alumnos de la clase y no solo el propio):
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can only read own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Enable read access for all users" ON public.profiles;
+DROP POLICY IF EXISTS "Lectura pública de perfiles" ON public.profiles;
+CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
+
+-- 2. Añadir columnas de likes y etiquetas al feed de mensajes si no existen:
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0;
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS tag TEXT;
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON public.chat_messages (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_tag ON public.chat_messages (tag);
+
+-- 3. Permitir actualizar likes en el feed (RLS UPDATE policy):
+DROP POLICY IF EXISTS "Actualizar likes de chat" ON public.chat_messages;
+CREATE POLICY "Actualizar likes de chat" ON public.chat_messages FOR UPDATE USING (true);
+
+-- 4. Crear tabla de actualizaciones del sistema en tiempo real si no existe:
+CREATE TABLE IF NOT EXISTS public.app_updates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  version TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 5. Habilitar RLS y políticas para app_updates:
+ALTER TABLE public.app_updates ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Lectura pública de actualizaciones" ON public.app_updates;
+DROP POLICY IF EXISTS "Creación de actualizaciones" ON public.app_updates;
+CREATE POLICY "Lectura pública de actualizaciones" ON public.app_updates FOR SELECT USING (true);
+CREATE POLICY "Creación de actualizaciones" ON public.app_updates FOR INSERT WITH CHECK (true);
+
+-- 6. Habilitar Replicación en Tiempo Real completa (Full Replica Identity):
+ALTER TABLE public.profiles REPLICA IDENTITY FULL;
+ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
+ALTER TABLE public.calendar_events REPLICA IDENTITY FULL;
+ALTER TABLE public.app_updates REPLICA IDENTITY FULL;
+
+-- 7. Añadir tablas a la publicación de Supabase Realtime (con verificación previa para evitar error 42710):
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'chat_messages') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'calendar_events') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'profiles') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'app_updates') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates;
+  END IF;
+END $$;
 -- ==============================================================
 
 -- 1. TABLA DE PERFILES REALES DE USUARIOS (Vinculada a auth.users)

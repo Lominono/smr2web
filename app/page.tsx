@@ -239,7 +239,7 @@ export default function Home() {
           .order('coins', { ascending: false })
           .limit(100);
 
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
           data.forEach((p: any) => {
             entriesMap.set(p.username.toLowerCase(), {
               id: p.id,
@@ -257,6 +257,36 @@ export default function Home() {
       } catch (err) {
         console.warn('Error fetching leaderboard from Supabase:', err);
       }
+    }
+
+    // 2. Si la consulta directa devolvió solo al usuario actual o falló por políticas RLS en Supabase,
+    // consultar el endpoint autorizado del servidor para garantizar que aparezcan todos los alumnos
+    try {
+      const res = await fetch('/api/leaderboard', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.leaderboard)) {
+          json.leaderboard.forEach((p: LeaderboardEntry) => {
+            const key = p.username.toLowerCase();
+            const existing = entriesMap.get(key);
+            if (!existing) {
+              entriesMap.set(key, {
+                ...p,
+                is_current_user: activeUser ? (p.id === activeUser.id || key === activeUser.username.toLowerCase()) : false,
+              });
+            } else {
+              // Mantener el saldo más alto o actualizado
+              entriesMap.set(key, {
+                ...existing,
+                coins: Math.max(existing.coins, Number(p.coins ?? 0)),
+                biggest_win: Math.max(existing.biggest_win, Number(p.biggest_win ?? 0)),
+              });
+            }
+          });
+        }
+      }
+    } catch (apiErr) {
+      console.warn('Error fetching /api/leaderboard:', apiErr);
     }
 
     // 2. Incluir cuentas locales para que el ranking funcione siempre (online y offline)
@@ -422,6 +452,18 @@ export default function Home() {
                   : msg
               )
             );
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'chat_messages' },
+        (payload) => {
+          const oldMsg = payload.old as any;
+          if (oldMsg?.id) {
+            setChatMessages((prev) => prev.filter((m) => m.id !== oldMsg.id));
+          } else {
+            fetchMessages();
           }
         }
       )
