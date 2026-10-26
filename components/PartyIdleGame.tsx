@@ -339,7 +339,23 @@ export interface BotellonState {
   hangoverLevel?: number;
 }
 
-export const STORAGE_KEY_PREFIX = 'smr2_botellon_data_';
+export const STORAGE_KEY_PREFIX = 'smr2_botellon_s2_';
+
+export interface SpontaneousEvent {
+  id: 'altavoz' | 'chupito' | 'gasolinera';
+  title: string;
+  desc: string;
+  secondsLeft: number;
+  optionA: {
+    label: string;
+    sublabel: string;
+  };
+  optionB: {
+    label: string;
+    sublabel: string;
+  };
+  resultText?: string;
+}
 
 export const renderZoneIcon = (iconName: string) => {
   switch (iconName) {
@@ -461,6 +477,16 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [hangoverLevel, setHangoverLevel] = useState<number>(0);
   const [waterCooldown, setWaterCooldown] = useState<number>(0);
 
+  // Sucesos espontáneos de colegas de fiesta
+  const [spontaneousEvent, setSpontaneousEvent] = useState<SpontaneousEvent | null>(null);
+  const [eventCooldown, setEventCooldown] = useState<number>(35);
+  const [discountActiveUntil, setDiscountActiveUntil] = useState<number>(0);
+
+  // Minijuego 2: El Vaso Misterioso (Ruleta de Chupitos)
+  const [glassCooldown, setGlassCooldown] = useState<number>(0);
+  const [glassResult, setGlassResult] = useState<{ type: string; text: string } | null>(null);
+  const [isSelectingGlass, setIsSelectingGlass] = useState<boolean>(false);
+
   // Zona actual y multiplicador de zona
   const activeZone = useMemo(() => {
     return ZONES.find((z) => z.id === currentZoneId) || ZONES[0];
@@ -475,13 +501,14 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   // Multiplicador de prestigio After
   const prestigeMultiplier = 1 + afterPrestigeCount * 0.5;
 
-  // Multiplicadores por perks
+  // Multiplicadores por perks y descuentos temporales
   const hasPerk = useCallback(
     (id: string) => purchasedPerks.includes(id),
     [purchasedPerks]
   );
 
-  const costDiscount = hasPerk('descuento_chino') ? 0.85 : 1.0;
+  const isFlashDiscount = Date.now() < discountActiveUntil;
+  const costDiscount = (hasPerk('descuento_chino') ? 0.85 : 1.0) * (isFlashDiscount ? 0.70 : 1.0);
   const drinkPowerMult = hasPerk('aguante_hierro') ? 3.0 : 1.0;
   const rankBonusMult = 1 + currentRank.bonusPercent / 100;
 
@@ -500,10 +527,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     return rawRate * activeZone.multiplier * rankBonusMult;
   }, [levels, activeZone.multiplier, rankBonusMult]);
 
-  // Tasa real con multiplicadores aplicados (Prestigio + Modo Fiesta Loca - Resaca - Redada)
+  // Tasa real con multiplicadores aplicados (Prestigio + Modo Fiesta Loca x3 - Resaca - Redada)
   const effectiveRatePerSecond = useMemo(() => {
     if (isProductionFrozen) return 0;
-    const frenzyMult = isCrazyParty ? 2 : 1;
+    const frenzyMult = isCrazyParty ? 3 : 1;
     const hangoverMult = isHungover ? 0.35 : 1.0;
     return baseRatePerSecond * prestigeMultiplier * frenzyMult * hangoverMult;
   }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, isProductionFrozen, isHungover]);
@@ -717,6 +744,198 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     return () => clearInterval(cooldownTimer);
   }, [waterCooldown]);
 
+  // Cooldown del minijuego del Vaso Misterioso
+  useEffect(() => {
+    if (glassCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setGlassCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [glassCooldown]);
+
+  // Temporizador para sucesos espontáneos entre colegas
+  useEffect(() => {
+    const eventInterval = setInterval(() => {
+      if (spontaneousEvent || policeAlert || pendingVault < 35) return;
+
+      setEventCooldown((prev) => {
+        if (prev <= 1) {
+          triggerRandomSpontaneousEvent();
+          return 50 + Math.floor(Math.random() * 30);
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(eventInterval);
+  }, [spontaneousEvent, policeAlert, pendingVault]);
+
+  // Cuenta atrás del suceso espontáneo activo (12s para responder)
+  useEffect(() => {
+    if (!spontaneousEvent || spontaneousEvent.secondsLeft <= 0 || spontaneousEvent.resultText) return;
+
+    const timer = setInterval(() => {
+      setSpontaneousEvent((prev) => {
+        if (!prev) return null;
+        if (prev.secondsLeft <= 1) {
+          return null; // Expira el evento sin consecuencias
+        }
+        return { ...prev, secondsLeft: prev.secondsLeft - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [spontaneousEvent?.secondsLeft, spontaneousEvent?.resultText]);
+
+  // Cierre automático del resultado de suceso espontáneo
+  useEffect(() => {
+    if (spontaneousEvent?.resultText) {
+      const t = setTimeout(() => {
+        setSpontaneousEvent(null);
+      }, 3500);
+      return () => clearTimeout(t);
+    }
+  }, [spontaneousEvent?.resultText]);
+
+  // Lanzar un suceso espontáneo de fiesta aleatorio
+  const triggerRandomSpontaneousEvent = () => {
+    const eventTypes: Array<'altavoz' | 'chupito' | 'gasolinera'> = ['altavoz', 'chupito', 'gasolinera'];
+    const choice = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+
+    sound.whoosh();
+    if (choice === 'altavoz') {
+      setSpontaneousEvent({
+        id: 'altavoz',
+        title: '¡David saca el altavoz JBL!',
+        desc: 'Aparece en el banco del parque con la batería a tope y va a poner reguetón antiguo de 2012 para motivar a la peña.',
+        secondsLeft: 12,
+        optionA: {
+          label: '¡Que retumbe el parque!',
+          sublabel: '+70 fichas y combo directo',
+        },
+        optionB: {
+          label: 'Baja un poco los graves',
+          sublabel: '+25 fichas seguras',
+        },
+      });
+    } else if (choice === 'chupito') {
+      setSpontaneousEvent({
+        id: 'chupito',
+        title: '¡Ronda de chupito sorpresa!',
+        desc: 'Un colega saca un vaso de plástico con una mezcla misteriosa. "O te lo bebes de un trago o eres un rajado".',
+        secondsLeft: 12,
+        optionA: {
+          label: 'De un trago (A lo loco)',
+          sublabel: '60% ganar +140 fichas / 40% resaca',
+        },
+        optionB: {
+          label: 'Paso, dame agua fresca',
+          sublabel: '-20% de resaca gratis',
+        },
+      });
+    } else {
+      setSpontaneousEvent({
+        id: 'gasolinera',
+        title: '¡Falta hielo en la nevera!',
+        desc: 'Los chavales van a la tienda 24h a pillar hielos y vasos de plástico antes de que cierren.',
+        secondsLeft: 12,
+        optionA: {
+          label: 'Poner para el escote',
+          sublabel: '30% descuento en suministros (45s)',
+        },
+        optionB: {
+          label: 'Yo ya tengo mi vaso lleno',
+          sublabel: 'Seguir farmeando tranquilo',
+        },
+      });
+    }
+  };
+
+  const handleResolveEventOption = (option: 'A' | 'B') => {
+    if (!spontaneousEvent) return;
+
+    if (spontaneousEvent.id === 'altavoz') {
+      if (option === 'A') {
+        sound.toastClink();
+        confetti({ particleCount: 50, spread: 60 });
+        setPendingVault((v) => v + 70);
+        setPartyComboCount((c) => Math.min(10, c + 5));
+        setSpontaneousEvent((prev) => prev ? { ...prev, resultText: '¡El parque se viene arriba! Toda la peña bailando (+70 fichas al bote).' } : null);
+      } else {
+        sound.tap();
+        setPendingVault((v) => v + 25);
+        setSpontaneousEvent((prev) => prev ? { ...prev, resultText: 'Música tranquila de fondo. Ningún vecino se ha quejado (+25 fichas).' } : null);
+      }
+    } else if (spontaneousEvent.id === 'chupito') {
+      if (option === 'A') {
+        if (Math.random() < 0.6) {
+          sound.coinWin();
+          confetti({ particleCount: 80, spread: 70 });
+          setPendingVault((v) => v + 140);
+          setSpontaneousEvent((prev) => prev ? { ...prev, resultText: '¡Menudo trago te has pegado! Licor del bueno (+140 fichas al bote).' } : null);
+        } else {
+          sound.broke();
+          setHangoverLevel((h) => Math.min(100, h + 30));
+          setSpontaneousEvent((prev) => prev ? { ...prev, resultText: '¡Ufff, era garrafón puro! Te ha subido 30% la resaca.' } : null);
+        }
+      } else {
+        sound.toastClink();
+        setHangoverLevel((h) => Math.max(0, h - 20));
+        setSpontaneousEvent((prev) => prev ? { ...prev, resultText: 'Trago largo de agua fresca. -20% de resaca.' } : null);
+      }
+    } else if (spontaneousEvent.id === 'gasolinera') {
+      if (option === 'A') {
+        sound.coinWin();
+        setDiscountActiveUntil(Date.now() + 45000);
+        setSpontaneousEvent((prev) => prev ? { ...prev, resultText: '¡Hielo y vasos conseguidos! 30% de descuento activo durante 45 segundos.' } : null);
+      } else {
+        sound.tap();
+        setSpontaneousEvent((prev) => prev ? { ...prev, resultText: 'Te quedas en el banco vigilando las mochilas de la peña.' } : null);
+      }
+    }
+  };
+
+  // Minijuego 2: Elección de vaso misterioso (Ruleta de chupitos)
+  const handlePickMysteryGlass = (glassIdx: number) => {
+    if (glassCooldown > 0 || isSelectingGlass) return;
+
+    setIsSelectingGlass(true);
+    sound.tap();
+
+    setTimeout(() => {
+      setIsSelectingGlass(false);
+      setGlassCooldown(35);
+
+      const rand = Math.random();
+      if (rand < 0.50) {
+        sound.coinWin();
+        confetti({ particleCount: 90, spread: 60 });
+        const prize = Math.min(250, Math.max(30, Math.floor(effectiveRatePerSecond * 4 + 35)));
+        setPendingVault((prev) => prev + prize);
+        setGlassResult({
+          type: 'gold',
+          text: `¡CHUPITO DORADO! Has encontrado el vaso premium de la fiesta (+${prize.toLocaleString()} fichas al bote).`,
+        });
+      } else if (rand < 0.80) {
+        sound.toastClink();
+        setHangoverLevel((prev) => Math.max(0, prev - 40));
+        setGlassResult({
+          type: 'water',
+          text: '¡AGUA FRESCA CON HIELO! Te has hidratado a tiempo (-40% de resaca al instante).',
+        });
+      } else {
+        sound.crashExplode();
+        setHangoverLevel((prev) => Math.min(100, prev + 25));
+        setIsCrazyParty(true);
+        setCrazyPartyTimeRemaining(12);
+        setGlassResult({
+          type: 'spicy',
+          text: '¡MEZCLA PICANTE! Ufff garrafón, pero... ¡te pega un SUBIDÓN x3 de fiesta durante 12s (+25% resaca)!',
+        });
+      }
+    }, 450);
+  };
+
   // Acciones tácticas ante la alerta policial:
   const handlePoliceHide = () => {
     if (!policeAlert || policeAlert.secondsLeft <= 0) return;
@@ -835,7 +1054,12 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     if (now - lastClickTimeRef.current < 75) return;
     lastClickTimeRef.current = now;
 
-    sound.tap();
+    // Sonido táctil de trago con apertura de chapa
+    if (Math.random() < 0.35) {
+      sound.bottlePop();
+    } else {
+      sound.tap();
+    }
 
     const baseClick = Math.max(1, Math.floor(1 + baseRatePerSecond * 0.02));
     let clickPower = baseClick * prestigeMultiplier * drinkPowerMult;
@@ -866,14 +1090,15 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       setParticles((prev) => prev.filter((p) => p.id !== pId));
     }, 750);
 
-    // Sistema de combo rápido
+    // Sistema de combo rápido: ¡SUBIDÓN DE LA FIESTA!
     setPartyComboCount((prev) => {
       const next = prev + 1;
-      if (next >= 12 && !isCrazyParty) {
-        const crazyDuration = hasPerk('bafles_jbl') ? 25 : 10;
+      if (next >= 10 && !isCrazyParty) {
+        const crazyDuration = hasPerk('bafles_jbl') ? 25 : 15;
         setIsCrazyParty(true);
         setCrazyPartyTimeRemaining(crazyDuration);
-        sound.coinWin();
+        sound.toastClink();
+        confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
         return 0;
       }
       return next;
@@ -1200,6 +1425,67 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       )}
 
+      {/* Suceso Espontáneo entre Colegas (Evento en Vivo) */}
+      {spontaneousEvent && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-surface-raised border border-amber-500/40 shadow-xl shadow-amber-500/10 animate-in fade-in zoom-in-95 duration-200 space-y-3">
+          <div className="flex items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-foreground tracking-tight">
+                    {spontaneousEvent.title}
+                  </h3>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold">
+                    {spontaneousEvent.secondsLeft > 0 ? `${spontaneousEvent.secondsLeft}s` : '¡Ya!'}
+                  </span>
+                </div>
+                <p className="text-xs text-foreground-muted mt-0.5 font-sans">
+                  {spontaneousEvent.resultText || spontaneousEvent.desc}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {!spontaneousEvent.resultText && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => handleResolveEventOption('A')}
+                className="p-3 rounded-2xl bg-foreground text-background font-semibold text-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-98 shadow-sm"
+              >
+                <span>{spontaneousEvent.optionA.label}</span>
+                <span className="text-[10px] font-mono opacity-80 mt-0.5">{spontaneousEvent.optionA.sublabel}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleResolveEventOption('B')}
+                className="p-3 rounded-2xl bg-surface hover:bg-surface-hover border border-border/80 text-foreground font-semibold text-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-98"
+              >
+                <span>{spontaneousEvent.optionB.label}</span>
+                <span className="text-[10px] font-mono text-foreground-subtle mt-0.5">{spontaneousEvent.optionB.sublabel}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Descuento relámpago de la gasolinera */}
+      {isFlashDiscount && (
+        <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center justify-between animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>Descuento de escote activo: 30% menos en todas las compras de bebidas.</span>
+          </div>
+          <span className="font-mono text-[11px] shrink-0 font-semibold">
+            {Math.ceil((discountActiveUntil - Date.now()) / 1000)}s
+          </span>
+        </div>
+      )}
+
       {/* Aviso de farmeo offline */}
       {offlineReport && (
         <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-raised border border-border shadow-xs animate-in fade-in slide-in-from-top-2">
@@ -1402,8 +1688,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               Trago manual
             </span>
             {isCrazyParty ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
-                ¡FIESTA LOCA x2 ({crazyPartyTimeRemaining}s)!
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                ¡SUBIDÓN x3 ({crazyPartyTimeRemaining}s)!
               </span>
             ) : (
               <Zap className="w-4 h-4 text-foreground-muted" />
@@ -1414,14 +1700,20 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             <button
               type="button"
               onClick={handleManualDrink}
-              className="w-full py-4 rounded-xl bg-surface border border-border/80 hover:border-foreground/30 hover:bg-surface-raised transition-all active:scale-95 cursor-pointer flex flex-col items-center justify-center gap-1 group shadow-xs touch-manipulation"
+              className={`w-full py-4 rounded-xl border transition-all active:scale-95 cursor-pointer flex flex-col items-center justify-center gap-1 group shadow-xs touch-manipulation ${
+                isCrazyParty
+                  ? 'bg-amber-500/10 border-amber-500/40 shadow-amber-500/15'
+                  : 'bg-surface border border-border/80 hover:border-foreground/30 hover:bg-surface-raised'
+              }`}
             >
-              <Wine className="w-6 h-6 text-foreground-muted group-hover:text-accent group-hover:scale-110 transition-all" />
+              <Wine className={`w-6 h-6 transition-all group-hover:scale-110 ${
+                isCrazyParty ? 'text-amber-400 animate-bounce' : 'text-foreground-muted group-hover:text-accent'
+              }`} />
               <span className="text-xs font-semibold text-foreground">
-                ¡Echar un trago!
+                {isCrazyParty ? '¡Trago con Subidón x3!' : '¡Echar un trago!'}
               </span>
               <span className="text-[10px] text-foreground-subtle font-mono">
-                +{Math.max(1, Math.floor(1 + baseRatePerSecond * 0.05)) * prestigeMultiplier * drinkPowerMult} al bote
+                +{Math.max(1, Math.floor(1 + baseRatePerSecond * 0.05)) * prestigeMultiplier * drinkPowerMult * (isCrazyParty ? 3 : 1)} al bote
               </span>
             </button>
 
@@ -1442,15 +1734,15 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           {/* Barra de combo fiesta */}
           <div className="space-y-1">
             <div className="flex items-center justify-between text-[10px] text-foreground-subtle">
-              <span>Ambiente caldeado</span>
-              <span>{isCrazyParty ? '¡A tope!' : `${partyComboCount}/12 clics`}</span>
+              <span>Ritmo para el Subidón</span>
+              <span>{isCrazyParty ? '¡Ambiente a tope!' : `${partyComboCount}/10 tragos`}</span>
             </div>
             <div className="w-full h-1.5 rounded-full bg-border/40 overflow-hidden">
               <div
                 className={`h-full transition-all duration-200 ${
                   isCrazyParty ? 'bg-amber-400 w-full animate-pulse' : 'bg-foreground w-0'
                 }`}
-                style={!isCrazyParty ? { width: `${(partyComboCount / 12) * 100}%` } : undefined}
+                style={!isCrazyParty ? { width: `${(partyComboCount / 10) * 100}%` } : undefined}
               />
             </div>
           </div>
@@ -1499,7 +1791,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           { id: 'suministros', label: 'Bebidas & Suministros', icon: Wine },
           { id: 'zonas', label: 'Fases & Zonas', icon: MapPin },
           { id: 'habilidades', label: 'Perks de la Noche', icon: Award },
-          { id: 'beerpong', label: 'Minijuego Beer Pong', icon: Target },
+          { id: 'beerpong', label: 'Juegos de Fiesta', icon: Target },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -1881,6 +2173,57 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                 }`}
               >
                 {pongResult.text}
+              </div>
+            )}
+          </div>
+
+          {/* Minijuego 2: El Vaso Misterioso (Ruleta de Chupitos) */}
+          <div className="p-6 rounded-3xl bg-surface-raised border border-border/70 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">El Vaso Misterioso (Ruleta de Chupitos)</h3>
+                <p className="text-xs text-foreground-muted">
+                  Elige uno de los tres vasos de la mesa: uno tiene Chupito Dorado (+fichas), uno Agua Fresca (-resaca) y uno Mezcla Picante (Subidón x3).
+                </p>
+              </div>
+              <span className="text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full bg-surface border border-border text-foreground-muted shrink-0">
+                {glassCooldown > 0 ? `Enfriando: ${glassCooldown}s` : '¡Listo para beber!'}
+              </span>
+            </div>
+
+            {/* 3 Vasos boca abajo interactivos */}
+            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto pt-1">
+              {[0, 1, 2].map((idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  disabled={glassCooldown > 0 || isSelectingGlass}
+                  onClick={() => handlePickMysteryGlass(idx)}
+                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation cursor-pointer ${
+                    glassCooldown > 0
+                      ? 'bg-surface/50 border-border/40 opacity-50 cursor-not-allowed'
+                      : 'bg-surface hover:bg-surface-raised border-border/80 hover:border-accent hover:shadow-md'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400">
+                    <CupSoda className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs font-bold text-foreground font-mono">
+                    Vaso #{idx + 1}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {glassResult && (
+              <div className={`p-3.5 rounded-2xl text-xs font-medium max-w-md mx-auto border text-center animate-in fade-in duration-200 ${
+                glassResult.type === 'gold'
+                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                  : glassResult.type === 'water'
+                  ? 'bg-blue-500/10 text-blue-300 border-blue-500/30'
+                  : 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+              }`}>
+                {glassResult.text}
               </div>
             )}
           </div>
