@@ -230,6 +230,32 @@ function getLocalAccounts(): StoredLocalAccount[] {
   }
 }
 
+export function getLocalAccountsList(): StoredLocalAccount[] {
+  return getLocalAccounts();
+}
+
+export function resetAllLocalBalances(): void {
+  const accounts = getLocalAccounts();
+  const resetAccounts = accounts.map((a) => ({
+    ...a,
+    coins: 1000,
+    biggest_win: 0,
+    streak_count: 1,
+  }));
+  saveLocalAccounts(resetAccounts);
+
+  // También actualizar sesión actual activa
+  const current = getUserSession();
+  if (current) {
+    saveUserSession({
+      ...current,
+      coins: 1000,
+      biggest_win: 0,
+      streak_count: 1,
+    });
+  }
+}
+
 function saveLocalAccounts(accounts: StoredLocalAccount[]): void {
   if (typeof window === 'undefined') return;
   try {

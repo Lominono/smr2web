@@ -81,7 +81,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   // Find user's overall rank in the current tab
   const currentUserRankIndex = useMemo(() => {
     if (!currentUser) return -1;
-    return sortedAndFiltered.findIndex((item) => item.id === currentUser.id);
+    return sortedAndFiltered.findIndex(
+      (item) => item.id === currentUser.id || item.username.toLowerCase() === currentUser.username.toLowerCase()
+    );
   }, [sortedAndFiltered, currentUser]);
 
   const scrollToCurrentUser = () => {

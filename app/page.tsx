@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AppleNavbar } from '@/components/AppleNavbar';
 import { SmrTwitterFeed } from '@/components/SmrTwitterFeed';
 import { NavigationDrawer } from '@/components/NavigationDrawer';
@@ -35,6 +35,7 @@ import {
   saveUserSession,
   clearUserSession,
   updateSessionCoins,
+  getLocalAccountsList,
 } from '@/lib/authSession';
 import { logoutAccount } from '@/lib/authService';
 import {
@@ -194,7 +195,7 @@ export default function Home() {
           data.map((m: any) => ({
             ...m,
             likes_count: Number(m.likes_count || 0),
-            created_at: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            created_at: m.created_at,
           }))
         );
       }
@@ -222,36 +223,89 @@ export default function Home() {
     }
   };
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
+    const entriesMap = new Map<string, LeaderboardEntry>();
+
+    // 1. Consultar perfiles oficiales de Supabase
     const supabase = createClient();
-    if (!supabase) return;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, coins, biggest_win, streak_count, avatar_color, role')
+          .order('coins', { ascending: false })
+          .limit(100);
 
-    try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, coins, biggest_win, streak_count, avatar_color, role')
-        .order('coins', { ascending: false })
-        .limit(50);
-
-      if (data) {
-        setLeaderboard(
-          data.map((p: any) => ({
-            id: p.id,
-            username: p.username,
-            full_name: p.full_name || undefined,
-            coins: Number(p.coins ?? 0),
-            biggest_win: Number(p.biggest_win ?? 0),
-            streak_count: p.streak_count ? Number(p.streak_count) : 1,
-            avatar_color: p.avatar_color || undefined,
-            role: p.role || undefined,
-            is_current_user: user ? p.id === user.id : false,
-          }))
-        );
+        if (!error && data) {
+          data.forEach((p: any) => {
+            entriesMap.set(p.username.toLowerCase(), {
+              id: p.id,
+              username: p.username,
+              full_name: p.full_name || undefined,
+              coins: Number(p.coins ?? 0),
+              biggest_win: Number(p.biggest_win ?? 0),
+              streak_count: p.streak_count ? Number(p.streak_count) : 1,
+              avatar_color: p.avatar_color || undefined,
+              role: p.role || undefined,
+              is_current_user: user ? (p.id === user.id || p.username.toLowerCase() === user.username.toLowerCase()) : false,
+            });
+          });
+        }
+      } catch (err) {
+        console.warn('Error fetching leaderboard from Supabase:', err);
       }
-    } catch (err) {
-      console.warn('Error fetching leaderboard:', err);
     }
-  };
+
+    // 2. Incluir cuentas locales para que el ranking funcione siempre (online y offline)
+    try {
+      const localAccounts = getLocalAccountsList();
+      localAccounts.forEach((loc) => {
+        const key = loc.username.toLowerCase();
+        if (!entriesMap.has(key)) {
+          entriesMap.set(key, {
+            id: loc.id,
+            username: loc.username,
+            full_name: loc.full_name,
+            coins: Number(loc.coins ?? 1000),
+            biggest_win: Number(loc.biggest_win ?? 0),
+            streak_count: Number(loc.streak_count ?? 1),
+            role: loc.role,
+            is_current_user: user ? (loc.id === user.id || key === user.username.toLowerCase()) : false,
+          });
+        }
+      });
+    } catch {}
+
+    // 3. Asegurar que el usuario activo esté presente con sus monedas exactas en tiempo real
+    if (user) {
+      const userKey = user.username.toLowerCase();
+      const existing = entriesMap.get(userKey);
+      entriesMap.set(userKey, {
+        id: user.id,
+        username: user.username,
+        full_name: user.full_name || existing?.full_name,
+        coins: user.coins,
+        biggest_win: Math.max(user.biggest_win, existing?.biggest_win || 0),
+        streak_count: user.streak_count || existing?.streak_count || 1,
+        avatar_color: user.avatar_color || existing?.avatar_color,
+        role: user.role || existing?.role,
+        is_current_user: true,
+      });
+    }
+
+    // 4. Ordenar estrictamente por monedas DESC, mayor bote DESC y racha DESC
+    const sorted = Array.from(entriesMap.values()).sort((a, b) => {
+      if ((b.coins ?? 0) !== (a.coins ?? 0)) {
+        return (b.coins ?? 0) - (a.coins ?? 0);
+      }
+      if ((b.biggest_win ?? 0) !== (a.biggest_win ?? 0)) {
+        return (b.biggest_win ?? 0) - (a.biggest_win ?? 0);
+      }
+      return (b.streak_count ?? 1) - (a.streak_count ?? 1);
+    });
+
+    setLeaderboard(sorted);
+  }, [user]);
 
   useEffect(() => {
     // 1. Synchronously read local cookie session first for instant resume without flashing
@@ -314,7 +368,8 @@ export default function Home() {
           setChatMessages((prev) => [
             {
               ...newMsg,
-              created_at: new Date(newMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              likes_count: Number(newMsg.likes_count || 0),
+              created_at: newMsg.created_at,
             },
             ...prev,
           ]);
@@ -499,8 +554,38 @@ export default function Home() {
 
     updateSessionCoins(nextCoins, nextBiggestWin);
 
+    // Actualizar clasificación en memoria de forma instantánea
+    setLeaderboard((prev) => {
+      const idx = prev.findIndex((entry) => entry.id === user.id || entry.username.toLowerCase() === user.username.toLowerCase());
+      let updated: LeaderboardEntry[];
+      if (idx !== -1) {
+        updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          coins: nextCoins,
+          biggest_win: nextBiggestWin,
+          is_current_user: true,
+        };
+      } else {
+        updated = [
+          ...prev,
+          {
+            id: user.id,
+            username: user.username,
+            full_name: user.full_name,
+            coins: nextCoins,
+            biggest_win: nextBiggestWin,
+            streak_count: user.streak_count || 1,
+            role: user.role,
+            is_current_user: true,
+          },
+        ];
+      }
+      return updated.sort((a, b) => (b.coins ?? 0) - (a.coins ?? 0));
+    });
+
     const supabase = createClient();
-    if (supabase && user.auth_provider === 'supabase') {
+    if (supabase) {
       try {
         await supabase
           .from('profiles')
@@ -552,8 +637,24 @@ export default function Home() {
       nextRescueDate
     );
 
+    // Actualizar clasificación en memoria de forma instantánea
+    setLeaderboard((prev) => {
+      const idx = prev.findIndex((entry) => entry.id === user.id || entry.username.toLowerCase() === user.username.toLowerCase());
+      if (idx !== -1) {
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          coins: nextCoins,
+          streak_count: nextStreakVal,
+          is_current_user: true,
+        };
+        return updated.sort((a, b) => (b.coins ?? 0) - (a.coins ?? 0));
+      }
+      return prev;
+    });
+
     const supabase = createClient();
-    if (supabase && user.auth_provider === 'supabase') {
+    if (supabase) {
       try {
         const updatePayload: Record<string, any> = { coins: nextCoins };
         if (claimType === 'daily') {
@@ -570,7 +671,7 @@ export default function Home() {
     }
   };
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, tag?: string) => {
     if (!user) {
       setIsAuthOpen(true);
       return;
@@ -581,7 +682,9 @@ export default function Home() {
       user_id: user.id,
       username: user.username,
       text,
-      created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      tag: tag || undefined,
+      likes_count: 0,
+      created_at: new Date().toISOString(),
     };
     setChatMessages((prev) => [optimisticMsg, ...prev]);
 
@@ -589,13 +692,14 @@ export default function Home() {
     if (!supabase) return;
 
     try {
-      await supabase.from('chat_messages').insert([
-        {
-          user_id: user.id,
-          username: user.username,
-          text,
-        },
-      ]);
+      const payload: Record<string, any> = {
+        user_id: user.id,
+        username: user.username,
+        text,
+      };
+      if (tag) payload.tag = tag;
+
+      await supabase.from('chat_messages').insert([payload]);
     } catch (err) {
       console.warn('Error inserting message to Supabase:', err);
     }
@@ -697,14 +801,18 @@ export default function Home() {
   const handleToggleLike = async (messageId: string) => {
     sound.tap();
 
+    let nextCount = 0;
+    let willBeLiked = false;
+
     setChatMessages((prev) =>
       prev.map((msg) => {
         if (msg.id === messageId) {
-          const isLiked = !msg.is_liked_by_me;
+          willBeLiked = !msg.is_liked_by_me;
+          nextCount = Math.max(0, (msg.likes_count || 0) + (willBeLiked ? 1 : -1));
           return {
             ...msg,
-            is_liked_by_me: isLiked,
-            likes_count: Math.max(0, (msg.likes_count || 0) + (isLiked ? 1 : -1)),
+            is_liked_by_me: willBeLiked,
+            likes_count: nextCount,
           };
         }
         return msg;
@@ -715,14 +823,13 @@ export default function Home() {
     if (!supabase) return;
 
     try {
-      const msg = chatMessages.find((m) => m.id === messageId);
-      const isLiked = msg?.is_liked_by_me;
-      const nextCount = Math.max(0, (msg?.likes_count || 0) + (isLiked ? -1 : 1));
       await supabase
         .from('chat_messages')
         .update({ likes_count: nextCount })
         .eq('id', messageId);
-    } catch {}
+    } catch (err) {
+      console.warn('Error updating message likes:', err);
+    }
   };
 
   // Loading splash screen

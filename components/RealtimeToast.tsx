@@ -72,7 +72,7 @@ export const RealtimeToast: React.FC<RealtimeToastProps> = ({
     <aside
       aria-live="polite"
       aria-atomic="true"
-      className="fixed top-16 right-3 sm:right-6 z-50 max-w-sm w-full pointer-events-auto select-none animate-in slide-in-from-top-3 fade-in duration-200"
+      className="fixed top-16 right-3 sm:right-6 z-50 max-w-[calc(100vw-1.5rem)] sm:max-w-sm w-full pointer-events-auto select-none animate-in slide-in-from-top-3 fade-in duration-200"
     >
       <div className="p-3 rounded-xl bg-surface/95 backdrop-blur-md border border-border/80 shadow-lg flex items-start justify-between gap-3 transition-all">
         <div className="flex items-start gap-2.5 min-w-0">

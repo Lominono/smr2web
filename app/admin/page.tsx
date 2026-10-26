@@ -182,6 +182,37 @@ export default function AdminPage() {
     }
   };
 
+  // Full Database Reset handler (Nueva Temporada)
+  const [isResettingDb, setIsResettingDb] = useState(false);
+  const handleResetDatabase = async () => {
+    const confirmation = window.prompt(
+      '¿Estás seguro de que quieres REINICIAR LA BASE DE DATOS DE TODOS LOS ALUMNOS?\n\n' +
+      'Esto restablecerá el saldo de todos a 1.000 monedas, vaciará el chat y reiniciará el ranking de la clase.\n\n' +
+      'Escribe "REINICIAR" para confirmar:'
+    );
+
+    if (confirmation !== 'REINICIAR') {
+      return;
+    }
+
+    setIsResettingDb(true);
+    try {
+      const res = await fetch('/api/admin/reset-database', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('¡Base de datos reiniciada con éxito para toda la clase! Todos vuelven a tener 1.000 monedas.');
+        fetchUsers();
+        fetchLogs(1);
+      } else {
+        alert(data.error || 'Error al reiniciar la base de datos.');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error de conexión.');
+    } finally {
+      setIsResettingDb(false);
+    }
+  };
+
   // Fetch game timeline detail
   const handleFetchGameDetail = async (idToFetch?: string) => {
     const id = idToFetch || gameIdInput.trim();
@@ -588,6 +619,29 @@ export default function AdminPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Zona de Mantenimiento / Reinicio General de Temporada */}
+            <div className="p-4 rounded-2xl bg-red-950/20 border border-red-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xs font-bold font-mono text-red-300 flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-red-400" />
+                  <span>Reinicio Total de la Base de Datos (Nueva Temporada)</span>
+                </h4>
+                <p className="text-xs text-foreground-muted mt-0.5">
+                  Restablece a 1.000 monedas el saldo de todos los alumnos de la clase, vacía el chat y limpia las partidas para empezar una nueva competición.
+                </p>
+              </div>
+
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={isResettingDb}
+                onClick={handleResetDatabase}
+                className="shrink-0"
+              >
+                {isResettingDb ? 'Reiniciando...' : 'Reiniciar base de datos de todos'}
+              </Button>
             </div>
           </div>
         )}

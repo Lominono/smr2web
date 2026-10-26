@@ -9,6 +9,8 @@
 -- 1. Añadir columnas de likes y etiquetas al feed de mensajes si no existen:
 -- ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0;
 -- ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS tag TEXT;
+-- CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON public.chat_messages (created_at DESC);
+-- CREATE INDEX IF NOT EXISTS idx_chat_messages_tag ON public.chat_messages (tag);
 --
 -- 2. Permitir actualizar likes en el feed (RLS UPDATE policy):
 -- DROP POLICY IF EXISTS "Actualizar likes de chat" ON public.chat_messages;

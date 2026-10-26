@@ -32,6 +32,7 @@ export interface ChatMessage {
   likes_count?: number;
   is_liked_by_me?: boolean;
   tag?: string;
+  reply_to_username?: string;
 }
 
 export interface LeaderboardEntry {

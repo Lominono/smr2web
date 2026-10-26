@@ -134,7 +134,9 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
 
   // User rank in leaderboard
   const userRankPosition = currentUser
-    ? leaderboard.findIndex((item) => item.id === currentUser.id)
+    ? leaderboard.findIndex(
+        (item) => item.id === currentUser.id || item.username.toLowerCase() === currentUser.username.toLowerCase()
+      )
     : -1;
 
   return (
