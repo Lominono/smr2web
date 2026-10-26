@@ -20,7 +20,6 @@ import { AuthGate } from '@/components/AuthGate';
 import { ScheduleCalendarView } from '@/components/ScheduleCalendarView';
 import { MobileTabBar } from '@/components/MobileTabBar';
 import { MinecraftBanner } from '@/components/MinecraftBanner';
-import { MobileWipBanner } from '@/components/MobileWipBanner';
 import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
 import { UpdateNotificationBanner } from '@/components/UpdateNotificationBanner';
@@ -979,7 +978,7 @@ export default function Home() {
             <img
               src="/logo.png"
               alt="SMR2 Logo"
-              className="w-full h-full object-contain drop-shadow-sm animate-pulse"
+              className="w-full h-full object-contain drop-shadow-xs"
             />
           </div>
           <span className="text-xs font-semibold tracking-wider uppercase text-foreground-muted font-mono">
@@ -1028,8 +1027,6 @@ export default function Home() {
 
       {/* 2. Main Workspace Layout */}
       <main className="relative z-10 flex-1 w-full pb-24 lg:pb-12">
-        <MobileWipBanner />
-
         {/* VIEW 1: TWITTER FEED (Hero Experience) */}
         {activeView === 'feed' ? (
           <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 pt-4">
@@ -1127,14 +1124,13 @@ export default function Home() {
 
               {/* Segmented Game Switcher Bar */}
               {activeView !== 'calendar' && (
-                <div className="flex items-center p-1 rounded-full bg-surface-raised border border-border/60 overflow-x-auto scrollbar-none gap-0.5">
+                <div className="flex items-center p-1 rounded-full bg-surface-raised border border-border/70 overflow-x-auto scrollbar-none gap-0.5">
                   {[
-                    { id: 'farmhand', label: 'El Huerto', icon: Sprout, badge: 'Granja' },
-                    { id: 'party_idle', label: 'El Botellón', icon: Wine, badge: 'Farmeo' },
+                    { id: 'farmhand', label: 'El Huerto', icon: Sprout },
+                    { id: 'party_idle', label: 'El Botellón', icon: Wine },
                     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
                     { id: 'crash', label: 'Crash', icon: TrendingUp },
                     { id: 'mines', label: 'Minas', icon: Server },
-                    { id: 'angry', label: 'Angry Birds', icon: Target, badge: 'Cerrado' },
                     { id: 'roulette', label: 'Ruleta', icon: CircleDot },
                   ].map((g) => {
                     const isActive = activeView === g.id;
@@ -1155,17 +1151,6 @@ export default function Home() {
                       >
                         <IconComponent className="w-3.5 h-3.5" />
                         <span>{g.label}</span>
-                        {g.badge && (
-                          <span
-                            className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono font-semibold ${
-                              isActive
-                                ? 'bg-background/25 text-background'
-                                : 'bg-emerald-500/15 text-emerald-400'
-                            }`}
-                          >
-                            {g.badge}
-                          </span>
-                        )}
                       </button>
                     );
                   })}
@@ -1381,7 +1366,7 @@ export default function Home() {
               }}
               className="hover:text-foreground transition-colors cursor-pointer"
             >
-              Normas, Cookies y Contacto
+              Normas y Privacidad
             </button>
             <span>Curso lectivo</span>
           </div>

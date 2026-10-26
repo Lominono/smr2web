@@ -107,9 +107,9 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             <span
               className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                 liveStatus.status === 'in_class'
-                  ? 'bg-success animate-pulse'
+                  ? 'bg-success'
                   : liveStatus.status === 'recreo'
-                  ? 'bg-accent animate-pulse'
+                  ? 'bg-accent'
                   : 'bg-foreground-subtle'
               }`}
             />
@@ -121,11 +121,11 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             <button
               type="button"
               onClick={onOpenOnlineUsers}
-              title="Ver alumnos conectados en tiempo real"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-[11px] text-emerald-400 font-mono transition-all cursor-pointer active:scale-95 touch-manipulation"
+              title="Ver alumnos conectados"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-raised hover:bg-surface-hover border border-border/70 text-[11px] text-foreground-muted font-mono transition-all cursor-pointer active:scale-95 touch-manipulation"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-semibold">{onlineCount}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="font-semibold text-foreground">{onlineCount}</span>
               <span className="hidden xs:inline">online</span>
             </button>
           )}

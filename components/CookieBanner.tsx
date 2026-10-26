@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Cookie, FileText, Check } from 'lucide-react';
+import { ShieldCheck, ArrowRight } from 'lucide-react';
 import { setCookie, getCookie } from '@/lib/cookies';
 import { sound } from '@/lib/audio';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
 interface CookieBannerProps {
@@ -39,60 +38,58 @@ export const CookieBanner: React.FC<CookieBannerProps> = ({ onOpenTerms }) => {
 
   return (
     <aside
-      aria-label="Aviso de privacidad y cookies"
-      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-4 left-3 right-3 sm:left-auto sm:right-4 z-40 max-w-md w-auto animate-in slide-in-from-bottom-4 duration-250 select-none"
+      aria-label="Aviso de privacidad y almacenamiento"
+      className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] sm:bottom-4 left-3 right-3 sm:left-auto sm:right-4 z-40 max-w-md w-auto animate-in fade-in slide-in-from-bottom-2 duration-200 select-none"
     >
-      <Card className="p-4 space-y-3 shadow-2xl bg-surface/95 backdrop-blur-md border border-border">
+      <div className="p-4 rounded-2xl bg-surface/95 backdrop-blur-md border border-border shadow-lg space-y-3">
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-surface-raised border border-border flex items-center justify-center text-accent shrink-0">
-            <Cookie className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg bg-surface-raised border border-border flex items-center justify-center text-foreground shrink-0 mt-0.5">
+            <ShieldCheck className="w-4 h-4 text-accent" />
           </div>
 
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-mono font-bold text-foreground">
-                Cookies de clase (No son las del recreo)
-              </span>
-            </div>
+          <div className="space-y-1 min-w-0">
+            <h3 className="text-xs font-semibold text-foreground tracking-tight">
+              Almacenamiento y privacidad
+            </h3>
             <p className="text-xs text-foreground-muted leading-relaxed font-sans">
-              Usamos almacenamiento local para que no pierdas tus monedas, tus litros del botellón ni tus ajustes si cierras la pestaña de golpe cuando el profesor de Redes o Sistemas se levanta a mirar tu pantalla. Cero rastreadores publicitarios: ni nos patrocina Google ni sabemos qué haces en tus ratos libres.
+              Conservamos tu sesión y preferencias de aula en el almacenamiento local de tu navegador. Sin rastreo publicitario ni servicios de terceros.
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border">
-          <Button
-            variant="ghost"
-            size="sm"
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/60">
+          <button
+            type="button"
             onClick={() => {
               onOpenTerms();
               sound.tap();
             }}
+            className="text-xs text-foreground-muted hover:text-foreground font-medium underline underline-offset-2 transition-colors cursor-pointer"
           >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Ver normativa & chistes</span>
-          </Button>
+            Normas de uso
+          </button>
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-1.5 ml-auto">
             <Button
               variant="secondary"
               size="sm"
               onClick={handleEssentialOnly}
+              className="text-xs h-7 px-2.5 rounded-lg"
             >
-              Lo justo
+              Solo necesarias
             </Button>
 
             <Button
               variant="primary"
               size="sm"
               onClick={handleAccept}
+              className="text-xs h-7 px-3 rounded-lg"
             >
-              <Check className="w-3.5 h-3.5" />
-              <span>Aceptar (Confianza ciega)</span>
+              Aceptar
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
     </aside>
   );
 };

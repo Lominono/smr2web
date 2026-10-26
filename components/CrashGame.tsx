@@ -336,47 +336,47 @@ export const CrashGame: React.FC<CrashGameProps> = ({
       : '5.00';
 
   return (
-    <div className="glass-panel rounded-3xl p-4 sm:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border border-white/[0.08]">
+    <div className="rounded-2xl p-4 sm:p-6 bg-surface border border-border/80 flex flex-col items-center shadow-xs">
       {/* Header telemetry & history */}
-      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3 border-b border-white/[0.06]">
+      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3 border-b border-border/70">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+          <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500">
             <TrendingUp className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold tracking-tight text-white font-mono">
-                Crash SMR2
+              <h2 className="text-sm font-semibold tracking-tight text-foreground font-mono">
+                Crash
               </h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/[0.04] text-zinc-400 border border-white/10 font-medium">
-                Avg: {historyAvg}x · Max: {historyMax}x
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-surface-raised text-foreground-muted border border-border/70 font-medium">
+                Media: {historyAvg}x · Máx: {historyMax}x
               </span>
             </div>
-            <p className="text-[11px] text-zinc-500 font-mono">
-              Multiplicador bursátil en tiempo real
+            <p className="text-[11px] text-foreground-subtle font-mono">
+              Multiplicador en tiempo real
             </p>
           </div>
         </div>
 
         {/* History Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0 scrollbar-none">
-          <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider shrink-0 mr-1">
+          <span className="text-[10px] font-mono text-foreground-subtle uppercase tracking-wider shrink-0 mr-1">
             Rondas:
           </span>
           {history.length === 0 ? (
-            <span className="text-[11px] font-mono text-zinc-500">Sin rondas previas</span>
+            <span className="text-[11px] font-mono text-foreground-subtle">Sin rondas previas</span>
           ) : (
             history.map((item) => (
               <span
                 key={item.id}
                 className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg border shrink-0 tabular-nums transition-all ${
                   item.crashPoint >= 5.0
-                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/40'
+                    ? 'bg-amber-500/15 text-amber-500 border-amber-500/40'
                     : item.crashPoint >= 2.0
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
                     : item.crashPoint >= 1.5
-                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                    : 'bg-zinc-900/80 text-zinc-500 border-white/[0.06]'
+                    ? 'bg-blue-500/10 text-blue-500 border-blue-500/30'
+                    : 'bg-surface-raised text-foreground-subtle border-border/70'
                 }`}
               >
                 {item.crashPoint.toFixed(2)}x
@@ -387,35 +387,35 @@ export const CrashGame: React.FC<CrashGameProps> = ({
       </div>
 
       {/* Screen Canvas Area */}
-      <div className="relative w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#08080c] flex items-center justify-center shadow-inner">
+      <div className="relative w-full overflow-hidden rounded-2xl border border-border/80 bg-surface-raised flex items-center justify-center">
         <canvas ref={canvasRef} className="w-full h-auto block aspect-[2/1] sm:aspect-[2.5/1]" />
 
         {/* Dynamic HUD Center Overlay */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
           {gameState === 'crashed' ? (
             <div className="text-center animate-in zoom-in-95 duration-150">
-              <span className="text-xs font-mono font-bold text-rose-400 tracking-wider uppercase">
+              <span className="text-xs font-mono font-semibold text-danger tracking-wider uppercase">
                 Crash
               </span>
-              <h3 className="text-5xl sm:text-7xl font-black text-rose-500 font-mono tracking-tight tabular-nums drop-shadow-[0_0_25px_rgba(239,68,68,0.4)]">
+              <h3 className="text-5xl sm:text-7xl font-bold text-danger font-mono tracking-tight tabular-nums">
                 {currentMultiplier.toFixed(2)}x
               </h3>
             </div>
           ) : gameState === 'running' ? (
             <div className="text-center">
-              <h3 className="text-6xl sm:text-8xl font-black text-white font-mono tracking-tight tabular-nums drop-shadow-[0_0_30px_rgba(16,185,129,0.35)]">
+              <h3 className="text-6xl sm:text-8xl font-bold text-foreground font-mono tracking-tight tabular-nums">
                 {currentMultiplier.toFixed(2)}x
               </h3>
               {hasCashedOut && cashedAmount && (
-                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold shadow-lg">
-                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 text-xs font-mono font-semibold shadow-xs">
+                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
                   <span>+{cashedAmount.toLocaleString()} fichas</span>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center text-zinc-500">
-              <p className="text-xs font-mono text-zinc-400 font-medium">Selecciona apuesta e inicia la subida</p>
+            <div className="text-center text-foreground-subtle">
+              <p className="text-xs font-mono text-foreground-muted font-medium">Selecciona apuesta e inicia la subida</p>
             </div>
           )}
         </div>
@@ -553,25 +553,25 @@ export const CrashGame: React.FC<CrashGameProps> = ({
             <button
               onClick={cashOut}
               disabled={hasCashedOut}
-              className={`w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-black tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xl active:scale-[0.98] touch-manipulation ${
+              className={`w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs active:scale-[0.98] touch-manipulation ${
                 hasCashedOut
                   ? 'bg-surface-raised text-foreground-subtle border border-border cursor-not-allowed'
-                  : 'bg-success hover:opacity-90 text-white shadow-success/30 ring-2 ring-success/40'
+                  : 'bg-success hover:opacity-90 text-white'
               }`}
             >
               <span>
                 {hasCashedOut
-                  ? 'COBRADO'
-                  : `COBRAR ${(bet * currentMultiplier).toFixed(0)} FICHAS`}
+                  ? 'Cobrado'
+                  : `Cobrar (+${(bet * currentMultiplier).toFixed(0)} fichas)`}
               </span>
             </button>
           ) : (
             <button
               onClick={startGame}
-              className="w-full min-h-[52px] py-3.5 px-4 rounded-2xl font-mono text-sm font-black tracking-wider bg-white hover:bg-zinc-100 text-black shadow-xl shadow-white/10 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+              className="w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-semibold bg-foreground hover:opacity-90 text-background shadow-xs active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              <Zap className="w-4 h-4 fill-black" />
-              <span>INICIAR (-{bet} FICHAS)</span>
+              <Zap className="w-4 h-4 fill-current" />
+              <span>Iniciar (-{bet} fichas)</span>
             </button>
           )}
         </div>

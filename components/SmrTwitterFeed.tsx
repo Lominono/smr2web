@@ -460,13 +460,10 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             <h2 className="text-sm font-semibold text-foreground tracking-tight">
               Feed de clase
             </h2>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>En directo</span>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-raised border border-border/70 text-foreground-muted text-[11px] font-sans">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span>{messages.length} publicaciones</span>
             </div>
-            <span className="text-[11px] font-mono text-foreground-subtle hidden sm:inline">
-              · {messages.length} mensajes
-            </span>
           </div>
 
           <div className="flex items-center gap-1 shrink-0">

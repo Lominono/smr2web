@@ -274,7 +274,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
               >
                 {user.username.charAt(0)}
               </div>
-              <span className="w-3 h-3 rounded-full bg-emerald-500 border-2 border-surface absolute -bottom-0.5 -right-0.5 animate-pulse" />
+              <span className="w-3 h-3 rounded-full bg-emerald-500 border-2 border-surface absolute -bottom-0.5 -right-0.5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -512,8 +512,8 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
               <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-xs font-semibold text-emerald-400">Conectado en Tiempo Real</span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="text-xs font-semibold text-emerald-500">Conexión activa</span>
                   </div>
                   <p className="text-[11px] text-foreground-muted">
                     {onlineCount} {onlineCount === 1 ? 'alumno conectado en directo' : 'alumnos conectados en directo'} en el aula.

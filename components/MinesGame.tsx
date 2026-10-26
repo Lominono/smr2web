@@ -180,24 +180,24 @@ export const MinesGame: React.FC<MinesGameProps> = ({
   const isGameOver = gameState === 'cashed' || gameState === 'busted';
 
   return (
-    <div className="glass-panel rounded-3xl p-4 sm:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border border-white/[0.08]">
+    <div className="rounded-2xl p-4 sm:p-6 bg-surface border border-border/80 flex flex-col items-center shadow-xs">
       {/* Header telemetry */}
-      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3 border-b border-white/[0.06]">
+      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3 border-b border-border/70">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500">
             <Server className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold tracking-tight text-white font-mono">
-                Minas de Red (SMR2)
+              <h2 className="text-sm font-semibold tracking-tight text-foreground font-mono">
+                Minas
               </h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/[0.04] text-zinc-400 border border-white/10 font-medium">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-surface-raised text-foreground-muted border border-border/70 font-medium">
                 {mineCount} minas · {TOTAL_TILES - mineCount} servidores
               </span>
             </div>
-            <p className="text-[11px] text-zinc-500 font-mono">
-              Descubre servidores funcionales y retira antes del cortocircuito
+            <p className="text-[11px] text-foreground-subtle font-mono">
+              Descubre servidores funcionales y retira a tiempo
             </p>
           </div>
         </div>
@@ -206,8 +206,8 @@ export const MinesGame: React.FC<MinesGameProps> = ({
         <div className="flex items-center gap-2">
           {gameState === 'playing' && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 font-mono">
-              <span className="text-[11px] text-emerald-400 font-medium">Multiplicador:</span>
-              <span className="text-sm font-bold text-white tabular-nums">
+              <span className="text-[11px] text-emerald-500 font-medium">Multiplicador:</span>
+              <span className="text-sm font-bold text-foreground tabular-nums">
                 x{currentMultiplier.toFixed(2)}
               </span>
             </div>
@@ -217,7 +217,7 @@ export const MinesGame: React.FC<MinesGameProps> = ({
             <button
               type="button"
               onClick={handleQuickPick}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-mono text-zinc-300 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-raised hover:bg-surface-hover border border-border text-xs font-mono text-foreground-muted hover:text-foreground transition-all cursor-pointer"
             >
               <Shuffle className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Aleatorio</span>
@@ -230,7 +230,7 @@ export const MinesGame: React.FC<MinesGameProps> = ({
       <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
         {/* Left Column: 5x5 Mines Board */}
         <div className="md:col-span-7 flex flex-col items-center">
-          <div className="w-full max-w-sm sm:max-w-md aspect-square grid grid-cols-5 gap-2 sm:gap-2.5 p-3 rounded-2xl bg-[#09090d] border border-white/[0.08] shadow-inner select-none">
+          <div className="w-full max-w-sm sm:max-w-md aspect-square grid grid-cols-5 gap-2 sm:gap-2.5 p-3 rounded-2xl bg-surface-raised border border-border/80 shadow-inner select-none">
             {tiles.map((tile) => {
               const showContent = tile.isRevealed || isGameOver;
               const isMineAndRevealed = showContent && tile.isMine;
@@ -244,30 +244,28 @@ export const MinesGame: React.FC<MinesGameProps> = ({
                   onClick={() => handleTileClick(tile.index)}
                   className={`relative rounded-xl border flex items-center justify-center transition-all cursor-pointer aspect-square ${
                     !tile.isRevealed && gameState === 'playing'
-                      ? 'bg-zinc-900/90 hover:bg-zinc-800 border-white/10 hover:border-emerald-500/40 active:scale-95 shadow-sm'
+                      ? 'bg-surface hover:bg-surface-hover border-border hover:border-foreground/30 active:scale-95 shadow-2xs'
                       : tile.isRevealed && !tile.isMine
-                      ? 'bg-emerald-500/20 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
+                      ? 'bg-emerald-500/15 border-emerald-500/40'
                       : tile.isRevealed && tile.isMine
-                      ? 'bg-rose-500/30 border-rose-500 ring-2 ring-rose-500/50 shadow-[0_0_20px_rgba(239,68,68,0.4)]'
+                      ? 'bg-rose-500/20 border-rose-500'
                       : isGameOver && tile.isMine
-                      ? 'bg-rose-950/40 border-rose-500/30 opacity-60'
+                      ? 'bg-rose-500/10 border-rose-500/20 opacity-60'
                       : isGameOver && !tile.isMine
-                      ? 'bg-emerald-950/30 border-emerald-500/20 opacity-50'
-                      : 'bg-zinc-900 border-white/[0.06]'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 opacity-50'
+                      : 'bg-surface border-border/60'
                   }`}
                 >
                   {isSafeAndRevealed ? (
                     <div className="flex flex-col items-center justify-center animate-in zoom-in-75 duration-150">
-                      <Server className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 animate-pulse" />
+                      <Server className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />
                     </div>
                   ) : isMineAndRevealed ? (
                     <div className="flex flex-col items-center justify-center animate-in zoom-in-90 duration-150">
-                      <Bomb className="w-5 h-5 sm:w-6 sm:h-6 text-rose-500 animate-bounce" />
-                      <Flame className="w-3 h-3 text-amber-400 -mt-1" />
+                      <Bomb className="w-5 h-5 sm:w-6 sm:h-6 text-rose-500" />
                     </div>
                   ) : (
-                    <div className="w-2.5 h-2.5 rounded-full bg-white/[0.08]" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-border" />
                   )}
                 </button>
               );
@@ -446,26 +444,26 @@ export const MinesGame: React.FC<MinesGameProps> = ({
               type="button"
               disabled={revealedCount === 0}
               onClick={handleCashOut}
-              className={`w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-bold tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg active:scale-95 touch-manipulation ${
+              className={`w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs active:scale-95 touch-manipulation ${
                 revealedCount === 0
                   ? 'bg-surface-raised text-foreground-subtle border border-border cursor-not-allowed'
-                  : 'bg-success hover:opacity-90 text-white shadow-success/20 ring-2 ring-success/30'
+                  : 'bg-success hover:opacity-90 text-white'
               }`}
             >
               <span>
                 {revealedCount === 0
-                  ? 'SELECCIONA UN SERVIDOR'
-                  : `RETIRAR ${(bet * currentMultiplier).toFixed(0)} FICHAS (x${currentMultiplier.toFixed(2)})`}
+                  ? 'Selecciona un servidor'
+                  : `Retirar (+${(bet * currentMultiplier).toFixed(0)} fichas · x${currentMultiplier.toFixed(2)})`}
               </span>
             </button>
           ) : (
             <button
               type="button"
               onClick={startGame}
-              className="w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-bold tracking-wider bg-foreground text-background hover:opacity-90 shadow-lg active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 touch-manipulation"
+              className="w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-semibold bg-foreground text-background hover:opacity-90 shadow-xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 touch-manipulation"
             >
               <Zap className="w-4 h-4 fill-current" />
-              <span>INICIAR PARTIDA (-{bet} FICHAS)</span>
+              <span>Iniciar (-{bet} fichas)</span>
             </button>
           )}
         </div>

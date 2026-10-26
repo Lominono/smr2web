@@ -48,16 +48,16 @@ export const RIVALS: RivalProfile[] = [
   {
     id: 'david',
     name: 'David',
-    nickname: 'El Tramposo',
-    title: 'Exiliado de Angry Birds',
+    nickname: 'El Estratega',
+    title: 'Compañero de aula',
     bet: 50,
     maxHp: 2,
     difficulty: 'Fácil',
     avatarInitials: 'DA',
-    introQuote: 'Me cerraron el tirachinas por culpa de un bug... pero en este duelo no pienso perder mis 50 fichas.',
-    hurtQuote: '¡Oye! ¡Esa bala no estaba ahí, has tocado el revólver!',
-    winQuote: '¡Ja! Te gané limpiamente. Ahora a ver si me devuelven el tirachinas.',
-    loseQuote: 'No me lo creo... esto también debe de estar bugeado.',
+    introQuote: 'Calculemos bien las probabilidades del tambor antes de apretar el gatillo.',
+    hurtQuote: 'Bien jugado... no esperaba esa bala.',
+    winQuote: 'Buena ronda. Las estadísticas estaban de mi lado.',
+    loseQuote: 'Bien jugado, has medido mejor los turnos.',
   },
   {
     id: 'repetidor',
@@ -867,15 +867,15 @@ export const TacticalRouletteDuel: React.FC<TacticalRouletteDuelProps> = ({
               </Badge>
             </div>
             <p className="text-[11px] text-foreground-muted font-mono mt-0.5">
-              Turno actual: <strong className={turn === 'player' ? 'text-accent' : 'text-amber-400'}>{turn === 'player' ? 'TU TURNO' : `Turno de ${selectedRival.name}`}</strong>
+              Turno actual: <strong className={turn === 'player' ? 'text-accent' : 'text-amber-500'}>{turn === 'player' ? 'Tu turno' : `Turno de ${selectedRival.name}`}</strong>
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           {isDoubleDamage && (
-            <Badge variant="outline" className="text-xs font-mono font-bold bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse">
-              ¡DOBLE DAÑO ACTIVO!
+            <Badge variant="outline" className="text-xs font-mono font-medium bg-rose-500/15 text-rose-500 border-rose-500/30">
+              Doble daño activo
             </Badge>
           )}
           {isRivalHandcuffed && (
@@ -946,8 +946,8 @@ export const TacticalRouletteDuel: React.FC<TacticalRouletteDuelProps> = ({
 
           {/* Revelación secreta si usó el Multímetro */}
           {secretInspection && (
-            <div className="px-4 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold animate-pulse">
-              🔍 Inspección: {secretInspection}
+            <div className="px-3.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-mono font-medium">
+              Inspección: {secretInspection}
             </div>
           )}
 

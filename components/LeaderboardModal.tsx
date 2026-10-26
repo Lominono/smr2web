@@ -132,7 +132,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         <div className="px-5 py-4 border-b border-border/60 flex items-start justify-between bg-surface-raised/50">
           <div>
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-accent" />
               <h2 id="leaderboard-title" className="text-base font-semibold text-foreground tracking-tight">
                 Clasificación de alumnos
               </h2>
@@ -244,7 +244,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   : 'bg-surface border-border/70 text-foreground-muted hover:text-foreground'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${filterOnlineOnly ? 'bg-emerald-400 animate-pulse' : 'bg-foreground-subtle'}`} />
+              <span className={`w-2 h-2 rounded-full ${filterOnlineOnly ? 'bg-emerald-400' : 'bg-foreground-subtle'}`} />
               <span className="hidden xs:inline">En línea</span>
               <span className="font-bold">({onlineUsers.length})</span>
             </button>
@@ -286,7 +286,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           {top3[1].username.slice(0, 2).toUpperCase()}
                         </div>
                         {onlineUsernamesSet.has(top3[1].username.toLowerCase()) && (
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border border-surface absolute top-0 right-0 animate-pulse" title="En línea ahora" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border border-surface absolute top-0 right-0" title="En línea ahora" />
                         )}
                         <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-300 text-slate-900 flex items-center justify-center text-[10px] font-mono font-bold shadow-xs">
                           2
@@ -324,9 +324,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           : 'bg-surface-raised border-amber-500/30'
                       }`}
                     >
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-mono text-[9px] font-bold shadow-xs">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-mono text-[9px] font-semibold shadow-xs">
                         <Crown className="w-2.5 h-2.5" />
-                        <span>LÍDER</span>
+                        <span>Líder</span>
                       </div>
 
                       <div className="relative mb-2 mt-1">
@@ -334,7 +334,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           {top3[0].username.slice(0, 2).toUpperCase()}
                         </div>
                         {onlineUsernamesSet.has(top3[0].username.toLowerCase()) && (
-                          <span className="w-3 h-3 rounded-full bg-emerald-400 border border-surface absolute top-0 right-0 animate-pulse" title="En línea ahora" />
+                          <span className="w-3 h-3 rounded-full bg-emerald-400 border border-surface absolute top-0 right-0" title="En línea ahora" />
                         )}
                         <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-[10px] font-mono font-bold shadow-xs">
                           1
@@ -377,7 +377,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           {top3[2].username.slice(0, 2).toUpperCase()}
                         </div>
                         {onlineUsernamesSet.has(top3[2].username.toLowerCase()) && (
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border border-surface absolute top-0 right-0 animate-pulse" title="En línea ahora" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border border-surface absolute top-0 right-0" title="En línea ahora" />
                         )}
                         <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-700 text-white flex items-center justify-center text-[10px] font-mono font-bold shadow-xs">
                           3
@@ -444,8 +444,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                               @{item.username}
                             </span>
                             {onlineUsernamesSet.has(item.username.toLowerCase()) && (
-                              <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-medium bg-emerald-500/10 px-1.5 py-0.2 rounded-full border border-emerald-500/30">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-mono font-medium bg-emerald-500/10 px-1.5 py-0.2 rounded-full border border-emerald-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                 <span>En línea</span>
                               </span>
                             )}

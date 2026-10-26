@@ -131,15 +131,9 @@ export const StudentIdentificationModal: React.FC<StudentIdentificationModalProp
 
         {/* Content & Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="p-3 rounded-xl bg-surface-raised border border-border/70 text-xs text-foreground-muted leading-relaxed space-y-1.5">
+          <div className="p-3 rounded-xl bg-surface-raised border border-border/70 text-xs text-foreground-muted leading-relaxed">
             <p>
-              Para mantener el portal organizado y evitar cuentas anónimas o suplantaciones,
-              debes registrar tu <strong className="text-foreground">nombre real</strong> y tu{' '}
-              <strong className="text-foreground">número de estudiante único</strong>.
-            </p>
-            <p className="text-[11px] text-danger font-medium flex items-center gap-1.5">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>Portal exclusivo para alumnos. Los profesores no tienen acceso a esta plataforma.</span>
+              Para mantener el portal ordenado y evitar cuentas anónimas, registra tu <strong className="text-foreground">nombre real</strong> y tu <strong className="text-foreground">número de estudiante</strong> o NIA.
             </p>
           </div>
 
@@ -167,7 +161,7 @@ export const StudentIdentificationModal: React.FC<StudentIdentificationModalProp
               />
             </div>
             <p className="text-[11px] text-foreground-subtle">
-              Visible para el delegado y profesores en la gestión de clase.
+              Permite identificar tus publicaciones en el tablón de clase.
             </p>
           </div>
 

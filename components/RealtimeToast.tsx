@@ -82,7 +82,7 @@ export const RealtimeToast: React.FC<RealtimeToastProps> = ({
 
           <div className="min-w-0 space-y-0.5">
             <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
               <h4 className="text-xs font-semibold text-foreground tracking-tight truncate">
                 {notification.title}
               </h4>

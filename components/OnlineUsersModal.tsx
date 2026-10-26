@@ -56,13 +56,13 @@ export const OnlineUsersModal: React.FC<OnlineUsersModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 <h2 id="online-modal-title" className="text-sm font-semibold text-foreground tracking-tight">
-                  Alumnos Conectados en Tiempo Real
+                  Alumnos conectados
                 </h2>
               </div>
               <p className="text-xs text-foreground-muted font-mono mt-0.5">
-                {onlineUsers.length} {onlineUsers.length === 1 ? 'compañero activo' : 'compañeros activos'} en directo
+                {onlineUsers.length} {onlineUsers.length === 1 ? 'compañero conectado' : 'compañeros conectados'}
               </p>
             </div>
           </div>
@@ -98,7 +98,7 @@ export const OnlineUsersModal: React.FC<OnlineUsersModalProps> = ({
                     >
                       {u.username.charAt(0)}
                     </div>
-                    <span className="w-3 h-3 rounded-full bg-emerald-500 border-2 border-surface absolute -bottom-0.5 -right-0.5 animate-pulse" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-surface absolute -bottom-0.5 -right-0.5" />
                   </div>
 
                   <div className="min-w-0">

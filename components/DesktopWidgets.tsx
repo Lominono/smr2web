@@ -147,18 +147,18 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
 
   return (
     <div className="w-full space-y-3 overscroll-contain">
-      {/* Widget 0: Alumnos en Directo (Tiempo Real) */}
+      {/* Widget 0: Alumnos en Directo */}
       <Card className="rounded-xl border-border/70 p-3.5 space-y-2.5 bg-surface">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <h3 className="text-xs font-semibold text-foreground tracking-tight flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-emerald-400" />
-              <span>En directo ahora</span>
+              <Users className="w-3.5 h-3.5 text-foreground-muted" />
+              <span>Conectados ahora</span>
             </h3>
           </div>
-          <span className="text-[11px] font-mono font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-            {onlineUsers.length} {onlineUsers.length === 1 ? 'conectado' : 'conectados'}
+          <span className="text-[11px] font-mono text-foreground-muted bg-surface-raised px-2 py-0.5 rounded-full border border-border/60">
+            {onlineUsers.length} {onlineUsers.length === 1 ? 'alumno' : 'alumnos'}
           </span>
         </div>
 
@@ -191,15 +191,15 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
                       >
                         {u.username.charAt(0)}
                       </div>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 border border-surface absolute -bottom-0.5 -right-0.5 animate-pulse" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 border border-surface absolute -bottom-0.5 -right-0.5" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
-                        <span className="font-mono text-foreground font-semibold truncate block">
+                        <span className="font-mono text-foreground font-medium truncate block">
                           @{u.username}
                         </span>
                         {u.is_current_user && (
-                          <span className="text-[9px] px-1 py-0.2 rounded-full bg-accent/20 text-accent font-mono font-bold">
+                          <span className="text-[9px] px-1 py-0.2 rounded-full bg-accent/15 text-accent font-mono font-semibold">
                             Tú
                           </span>
                         )}
@@ -230,8 +230,8 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
             }}
           >
             <span className="flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Ver todos los alumnos ({onlineUsers.length})</span>
+              <Users className="w-3.5 h-3.5 text-foreground-muted" />
+              <span>Ver todos ({onlineUsers.length})</span>
             </span>
             <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
           </Button>
@@ -243,16 +243,16 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span
-              className={`w-2 h-2 rounded-full ${
+              className={`w-1.5 h-1.5 rounded-full ${
                 liveStatus.status === 'in_class'
-                  ? 'bg-success animate-pulse'
+                  ? 'bg-success'
                   : liveStatus.status === 'recreo'
-                  ? 'bg-accent animate-pulse'
+                  ? 'bg-accent'
                   : 'bg-foreground-subtle'
               }`}
             />
             <h3 className="text-xs font-semibold text-foreground tracking-tight">
-              Horario en directo
+              Horario lectivo
             </h3>
           </div>
           <span className="text-[11px] font-mono text-foreground-subtle">Aula 204</span>
@@ -386,8 +386,8 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span
-              className={`w-2 h-2 rounded-full ${
-                botellonState.rate > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-foreground-subtle'
+              className={`w-1.5 h-1.5 rounded-full ${
+                botellonState.rate > 0 ? 'bg-emerald-500' : 'bg-foreground-subtle'
               }`}
             />
             <h3 className="text-xs font-semibold text-foreground tracking-tight flex items-center gap-1.5">

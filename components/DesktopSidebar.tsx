@@ -52,11 +52,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 }) => {
   const rank = currentUser ? getUserRank(currentUser.coins) : null;
 
-  const navItems: { id: string; label: string; icon: any; badge?: string }[] = [
+  const navItems: { id: string; label: string; icon: any }[] = [
     { id: 'feed', label: 'Feed de clase', icon: MessageSquare },
     { id: 'calendar', label: 'Horario y tareas', icon: Calendar },
-    { id: 'farmhand', label: 'El Huerto', icon: Sprout, badge: 'Granja' },
-    { id: 'party_idle', label: 'El Botellón', icon: Wine, badge: 'Farmeo' },
+    { id: 'farmhand', label: 'El Huerto', icon: Sprout },
+    { id: 'party_idle', label: 'El Botellón', icon: Wine },
     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
     { id: 'crash', label: 'Recreo Arcade', icon: Gamepad2 },
   ];
@@ -94,17 +94,6 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   />
                   <span>{item.label}</span>
                 </div>
-                {item.badge && (
-                  <span
-                    className={`text-[10px] px-2 py-0.2 rounded-full font-mono font-medium transition-colors ${
-                      isActive
-                        ? 'bg-background/20 text-background'
-                        : 'bg-surface-raised text-foreground-muted border border-border/70'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
               </button>
             );
           })}

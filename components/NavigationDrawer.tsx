@@ -228,7 +228,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
 
           {/* Horario y Tareas */}
           <div className="space-y-1">
-            <span className="px-2 text-[10px] font-mono uppercase tracking-wider text-foreground-subtle">
+            <span className="px-2 text-xs font-medium text-foreground-subtle">
               Académico
             </span>
             <button
@@ -250,17 +250,16 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
 
           {/* Recreo & Juegos */}
           <div className="space-y-1">
-            <span className="px-2 text-[10px] font-mono uppercase tracking-wider text-foreground-subtle">
-              Recreo Arcade
+            <span className="px-2 text-xs font-medium text-foreground-subtle">
+              Recreo
             </span>
             {[
-              { id: 'farmhand', label: 'El Huerto (Farmhand)', icon: Sprout, badge: 'Granja' },
-              { id: 'party_idle', label: 'El Botellón', icon: Wine, badge: 'Farmeo Idle' },
-              { id: 'russian_roulette', label: 'Ruleta Rusa (Multijugador)', icon: Zap },
-              { id: 'crash', label: 'Crash multiplicador', icon: TrendingUp },
+              { id: 'farmhand', label: 'El Huerto', icon: Sprout },
+              { id: 'party_idle', label: 'El Botellón', icon: Wine },
+              { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
+              { id: 'crash', label: 'Crash', icon: TrendingUp },
               { id: 'mines', label: 'Minas', icon: Server },
-              { id: 'angry', label: 'Angry Birds', icon: Target, badge: 'Cerrado' },
-              { id: 'roulette', label: 'Ruleta clásica', icon: CircleDot },
+              { id: 'roulette', label: 'Ruleta', icon: CircleDot },
             ].map((g) => {
               const Icon = g.icon;
               const isActive = activeView === g.id;
@@ -278,11 +277,6 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                   <div className="flex items-center gap-3">
                     <Icon className="w-4 h-4 text-foreground-subtle" />
                     <span className="text-sm font-sans">{g.label}</span>
-                    {'badge' in g && g.badge && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                        {g.badge}
-                      </span>
-                    )}
                   </div>
                   <ChevronRight className="w-4 h-4 text-foreground-subtle" />
                 </button>
