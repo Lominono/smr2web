@@ -132,13 +132,24 @@ export interface InvestmentTransaction {
   id: string;
   user_id: string;
   username: string;
+  ticker?: string;
   type: 'buy' | 'sell';
   coins_amount: number;
   shares_amount: number;
   price_per_share: number;
   fee_coins: number;
   net_coins: number;
+  price_impact_percent?: number;
   created_at: string;
+}
+
+export interface MarketSentiment {
+  buyVolume: number;
+  sellVolume: number;
+  buyCount: number;
+  sellCount: number;
+  buyPercentage: number;
+  recentTrend: 'bullish' | 'bearish' | 'neutral';
 }
 
 export interface PriceHistoryPoint {

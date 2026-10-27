@@ -8,6 +8,7 @@ import {
   InvestmentActionResult,
   ParodyStock,
   UserStockHolding,
+  MarketSentiment,
 } from '@/lib/types';
 
 export const DEFAULT_PARODY_STOCKS: ParodyStock[] = [
@@ -109,7 +110,64 @@ let mockMarketState: MarketState = {
 };
 
 let mockPriceHistory: PriceHistoryPoint[] = generateInitialMockHistory();
-let mockTransactions: InvestmentTransaction[] = [];
+let mockTransactions: InvestmentTransaction[] = [
+  {
+    id: 'tx-init-1',
+    user_id: 'user-lucia',
+    username: 'Lucía',
+    ticker: 'ONION',
+    type: 'buy',
+    coins_amount: 150,
+    shares_amount: 3.32,
+    price_per_share: 45.2,
+    fee_coins: 0,
+    net_coins: 150,
+    price_impact_percent: 0.8,
+    created_at: new Date(Date.now() - 1000 * 60 * 4).toISOString(),
+  },
+  {
+    id: 'tx-init-2',
+    user_id: 'user-marcos',
+    username: 'Marcos',
+    ticker: 'BTLN',
+    type: 'buy',
+    coins_amount: 300,
+    shares_amount: 24.0,
+    price_per_share: 12.5,
+    fee_coins: 0,
+    net_coins: 300,
+    price_impact_percent: 1.2,
+    created_at: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+  },
+  {
+    id: 'tx-init-3',
+    user_id: 'user-dani',
+    username: 'Dani_SMR',
+    ticker: 'ARDI',
+    type: 'sell',
+    coins_amount: 85,
+    shares_amount: 3.0,
+    price_per_share: 28.5,
+    fee_coins: 2,
+    net_coins: 83,
+    price_impact_percent: -0.6,
+    created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+  },
+  {
+    id: 'tx-init-4',
+    user_id: 'user-pablo',
+    username: 'Pablo',
+    ticker: 'CHERR',
+    type: 'buy',
+    coins_amount: 200,
+    shares_amount: 10.1,
+    price_per_share: 19.8,
+    fee_coins: 0,
+    net_coins: 200,
+    price_impact_percent: 1.1,
+    created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+  },
+];
 let mockPosition: InvestmentPosition = {
   id: 'mock-pos',
   user_id: 'local-user',
@@ -282,9 +340,16 @@ export async function fetchUserPortfolio(): Promise<{
 }
 
 /**
- * Consulta el historial de transacciones propias
+ * Consulta el historial de transacciones propias y del mercado general
  */
 export async function fetchUserTransactions(limit: number = 20): Promise<InvestmentTransaction[]> {
+  return fetchRecentMarketTrades(limit);
+}
+
+/**
+ * Consulta la cinta en vivo de transacciones globales del mercado ejecutadas por toda la clase
+ */
+export async function fetchRecentMarketTrades(limit: number = 20): Promise<InvestmentTransaction[]> {
   const supabase = createClient();
   if (supabase && isSupabaseConfigured()) {
     try {
@@ -298,22 +363,71 @@ export async function fetchUserTransactions(limit: number = 20): Promise<Investm
         return data.map((t) => ({
           id: t.id,
           user_id: t.user_id,
-          username: t.username,
-          type: t.type,
-          coins_amount: Number(t.coins_amount),
-          shares_amount: Number(t.shares_amount),
-          price_per_share: Number(t.price_per_share),
-          fee_coins: Number(t.fee_coins),
-          net_coins: Number(t.net_coins),
+          username: t.username || 'Anónimo',
+          ticker: t.ticker || 'BTLN',
+          type: t.type as 'buy' | 'sell',
+          coins_amount: Number(t.coins_amount || 0),
+          shares_amount: Number(t.shares_amount || 0),
+          price_per_share: Number(t.price_per_share || 0),
+          fee_coins: Number(t.fee_coins || 0),
+          net_coins: Number(t.net_coins || 0),
+          price_impact_percent: t.type === 'buy' ? 0.8 : -0.6,
           created_at: t.created_at,
         }));
       }
     } catch (err) {
-      console.warn('Error fetching user transactions:', err);
+      console.warn('Error fetching market trades from Supabase:', err);
     }
   }
 
-  return mockTransactions;
+  return [...mockTransactions];
+}
+
+/**
+ * Calcula la métrica de sentimiento de mercado (presión compradora vs vendedora)
+ */
+export function calculateMarketSentiment(transactions: InvestmentTransaction[]): MarketSentiment {
+  if (!transactions || transactions.length === 0) {
+    return {
+      buyVolume: 1200,
+      sellVolume: 800,
+      buyCount: 6,
+      sellCount: 4,
+      buyPercentage: 60,
+      recentTrend: 'bullish',
+    };
+  }
+
+  let buyVolume = 0;
+  let sellVolume = 0;
+  let buyCount = 0;
+  let sellCount = 0;
+
+  transactions.forEach((tx) => {
+    if (tx.type === 'buy') {
+      buyVolume += tx.coins_amount;
+      buyCount += 1;
+    } else {
+      sellVolume += tx.coins_amount;
+      sellCount += 1;
+    }
+  });
+
+  const totalVol = buyVolume + sellVolume || 1;
+  const buyPercentage = Math.round((buyVolume / totalVol) * 100);
+
+  let recentTrend: 'bullish' | 'bearish' | 'neutral' = 'neutral';
+  if (buyPercentage >= 55) recentTrend = 'bullish';
+  else if (buyPercentage <= 45) recentTrend = 'bearish';
+
+  return {
+    buyVolume,
+    sellVolume,
+    buyCount,
+    sellCount,
+    buyPercentage,
+    recentTrend,
+  };
 }
 
 /**
@@ -815,6 +929,21 @@ export async function tradeParodyStock(
       totalInvested: holding.totalInvested + coins,
     };
 
+    mockTransactions.unshift({
+      id: `mock-tx-${Date.now()}`,
+      user_id: 'local-user',
+      username: 'Tú',
+      ticker,
+      type: 'buy',
+      coins_amount: coins,
+      shares_amount: sharesBought,
+      price_per_share: currentPrice,
+      fee_coins: 0,
+      net_coins: coins,
+      price_impact_percent: Number((slippage * 100).toFixed(1)),
+      created_at: new Date().toISOString(),
+    });
+
     return {
       success: true,
       ticker,
@@ -863,6 +992,21 @@ export async function tradeParodyStock(
         shares: remaining,
       };
     }
+
+    mockTransactions.unshift({
+      id: `mock-tx-${Date.now()}`,
+      user_id: 'local-user',
+      username: 'Tú',
+      ticker,
+      type: 'sell',
+      coins_amount: gross,
+      shares_amount: sharesToSell,
+      price_per_share: currentPrice,
+      fee_coins: fee,
+      net_coins: net,
+      price_impact_percent: -Number((slippage * 100).toFixed(1)),
+      created_at: new Date().toISOString(),
+    });
 
     return {
       success: true,

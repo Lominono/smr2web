@@ -1280,3 +1280,29 @@ $$;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.community_feedback TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, DELETE ON public.feedback_votes TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.toggle_feedback_vote(UUID) TO authenticated;
+
+
+-- ============================================================================
+-- SECCIÓN: CINTA DE MERCADO EN TIEMPO REAL Y TICKER (MIGRACIÓN 09)
+-- ============================================================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'transactions' 
+      AND column_name = 'ticker'
+  ) THEN
+    ALTER TABLE public.transactions ADD COLUMN ticker TEXT NOT NULL DEFAULT 'BTLN';
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_transactions_ticker_created_at ON public.transactions(ticker, created_at DESC);
+
+DROP POLICY IF EXISTS "Lectura propia de transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Lectura publica de transacciones de mercado" ON public.transactions;
+
+CREATE POLICY "Lectura publica de transacciones de mercado"
+  ON public.transactions FOR SELECT
+  USING (true);

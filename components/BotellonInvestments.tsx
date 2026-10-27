@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -11,8 +11,15 @@ import {
   AlertCircle,
   Clock,
   ChevronRight,
-  Wallet,
-  Building,
+  HelpCircle,
+  Activity,
+  Zap,
+  BarChart2,
+  Sparkles,
+  Wine,
+  User,
+  Shield,
+  Coins,
 } from 'lucide-react';
 import { sound } from '@/lib/audio';
 import { createClient } from '@/lib/supabase/client';
@@ -22,20 +29,23 @@ import {
   ParodyStock,
   UserStockHolding,
   InvestmentTransaction,
+  MarketSentiment,
 } from '@/lib/types';
 import {
   fetchMarketState,
   fetchPriceHistory,
   fetchUserPortfolio,
-  fetchUserTransactions,
+  fetchRecentMarketTrades,
   fetchParodyStocks,
   fetchUserStocksPortfolio,
   investInBotellon,
   withdrawFromBotellon,
   tradeParodyStock,
   triggerMarketTick,
+  calculateMarketSentiment,
   DEFAULT_PARODY_STOCKS,
 } from '@/lib/investmentsService';
+import { InvestmentsTutorialModal } from '@/components/InvestmentsTutorialModal';
 
 interface BotellonInvestmentsProps {
   userCoins: number;
@@ -58,7 +68,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
   const [selectedTicker, setSelectedTicker] = useState<string>('ONION');
   const [userHoldings, setUserHoldings] = useState<Record<string, UserStockHolding>>({});
 
-  // Histórico y cartera del fondo general
+  // Histórico y transacciones globales
   const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
   const [portfolio, setPortfolio] = useState<{
     authenticated: boolean;
@@ -83,7 +93,31 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
-  const [hoveredPoint, setHoveredPoint] = useState<{ price: number; time: string } | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<{ price: number; time: string; changeFromStart: number } | null>(null);
+
+  // Estados de Tiempo Real y Tutorial
+  const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(false);
+  const [glowingTicker, setGlowingTicker] = useState<string | null>(null);
+  const [recentLiveNotification, setRecentLiveNotification] = useState<{
+    username: string;
+    type: 'buy' | 'sell';
+    ticker: string;
+    coins: number;
+    time: number;
+  } | null>(null);
+
+  // Auto-apertura del tutorial en primera visita
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem('botellon_investments_tutorial_seen');
+      if (!seen) {
+        const t = setTimeout(() => {
+          setIsTutorialOpen(true);
+        }, 800);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
 
   // Carga unificada de datos
   const loadAllData = useCallback(async () => {
@@ -92,7 +126,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         fetchMarketState(),
         fetchPriceHistory(60),
         fetchUserPortfolio(),
-        fetchUserTransactions(10),
+        fetchRecentMarketTrades(20),
         fetchParodyStocks(),
         fetchUserStocksPortfolio(),
       ]);
@@ -127,14 +161,14 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     return () => clearInterval(interval);
   }, [cooldownSeconds]);
 
-  // Suscripción Realtime (con control de fallos)
+  // Suscripción Realtime (Market State, Price History y Live Transactions Tape)
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) return;
 
     try {
       const channel = supabase
-        .channel('botellon_investments_stream')
+        .channel('botellon_market_live_stream')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'market_state' },
@@ -178,6 +212,39 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
             }
           }
         )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'transactions' },
+          (payload) => {
+            if (payload.new) {
+              const newTx: InvestmentTransaction = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                username: payload.new.username || 'Compañero',
+                ticker: payload.new.ticker || 'BTLN',
+                type: payload.new.type as 'buy' | 'sell',
+                coins_amount: Number(payload.new.coins_amount || 0),
+                shares_amount: Number(payload.new.shares_amount || 0),
+                price_per_share: Number(payload.new.price_per_share || 0),
+                fee_coins: Number(payload.new.fee_coins || 0),
+                net_coins: Number(payload.new.net_coins || 0),
+                price_impact_percent: payload.new.type === 'buy' ? 0.9 : -0.7,
+                created_at: payload.new.created_at,
+              };
+
+              setTransactions((prev) => [newTx, ...prev.slice(0, 24)]);
+              setRecentLiveNotification({
+                username: newTx.username,
+                type: newTx.type,
+                ticker: newTx.ticker || 'BTLN',
+                coins: newTx.coins_amount,
+                time: Date.now(),
+              });
+              setGlowingTicker(newTx.ticker || 'BTLN');
+              setTimeout(() => setGlowingTicker(null), 3000);
+            }
+          }
+        )
         .subscribe();
 
       return () => {
@@ -191,13 +258,12 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
   // Lista combinada de todos los activos disponibles
   const allAssets = useMemo(() => {
     const btlPrice = marketState?.current_price || 12.5;
-    const btlHolding = portfolio?.shares || 0;
 
     const btlAsset: ParodyStock = {
       ticker: 'BTLN',
       name: 'Fondo Botellón',
       parodyOf: 'Índice colectivo',
-      slogan: 'Fondo global compartido entre todos los jugadores',
+      slogan: 'Fondo general compartido y alimentado por las comisiones',
       sector: 'Índice general',
       price: btlPrice,
       change24h: 1.5,
@@ -207,7 +273,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     };
 
     return [btlAsset, ...parodyStocks];
-  }, [marketState, parodyStocks, portfolio]);
+  }, [marketState, parodyStocks]);
 
   // Activo seleccionado
   const activeAsset = useMemo(() => {
@@ -217,22 +283,44 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
   // Tenencia del activo seleccionado
   const currentHolding = useMemo(() => {
     if (selectedTicker === 'BTLN') {
+      const shares = portfolio?.shares || 0;
+      const avg = portfolio?.average_buy_price || 0;
+      const invested = portfolio?.total_invested_coins || 0;
+      const currentVal = shares * (marketState?.current_price || 12.5);
+      const diff = invested > 0 ? currentVal - invested : 0;
+      const diffPct = invested > 0 ? (diff / invested) * 100 : 0;
+
       return {
         ticker: 'BTLN',
-        shares: portfolio?.shares || 0,
-        averagePrice: portfolio?.average_buy_price || 0,
-        totalInvested: portfolio?.total_invested_coins || 0,
+        shares,
+        averagePrice: avg,
+        totalInvested: invested,
+        currentValue: Math.round(currentVal),
+        profitCoins: Math.round(diff),
+        profitPercent: Number(diffPct.toFixed(1)),
       };
     }
-    return (
-      userHoldings[selectedTicker] || {
-        ticker: selectedTicker,
-        shares: 0,
-        averagePrice: 0,
-        totalInvested: 0,
-      }
-    );
-  }, [selectedTicker, userHoldings, portfolio]);
+
+    const h = userHoldings[selectedTicker] || {
+      ticker: selectedTicker,
+      shares: 0,
+      averagePrice: 0,
+      totalInvested: 0,
+    };
+    const currentVal = h.shares * activeAsset.price;
+    const diff = h.totalInvested > 0 ? currentVal - h.totalInvested : 0;
+    const diffPct = h.totalInvested > 0 ? (diff / h.totalInvested) * 100 : 0;
+
+    return {
+      ticker: selectedTicker,
+      shares: h.shares,
+      averagePrice: h.averagePrice,
+      totalInvested: h.totalInvested,
+      currentValue: Math.round(currentVal),
+      profitCoins: Math.round(diff),
+      profitPercent: Number(diffPct.toFixed(1)),
+    };
+  }, [selectedTicker, userHoldings, portfolio, marketState, activeAsset.price]);
 
   // Valor total del portfolio del usuario
   const totalPortfolioValue = useMemo(() => {
@@ -245,6 +333,11 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     });
     return Math.round(total);
   }, [portfolio, marketState, parodyStocks, userHoldings]);
+
+  // Métrica de Sentimiento / Presión de mercado
+  const marketSentiment = useMemo(() => {
+    return calculateMarketSentiment(transactions);
+  }, [transactions]);
 
   // Puntos de la gráfica filtrados
   const filteredHistory = useMemo(() => {
@@ -259,7 +352,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     };
     const cutoff = now - msMap[timeFilter];
     const filtered = priceHistory.filter((p) => new Date(p.created_at).getTime() >= cutoff);
-    return filtered.length >= 2 ? filtered : priceHistory.slice(-16);
+    return filtered.length >= 2 ? filtered : priceHistory.slice(-18);
   }, [priceHistory, timeFilter]);
 
   // Escala para la gráfica
@@ -291,19 +384,21 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     };
   }, [filteredHistory, activeAsset, marketState?.current_price, selectedTicker]);
 
-  // SVG de la gráfica
+  // Generación SVG de la curva
   const chartData = useMemo(() => {
     if (filteredHistory.length < 2) return { line: '', area: '', points: [] };
 
-    const svgW = 540;
-    const svgH = 150;
-    const padX = 12;
-    const padY = 14;
+    const svgW = 600;
+    const svgH = 160;
+    const padX = 14;
+    const padY = 16;
     const plotW = svgW - padX * 2;
     const plotH = svgH - padY * 2;
     const range = maxPrice - minPrice || 1;
     const assetPrice = activeAsset.price;
     const baseMarketPrice = marketState?.current_price || 12.5;
+    const firstPrice =
+      selectedTicker === 'BTLN' ? filteredHistory[0].price : (filteredHistory[0].price / baseMarketPrice) * assetPrice;
 
     const points = filteredHistory.map((pt, i) => {
       const scaledPrice =
@@ -311,11 +406,14 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
       const x = padX + (i / (filteredHistory.length - 1)) * plotW;
       const norm = (scaledPrice - minPrice) / range;
       const y = svgH - padY - Math.max(0, Math.min(1, norm)) * plotH;
+      const changeFromStart = firstPrice > 0 ? Number((((scaledPrice - firstPrice) / firstPrice) * 100).toFixed(2)) : 0;
+
       return {
         x: Number(x.toFixed(1)),
         y: Number(y.toFixed(1)),
         price: Number(scaledPrice.toFixed(2)),
         time: pt.created_at,
+        changeFromStart,
       };
     });
 
@@ -333,13 +431,11 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
   // Cálculos de la orden
   const inputNumeric = Math.max(0, parseFloat(tradeAmountInput) || 0);
 
-  // En compra: estimar acciones que recibirá
   const estimatedShares = useMemo(() => {
     if (tradeMode !== 'buy' || inputNumeric <= 0 || activeAsset.price <= 0) return 0;
     return Number((inputNumeric / activeAsset.price).toFixed(2));
   }, [tradeMode, inputNumeric, activeAsset.price]);
 
-  // En venta: estimar monedas que recibirá tras comisión del 2%
   const estimatedCoins = useMemo(() => {
     if (tradeMode !== 'sell' || inputNumeric <= 0 || activeAsset.price <= 0) return { gross: 0, fee: 0, net: 0 };
     const gross = Math.round(inputNumeric * activeAsset.price);
@@ -348,7 +444,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     return { gross, fee, net };
   }, [tradeMode, inputNumeric, activeAsset.price]);
 
-  // Ejecución de la operación
+  // Envío de la orden
   const handleExecuteTrade = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -379,7 +475,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           if (onUpdateCoins) onUpdateCoins(-inputNumeric);
         } else {
           if (inputNumeric <= 0) throw new Error('Indica una cantidad de participaciones.');
-          if (inputNumeric > currentHolding.shares) throw new Error('No tienes suficientes participaciones.');
+          if (inputNumeric > currentHolding.shares) throw new Error('No posees suficientes participaciones.');
 
           const res = await withdrawFromBotellon(inputNumeric);
           if (!res.success) throw new Error(res.message);
@@ -433,51 +529,96 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto pb-6">
-      {/* 1. SELECTOR MINIMALISTA DE ACTIVOS (SCROLL HORIZONTAL CÓMODO EN MÓVIL) */}
-      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 px-0.5 touch-pan-x">
-        {allAssets.map((asset) => {
-          const isSelected = selectedTicker === asset.ticker;
-          const isUp = asset.change24h >= 0;
-          const holding = asset.ticker === 'BTLN' ? portfolio?.shares : userHoldings[asset.ticker]?.shares;
+      {/* 1. TOP BAR: SELECTOR DE ACTIVOS + ACCESO A GUÍA TUTORIAL */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 px-0.5 touch-pan-x flex-1">
+          {allAssets.map((asset) => {
+            const isSelected = selectedTicker === asset.ticker;
+            const isUp = asset.change24h >= 0;
+            const holdingShares = asset.ticker === 'BTLN' ? portfolio?.shares : userHoldings[asset.ticker]?.shares;
+            const isGlowing = glowingTicker === asset.ticker;
 
-          return (
-            <button
-              key={asset.ticker}
-              type="button"
-              onClick={() => {
-                setSelectedTicker(asset.ticker);
-                setFeedback(null);
-                sound.tap();
-              }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors shrink-0 cursor-pointer ${
-                isSelected
-                  ? 'bg-foreground text-background font-semibold shadow-xs'
-                  : 'bg-surface border border-border text-foreground-muted hover:text-foreground hover:bg-surface-raised'
-              }`}
-            >
-              <span>{asset.name}</span>
-              <span className="font-mono text-[11px] opacity-80">
-                {asset.price.toFixed(2)}
-              </span>
-              {holding && holding > 0 ? (
-                <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
-              ) : null}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={asset.ticker}
+                type="button"
+                onClick={() => {
+                  setSelectedTicker(asset.ticker);
+                  setFeedback(null);
+                  sound.tap();
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all shrink-0 cursor-pointer ${
+                  isSelected
+                    ? 'bg-foreground text-background font-semibold shadow-xs'
+                    : isGlowing
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-foreground ring-1 ring-emerald-500/30'
+                    : 'bg-surface border border-border text-foreground-muted hover:text-foreground hover:bg-surface-raised'
+                }`}
+              >
+                <span>{asset.name}</span>
+                <span className="font-mono text-[11px] opacity-80">
+                  {asset.price.toFixed(2)}
+                </span>
+                {holdingShares && holdingShares > 0 ? (
+                  <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Botón ¿Cómo funciona? */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsTutorialOpen(true);
+            sound.tap();
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-surface border border-border text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-colors shrink-0 cursor-pointer active:scale-95"
+          title="Abrir tutorial de inversiones"
+        >
+          <HelpCircle className="w-3.5 h-3.5 text-accent" />
+          <span className="hidden sm:inline">¿Cómo funciona?</span>
+          <span className="sm:hidden">Guía</span>
+        </button>
       </div>
 
-      {/* 2. FICHA PRINCIPAL DEL ACTIVO + GRÁFICA */}
+      {/* 2. ALERTA REACTIVA EN TIEMPO REAL CUANDO OTRO JUGADOR OPERA */}
+      {recentLiveNotification && Date.now() - recentLiveNotification.time < 8000 && (
+        <div className="p-2.5 rounded-xl bg-surface-raised border border-border/80 flex items-center justify-between text-xs animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="text-foreground-muted truncate">
+              <strong className="text-foreground">@{recentLiveNotification.username}</strong> acaba de{' '}
+              {recentLiveNotification.type === 'buy' ? (
+                <span className="text-emerald-500 font-semibold">comprar</span>
+              ) : (
+                <span className="text-rose-500 font-semibold">vender</span>
+              )}{' '}
+              {recentLiveNotification.coins}🪙 en <strong className="text-foreground">${recentLiveNotification.ticker}</strong>
+            </span>
+          </div>
+          <span className="text-[10px] text-foreground-subtle font-mono shrink-0 ml-2">hace unos segundos</span>
+        </div>
+      )}
+
+      {/* 3. FICHA DEL ACTIVO PRINCIPAL + GRÁFICA INTERACTIVA CON SCRUBBER */}
       <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-border space-y-4">
         {/* Cabecera del activo */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg sm:text-xl font-bold text-foreground tracking-tight">
                 {activeAsset.name}
               </h2>
               <span className="text-xs text-foreground-subtle">
                 ({activeAsset.parodyOf})
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-mono bg-surface-raised border border-border text-foreground-subtle">
+                ${activeAsset.ticker}
               </span>
             </div>
             <p className="text-xs text-foreground-muted mt-0.5">
@@ -485,12 +626,13 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
             </p>
           </div>
 
-          <div className="text-right">
-            <div className="text-xl sm:text-2xl font-bold font-mono text-foreground">
+          <div className="flex items-baseline sm:flex-col sm:items-end justify-between sm:justify-center">
+            <div className="text-2xl sm:text-3xl font-bold font-mono text-foreground tracking-tight">
               {activeAsset.price.toFixed(2)}{' '}
               <span className="text-xs text-foreground-muted font-sans font-normal">monedas</span>
             </div>
-            <div className="flex items-center justify-end gap-1 mt-0.5">
+
+            <div className="flex items-center gap-1.5 mt-0.5">
               <span
                 className={`text-xs font-mono font-medium flex items-center ${
                   isPriceUp ? 'text-emerald-500' : 'text-rose-500'
@@ -509,9 +651,9 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 type="button"
                 onClick={handleManualRefresh}
                 disabled={isRefreshing}
-                title="Actualizar cotizaciones"
-                aria-label="Actualizar cotizaciones"
-                className="p-1 rounded-md text-foreground-subtle hover:text-foreground transition-colors cursor-pointer ml-1"
+                title="Actualizar cotización"
+                aria-label="Actualizar cotización"
+                className="p-1 rounded-md text-foreground-subtle hover:text-foreground transition-colors cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </button>
@@ -519,18 +661,49 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           </div>
         </div>
 
-        {/* Gráfica limpia SVG */}
+        {/* Chip de posición personal en esta empresa (si tiene participaciones) */}
+        {currentHolding.shares > 0 && (
+          <div className="p-2.5 rounded-xl bg-surface-raised/60 border border-border flex flex-wrap items-center justify-between text-xs gap-2">
+            <div className="flex items-center gap-2">
+              <Coins className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-foreground-muted">
+                Posees <strong className="text-foreground font-mono">{currentHolding.shares.toFixed(2)}</strong> acciones ·
+                Valor: <strong className="text-foreground font-mono">{currentHolding.currentValue.toLocaleString()}</strong> monedas
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 text-[11px] font-mono">
+              <span className="text-foreground-subtle">Rendimiento:</span>
+              <span
+                className={`font-semibold ${
+                  currentHolding.profitCoins >= 0 ? 'text-emerald-500' : 'text-rose-500'
+                }`}
+              >
+                {currentHolding.profitCoins >= 0 ? '+' : ''}
+                {currentHolding.profitCoins} monedas ({currentHolding.profitPercent > 0 ? '+' : ''}
+                {currentHolding.profitPercent}%)
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Gráfica interactiva con Scrubber */}
         <div className="space-y-2 pt-2 border-t border-border/50">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-foreground-subtle text-[11px]">
+            <div className="text-foreground-subtle text-[11px]">
               {hoveredPoint ? (
-                <span className="font-mono text-foreground font-medium">
-                  {hoveredPoint.price.toFixed(2)} monedas
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-foreground font-bold text-xs">
+                    {hoveredPoint.price.toFixed(2)} monedas
+                  </span>
+                  <span className={`font-mono ${hoveredPoint.changeFromStart >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {hoveredPoint.changeFromStart >= 0 ? '+' : ''}{hoveredPoint.changeFromStart}%
+                  </span>
+                </div>
               ) : (
-                'Evolución del precio'
+                <span>Evolución de cotización</span>
               )}
-            </span>
+            </div>
 
             <div className="flex items-center gap-1 bg-surface-raised p-0.5 rounded-lg border border-border">
               {(['1H', '6H', '24H', 'ALL'] as const).map((r) => (
@@ -553,63 +726,94 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
             </div>
           </div>
 
-          <div className="relative w-full h-36 sm:h-44 bg-surface-raised/40 rounded-xl p-2 border border-border/60 overflow-hidden">
+          <div className="relative w-full h-40 sm:h-48 bg-surface-raised/40 rounded-xl p-2 border border-border/60 overflow-hidden">
             <svg
-              viewBox="0 0 540 150"
+              viewBox="0 0 600 160"
               className="w-full h-full overflow-visible"
               preserveAspectRatio="none"
             >
               <defs>
-                <linearGradient id="calmChartGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="currentColor" stopOpacity="0.12" />
+                <linearGradient id="fintechChartGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="currentColor" stopOpacity="0.14" />
                   <stop offset="100%" stopColor="currentColor" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
 
-              {/* Guías suaves */}
-              <line x1="12" y1="20" x2="528" y2="20" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="2 2" />
-              <line x1="12" y1="75" x2="528" y2="75" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="2 2" />
-              <line x1="12" y1="130" x2="528" y2="130" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="2 2" />
+              {/* Guías horizontales de escala */}
+              <line x1="14" y1="20" x2="586" y2="20" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="3 3" />
+              <line x1="14" y1="80" x2="586" y2="80" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="3 3" />
+              <line x1="14" y1="140" x2="586" y2="140" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="3 3" />
 
-              {/* Área y línea */}
-              {chartData.area && <path d={chartData.area} fill="url(#calmChartGrad)" className="text-foreground" />}
+              {/* Curva y Área rellena */}
+              {chartData.area && <path d={chartData.area} fill="url(#fintechChartGrad)" className="text-foreground" />}
               {chartData.line && (
                 <path
                   d={chartData.line}
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth="2.2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   className={isPriceUp ? 'text-emerald-500' : 'text-rose-500'}
                 />
               )}
 
-              {/* Puntos para lectura */}
-              {chartData.points.map((pt, idx) => (
-                <circle
-                  key={idx}
-                  cx={pt.x}
-                  cy={pt.y}
-                  r="3"
-                  className="fill-transparent hover:fill-foreground cursor-pointer transition-colors"
-                  onMouseEnter={() => setHoveredPoint({ price: pt.price, time: pt.time })}
-                  onMouseLeave={() => setHoveredPoint(null)}
-                />
-              ))}
+              {/* Puntos interactivos con scrubber */}
+              {chartData.points.map((pt, idx) => {
+                const isLast = idx === chartData.points.length - 1;
+                return (
+                  <circle
+                    key={idx}
+                    cx={pt.x}
+                    cy={pt.y}
+                    r={isLast ? 3.5 : 2.5}
+                    className={`transition-colors cursor-pointer ${
+                      isLast
+                        ? 'fill-foreground stroke-background stroke-2'
+                        : 'fill-transparent hover:fill-foreground'
+                    }`}
+                    onMouseEnter={() => setHoveredPoint({ price: pt.price, time: pt.time, changeFromStart: pt.changeFromStart })}
+                    onMouseLeave={() => setHoveredPoint(null)}
+                  />
+                );
+              })}
             </svg>
 
-            <div className="absolute top-1.5 right-2 text-[10px] font-mono text-foreground-subtle">
+            {/* Marcadores de referencia Mín / Máx */}
+            <div className="absolute top-1.5 right-2.5 text-[10px] font-mono text-foreground-subtle bg-surface/70 px-1 rounded">
               Máx: {maxPrice.toFixed(2)}
             </div>
-            <div className="absolute bottom-1.5 right-2 text-[10px] font-mono text-foreground-subtle">
+            <div className="absolute bottom-1.5 right-2.5 text-[10px] font-mono text-foreground-subtle bg-surface/70 px-1 rounded">
               Mín: {minPrice.toFixed(2)}
             </div>
           </div>
         </div>
+
+        {/* 4. INDICADOR DE PRESIÓN DE MERCADO (SENTIMIENTO COMPRADOR VS VENDEDOR EN TIEMPO REAL) */}
+        <div className="pt-2 border-t border-border/50 space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1.5 font-medium text-foreground-muted text-[11px]">
+              <Activity className="w-3.5 h-3.5 text-accent" />
+              Presión de mercado en vivo
+            </span>
+            <div className="flex items-center gap-2 font-mono text-[11px]">
+              <span className="text-emerald-500 font-semibold">{marketSentiment.buyPercentage}% Compras</span>
+              <span className="text-foreground-subtle">/</span>
+              <span className="text-rose-500 font-semibold">{100 - marketSentiment.buyPercentage}% Ventas</span>
+            </div>
+          </div>
+
+          {/* Barra de progreso bicolor */}
+          <div className="w-full h-1.5 rounded-full bg-rose-500/30 overflow-hidden flex">
+            <div
+              className="h-full bg-emerald-500 transition-all duration-300 rounded-l-full"
+              style={{ width: `${marketSentiment.buyPercentage}%` }}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* 3. GRID PRINCIPAL: OPERAR (IZQUIERDA) Y MIS INVERSIONES (DERECHA) */}
+      {/* 5. GRID PRINCIPAL: OPERAR (IZQUIERDA) Y CARTERA / RESUMEN (DERECHA) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* PANEL DE OPERACIÓN */}
         <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-border space-y-4">
@@ -770,7 +974,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
             <div className="p-3 rounded-xl bg-surface-raised/60 border border-border text-xs space-y-1 text-foreground-muted">
               {tradeMode === 'buy' ? (
                 <div className="flex items-center justify-between">
-                  <span>Acciones estimadas:</span>
+                  <span>Acciones estimadas a recibir:</span>
                   <span className="font-mono font-medium text-foreground">
                     ~{estimatedShares} acciones
                   </span>
@@ -782,7 +986,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                     <span className="font-mono text-foreground">{estimatedCoins.gross} monedas</span>
                   </div>
                   <div className="flex items-center justify-between text-foreground-subtle text-[11px]">
-                    <span>Comisión (2%):</span>
+                    <span>Comisión de liquidez (2%):</span>
                     <span className="font-mono">-{estimatedCoins.fee} monedas</span>
                   </div>
                   <div className="flex items-center justify-between pt-1 border-t border-border/40 font-medium text-foreground">
@@ -808,79 +1012,112 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               {isSubmitting ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Procesando...</span>
+                  <span>Procesando orden...</span>
                 </>
               ) : tradeMode === 'buy' ? (
                 `Comprar por ${Math.round(inputNumeric)} monedas`
               ) : (
-                `Vender por +${estimatedCoins.net} monedas`
+                `Vender y cobrar +${estimatedCoins.net} monedas`
               )}
             </button>
           </form>
         </div>
 
-        {/* RESUMEN DE CARTERA Y POSICIONES */}
+        {/* CINTA DE OPERACIONES EN VIVO Y CARTERA */}
         <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-border space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground">
-              Mis inversiones
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              Cinta de mercado en vivo
             </h3>
-            <span className="text-xs text-foreground-subtle font-mono">
-              Total: {totalPortfolioValue.toLocaleString()} monedas
+            <span className="text-[11px] text-foreground-subtle font-mono">
+              Patrimonio: {totalPortfolioValue.toLocaleString()} monedas
             </span>
           </div>
 
-          {/* Métricas rápidas */}
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="p-2.5 rounded-xl bg-surface-raised border border-border">
-              <span className="text-[11px] text-foreground-subtle block">En {activeAsset.name}</span>
-              <span className="font-mono font-bold text-foreground text-sm">
-                {currentHolding.shares.toFixed(2)}{' '}
-                <span className="text-xs font-normal text-foreground-muted">acc.</span>
-              </span>
-              <span className="text-[10px] text-foreground-subtle block mt-0.5">
-                Valor: {Math.round(currentHolding.shares * activeAsset.price).toLocaleString()} monedas
-              </span>
+          {/* Listado en tiempo real de operaciones de compañeros */}
+          <div className="space-y-1.5">
+            <div className="text-[11px] font-medium text-foreground-subtle uppercase tracking-wider">
+              Últimas compras y ventas de la clase
             </div>
 
-            <div className="p-2.5 rounded-xl bg-surface-raised border border-border">
-              <span className="text-[11px] text-foreground-subtle block">Saldo en cartera</span>
-              <span className="font-mono font-bold text-foreground text-sm">
-                {userCoins.toLocaleString()}{' '}
-                <span className="text-xs font-normal text-foreground-muted">monedas</span>
-              </span>
-              <span className="text-[10px] text-foreground-subtle block mt-0.5">
-                Disponible para operar
-              </span>
-            </div>
+            {transactions.length === 0 ? (
+              <p className="text-xs text-foreground-subtle py-4 text-center border border-dashed border-border rounded-xl">
+                Aún no hay transacciones en el mercado. Sé el primero en operar.
+              </p>
+            ) : (
+              <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+                {transactions.slice(0, 8).map((tx) => {
+                  const isBuy = tx.type === 'buy';
+                  return (
+                    <div
+                      key={tx.id}
+                      className="p-2 rounded-xl bg-surface-raised/60 border border-border/80 flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            isBuy ? 'bg-emerald-500' : 'bg-rose-500'
+                          }`}
+                        />
+                        <div className="min-w-0">
+                          <span className="font-semibold text-foreground truncate block">
+                            @{tx.username}
+                          </span>
+                          <span className="text-[10px] text-foreground-subtle block font-mono">
+                            {isBuy ? 'Compró' : 'Vendió'} en ${tx.ticker || 'BTLN'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span
+                          className={`font-mono font-medium ${
+                            isBuy ? 'text-emerald-500' : 'text-rose-500'
+                          }`}
+                        >
+                          {isBuy ? '+' : '-'}{tx.coins_amount} monedas
+                        </span>
+                        <span className="text-[10px] text-foreground-subtle block font-mono">
+                          {new Date(tx.created_at).toLocaleTimeString('es-ES', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Lista de empresas en posesión */}
-          <div className="space-y-1.5 pt-1">
+          {/* Resumen de Mis Inversiones */}
+          <div className="pt-2 border-t border-border/50 space-y-1.5">
             <div className="text-[11px] font-medium text-foreground-subtle uppercase tracking-wider">
-              Acciones que posees
+              Tus participaciones activas
             </div>
 
             {allAssets.filter((a) => {
               const s = a.ticker === 'BTLN' ? portfolio?.shares : userHoldings[a.ticker]?.shares;
               return s && s > 0;
             }).length === 0 ? (
-              <p className="text-xs text-foreground-subtle py-3 text-center border border-dashed border-border rounded-xl">
-                Aún no tienes inversiones activas. Elige una empresa arriba para empezar.
+              <p className="text-xs text-foreground-subtle py-2.5 text-center border border-dashed border-border rounded-xl">
+                No tienes participaciones actualmente.
               </p>
             ) : (
-              <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+              <div className="space-y-1">
                 {allAssets
                   .filter((a) => {
                     const s = a.ticker === 'BTLN' ? portfolio?.shares : userHoldings[a.ticker]?.shares;
                     return s && s > 0;
                   })
                   .map((asset) => {
-                    const shares =
+                    const s =
                       asset.ticker === 'BTLN'
                         ? portfolio?.shares || 0
                         : userHoldings[asset.ticker]?.shares || 0;
-                    const value = Math.round(shares * asset.price);
+                    const val = Math.round(s * asset.price);
 
                     return (
                       <div
@@ -895,19 +1132,10 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                             : 'bg-surface border-border hover:bg-surface-raised/50'
                         }`}
                       >
-                        <div>
-                          <span className="font-medium text-foreground">{asset.name}</span>
-                          <span className="text-[10px] text-foreground-subtle block">
-                            {shares.toFixed(2)} acciones
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-mono font-medium text-foreground">
-                            {value.toLocaleString()} monedas
-                          </span>
-                          <span className="text-[10px] text-foreground-subtle block">
-                            {asset.price.toFixed(2)} c/u
-                          </span>
+                        <span className="font-medium text-foreground">{asset.name}</span>
+                        <div className="text-right font-mono">
+                          <span className="text-foreground font-semibold">{val.toLocaleString()} monedas</span>
+                          <span className="text-[10px] text-foreground-subtle block">{s.toFixed(2)} acc.</span>
                         </div>
                       </div>
                     );
@@ -918,7 +1146,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         </div>
       </div>
 
-      {/* 4. TABLA RESUMEN DE TODAS LAS EMPRESAS */}
+      {/* 6. TABLA RESUMEN DE TODAS LAS EMPRESAS COTIZADAS */}
       <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-border space-y-3">
         <h3 className="text-sm font-semibold text-foreground">
           Cotizaciones del mercado
@@ -986,6 +1214,12 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           })}
         </div>
       </div>
+
+      {/* MODAL DEL MINI TUTORIAL */}
+      <InvestmentsTutorialModal
+        isOpen={isTutorialOpen}
+        onClose={() => setIsTutorialOpen(false)}
+      />
     </div>
   );
 };
