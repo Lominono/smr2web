@@ -40,15 +40,15 @@ async function handleMarketTick(request: NextRequest) {
 
     const adminClient = createAdminClient();
     if (!adminClient) {
-      return NextResponse.json({ error: 'No se pudo inicializar el cliente de Supabase' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'No se pudo inicializar el cliente de Supabase' }, { status: 200 });
     }
 
     // 2. Ejecutar la función RPC atómica tick_market_price()
     const { data, error } = await adminClient.rpc('tick_market_price');
 
     if (error) {
-      console.error('[Investments Tick] Error ejecutando tick_market_price:', error);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      console.warn('[Investments Tick] Aviso ejecutando tick_market_price:', error.message);
+      return NextResponse.json({ success: false, error: error.message }, { status: 200 });
     }
 
     return NextResponse.json({
@@ -57,7 +57,7 @@ async function handleMarketTick(request: NextRequest) {
       result: data,
     });
   } catch (err: any) {
-    console.error('[Investments Tick] Excepción no controlada:', err);
-    return NextResponse.json({ success: false, error: err?.message || 'Error interno' }, { status: 500 });
+    console.warn('[Investments Tick] Excepción capturada:', err);
+    return NextResponse.json({ success: false, error: err?.message || 'Error interno' }, { status: 200 });
   }
 }

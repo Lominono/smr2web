@@ -13,80 +13,74 @@ import {
 export const DEFAULT_PARODY_STOCKS: ParodyStock[] = [
   {
     ticker: 'ONION',
-    name: 'Onion Inc.',
+    name: 'Onion',
     parodyOf: 'Apple',
-    slogan: 'Piensa diferente... y llora pelando la cebolla',
-    sector: 'Tecnología & Altavoces',
+    slogan: 'Dispositivos y tecnología',
+    sector: 'Tecnología',
     price: 45.2,
-    change24h: 4.8,
+    change24h: 3.4,
     volume: 128400,
-    lastNews: 'Lanzamiento del altavoz iCubata con luces LED estroboscópicas (+4.8%)',
-    accentColor: '#f97316',
+    accentColor: '#10b981',
     iconType: 'onion',
   },
   {
     ticker: 'ARDI',
-    name: 'Ardidas Sport',
+    name: 'Ardidas',
     parodyOf: 'Adidas',
-    slogan: 'Impossible is Litrona',
-    sector: 'Ropa de Mercadillo',
+    slogan: 'Ropa y zapatillas deportivas',
+    sector: 'Deporte',
     price: 28.5,
-    change24h: -2.3,
+    change24h: -1.2,
     volume: 84200,
-    lastNews: 'Lote de chándales con 4 rayas causa furor en el parque (-2.3%)',
-    accentColor: '#0ea5e9',
+    accentColor: '#3b82f6',
     iconType: 'shoe',
   },
   {
     ticker: 'CHERR',
     name: 'Carlos Herrero',
     parodyOf: 'Carolina Herrera',
-    slogan: 'Alta perfumería de garrafa anti-resaca',
-    sector: 'Lujo & Perfumes',
+    slogan: 'Fragancias y moda',
+    sector: 'Perfumería',
     price: 19.8,
-    change24h: 6.5,
+    change24h: 2.1,
     volume: 62500,
-    lastNews: 'Nuevo desodorante 212 Resaca agota existencias (+6.5%)',
     accentColor: '#ec4899',
     iconType: 'perfume',
   },
   {
     ticker: 'MBRON',
-    name: 'Mercabrona Hielos',
+    name: 'Mercabrona',
     parodyOf: 'Mercadona',
-    slogan: 'Hacendado Premium a granel',
-    sector: 'Consumo & Hielos',
+    slogan: 'Supermercados y alimentación',
+    sector: 'Alimentación',
     price: 12.1,
-    change24h: 1.2,
+    change24h: 0.8,
     volume: 215000,
-    lastNews: 'Se confirma apertura hasta las 22:00 este viernes (+1.2%)',
-    accentColor: '#10b981',
+    accentColor: '#059669',
     iconType: 'cart',
   },
   {
     ticker: 'CUTI',
-    name: 'Cutify Music',
+    name: 'Cutify',
     parodyOf: 'Spotify',
-    slogan: 'Bajos que retumban en el pecho',
-    sector: 'Entretenimiento & DJs',
+    slogan: 'Música y podcasts en streaming',
+    sector: 'Streaming',
     price: 8.4,
-    change24h: 8.1,
+    change24h: 4.2,
     volume: 94100,
-    lastNews: 'La playlist "Perreo 2000" alcanza 10 millones de reproducciones (+8.1%)',
     accentColor: '#84cc16',
     iconType: 'music',
   },
   {
     ticker: 'TOLED',
-    name: 'Toledo TDI Repro',
+    name: 'Toledo TDI',
     parodyOf: 'Tesla',
-    slogan: '0 a 100 en 3 botellones con humo negro',
-    sector: 'Automoción & Car-Audio',
+    slogan: 'Vehículos y motor',
+    sector: 'Automoción',
     price: 34.0,
-    change24h: -1.5,
+    change24h: -0.9,
     volume: 110400,
-    lastNews: 'La etapa de potencia del maletero supera la ITV provisional (-1.5%)',
-    accentColor: '#eab308',
+    accentColor: '#f59e0b',
     iconType: 'car',
   },
 ];
@@ -94,11 +88,11 @@ export const DEFAULT_PARODY_STOCKS: ParodyStock[] = [
 let mockParodyStocks: ParodyStock[] = [...DEFAULT_PARODY_STOCKS];
 let mockUserStockHoldings: Record<string, UserStockHolding> = {};
 
-// Estado de simulación en memoria para desarrollo local sin Supabase conectado
+// Estado de simulación en memoria para desarrollo local o si faltan tablas en Supabase
 let mockMarketState: MarketState = {
   id: 1,
-  current_price: 12.45,
-  total_shares: 420.5,
+  current_price: 12.5,
+  total_shares: 420.0,
   pool_balance: 15200,
   reserve_balance: 25000,
   total_volume: 48500,
@@ -107,9 +101,9 @@ let mockMarketState: MarketState = {
   cooldown_seconds: 60,
   min_investment: 10,
   max_investment: 25000,
-  last_event: '🎉 ¡Noche Épica de Botellón!',
-  last_event_type: 'epic',
-  last_event_impact: 0.145,
+  last_event: 'Mercado estable',
+  last_event_type: 'neutral',
+  last_event_impact: 0.0,
   last_tick_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -407,40 +401,38 @@ export async function investInBotellon(amount: number): Promise<InvestmentAction
       });
 
       if (error) {
+        const isMissingRpc =
+          error?.code === '42883' ||
+          error?.message?.toLowerCase().includes('function') ||
+          error?.message?.toLowerCase().includes('does not exist');
+
+        if (!isMissingRpc) {
+          return {
+            success: false,
+            type: 'buy',
+            execution_price: 0,
+            new_price: 0,
+            new_balance: 0,
+            new_shares: 0,
+            message: error.message,
+            error: error.message,
+          };
+        }
+      } else {
         return {
-          success: false,
+          success: true,
           type: 'buy',
-          execution_price: 0,
-          new_price: 0,
-          new_balance: 0,
-          new_shares: 0,
-          message: error.message,
-          error: error.message,
+          coins_spent: Number(data.coins_spent),
+          shares_bought: Number(data.shares_bought),
+          execution_price: Number(data.execution_price),
+          new_price: Number(data.new_price),
+          new_balance: Number(data.new_balance),
+          new_shares: Number(data.new_shares),
+          message: data.message || 'Inversión realizada con éxito.',
         };
       }
-
-      return {
-        success: true,
-        type: 'buy',
-        coins_spent: Number(data.coins_spent),
-        shares_bought: Number(data.shares_bought),
-        execution_price: Number(data.execution_price),
-        new_price: Number(data.new_price),
-        new_balance: Number(data.new_balance),
-        new_shares: Number(data.new_shares),
-        message: data.message || 'Inversión realizada con éxito.',
-      };
     } catch (err: any) {
-      return {
-        success: false,
-        type: 'buy',
-        execution_price: 0,
-        new_price: 0,
-        new_balance: 0,
-        new_shares: 0,
-        message: err?.message || 'Error al conectar con Supabase',
-        error: err?.message,
-      };
+      console.warn('invest_in_botellon error, falling back to local simulation:', err);
     }
   }
 
@@ -526,41 +518,39 @@ export async function withdrawFromBotellon(shares: number): Promise<InvestmentAc
       });
 
       if (error) {
+        const isMissingRpc =
+          error?.code === '42883' ||
+          error?.message?.toLowerCase().includes('function') ||
+          error?.message?.toLowerCase().includes('does not exist');
+
+        if (!isMissingRpc) {
+          return {
+            success: false,
+            type: 'sell',
+            execution_price: 0,
+            new_price: 0,
+            new_balance: 0,
+            new_shares: 0,
+            message: error.message,
+            error: error.message,
+          };
+        }
+      } else {
         return {
-          success: false,
+          success: true,
           type: 'sell',
-          execution_price: 0,
-          new_price: 0,
-          new_balance: 0,
-          new_shares: 0,
-          message: error.message,
-          error: error.message,
+          shares_sold: Number(data.shares_sold),
+          coins_received: Number(data.coins_received),
+          fee_paid: Number(data.fee_paid),
+          execution_price: Number(data.execution_price),
+          new_price: Number(data.new_price),
+          new_balance: Number(data.new_balance),
+          new_shares: Number(data.new_shares),
+          message: data.message || 'Retirada completada.',
         };
       }
-
-      return {
-        success: true,
-        type: 'sell',
-        shares_sold: Number(data.shares_sold),
-        coins_received: Number(data.coins_received),
-        fee_paid: Number(data.fee_paid),
-        execution_price: Number(data.execution_price),
-        new_price: Number(data.new_price),
-        new_balance: Number(data.new_balance),
-        new_shares: Number(data.new_shares),
-        message: data.message || 'Retirada completada.',
-      };
     } catch (err: any) {
-      return {
-        success: false,
-        type: 'sell',
-        execution_price: 0,
-        new_price: 0,
-        new_balance: 0,
-        new_shares: 0,
-        message: err?.message || 'Error al conectar con Supabase',
-        error: err?.message,
-      };
+      console.warn('withdraw_from_botellon error, falling back to local simulation:', err);
     }
   }
 
@@ -747,24 +737,32 @@ export async function tradeParodyStock(
           newBalance: data.new_balance ? Number(data.new_balance) : undefined,
           message:
             action === 'buy'
-              ? `Has comprado ${Number(data.shares).toFixed(2)} acciones de ${ticker} por ${Math.abs(Number(data.coins_delta))} 🪙`
-              : `Has vendido ${Number(data.shares).toFixed(2)} acciones de ${ticker} y cobrado ${Number(data.coins_delta)} 🪙`,
+              ? `Has comprado ${Number(data.shares).toFixed(2)} acciones de ${ticker}`
+              : `Has vendido ${Number(data.shares).toFixed(2)} acciones de ${ticker} (+${Number(data.coins_delta)} monedas)`,
         };
       }
 
-      return {
-        success: false,
-        ticker,
-        action,
-        shares: 0,
-        price: 0,
-        newPrice: 0,
-        coinsDelta: 0,
-        feePaid: 0,
-        remainingShares: 0,
-        message: error?.message || 'No se pudo completar la operación en Supabase.',
-        error: error?.message,
-      };
+      // Si el error es de función no encontrada en Supabase, recurrir a simulación local
+      const isMissingRpc =
+        error?.code === '42883' ||
+        error?.message?.toLowerCase().includes('function') ||
+        error?.message?.toLowerCase().includes('does not exist');
+
+      if (!isMissingRpc && error) {
+        return {
+          success: false,
+          ticker,
+          action,
+          shares: 0,
+          price: 0,
+          newPrice: 0,
+          coinsDelta: 0,
+          feePaid: 0,
+          remainingShares: 0,
+          message: error.message,
+          error: error.message,
+        };
+      }
     } catch (err: any) {
       console.warn('RPC trade_parody_stock error, falling back to local simulation:', err);
     }

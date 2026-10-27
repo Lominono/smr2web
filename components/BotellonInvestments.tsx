@@ -4,57 +4,36 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   TrendingUp,
   TrendingDown,
-  Coins,
   ArrowUpRight,
   ArrowDownRight,
-  Clock,
-  Sparkles,
-  AlertTriangle,
-  Siren,
-  Activity,
-  Trophy,
-  History,
-  Info,
-  CheckCircle2,
-  DollarSign,
-  PieChart,
   RefreshCw,
-  ShoppingBag,
-  Music,
-  Car,
-  Wine,
-  Flame,
-  Zap,
-  Tag,
-  ShieldCheck,
-  Building2,
-  Newspaper,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
   ChevronRight,
+  Wallet,
+  Building,
 } from 'lucide-react';
 import { sound } from '@/lib/audio';
-import confetti from 'canvas-confetti';
 import { createClient } from '@/lib/supabase/client';
 import {
   MarketState,
-  InvestmentPosition,
-  InvestmentTransaction,
   PriceHistoryPoint,
-  TopInvestor,
   ParodyStock,
   UserStockHolding,
+  InvestmentTransaction,
 } from '@/lib/types';
 import {
   fetchMarketState,
   fetchPriceHistory,
   fetchUserPortfolio,
   fetchUserTransactions,
-  fetchTopInvestors,
-  investInBotellon,
-  withdrawFromBotellon,
-  triggerMarketTick,
   fetchParodyStocks,
   fetchUserStocksPortfolio,
+  investInBotellon,
+  withdrawFromBotellon,
   tradeParodyStock,
+  triggerMarketTick,
   DEFAULT_PARODY_STOCKS,
 } from '@/lib/investmentsService';
 
@@ -73,13 +52,13 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
   onUpdateCoins,
   onRequireAuth,
 }) => {
-  // Estado general de mercado y activos
+  // Estado de mercado y activos
   const [marketState, setMarketState] = useState<MarketState | null>(null);
   const [parodyStocks, setParodyStocks] = useState<ParodyStock[]>(DEFAULT_PARODY_STOCKS);
   const [selectedTicker, setSelectedTicker] = useState<string>('ONION');
   const [userHoldings, setUserHoldings] = useState<Record<string, UserStockHolding>>({});
 
-  // Histórico y cartera
+  // Histórico y cartera del fondo general
   const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
   const [portfolio, setPortfolio] = useState<{
     authenticated: boolean;
@@ -94,28 +73,26 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     last_transaction_at?: string;
   } | null>(null);
   const [transactions, setTransactions] = useState<InvestmentTransaction[]>([]);
-  const [topInvestors, setTopInvestors] = useState<TopInvestor[]>([]);
 
   // Estados UI
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell'>('buy');
   const [timeFilter, setTimeFilter] = useState<'1H' | '6H' | '24H' | 'ALL'>('24H');
-  const [tradeAmountInput, setTradeAmountInput] = useState<string>('100');
+  const [tradeAmountInput, setTradeAmountInput] = useState<string>('50');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isTicking, setIsTicking] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
-  const [hoveredPoint, setHoveredPoint] = useState<PriceHistoryPoint | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<{ price: number; time: string } | null>(null);
 
-  // Carga inicial unificada
+  // Carga unificada de datos
   const loadAllData = useCallback(async () => {
     try {
-      const [mState, pHistory, port, txs, investors, stocks, holdings] = await Promise.all([
+      const [mState, pHistory, port, txs, stocks, holdings] = await Promise.all([
         fetchMarketState(),
-        fetchPriceHistory(80),
+        fetchPriceHistory(60),
         fetchUserPortfolio(),
-        fetchUserTransactions(15),
-        fetchTopInvestors(5),
+        fetchUserTransactions(10),
         fetchParodyStocks(),
         fetchUserStocksPortfolio(),
       ]);
@@ -124,7 +101,6 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
       setPriceHistory(pHistory);
       setPortfolio(port);
       setTransactions(txs);
-      setTopInvestors(investors);
       setParodyStocks(stocks);
       setUserHoldings(holdings);
 
@@ -132,7 +108,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         setCooldownSeconds(port.cooldown_remaining_seconds);
       }
     } catch (err) {
-      console.error('Error cargando mercado del botellón:', err);
+      console.warn('Carga de mercado:', err);
     } finally {
       setIsLoading(false);
     }
@@ -142,7 +118,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     loadAllData();
   }, [loadAllData, userId]);
 
-  // Temporizador de cooldown de seguridad
+  // Cooldown de 60 segundos
   useEffect(() => {
     if (cooldownSeconds <= 0) return;
     const interval = setInterval(() => {
@@ -151,102 +127,94 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     return () => clearInterval(interval);
   }, [cooldownSeconds]);
 
-  // Suscripción Realtime en Supabase
+  // Suscripción Realtime (con control de fallos)
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) return;
 
-    const channel = supabase
-      .channel('botellon_parody_investments_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'market_state' },
-        (payload) => {
-          if (payload.new) {
-            const updated = payload.new as any;
-            setMarketState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    current_price: Number(updated.current_price),
-                    total_shares: Number(updated.total_shares),
-                    pool_balance: Number(updated.pool_balance),
-                    total_volume: Number(updated.total_volume),
-                    total_investors: Number(updated.total_investors),
-                    last_event: updated.last_event,
-                    last_event_type: updated.last_event_type,
-                    last_event_impact: Number(updated.last_event_impact),
-                    last_tick_at: updated.last_tick_at,
-                    updated_at: updated.updated_at,
-                  }
-                : null
-            );
-            if (updated.parody_stocks && typeof updated.parody_stocks === 'object') {
-              fetchParodyStocks().then(setParodyStocks);
+    try {
+      const channel = supabase
+        .channel('botellon_investments_stream')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'market_state' },
+          (payload) => {
+            if (payload.new) {
+              const updated = payload.new as any;
+              setMarketState((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      current_price: Number(updated.current_price),
+                      total_shares: Number(updated.total_shares),
+                      pool_balance: Number(updated.pool_balance),
+                      total_volume: Number(updated.total_volume),
+                      total_investors: Number(updated.total_investors),
+                      updated_at: updated.updated_at,
+                    }
+                  : null
+              );
+              if (updated.parody_stocks && typeof updated.parody_stocks === 'object') {
+                fetchParodyStocks().then(setParodyStocks).catch(() => {});
+              }
             }
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'price_history' },
-        (payload) => {
-          if (payload.new) {
-            const newPoint: PriceHistoryPoint = {
-              id: payload.new.id,
-              price: Number(payload.new.price),
-              pool_balance: Number(payload.new.pool_balance),
-              total_shares: Number(payload.new.total_shares),
-              change_percent: Number(payload.new.change_percent),
-              trigger_type: payload.new.trigger_type,
-              event_description: payload.new.event_description,
-              created_at: payload.new.created_at,
-            };
-            setPriceHistory((prev) => [...prev.slice(-99), newPoint]);
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'price_history' },
+          (payload) => {
+            if (payload.new) {
+              const newPoint: PriceHistoryPoint = {
+                id: payload.new.id,
+                price: Number(payload.new.price),
+                pool_balance: Number(payload.new.pool_balance),
+                total_shares: Number(payload.new.total_shares),
+                change_percent: Number(payload.new.change_percent),
+                trigger_type: payload.new.trigger_type,
+                created_at: payload.new.created_at,
+              };
+              setPriceHistory((prev) => [...prev.slice(-79), newPoint]);
+            }
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'investments', filter: userId ? `user_id=eq.${userId}` : undefined },
-        () => {
-          fetchUserPortfolio().then(setPortfolio);
-          fetchUserStocksPortfolio().then(setUserHoldings);
-          fetchTopInvestors(5).then(setTopInvestors);
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId]);
-
-  // Empresa seleccionada actualmente
-  const activeStock = useMemo(() => {
-    if (selectedTicker === 'BTLN') {
-      return {
-        ticker: 'BTLN',
-        name: 'Fondo Botellón Global',
-        parodyOf: 'Índice General',
-        slogan: 'El fondo indexado colectivo de la fiesta',
-        sector: 'Índice de Mercado',
-        price: marketState?.current_price || 10.0,
-        change24h: 3.2,
-        volume: marketState?.total_volume || 50000,
-        lastNews: marketState?.last_event || 'Apertura oficial de la Bolsa del Botellón',
-        accentColor: '#34c759',
-        iconType: 'wine',
+      return () => {
+        try {
+          supabase.removeChannel(channel);
+        } catch (_) {}
       };
-    }
-    return (
-      parodyStocks.find((s) => s.ticker === selectedTicker) ||
-      parodyStocks[0] ||
-      DEFAULT_PARODY_STOCKS[0]
-    );
-  }, [selectedTicker, parodyStocks, marketState]);
+    } catch (_) {}
+  }, []);
 
-  // Tenencia actual del activo seleccionado
+  // Lista combinada de todos los activos disponibles
+  const allAssets = useMemo(() => {
+    const btlPrice = marketState?.current_price || 12.5;
+    const btlHolding = portfolio?.shares || 0;
+
+    const btlAsset: ParodyStock = {
+      ticker: 'BTLN',
+      name: 'Fondo Botellón',
+      parodyOf: 'Índice colectivo',
+      slogan: 'Fondo global compartido entre todos los jugadores',
+      sector: 'Índice general',
+      price: btlPrice,
+      change24h: 1.5,
+      volume: marketState?.total_volume || 25000,
+      accentColor: '#10b981',
+      iconType: 'wine',
+    };
+
+    return [btlAsset, ...parodyStocks];
+  }, [marketState, parodyStocks, portfolio]);
+
+  // Activo seleccionado
+  const activeAsset = useMemo(() => {
+    return allAssets.find((a) => a.ticker === selectedTicker) || allAssets[0];
+  }, [allAssets, selectedTicker]);
+
+  // Tenencia del activo seleccionado
   const currentHolding = useMemo(() => {
     if (selectedTicker === 'BTLN') {
       return {
@@ -256,17 +224,19 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         totalInvested: portfolio?.total_invested_coins || 0,
       };
     }
-    return userHoldings[selectedTicker] || {
-      ticker: selectedTicker,
-      shares: 0,
-      averagePrice: 0,
-      totalInvested: 0,
-    };
+    return (
+      userHoldings[selectedTicker] || {
+        ticker: selectedTicker,
+        shares: 0,
+        averagePrice: 0,
+        totalInvested: 0,
+      }
+    );
   }, [selectedTicker, userHoldings, portfolio]);
 
-  // Valor total del patrimonio en acciones de todas las empresas
+  // Valor total del portfolio del usuario
   const totalPortfolioValue = useMemo(() => {
-    let total = (portfolio?.shares || 0) * (marketState?.current_price || 10.0);
+    let total = (portfolio?.shares || 0) * (marketState?.current_price || 12.5);
     parodyStocks.forEach((st) => {
       const h = userHoldings[st.ticker];
       if (h && h.shares > 0) {
@@ -276,7 +246,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     return Math.round(total);
   }, [portfolio, marketState, parodyStocks, userHoldings]);
 
-  // Puntos para la gráfica filtrada por tiempo
+  // Puntos de la gráfica filtrados
   const filteredHistory = useMemo(() => {
     if (priceHistory.length === 0) return [];
     if (timeFilter === 'ALL') return priceHistory;
@@ -289,45 +259,64 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     };
     const cutoff = now - msMap[timeFilter];
     const filtered = priceHistory.filter((p) => new Date(p.created_at).getTime() >= cutoff);
-    return filtered.length >= 2 ? filtered : priceHistory.slice(-12);
+    return filtered.length >= 2 ? filtered : priceHistory.slice(-16);
   }, [priceHistory, timeFilter]);
 
-  // Escala min/max de la gráfica adaptada al precio de la acción seleccionada
+  // Escala para la gráfica
   const { minPrice, maxPrice, isPriceUp } = useMemo(() => {
-    const assetPrice = activeStock.price;
-    const historyPrices = filteredHistory.map((p) => (p.price / (marketState?.current_price || 10.0)) * assetPrice);
-    if (historyPrices.length < 2) {
-      return { minPrice: assetPrice * 0.9, maxPrice: assetPrice * 1.1, isPriceUp: activeStock.change24h >= 0 };
-    }
-    const min = Math.min(...historyPrices);
-    const max = Math.max(...historyPrices);
-    const pad = (max - min) * 0.18 || assetPrice * 0.05;
-    return {
-      minPrice: Math.max(0.5, min - pad),
-      maxPrice: max + pad,
-      isPriceUp: activeStock.change24h >= 0,
-    };
-  }, [filteredHistory, activeStock, marketState?.current_price]);
+    const assetPrice = activeAsset.price;
+    const baseMarketPrice = marketState?.current_price || 12.5;
 
-  // Generación SVG (ViewBox: 600 x 200)
-  const chartSvg = useMemo(() => {
+    const scaledPrices = filteredHistory.map((p) => {
+      if (selectedTicker === 'BTLN') return p.price;
+      return (p.price / baseMarketPrice) * assetPrice;
+    });
+
+    if (scaledPrices.length < 2) {
+      return {
+        minPrice: Number((assetPrice * 0.95).toFixed(2)),
+        maxPrice: Number((assetPrice * 1.05).toFixed(2)),
+        isPriceUp: activeAsset.change24h >= 0,
+      };
+    }
+
+    const min = Math.min(...scaledPrices);
+    const max = Math.max(...scaledPrices);
+    const pad = (max - min) * 0.15 || assetPrice * 0.05;
+
+    return {
+      minPrice: Math.max(0.1, Number((min - pad).toFixed(2))),
+      maxPrice: Number((max + pad).toFixed(2)),
+      isPriceUp: activeAsset.change24h >= 0,
+    };
+  }, [filteredHistory, activeAsset, marketState?.current_price, selectedTicker]);
+
+  // SVG de la gráfica
+  const chartData = useMemo(() => {
     if (filteredHistory.length < 2) return { line: '', area: '', points: [] };
 
-    const svgW = 600;
-    const svgH = 200;
-    const padX = 16;
-    const padY = 20;
+    const svgW = 540;
+    const svgH = 150;
+    const padX = 12;
+    const padY = 14;
     const plotW = svgW - padX * 2;
     const plotH = svgH - padY * 2;
     const range = maxPrice - minPrice || 1;
-    const assetPrice = activeStock.price;
+    const assetPrice = activeAsset.price;
+    const baseMarketPrice = marketState?.current_price || 12.5;
 
-    const points = filteredHistory.map((point, i) => {
-      const priceScaled = (point.price / (marketState?.current_price || 10.0)) * assetPrice;
+    const points = filteredHistory.map((pt, i) => {
+      const scaledPrice =
+        selectedTicker === 'BTLN' ? pt.price : (pt.price / baseMarketPrice) * assetPrice;
       const x = padX + (i / (filteredHistory.length - 1)) * plotW;
-      const norm = (priceScaled - minPrice) / range;
-      const y = svgH - padY - norm * plotH;
-      return { x, y, price: priceScaled, rawPoint: point };
+      const norm = (scaledPrice - minPrice) / range;
+      const y = svgH - padY - Math.max(0, Math.min(1, norm)) * plotH;
+      return {
+        x: Number(x.toFixed(1)),
+        y: Number(y.toFixed(1)),
+        price: Number(scaledPrice.toFixed(2)),
+        time: pt.created_at,
+      };
     });
 
     const linePath = points.reduce((acc, curr, idx) => {
@@ -339,33 +328,30 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     const areaPath = `${linePath} L ${last.x} ${svgH - padY} L ${first.x} ${svgH - padY} Z`;
 
     return { line: linePath, area: areaPath, points };
-  }, [filteredHistory, activeStock, minPrice, maxPrice, marketState?.current_price]);
+  }, [filteredHistory, activeAsset, minPrice, maxPrice, marketState?.current_price, selectedTicker]);
 
-  // Cálculos dinámicos de simulación de orden
-  const inputNumeric = parseFloat(tradeAmountInput) || 0;
-  const currentAssetPrice = activeStock.price;
+  // Cálculos de la orden
+  const inputNumeric = Math.max(0, parseFloat(tradeAmountInput) || 0);
 
-  // Si estamos en modo "buy":
-  const estimatedSharesBought = useMemo(() => {
-    if (tradeMode !== 'buy' || inputNumeric <= 0 || currentAssetPrice <= 0) return 0;
-    return Number((inputNumeric / currentAssetPrice).toFixed(4));
-  }, [tradeMode, inputNumeric, currentAssetPrice]);
+  // En compra: estimar acciones que recibirá
+  const estimatedShares = useMemo(() => {
+    if (tradeMode !== 'buy' || inputNumeric <= 0 || activeAsset.price <= 0) return 0;
+    return Number((inputNumeric / activeAsset.price).toFixed(2));
+  }, [tradeMode, inputNumeric, activeAsset.price]);
 
-  // Si estamos en modo "sell":
-  const grossCoinsSell = useMemo(() => {
-    if (tradeMode !== 'sell' || inputNumeric <= 0 || currentAssetPrice <= 0) return 0;
-    return Math.round(inputNumeric * currentAssetPrice);
-  }, [tradeMode, inputNumeric, currentAssetPrice]);
+  // En venta: estimar monedas que recibirá tras comisión del 2%
+  const estimatedCoins = useMemo(() => {
+    if (tradeMode !== 'sell' || inputNumeric <= 0 || activeAsset.price <= 0) return { gross: 0, fee: 0, net: 0 };
+    const gross = Math.round(inputNumeric * activeAsset.price);
+    const fee = Math.max(gross > 0 ? 1 : 0, Math.round(gross * 0.02));
+    const net = Math.max(0, gross - fee);
+    return { gross, fee, net };
+  }, [tradeMode, inputNumeric, activeAsset.price]);
 
-  const feeSell = useMemo(() => {
-    return Math.max(grossCoinsSell > 0 ? 1 : 0, Math.round(grossCoinsSell * 0.02));
-  }, [grossCoinsSell]);
-
-  const netCoinsSell = Math.max(0, grossCoinsSell - feeSell);
-
-  // Manejo de envío de orden
+  // Ejecución de la operación
   const handleExecuteTrade = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!userId && onRequireAuth) {
       onRequireAuth();
       return;
@@ -382,7 +368,6 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
 
     try {
       if (selectedTicker === 'BTLN') {
-        // Fondo Botellón principal
         if (tradeMode === 'buy') {
           if (inputNumeric < 10) throw new Error('La inversión mínima es de 10 monedas.');
           if (inputNumeric > userCoins) throw new Error('Saldo insuficiente.');
@@ -390,23 +375,19 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           const res = await investInBotellon(inputNumeric);
           if (!res.success) throw new Error(res.message);
 
-          sound.coinWin();
-          confetti({ particleCount: 35, spread: 70, origin: { y: 0.8 } });
           setFeedback({ type: 'success', message: res.message });
           if (onUpdateCoins) onUpdateCoins(-inputNumeric);
         } else {
-          if (inputNumeric <= 0) throw new Error('Cantidad no válida.');
+          if (inputNumeric <= 0) throw new Error('Indica una cantidad de participaciones.');
           if (inputNumeric > currentHolding.shares) throw new Error('No tienes suficientes participaciones.');
 
           const res = await withdrawFromBotellon(inputNumeric);
           if (!res.success) throw new Error(res.message);
 
-          sound.coinWin();
           setFeedback({ type: 'success', message: res.message });
           if (onUpdateCoins && res.coins_received) onUpdateCoins(res.coins_received);
         }
       } else {
-        // Empresa Parodia (ONION, ARDIDAS, CARLOS HERRERO, etc.)
         if (tradeMode === 'buy') {
           if (inputNumeric < 10) throw new Error('La inversión mínima es de 10 monedas.');
           if (inputNumeric > userCoins) throw new Error('Saldo insuficiente.');
@@ -414,18 +395,15 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           const res = await tradeParodyStock(selectedTicker, 'buy', inputNumeric);
           if (!res.success) throw new Error(res.message);
 
-          sound.coinWin();
-          confetti({ particleCount: 40, spread: 80, origin: { y: 0.8 } });
           setFeedback({ type: 'success', message: res.message });
           if (onUpdateCoins) onUpdateCoins(-inputNumeric);
         } else {
           if (inputNumeric <= 0) throw new Error('Indica cuántas acciones vender.');
-          if (inputNumeric > currentHolding.shares) throw new Error('No posees suficientes acciones de esta empresa.');
+          if (inputNumeric > currentHolding.shares) throw new Error('No posees suficientes acciones.');
 
           const res = await tradeParodyStock(selectedTicker, 'sell', inputNumeric);
           if (!res.success) throw new Error(res.message);
 
-          sound.coinWin();
           setFeedback({ type: 'success', message: res.message });
           if (onUpdateCoins && res.coinsDelta > 0) onUpdateCoins(res.coinsDelta);
         }
@@ -434,200 +412,127 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
       setCooldownSeconds(60);
       loadAllData();
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err?.message || 'Error en la orden.' });
+      setFeedback({ type: 'error', message: err?.message || 'Error al tramitar la orden.' });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Forzar tick de simulación
-  const handleManualTick = async () => {
-    setIsTicking(true);
+  // Refrescar mercado
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
     sound.tap();
     try {
       await triggerMarketTick();
-      sound.tap();
-      loadAllData();
+      await loadAllData();
+    } catch (_) {
     } finally {
-      setIsTicking(false);
-    }
-  };
-
-  const getCompanyIcon = (iconType: string) => {
-    switch (iconType) {
-      case 'onion':
-        return <span className="text-base select-none">🧅</span>;
-      case 'shoe':
-        return <span className="text-base select-none">👟</span>;
-      case 'perfume':
-        return <span className="text-base select-none">👔</span>;
-      case 'cart':
-        return <span className="text-base select-none">🛒</span>;
-      case 'music':
-        return <Music className="w-4 h-4 text-lime-400" />;
-      case 'car':
-        return <Car className="w-4 h-4 text-amber-400" />;
-      default:
-        return <Wine className="w-4 h-4 text-emerald-400" />;
+      setIsRefreshing(false);
     }
   };
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-150 max-w-7xl mx-auto">
-      {/* 1. TOP TICKER MARQUEE: EMPRESAS PARODIA (SCROLL HORIZONTAL OPTIMIZADO PARA MÓVIL) */}
-      <div className="p-1 rounded-2xl bg-surface border border-border overflow-hidden shadow-2xs">
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 px-1 touch-pan-x">
-          {/* Fondo General */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedTicker('BTLN');
-              sound.tap();
-            }}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0 ${
-              selectedTicker === 'BTLN'
-                ? 'bg-foreground text-background shadow-xs'
-                : 'text-foreground-muted hover:text-foreground hover:bg-surface-raised'
-            }`}
-          >
-            <Wine className="w-3.5 h-3.5 text-emerald-400" />
-            <span>FONDO BOTELLÓN</span>
-            <span className="font-mono text-[11px] opacity-80">
-              {(marketState?.current_price || 10).toFixed(2)} 🪙
-            </span>
-          </button>
+    <div className="space-y-4 max-w-5xl mx-auto pb-6">
+      {/* 1. SELECTOR MINIMALISTA DE ACTIVOS (SCROLL HORIZONTAL CÓMODO EN MÓVIL) */}
+      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 px-0.5 touch-pan-x">
+        {allAssets.map((asset) => {
+          const isSelected = selectedTicker === asset.ticker;
+          const isUp = asset.change24h >= 0;
+          const holding = asset.ticker === 'BTLN' ? portfolio?.shares : userHoldings[asset.ticker]?.shares;
 
-          {/* Empresas Parodia */}
-          {parodyStocks.map((stock) => {
-            const isSelected = selectedTicker === stock.ticker;
-            const isUp = stock.change24h >= 0;
-
-            return (
-              <button
-                key={stock.ticker}
-                type="button"
-                onClick={() => {
-                  setSelectedTicker(stock.ticker);
-                  sound.tap();
-                }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0 border ${
-                  isSelected
-                    ? 'bg-surface-raised border-foreground/30 text-foreground shadow-2xs'
-                    : 'bg-transparent border-transparent text-foreground-muted hover:text-foreground hover:bg-surface-raised/60'
-                }`}
-              >
-                <div className="w-5 h-5 rounded-lg flex items-center justify-center shrink-0">
-                  {getCompanyIcon(stock.iconType)}
-                </div>
-                <div className="text-left">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-black text-foreground">{stock.ticker}</span>
-                    <span
-                      className={`text-[10px] font-mono font-bold ${
-                        isUp ? 'text-emerald-400' : 'text-rose-400'
-                      }`}
-                    >
-                      {isUp ? '+' : ''}
-                      {stock.change24h}%
-                    </span>
-                  </div>
-                  <div className="text-[10px] font-mono text-foreground-subtle">
-                    {stock.price.toFixed(2)} 🪙
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+          return (
+            <button
+              key={asset.ticker}
+              type="button"
+              onClick={() => {
+                setSelectedTicker(asset.ticker);
+                setFeedback(null);
+                sound.tap();
+              }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors shrink-0 cursor-pointer ${
+                isSelected
+                  ? 'bg-foreground text-background font-semibold shadow-xs'
+                  : 'bg-surface border border-border text-foreground-muted hover:text-foreground hover:bg-surface-raised'
+              }`}
+            >
+              <span>{asset.name}</span>
+              <span className="font-mono text-[11px] opacity-80">
+                {asset.price.toFixed(2)}
+              </span>
+              {holding && holding > 0 ? (
+                <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
+              ) : null}
+            </button>
+          );
+        })}
       </div>
 
-      {/* 2. CABECERA PRINCIPAL DEL ACTIVO SELECCIONADO */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-surface border border-border shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-surface-raised border border-border flex items-center justify-center text-2xl shadow-inner shrink-0">
-              {getCompanyIcon(activeStock.iconType)}
+      {/* 2. FICHA PRINCIPAL DEL ACTIVO + GRÁFICA */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-border space-y-4">
+        {/* Cabecera del activo */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-bold text-foreground tracking-tight">
+                {activeAsset.name}
+              </h2>
+              <span className="text-xs text-foreground-subtle">
+                ({activeAsset.parodyOf})
+              </span>
             </div>
-
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg sm:text-xl font-black text-foreground tracking-tight truncate">
-                  {activeStock.name}
-                </h1>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-surface-raised border border-border text-foreground-muted">
-                  ${activeStock.ticker}
-                </span>
-                <span className="text-[11px] text-foreground-subtle italic truncate">
-                  (Parodia de {activeStock.parodyOf})
-                </span>
-              </div>
-              <p className="text-xs text-foreground-muted truncate font-medium">
-                {activeStock.slogan}
-              </p>
-            </div>
+            <p className="text-xs text-foreground-muted mt-0.5">
+              {activeAsset.sector} · {activeAsset.slogan}
+            </p>
           </div>
 
-          {/* Precio y variación */}
-          <div className="flex items-baseline sm:flex-col sm:items-end justify-between sm:justify-center gap-2">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-black tracking-tight text-foreground font-mono">
-                {activeStock.price.toFixed(2)}
-              </span>
-              <span className="text-sm font-bold text-amber-400">🪙</span>
+          <div className="text-right">
+            <div className="text-xl sm:text-2xl font-bold font-mono text-foreground">
+              {activeAsset.price.toFixed(2)}{' '}
+              <span className="text-xs text-foreground-muted font-sans font-normal">monedas</span>
             </div>
-
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-end gap-1 mt-0.5">
               <span
-                className={`px-2 py-0.5 rounded-lg text-xs font-bold font-mono flex items-center gap-1 ${
-                  isPriceUp
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                className={`text-xs font-mono font-medium flex items-center ${
+                  isPriceUp ? 'text-emerald-500' : 'text-rose-500'
                 }`}
               >
-                {isPriceUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                <span>{activeStock.change24h > 0 ? `+${activeStock.change24h}` : activeStock.change24h}%</span>
+                {isPriceUp ? (
+                  <ArrowUpRight className="w-3.5 h-3.5 inline" />
+                ) : (
+                  <ArrowDownRight className="w-3.5 h-3.5 inline" />
+                )}
+                {isPriceUp ? '+' : ''}
+                {activeAsset.change24h}%
               </span>
 
               <button
                 type="button"
-                onClick={handleManualTick}
-                disabled={isTicking}
-                title="Sincronizar y forzar volatilidad"
-                className="p-1.5 rounded-xl bg-surface-raised hover:bg-surface-hover text-foreground-muted hover:text-foreground border border-border transition-all cursor-pointer active:scale-95"
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                title="Actualizar cotizaciones"
+                aria-label="Actualizar cotizaciones"
+                className="p-1 rounded-md text-foreground-subtle hover:text-foreground transition-colors cursor-pointer ml-1"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isTicking ? 'animate-spin text-emerald-400' : ''}`} />
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
         </div>
 
-        {/* Noticia temático-paródica de última hora */}
-        {activeStock.lastNews && (
-          <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-surface-raised/70 border border-border text-xs">
-            <Newspaper className="w-4 h-4 text-accent shrink-0" />
-            <span className="font-semibold text-foreground-subtle text-[11px] uppercase tracking-wider shrink-0">
-              Flash Informativo:
-            </span>
-            <span className="text-foreground truncate text-xs font-medium">
-              {activeStock.lastNews}
-            </span>
-          </div>
-        )}
-
-        {/* 3. GRÁFICA SVG RESPONSIVE CON SCRUBBER */}
-        <div className="space-y-2 pt-1">
+        {/* Gráfica limpia SVG */}
+        <div className="space-y-2 pt-2 border-t border-border/50">
           <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <span className="text-foreground-subtle font-medium text-[11px]">Tendencia</span>
-              {hoveredPoint && (
-                <span className="font-mono font-bold text-emerald-400 text-xs">
-                  {hoveredPoint.price.toFixed(2)} 🪙
+            <span className="text-foreground-subtle text-[11px]">
+              {hoveredPoint ? (
+                <span className="font-mono text-foreground font-medium">
+                  {hoveredPoint.price.toFixed(2)} monedas
                 </span>
+              ) : (
+                'Evolución del precio'
               )}
-            </div>
+            </span>
 
-            {/* Selector de Rango */}
-            <div className="flex items-center gap-1 bg-surface-raised p-0.5 rounded-xl border border-border">
+            <div className="flex items-center gap-1 bg-surface-raised p-0.5 rounded-lg border border-border">
               {(['1H', '6H', '24H', 'ALL'] as const).map((r) => (
                 <button
                   key={r}
@@ -636,437 +541,445 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                     setTimeFilter(r);
                     sound.tap();
                   }}
-                  className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
                     timeFilter === r
-                      ? 'bg-foreground text-background shadow-xs'
+                      ? 'bg-foreground text-background font-semibold'
                       : 'text-foreground-muted hover:text-foreground'
                   }`}
                 >
-                  {r}
+                  {r === 'ALL' ? 'Todo' : r}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="relative w-full h-44 sm:h-52 bg-surface-raised/30 rounded-2xl p-2 border border-border/60 overflow-hidden">
+          <div className="relative w-full h-36 sm:h-44 bg-surface-raised/40 rounded-xl p-2 border border-border/60 overflow-hidden">
             <svg
-              viewBox="0 0 600 200"
+              viewBox="0 0 540 150"
               className="w-full h-full overflow-visible"
               preserveAspectRatio="none"
             >
               <defs>
-                <linearGradient id="parodyGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={activeStock.accentColor} stopOpacity="0.32" />
-                  <stop offset="100%" stopColor={activeStock.accentColor} stopOpacity="0.0" />
+                <linearGradient id="calmChartGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="currentColor" stopOpacity="0.12" />
+                  <stop offset="100%" stopColor="currentColor" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
 
-              {/* Grid horizontal */}
-              <line x1="16" y1="30" x2="584" y2="30" stroke="currentColor" strokeOpacity="0.07" strokeDasharray="3 3" />
-              <line x1="16" y1="100" x2="584" y2="100" stroke="currentColor" strokeOpacity="0.07" strokeDasharray="3 3" />
-              <line x1="16" y1="170" x2="584" y2="170" stroke="currentColor" strokeOpacity="0.07" strokeDasharray="3 3" />
+              {/* Guías suaves */}
+              <line x1="12" y1="20" x2="528" y2="20" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="2 2" />
+              <line x1="12" y1="75" x2="528" y2="75" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="2 2" />
+              <line x1="12" y1="130" x2="528" y2="130" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="2 2" />
 
-              {/* Curva y Área */}
-              {chartSvg.area && <path d={chartSvg.area} fill="url(#parodyGradient)" />}
-              {chartSvg.line && (
+              {/* Área y línea */}
+              {chartData.area && <path d={chartData.area} fill="url(#calmChartGrad)" className="text-foreground" />}
+              {chartData.line && (
                 <path
-                  d={chartSvg.line}
+                  d={chartData.line}
                   fill="none"
-                  stroke={activeStock.accentColor}
-                  strokeWidth="2.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  className={isPriceUp ? 'text-emerald-500' : 'text-rose-500'}
                 />
               )}
 
-              {/* Puntos interactivos */}
-              {chartSvg.points.map((pt, idx) => {
-                const isLast = idx === chartSvg.points.length - 1;
-                return (
-                  <circle
-                    key={idx}
-                    cx={pt.x}
-                    cy={pt.y}
-                    r={isLast ? 4.5 : 2}
-                    className={`transition-all ${
-                      isLast
-                        ? 'fill-foreground stroke-surface stroke-2 animate-pulse'
-                        : 'fill-transparent hover:fill-foreground-muted cursor-pointer'
-                    }`}
-                    onMouseEnter={() => setHoveredPoint(pt.rawPoint)}
-                    onMouseLeave={() => setHoveredPoint(null)}
-                  />
-                );
-              })}
+              {/* Puntos para lectura */}
+              {chartData.points.map((pt, idx) => (
+                <circle
+                  key={idx}
+                  cx={pt.x}
+                  cy={pt.y}
+                  r="3"
+                  className="fill-transparent hover:fill-foreground cursor-pointer transition-colors"
+                  onMouseEnter={() => setHoveredPoint({ price: pt.price, time: pt.time })}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                />
+              ))}
             </svg>
 
-            <div className="absolute top-2 right-3 text-[10px] font-mono text-foreground-subtle bg-surface/80 px-1.5 py-0.5 rounded border border-border/40">
-              Máx: {maxPrice.toFixed(2)} 🪙
+            <div className="absolute top-1.5 right-2 text-[10px] font-mono text-foreground-subtle">
+              Máx: {maxPrice.toFixed(2)}
             </div>
-            <div className="absolute bottom-2 right-3 text-[10px] font-mono text-foreground-subtle bg-surface/80 px-1.5 py-0.5 rounded border border-border/40">
-              Mín: {minPrice.toFixed(2)} 🪙
+            <div className="absolute bottom-1.5 right-2 text-[10px] font-mono text-foreground-subtle">
+              Mín: {minPrice.toFixed(2)}
             </div>
           </div>
         </div>
       </div>
 
-      {/* 4. DASHBOARD DE MI CARTERA (4 MÉTRICAS COMPACTAS) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-        <div className="p-3.5 rounded-2xl bg-surface border border-border space-y-1">
-          <div className="flex items-center justify-between text-foreground-subtle text-[11px] font-medium">
-            <span>En ${activeStock.ticker}</span>
-            <Building2 className="w-3.5 h-3.5 text-accent" />
-          </div>
-          <div className="text-base sm:text-lg font-black text-foreground font-mono">
-            {currentHolding.shares.toFixed(2)} <span className="text-xs font-sans text-foreground-muted">acc.</span>
-          </div>
-          <div className="text-[10px] text-foreground-subtle truncate">
-            {currentHolding.averagePrice > 0
-              ? `Compra media: ${currentHolding.averagePrice.toFixed(2)} 🪙`
-              : 'Sin posición actual'}
-          </div>
-        </div>
+      {/* 3. GRID PRINCIPAL: OPERAR (IZQUIERDA) Y MIS INVERSIONES (DERECHA) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* PANEL DE OPERACIÓN */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-border space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">
+              Operar en {activeAsset.name}
+            </h3>
 
-        <div className="p-3.5 rounded-2xl bg-surface border border-border space-y-1">
-          <div className="flex items-center justify-between text-foreground-subtle text-[11px] font-medium">
-            <span>Valor de mi posición</span>
-            <Coins className="w-3.5 h-3.5 text-amber-400" />
-          </div>
-          <div className="text-base sm:text-lg font-black text-foreground font-mono">
-            {Math.round(currentHolding.shares * activeStock.price).toLocaleString()} 🪙
-          </div>
-          <div className="text-[10px] text-foreground-subtle truncate">
-            A cotización actual
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-2xl bg-surface border border-border space-y-1">
-          <div className="flex items-center justify-between text-foreground-subtle text-[11px] font-medium">
-            <span>Patrimonio Total</span>
-            <PieChart className="w-3.5 h-3.5 text-blue-400" />
-          </div>
-          <div className="text-base sm:text-lg font-black text-emerald-400 font-mono">
-            {totalPortfolioValue.toLocaleString()} 🪙
-          </div>
-          <div className="text-[10px] text-foreground-subtle truncate">
-            Suma de todas tus acciones
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-2xl bg-surface border border-border space-y-1">
-          <div className="flex items-center justify-between text-foreground-subtle text-[11px] font-medium">
-            <span>Saldo Líquido</span>
-            <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-          </div>
-          <div className="text-base sm:text-lg font-black text-foreground font-mono">
-            {userCoins.toLocaleString()} 🪙
-          </div>
-          <div className="text-[10px] text-foreground-subtle truncate">
-            Disponible para invertir
-          </div>
-        </div>
-      </div>
-
-      {/* 5. PANEL DE OPERACIÓN (COMPRAR / VENDER) */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-surface border border-border space-y-4">
-        {/* Selector Comprar / Vender */}
-        <div className="flex items-center p-1 rounded-2xl bg-surface-raised border border-border gap-1">
-          <button
-            type="button"
-            onClick={() => {
-              setTradeMode('buy');
-              sound.tap();
-            }}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
-              tradeMode === 'buy'
-                ? 'bg-emerald-500 text-white shadow-xs'
-                : 'text-foreground-muted hover:text-foreground'
-            }`}
-          >
-            <ArrowUpRight className="w-4 h-4" />
-            <span>Comprar ${activeStock.ticker}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setTradeMode('sell');
-              sound.tap();
-            }}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
-              tradeMode === 'sell'
-                ? 'bg-rose-500 text-white shadow-xs'
-                : 'text-foreground-muted hover:text-foreground'
-            }`}
-          >
-            <ArrowDownRight className="w-4 h-4" />
-            <span>Vender ${activeStock.ticker}</span>
-          </button>
-        </div>
-
-        {/* Feedback visual */}
-        {feedback && (
-          <div
-            className={`p-3 rounded-2xl text-xs font-medium border flex items-center gap-2 ${
-              feedback.type === 'success'
-                ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
-                : 'bg-rose-500/10 border-rose-500/25 text-rose-400'
-            }`}
-          >
-            {feedback.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-            ) : (
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-            )}
-            <span className="flex-1">{feedback.message}</span>
-          </div>
-        )}
-
-        {/* Cooldown bar */}
-        {cooldownSeconds > 0 && (
-          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
-              <span>Cooldown de mercado: espera {cooldownSeconds}s</span>
+            {/* Alternar Comprar / Vender */}
+            <div className="flex items-center p-0.5 rounded-lg bg-surface-raised border border-border text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setTradeMode('buy');
+                  setFeedback(null);
+                  sound.tap();
+                }}
+                className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                  tradeMode === 'buy'
+                    ? 'bg-foreground text-background font-semibold shadow-xs'
+                    : 'text-foreground-muted hover:text-foreground'
+                }`}
+              >
+                Comprar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTradeMode('sell');
+                  setFeedback(null);
+                  sound.tap();
+                }}
+                className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                  tradeMode === 'sell'
+                    ? 'bg-foreground text-background font-semibold shadow-xs'
+                    : 'text-foreground-muted hover:text-foreground'
+                }`}
+              >
+                Vender
+              </button>
             </div>
-            <span className="font-mono font-black text-sm">{cooldownSeconds}s</span>
           </div>
-        )}
 
-        {/* Formulario */}
-        <form onSubmit={handleExecuteTrade} className="space-y-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <label htmlFor="trade-input" className="font-bold text-foreground">
-                {tradeMode === 'buy' ? 'Monedas a invertir:' : 'Acciones a vender:'}
-              </label>
-              <span className="text-foreground-subtle font-mono text-[11px]">
-                {tradeMode === 'buy'
-                  ? `Disponible: ${userCoins.toLocaleString()} 🪙`
-                  : `Posees: ${currentHolding.shares.toFixed(2)} acc.`}
+          {/* Feedback de la orden */}
+          {feedback && (
+            <div
+              className={`p-3 rounded-xl text-xs flex items-center gap-2 border ${
+                feedback.type === 'success'
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
+              }`}
+            >
+              {feedback.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0" />
+              )}
+              <span>{feedback.message}</span>
+            </div>
+          )}
+
+          {/* Aviso discreto de cooldown */}
+          {cooldownSeconds > 0 && (
+            <div className="p-2.5 rounded-xl bg-surface-raised border border-border text-xs text-foreground-muted flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-foreground-subtle" />
+                Tiempo de espera entre operaciones:
               </span>
+              <span className="font-mono font-semibold text-foreground">{cooldownSeconds}s</span>
             </div>
+          )}
 
-            <div className="relative">
-              <input
-                id="trade-input"
-                type="number"
-                step={tradeMode === 'buy' ? '1' : '0.01'}
-                min="1"
-                value={tradeAmountInput}
-                onChange={(e) => setTradeAmountInput(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl bg-surface-raised border border-border text-foreground font-mono font-black text-base focus:outline-hidden focus:border-accent transition-all pr-14"
-                placeholder={tradeMode === 'buy' ? '100' : '1.00'}
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-foreground-subtle">
-                {tradeMode === 'buy' ? '🪙' : 'ACC'}
-              </span>
-            </div>
+          <form onSubmit={handleExecuteTrade} className="space-y-3">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-foreground-muted">
+                <span>{tradeMode === 'buy' ? 'Monedas a invertir' : 'Acciones a vender'}</span>
+                <span className="font-mono text-[11px]">
+                  {tradeMode === 'buy'
+                    ? `Saldo: ${userCoins.toLocaleString()} monedas`
+                    : `Tienes: ${currentHolding.shares.toFixed(2)} acc.`}
+                </span>
+              </div>
 
-            {/* Presets Rápidos */}
-            <div className="flex items-center gap-1.5 pt-1">
-              {tradeMode === 'buy' ? (
-                <>
-                  {[50, 150, 500, 1500].map((amt) => (
+              <div className="relative">
+                <input
+                  type="number"
+                  step={tradeMode === 'buy' ? '1' : '0.01'}
+                  min="1"
+                  value={tradeAmountInput}
+                  onChange={(e) => setTradeAmountInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface-raised border border-border text-foreground font-mono font-bold text-sm focus:outline-hidden focus:border-foreground/50 transition-colors"
+                  placeholder={tradeMode === 'buy' ? '50' : '1.00'}
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-foreground-subtle">
+                  {tradeMode === 'buy' ? 'monedas' : 'acciones'}
+                </span>
+              </div>
+
+              {/* Botones rápidos */}
+              <div className="flex items-center gap-1.5 pt-1">
+                {tradeMode === 'buy' ? (
+                  <>
+                    {[50, 150, 500].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => {
+                          setTradeAmountInput(String(amt));
+                          sound.tap();
+                        }}
+                        className="flex-1 py-1 rounded-lg text-xs font-medium bg-surface-raised border border-border text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        +{amt}
+                      </button>
+                    ))}
                     <button
-                      key={amt}
                       type="button"
                       onClick={() => {
-                        setTradeAmountInput(String(amt));
+                        setTradeAmountInput(String(Math.min(userCoins, 10000)));
                         sound.tap();
                       }}
-                      className="flex-1 py-1 rounded-xl text-xs font-bold bg-surface-raised hover:bg-surface-hover text-foreground-muted hover:text-foreground border border-border transition-all cursor-pointer active:scale-95"
+                      className="px-3 py-1 rounded-lg text-xs font-medium bg-surface-raised border border-border text-foreground hover:text-foreground transition-colors cursor-pointer"
                     >
-                      +{amt}
+                      Máx
                     </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTradeAmountInput(String(Math.min(userCoins, 25000)));
-                      sound.tap();
-                    }}
-                    className="px-3 py-1 rounded-xl text-xs font-black bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all cursor-pointer"
-                  >
-                    MÁX
-                  </button>
-                </>
+                  </>
+                ) : (
+                  <>
+                    {[0.25, 0.5, 0.75].map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => {
+                          setTradeAmountInput((currentHolding.shares * pct).toFixed(2));
+                          sound.tap();
+                        }}
+                        className="flex-1 py-1 rounded-lg text-xs font-medium bg-surface-raised border border-border text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        {pct * 100}%
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTradeAmountInput(currentHolding.shares.toFixed(2));
+                        sound.tap();
+                      }}
+                      className="px-3 py-1 rounded-lg text-xs font-medium bg-surface-raised border border-border text-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      Todo
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Resumen de la orden */}
+            <div className="p-3 rounded-xl bg-surface-raised/60 border border-border text-xs space-y-1 text-foreground-muted">
+              {tradeMode === 'buy' ? (
+                <div className="flex items-center justify-between">
+                  <span>Acciones estimadas:</span>
+                  <span className="font-mono font-medium text-foreground">
+                    ~{estimatedShares} acciones
+                  </span>
+                </div>
               ) : (
                 <>
-                  {[0.25, 0.5, 0.75].map((pct) => (
-                    <button
-                      key={pct}
-                      type="button"
-                      onClick={() => {
-                        setTradeAmountInput((currentHolding.shares * pct).toFixed(2));
-                        sound.tap();
-                      }}
-                      className="flex-1 py-1 rounded-xl text-xs font-bold bg-surface-raised hover:bg-surface-hover text-foreground-muted hover:text-foreground border border-border transition-all cursor-pointer active:scale-95"
-                    >
-                      {pct * 100}%
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTradeAmountInput(currentHolding.shares.toFixed(2));
-                      sound.tap();
-                    }}
-                    className="px-3 py-1 rounded-xl text-xs font-black bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all cursor-pointer"
-                  >
-                    TODO
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <span>Importe bruto:</span>
+                    <span className="font-mono text-foreground">{estimatedCoins.gross} monedas</span>
+                  </div>
+                  <div className="flex items-center justify-between text-foreground-subtle text-[11px]">
+                    <span>Comisión (2%):</span>
+                    <span className="font-mono">-{estimatedCoins.fee} monedas</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-border/40 font-medium text-foreground">
+                    <span>Recibirás neto:</span>
+                    <span className="font-mono text-emerald-500 font-bold">
+                      +{estimatedCoins.net} monedas
+                    </span>
+                  </div>
                 </>
               )}
             </div>
-          </div>
 
-          {/* Desglose estimativo */}
-          <div className="p-3.5 rounded-2xl bg-surface-raised/40 border border-border/60 text-xs space-y-1.5 font-medium">
-            {tradeMode === 'buy' ? (
-              <>
-                <div className="flex items-center justify-between text-foreground-muted">
-                  <span>Acciones estimadas a recibir:</span>
-                  <span className="font-mono font-bold text-foreground">
-                    +{estimatedSharesBought.toFixed(2)} acc.
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-foreground-muted">
-                  <span>Precio por acción:</span>
-                  <span className="font-mono text-foreground">{currentAssetPrice.toFixed(2)} 🪙</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-between text-foreground-muted">
-                  <span>Cobro bruto:</span>
-                  <span className="font-mono text-foreground">{grossCoinsSell.toLocaleString()} 🪙</span>
-                </div>
-                <div className="flex items-center justify-between text-foreground-muted">
-                  <span>Comisión al fondo (2%):</span>
-                  <span className="font-mono text-amber-400">-{feeSell.toLocaleString()} 🪙</span>
-                </div>
-                <div className="pt-1 border-t border-border/50 flex items-center justify-between font-bold text-foreground">
-                  <span>Neto a recibir en tu bolsillo:</span>
-                  <span className="font-mono text-emerald-400 font-black">
-                    +{netCoinsSell.toLocaleString()} 🪙
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={
-              isSubmitting ||
-              cooldownSeconds > 0 ||
-              (tradeMode === 'buy' && (inputNumeric < 10 || inputNumeric > userCoins)) ||
-              (tradeMode === 'sell' && (inputNumeric <= 0 || inputNumeric > currentHolding.shares))
-            }
-            className={`w-full py-3.5 rounded-2xl font-black text-sm text-white transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs active:scale-98 flex items-center justify-center gap-2 ${
-              tradeMode === 'buy'
-                ? 'bg-emerald-500 hover:bg-emerald-600'
-                : 'bg-rose-500 hover:bg-rose-600'
-            }`}
-          >
-            {isSubmitting ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Ejecutando en el mercado...</span>
-              </>
-            ) : tradeMode === 'buy' ? (
-              <>
-                <ArrowUpRight className="w-4 h-4" />
-                <span>Comprar por {inputNumeric > 0 ? Math.round(inputNumeric).toLocaleString() : 0} Monedas</span>
-              </>
-            ) : (
-              <>
-                <ArrowDownRight className="w-4 h-4" />
-                <span>Vender y Cobrar +{netCoinsSell.toLocaleString()} Monedas</span>
-              </>
-            )}
-          </button>
-        </form>
-      </div>
-
-      {/* 6. CATÁLOGO COMPLETO DE EMPRESAS PARODIA (TARJETAS COMPACTAS PARA MÓVIL Y DESKTOP) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <Building2 className="w-4 h-4 text-accent" />
-            <span>Empresas Cotizadas en la Bolsa del Botellón</span>
-          </h2>
-          <span className="text-[10px] text-foreground-subtle">
-            IBEX-Parodia
-          </span>
+            <button
+              type="submit"
+              disabled={
+                isSubmitting ||
+                cooldownSeconds > 0 ||
+                (tradeMode === 'buy' && (inputNumeric < 10 || inputNumeric > userCoins)) ||
+                (tradeMode === 'sell' && (inputNumeric <= 0 || inputNumeric > currentHolding.shares))
+              }
+              className="w-full py-2.5 rounded-xl font-medium text-xs text-background bg-foreground hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Procesando...</span>
+                </>
+              ) : tradeMode === 'buy' ? (
+                `Comprar por ${Math.round(inputNumeric)} monedas`
+              ) : (
+                `Vender por +${estimatedCoins.net} monedas`
+              )}
+            </button>
+          </form>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {parodyStocks.map((stock) => {
-            const isUp = stock.change24h >= 0;
-            const holding = userHoldings[stock.ticker];
-            const isSelected = selectedTicker === stock.ticker;
+        {/* RESUMEN DE CARTERA Y POSICIONES */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-border space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">
+              Mis inversiones
+            </h3>
+            <span className="text-xs text-foreground-subtle font-mono">
+              Total: {totalPortfolioValue.toLocaleString()} monedas
+            </span>
+          </div>
+
+          {/* Métricas rápidas */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-2.5 rounded-xl bg-surface-raised border border-border">
+              <span className="text-[11px] text-foreground-subtle block">En {activeAsset.name}</span>
+              <span className="font-mono font-bold text-foreground text-sm">
+                {currentHolding.shares.toFixed(2)}{' '}
+                <span className="text-xs font-normal text-foreground-muted">acc.</span>
+              </span>
+              <span className="text-[10px] text-foreground-subtle block mt-0.5">
+                Valor: {Math.round(currentHolding.shares * activeAsset.price).toLocaleString()} monedas
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-surface-raised border border-border">
+              <span className="text-[11px] text-foreground-subtle block">Saldo en cartera</span>
+              <span className="font-mono font-bold text-foreground text-sm">
+                {userCoins.toLocaleString()}{' '}
+                <span className="text-xs font-normal text-foreground-muted">monedas</span>
+              </span>
+              <span className="text-[10px] text-foreground-subtle block mt-0.5">
+                Disponible para operar
+              </span>
+            </div>
+          </div>
+
+          {/* Lista de empresas en posesión */}
+          <div className="space-y-1.5 pt-1">
+            <div className="text-[11px] font-medium text-foreground-subtle uppercase tracking-wider">
+              Acciones que posees
+            </div>
+
+            {allAssets.filter((a) => {
+              const s = a.ticker === 'BTLN' ? portfolio?.shares : userHoldings[a.ticker]?.shares;
+              return s && s > 0;
+            }).length === 0 ? (
+              <p className="text-xs text-foreground-subtle py-3 text-center border border-dashed border-border rounded-xl">
+                Aún no tienes inversiones activas. Elige una empresa arriba para empezar.
+              </p>
+            ) : (
+              <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                {allAssets
+                  .filter((a) => {
+                    const s = a.ticker === 'BTLN' ? portfolio?.shares : userHoldings[a.ticker]?.shares;
+                    return s && s > 0;
+                  })
+                  .map((asset) => {
+                    const shares =
+                      asset.ticker === 'BTLN'
+                        ? portfolio?.shares || 0
+                        : userHoldings[asset.ticker]?.shares || 0;
+                    const value = Math.round(shares * asset.price);
+
+                    return (
+                      <div
+                        key={asset.ticker}
+                        onClick={() => {
+                          setSelectedTicker(asset.ticker);
+                          sound.tap();
+                        }}
+                        className={`p-2 rounded-xl border flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                          selectedTicker === asset.ticker
+                            ? 'bg-surface-raised border-foreground/30'
+                            : 'bg-surface border-border hover:bg-surface-raised/50'
+                        }`}
+                      >
+                        <div>
+                          <span className="font-medium text-foreground">{asset.name}</span>
+                          <span className="text-[10px] text-foreground-subtle block">
+                            {shares.toFixed(2)} acciones
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-mono font-medium text-foreground">
+                            {value.toLocaleString()} monedas
+                          </span>
+                          <span className="text-[10px] text-foreground-subtle block">
+                            {asset.price.toFixed(2)} c/u
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. TABLA RESUMEN DE TODAS LAS EMPRESAS */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-border space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">
+          Cotizaciones del mercado
+        </h3>
+
+        <div className="divide-y divide-border/50">
+          {allAssets.map((asset) => {
+            const isSelected = selectedTicker === asset.ticker;
+            const isUp = asset.change24h >= 0;
+            const shares =
+              asset.ticker === 'BTLN'
+                ? portfolio?.shares || 0
+                : userHoldings[asset.ticker]?.shares || 0;
 
             return (
               <div
-                key={stock.ticker}
+                key={asset.ticker}
                 onClick={() => {
-                  setSelectedTicker(stock.ticker);
+                  setSelectedTicker(asset.ticker);
                   sound.tap();
                 }}
-                className={`p-4 rounded-3xl border transition-all cursor-pointer active:scale-98 relative overflow-hidden ${
-                  isSelected
-                    ? 'bg-surface border-accent shadow-xs'
-                    : 'bg-surface hover:bg-surface-raised border-border'
+                className={`py-2.5 px-2 flex items-center justify-between text-xs transition-colors cursor-pointer rounded-lg ${
+                  isSelected ? 'bg-surface-raised' : 'hover:bg-surface-raised/40'
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-2xl bg-surface-raised border border-border flex items-center justify-center text-xl shrink-0">
-                      {getCompanyIcon(stock.iconType)}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="font-medium text-foreground flex items-center gap-1.5">
+                      <span>{asset.name}</span>
+                      <span className="text-[10px] text-foreground-subtle">
+                        {asset.parodyOf}
+                      </span>
                     </div>
-                    <div>
-                      <div className="font-black text-foreground text-sm flex items-center gap-1.5">
-                        <span>{stock.name}</span>
-                        <span className="text-[10px] text-foreground-subtle font-mono font-bold">
-                          ${stock.ticker}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-foreground-muted truncate">
-                        {stock.parodyOf}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-sm font-black font-mono text-foreground">
-                      {stock.price.toFixed(2)} 🪙
-                    </div>
-                    <div
-                      className={`text-[10px] font-mono font-bold ${
-                        isUp ? 'text-emerald-400' : 'text-rose-400'
-                      }`}
-                    >
-                      {isUp ? '+' : ''}
-                      {stock.change24h}%
+                    <div className="text-[11px] text-foreground-subtle">
+                      {asset.sector}
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-between text-xs">
-                  <span className="text-[11px] text-foreground-subtle truncate">
-                    {stock.sector}
-                  </span>
-                  {holding && holding.shares > 0 ? (
-                    <span className="px-2 py-0.5 rounded-full font-mono text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Tienes {holding.shares.toFixed(1)} acc.
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-foreground-subtle flex items-center gap-0.5">
-                      Operar <ChevronRight className="w-3 h-3" />
+                <div className="flex items-center gap-4 text-right">
+                  {shares > 0 && (
+                    <span className="hidden sm:inline text-[11px] text-foreground-muted font-mono">
+                      {shares.toFixed(2)} acc.
                     </span>
                   )}
+
+                  <div>
+                    <div className="font-mono font-semibold text-foreground">
+                      {asset.price.toFixed(2)} monedas
+                    </div>
+                    <div
+                      className={`text-[10px] font-mono ${
+                        isUp ? 'text-emerald-500' : 'text-rose-500'
+                      }`}
+                    >
+                      {isUp ? '+' : ''}
+                      {asset.change24h}%
+                    </div>
+                  </div>
+
+                  <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
                 </div>
               </div>
             );
