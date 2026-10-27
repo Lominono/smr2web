@@ -27,6 +27,7 @@ import { UserSettingsModal } from '@/components/UserSettingsModal';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
 import { OnlineUsersModal } from '@/components/OnlineUsersModal';
 import { PushNotificationModal } from '@/components/PushNotificationModal';
+import { FeedbackModal } from '@/components/FeedbackModal';
 import { RealtimeToast, RealtimeNotification } from '@/components/RealtimeToast';
 import { UserProfile, ChatMessage, LeaderboardEntry, CalendarEvent } from '@/lib/types';
 import { useRealtimePresence } from '@/lib/presenceService';
@@ -82,6 +83,7 @@ export default function Home() {
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isOnlineUsersOpen, setIsOnlineUsersOpen] = useState(false);
   const [isPushModalOpen, setIsPushModalOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -1154,6 +1156,7 @@ export default function Home() {
                   onOpenSettings={() => setIsSettingsOpen(true)}
                   onSignOut={handleSignOut}
                   onOpenAuth={() => setIsAuthOpen(true)}
+                  onOpenFeedback={() => setIsFeedbackOpen(true)}
                   onlineCount={onlineCount}
                   onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
                   onFocusComposer={() => {
@@ -1369,6 +1372,7 @@ export default function Home() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenTerms={() => setIsTermsOpen(true)}
         onOpenNotifications={() => setIsPushModalOpen(true)}
+        onOpenFeedback={() => setIsFeedbackOpen(true)}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
         onSignOut={handleSignOut}
@@ -1436,6 +1440,13 @@ export default function Home() {
       <PushNotificationModal
         isOpen={isPushModalOpen}
         onClose={() => setIsPushModalOpen(false)}
+        currentUser={user}
+        onOpenAuth={() => setIsAuthOpen(true)}
+      />
+
+      <FeedbackModal
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
         currentUser={user}
         onOpenAuth={() => setIsAuthOpen(true)}
       />

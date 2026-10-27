@@ -199,4 +199,25 @@ export interface UserStockHolding {
   totalInvested: number;
 }
 
+export type FeedbackType = 'idea' | 'report' | 'improvement';
+export type FeedbackCategory = 'general' | 'juegos' | 'horario' | 'portal' | 'inversiones' | 'otros';
+export type FeedbackStatus = 'pending' | 'under_review' | 'planned' | 'completed' | 'dismissed';
+
+export interface CommunityFeedback {
+  id: string;
+  user_id?: string;
+  author_name: string;
+  type: FeedbackType;
+  title: string;
+  description: string;
+  category: FeedbackCategory;
+  status: FeedbackStatus;
+  upvotes_count: number;
+  admin_response?: string;
+  admin_responder_name?: string;
+  created_at: string;
+  updated_at: string;
+  has_voted?: boolean;
+}
+
 

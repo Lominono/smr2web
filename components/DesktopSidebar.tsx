@@ -17,6 +17,7 @@ import {
   Settings,
   Users,
   ShieldCheck,
+  Lightbulb,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -33,6 +34,7 @@ interface DesktopSidebarProps {
   onOpenSettings: () => void;
   onSignOut: () => void;
   onOpenAuth: () => void;
+  onOpenFeedback?: () => void;
   onFocusComposer?: () => void;
   onlineCount?: number;
   onOpenOnlineUsers?: () => void;
@@ -48,6 +50,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onOpenSettings,
   onSignOut,
   onOpenAuth,
+  onOpenFeedback,
   onFocusComposer,
   onlineCount,
   onOpenOnlineUsers,
@@ -151,6 +154,22 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <ShieldCheck className="w-4 h-4 text-amber-500" />
               <span className="font-semibold">Panel Admin</span>
             </Link>
+          )}
+
+          {onOpenFeedback && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.tap();
+                onOpenFeedback();
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <Lightbulb className="w-4 h-4 text-amber-500" />
+                <span>Ideas y reportes</span>
+              </div>
+            </button>
           )}
 
           <button

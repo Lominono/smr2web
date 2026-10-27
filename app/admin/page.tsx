@@ -21,13 +21,16 @@ import {
   AlertTriangle,
   Key,
   Lock,
+  Lightbulb,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { EventLogEntry } from '@/lib/russianRoulette';
-import { UserProfile } from '@/lib/types';
+import { UserProfile, CommunityFeedback, FeedbackStatus } from '@/lib/types';
 import { getUserSession, saveUserSession } from '@/lib/authSession';
+import { fetchFeedbackList, updateFeedbackAdminStatus, deleteFeedbackItem } from '@/lib/feedbackService';
 
 interface AdminUser {
   id: string;
@@ -48,7 +51,14 @@ interface AdminUser {
 export default function AdminPage() {
   const [sessionUser, setSessionUser] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState<'logs' | 'users' | 'game'>('logs');
+  const [activeTab, setActiveTab] = useState<'logs' | 'users' | 'game' | 'feedback'>('logs');
+
+  // Feedback state
+  const [feedbackList, setFeedbackList] = useState<CommunityFeedback[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackFilter, setFeedbackFilter] = useState<'all' | FeedbackStatus>('all');
+  const [adminResponseDraft, setAdminResponseDraft] = useState<Record<string, string>>({});
+  const [adminStatusDraft, setAdminStatusDraft] = useState<Record<string, FeedbackStatus>>({});
 
   // Logs state
   const [logs, setLogs] = useState<EventLogEntry[]>([]);
@@ -298,6 +308,53 @@ export default function AdminPage() {
     }
   };
 
+  // Feedback Handlers
+  const fetchFeedback = useCallback(async () => {
+    setFeedbackLoading(true);
+    try {
+      const data = await fetchFeedbackList();
+      setFeedbackList(data);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchFeedback();
+    }
+  }, [isAdmin, fetchFeedback]);
+
+  const handleUpdateFeedbackStatus = async (item: CommunityFeedback) => {
+    const status = adminStatusDraft[item.id] || item.status;
+    const response = adminResponseDraft[item.id] !== undefined ? adminResponseDraft[item.id] : item.admin_response;
+
+    try {
+      const res = await updateFeedbackAdminStatus({
+        feedbackId: item.id,
+        status,
+        adminResponse: response,
+        adminName: sessionUser?.username || 'Delegado',
+      });
+      if (res.success) {
+        alert('Estado actualizado con éxito.');
+        fetchFeedback();
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error al actualizar');
+    }
+  };
+
+  const handleDeleteFeedback = async (id: string) => {
+    if (!confirm('¿Seguro que quieres eliminar esta aportación?')) return;
+    try {
+      await deleteFeedbackItem(id);
+      fetchFeedback();
+    } catch (err: any) {
+      alert(err?.message || 'Error al eliminar');
+    }
+  };
+
   // Fetch game timeline detail
   const handleFetchGameDetail = async (idToFetch?: string) => {
     const id = idToFetch || gameIdInput.trim();
@@ -528,6 +585,19 @@ export default function AdminPage() {
           >
             <Gamepad2 className="w-3.5 h-3.5" />
             <span>Inspección de Partida</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('feedback')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              activeTab === 'feedback'
+                ? 'bg-foreground text-background font-semibold shadow-xs'
+                : 'text-foreground-muted hover:text-foreground'
+            }`}
+          >
+            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+            <span>Ideas y Reportes ({feedbackList.length})</span>
           </button>
         </div>
 
@@ -957,6 +1027,133 @@ export default function AdminPage() {
             ) : (
               <div className="p-8 text-center text-foreground-subtle rounded-xl border border-border/70 bg-surface text-xs">
                 Introduce el identificador de una partida o selecciona una fila de logs para inspeccionarla.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB 4: IDEAS Y REPORTES COMUNITARIOS */}
+        {/* ============================================================== */}
+        {activeTab === 'feedback' && (
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-xl bg-surface border border-border/70 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-semibold text-foreground">
+                  Gestión de ideas, sugerencias y fallos reportados
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={feedbackFilter}
+                  onChange={(e) => setFeedbackFilter(e.target.value as any)}
+                  className="h-8 px-2.5 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="pending">Pendientes</option>
+                  <option value="under_review">En revisión</option>
+                  <option value="planned">Planificados</option>
+                  <option value="completed">Implementados</option>
+                  <option value="dismissed">Descartados</option>
+                </select>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={fetchFeedback}
+                  disabled={feedbackLoading}
+                  className="h-8 text-xs"
+                >
+                  <RefreshCw className={`w-3 h-3 ${feedbackLoading ? 'animate-spin' : ''}`} />
+                  <span>Actualizar</span>
+                </Button>
+              </div>
+            </div>
+
+            {feedbackLoading ? (
+              <div className="py-12 text-center text-xs text-foreground-subtle">
+                Cargando ideas y reportes...
+              </div>
+            ) : feedbackList.filter(f => feedbackFilter === 'all' || f.status === feedbackFilter).length === 0 ? (
+              <div className="p-8 text-center text-foreground-subtle rounded-xl border border-border/70 bg-surface text-xs">
+                No hay aportaciones registradas con este filtro.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {feedbackList
+                  .filter(f => feedbackFilter === 'all' || f.status === feedbackFilter)
+                  .map((item) => (
+                    <Card key={item.id} className="p-4 rounded-xl border-border/70 bg-surface space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant={item.type === 'report' ? 'danger' : item.type === 'idea' ? 'accent' : 'default'} size="sm">
+                              {item.type === 'report' ? 'Reporte' : item.type === 'idea' ? 'Idea' : 'Mejora'}
+                            </Badge>
+                            <span className="text-[11px] text-foreground-subtle uppercase font-mono">
+                              {item.category}
+                            </span>
+                            <span className="text-[11px] text-foreground-subtle font-mono">
+                              · {item.upvotes_count} votos
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-bold text-foreground">{item.title}</h4>
+                          <p className="text-xs text-foreground-muted whitespace-pre-wrap">{item.description}</p>
+                          <div className="text-[11px] text-foreground-subtle pt-1">
+                            Enviado por <span className="font-semibold text-foreground">@{item.author_name}</span> el {new Date(item.created_at).toLocaleDateString('es-ES')}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFeedback(item.id)}
+                          className="p-1.5 rounded-lg text-foreground-subtle hover:text-danger hover:bg-danger-subtle transition-colors cursor-pointer"
+                          title="Eliminar reporte"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Admin update bar */}
+                      <div className="pt-2.5 border-t border-border/60 flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <span className="text-foreground-subtle font-medium text-[11px]">Estado:</span>
+                          <select
+                            value={adminStatusDraft[item.id] || item.status}
+                            onChange={(e) => setAdminStatusDraft(prev => ({ ...prev, [item.id]: e.target.value as FeedbackStatus }))}
+                            className="h-8 px-2 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground"
+                          >
+                            <option value="pending">Pendiente</option>
+                            <option value="under_review">En revisión</option>
+                            <option value="planned">Planificado</option>
+                            <option value="completed">Implementado</option>
+                            <option value="dismissed">Descartado</option>
+                          </select>
+                        </div>
+
+                        <div className="flex-1 min-w-[200px]">
+                          <input
+                            type="text"
+                            placeholder="Respuesta oficial pública visible para todos los alumnos..."
+                            value={adminResponseDraft[item.id] !== undefined ? adminResponseDraft[item.id] : item.admin_response || ''}
+                            onChange={(e) => setAdminResponseDraft(prev => ({ ...prev, [item.id]: e.target.value }))}
+                            className="w-full h-8 px-2.5 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground placeholder:text-foreground-subtle focus:outline-none"
+                          />
+                        </div>
+
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleUpdateFeedbackStatus(item)}
+                          className="h-8 text-xs shrink-0"
+                        >
+                          Guardar respuesta
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
               </div>
             )}
           </div>
