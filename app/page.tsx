@@ -26,9 +26,11 @@ import { UpdateNotificationBanner } from '@/components/UpdateNotificationBanner'
 import { UserSettingsModal } from '@/components/UserSettingsModal';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
 import { OnlineUsersModal } from '@/components/OnlineUsersModal';
+import { PushNotificationModal } from '@/components/PushNotificationModal';
 import { RealtimeToast, RealtimeNotification } from '@/components/RealtimeToast';
 import { UserProfile, ChatMessage, LeaderboardEntry, CalendarEvent } from '@/lib/types';
 import { useRealtimePresence } from '@/lib/presenceService';
+import { registerServiceWorker } from '@/lib/webPushService';
 import { sound } from '@/lib/audio';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
@@ -79,6 +81,8 @@ export default function Home() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isOnlineUsersOpen, setIsOnlineUsersOpen] = useState(false);
+  const [isPushModalOpen, setIsPushModalOpen] = useState(false);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [dismissedIdentification, setDismissedIdentification] = useState(false);
@@ -223,13 +227,31 @@ export default function Home() {
         .from('chat_messages')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(60);
+        .limit(80);
 
       if (data) {
+        // Consultar los likes del usuario activo para persistir is_liked_by_me
+        const activeUserId = userRef.current?.id;
+        const myLikedMessageIds = new Set<string>();
+
+        if (activeUserId) {
+          try {
+            const { data: likesData } = await supabase
+              .from('chat_message_likes')
+              .select('message_id')
+              .eq('user_id', activeUserId);
+
+            if (likesData) {
+              likesData.forEach((row: any) => myLikedMessageIds.add(row.message_id));
+            }
+          } catch {}
+        }
+
         setChatMessages(
           data.map((m: any) => ({
             ...m,
             likes_count: Number(m.likes_count || 0),
+            is_liked_by_me: myLikedMessageIds.has(m.id),
             created_at: m.created_at,
           }))
         );
@@ -435,14 +457,34 @@ export default function Home() {
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (payload) => {
           const newMsg = payload.new as any;
-          setChatMessages((prev) => [
-            {
+          setChatMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+
+            const formatted: ChatMessage = {
               ...newMsg,
               likes_count: Number(newMsg.likes_count || 0),
               created_at: newMsg.created_at,
-            },
-            ...prev,
-          ]);
+            };
+
+            // Si hay un mensaje optimista del mismo usuario con el mismo texto, reemplazarlo
+            const optIndex = prev.findIndex(
+              (m) =>
+                (m.id.startsWith('opt_') || m.id.startsWith('win_')) &&
+                m.user_id === newMsg.user_id &&
+                m.text === newMsg.text
+            );
+
+            if (optIndex !== -1) {
+              const copy = [...prev];
+              copy[optIndex] = {
+                ...copy[optIndex],
+                ...formatted,
+              };
+              return copy;
+            }
+
+            return [formatted, ...prev];
+          });
 
           // Trigger realtime toast notification if message is from a classmate
           if (notificationsEnabledRef.current && userRef.current && newMsg.user_id !== userRef.current.id) {
@@ -459,7 +501,7 @@ export default function Home() {
               setRealtimeNotification({
                 id: String(Date.now()),
                 type: 'chat',
-                title: `Aviso de @${newMsg.username}`,
+                title: newMsg.pinned ? `📌 Aviso fijado de @${newMsg.username}` : `Aviso de @${newMsg.username}`,
                 description: newMsg.text.replace(/^\[#.*?\]\s*/, ''),
                 actionLabel: 'Ver feed',
                 onAction: () => setActiveView('feed'),
@@ -479,7 +521,9 @@ export default function Home() {
                 msg.id === updatedMsg.id
                   ? {
                       ...msg,
+                      ...updatedMsg,
                       likes_count: Number(updatedMsg.likes_count || 0),
+                      is_liked_by_me: msg.is_liked_by_me,
                     }
                   : msg
               )
@@ -496,6 +540,23 @@ export default function Home() {
             setChatMessages((prev) => prev.filter((m) => m.id !== oldMsg.id));
           } else {
             fetchMessages();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'announcements' },
+        (payload) => {
+          const ann = payload.new as any;
+          if (notificationsEnabledRef.current && ann) {
+            setRealtimeNotification({
+              id: String(Date.now()),
+              type: 'system_update',
+              title: ann.title || '📢 Comunicado oficial',
+              description: ann.body || 'Nuevo aviso de clase emitido.',
+              actionLabel: 'Ver feed',
+              onAction: () => setActiveView('feed'),
+            });
           }
         }
       )
@@ -593,12 +654,20 @@ export default function Home() {
           fetchLeaderboardRef.current?.();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        setIsRealtimeConnected(status === 'SUBSCRIBED');
+      });
 
     return () => {
       authListener.subscription.unsubscribe();
       supabase.removeChannel(channel);
+      setIsRealtimeConnected(false);
     };
+  }, []);
+
+  // Registrar Service Worker para notificaciones push en segundo plano
+  useEffect(() => {
+    registerServiceWorker();
   }, []);
 
   // Realtime subscription for current user's coins balance
@@ -807,19 +876,22 @@ export default function Home() {
     }
   };
 
-  const handleSendMessage = async (text: string, tag?: string) => {
+  const handleSendMessage = async (text: string, tag?: string, pinned?: boolean) => {
     if (!user) {
       setIsAuthOpen(true);
       return;
     }
 
+    const optimisticId = `opt_${Date.now()}`;
     const optimisticMsg: ChatMessage = {
-      id: `opt_${Date.now()}`,
+      id: optimisticId,
       user_id: user.id,
       username: user.username,
       text,
       tag: tag || undefined,
+      pinned: Boolean(pinned),
       likes_count: 0,
+      is_liked_by_me: false,
       created_at: new Date().toISOString(),
     };
     setChatMessages((prev) => [optimisticMsg, ...prev]);
@@ -834,10 +906,30 @@ export default function Home() {
         text,
       };
       if (tag) payload.tag = tag;
+      if (pinned) payload.pinned = true;
 
-      await supabase.from('chat_messages').insert([payload]);
+      const { data, error } = await supabase.from('chat_messages').insert([payload]).select().single();
+      if (!error && data) {
+        setChatMessages((prev) =>
+          prev.map((m) => (m.id === optimisticId ? { ...m, id: data.id, created_at: data.created_at } : m))
+        );
+      }
     } catch (err) {
       console.warn('Error inserting message to Supabase:', err);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    sound.tap();
+    setChatMessages((prev) => prev.filter((m) => m.id !== messageId));
+
+    const supabase = createClient();
+    if (!supabase) return;
+
+    try {
+      await supabase.from('chat_messages').delete().eq('id', messageId);
+    } catch (err) {
+      console.warn('Error deleting message from Supabase:', err);
     }
   };
 
@@ -963,6 +1055,26 @@ export default function Home() {
         .from('chat_messages')
         .update({ likes_count: nextCount })
         .eq('id', messageId);
+
+      if (user) {
+        if (willBeLiked) {
+          await supabase.from('chat_message_likes').upsert(
+            [
+              {
+                message_id: messageId,
+                user_id: user.id,
+              },
+            ],
+            { onConflict: 'message_id,user_id' }
+          );
+        } else {
+          await supabase
+            .from('chat_message_likes')
+            .delete()
+            .eq('message_id', messageId)
+            .eq('user_id', user.id);
+        }
+      }
     } catch (err) {
       console.warn('Error updating message likes:', err);
     }
@@ -1061,10 +1173,11 @@ export default function Home() {
                   currentUser={user}
                   onOpenAuth={() => setIsAuthOpen(true)}
                   onSendMessage={handleSendMessage}
+                  onDeleteMessage={handleDeleteMessage}
                   onTipUser={handleTipUser}
                   onToggleLike={handleToggleLike}
-                  onOpenSchedule={() => setActiveView('calendar')}
-                  onOpenRussianRoulette={() => setActiveView('russian_roulette')}
+                  onOpenNotifications={() => setIsPushModalOpen(true)}
+                  isRealtimeConnected={isRealtimeConnected}
                   composerRef={composerRef}
                 />
               </div>
@@ -1170,8 +1283,10 @@ export default function Home() {
                 <PartyIdleGame
                   userCoins={user ? user.coins : 200}
                   userId={user?.id}
+                  username={user?.username}
                   onUpdateCoins={handleUpdateCoins}
                   onNavigateGame={(g) => setActiveView(g as ViewMode)}
+                  onRequireAuth={() => setIsAuthOpen(true)}
                   onBroadcastWin={handleBroadcastWin}
                 />
               ) : activeView === 'angry' ? (
@@ -1253,6 +1368,7 @@ export default function Home() {
         onOpenFaucet={() => setIsFaucetOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenTerms={() => setIsTermsOpen(true)}
+        onOpenNotifications={() => setIsPushModalOpen(true)}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
         onSignOut={handleSignOut}
@@ -1302,6 +1418,7 @@ export default function Home() {
         onToggleSound={handleToggleSound}
         notificationsEnabled={notificationsEnabled}
         onToggleNotifications={handleToggleNotifications}
+        onOpenPushModal={() => setIsPushModalOpen(true)}
         onlineCount={onlineCount}
       />
 
@@ -1314,6 +1431,13 @@ export default function Home() {
       <TermsModal
         isOpen={isTermsOpen}
         onClose={() => setIsTermsOpen(false)}
+      />
+
+      <PushNotificationModal
+        isOpen={isPushModalOpen}
+        onClose={() => setIsPushModalOpen(false)}
+        currentUser={user}
+        onOpenAuth={() => setIsAuthOpen(true)}
       />
 
       {/* 7. Student Identification Onboarding Gate (Required: Real Name & Unique Student Number) */}

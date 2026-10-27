@@ -48,6 +48,17 @@ export interface ChatMessage {
   is_liked_by_me?: boolean;
   tag?: string;
   reply_to_username?: string;
+  pinned?: boolean;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  tag: string;
+  url?: string;
+  author_username: string;
+  created_at: string;
 }
 
 export interface LeaderboardEntry {
@@ -85,3 +96,107 @@ export interface CalendarEvent {
   created_at?: string;
   is_personal?: boolean;
 }
+
+export interface MarketState {
+  id: number;
+  current_price: number;
+  total_shares: number;
+  pool_balance: number;
+  reserve_balance: number;
+  total_volume: number;
+  total_investors: number;
+  fee_rate: number;
+  cooldown_seconds: number;
+  min_investment: number;
+  max_investment: number;
+  last_event: string;
+  last_event_type: 'neutral' | 'bullish' | 'bearish' | 'police' | 'epic';
+  last_event_impact: number;
+  last_tick_at: string;
+  updated_at: string;
+}
+
+export interface InvestmentPosition {
+  id: string;
+  user_id: string;
+  shares: number;
+  total_invested_coins: number;
+  total_withdrawn_coins: number;
+  average_buy_price: number;
+  last_transaction_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvestmentTransaction {
+  id: string;
+  user_id: string;
+  username: string;
+  type: 'buy' | 'sell';
+  coins_amount: number;
+  shares_amount: number;
+  price_per_share: number;
+  fee_coins: number;
+  net_coins: number;
+  created_at: string;
+}
+
+export interface PriceHistoryPoint {
+  id: string;
+  price: number;
+  pool_balance: number;
+  total_shares: number;
+  change_percent: number;
+  trigger_type: 'tick' | 'buy' | 'sell' | 'event' | 'initial';
+  event_description?: string;
+  created_at: string;
+}
+
+export interface TopInvestor {
+  user_id: string;
+  username: string;
+  avatar_color: string;
+  shares: number;
+  position_value: number;
+  total_invested: number;
+  profit_percent: number;
+}
+
+export interface InvestmentActionResult {
+  success: boolean;
+  type: 'buy' | 'sell';
+  coins_spent?: number;
+  coins_received?: number;
+  shares_bought?: number;
+  shares_sold?: number;
+  execution_price: number;
+  fee_paid?: number;
+  new_price: number;
+  new_balance: number;
+  new_shares: number;
+  message: string;
+  error?: string;
+}
+
+export interface ParodyStock {
+  ticker: string;
+  name: string;
+  parodyOf: string;
+  slogan: string;
+  sector: string;
+  price: number;
+  change24h: number;
+  volume: number;
+  lastNews?: string;
+  accentColor: string;
+  iconType: string;
+}
+
+export interface UserStockHolding {
+  ticker: string;
+  shares: number;
+  averagePrice: number;
+  totalInvested: number;
+}
+
+

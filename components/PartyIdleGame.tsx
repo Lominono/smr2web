@@ -44,12 +44,15 @@ import {
   Activity,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { BotellonInvestments } from '@/components/BotellonInvestments';
 
 export interface PartyIdleGameProps {
   userCoins: number;
   userId?: string;
+  username?: string;
   onUpdateCoins: (delta: number) => void;
   onNavigateGame?: (game: string) => void;
+  onRequireAuth?: () => void;
   onBroadcastWin?: (
     game: 'angry' | 'crash' | 'mines' | 'roulette',
     multiplier: number,
@@ -398,15 +401,17 @@ export const renderPerkIcon = (iconName: string) => {
 export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   userCoins,
   userId,
+  username,
   onUpdateCoins,
   onNavigateGame,
+  onRequireAuth,
 }) => {
   const storageKey = `${STORAGE_KEY_PREFIX}${userId || 'local'}`;
 
-  // Pestaña activa dentro del juego: 'suministros' | 'zonas' | 'habilidades' | 'beerpong'
-  const [activeTab, setActiveTab] = useState<'suministros' | 'zonas' | 'habilidades' | 'beerpong'>(
-    'suministros'
-  );
+  // Pestaña activa dentro del juego: 'suministros' | 'zonas' | 'habilidades' | 'beerpong' | 'inversiones'
+  const [activeTab, setActiveTab] = useState<
+    'suministros' | 'zonas' | 'habilidades' | 'beerpong' | 'inversiones'
+  >('suministros');
 
   // Estado del juego
   const [levels, setLevels] = useState<Record<string, number>>(() => ({
@@ -1901,6 +1906,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           { id: 'zonas', label: 'Fases & Zonas', icon: MapPin },
           { id: 'habilidades', label: 'Perks de la Noche', icon: Award },
           { id: 'beerpong', label: 'Juegos de Fiesta', icon: Target },
+          { id: 'inversiones', label: 'Fondo Botellón', icon: TrendingUp },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -2378,6 +2384,17 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             </button>
           </div>
         </div>
+      )}
+
+      {/* PESTAÑA 5: FONDO BOTELLÓN (SISTEMA DE INVERSIONES COMPARTIDO) */}
+      {activeTab === 'inversiones' && (
+        <BotellonInvestments
+          userCoins={userCoins}
+          userId={userId}
+          username={username}
+          onUpdateCoins={onUpdateCoins}
+          onRequireAuth={onRequireAuth}
+        />
       )}
 
       {/* Mini-tutorial interactivo (primera visita y bajo demanda) */}

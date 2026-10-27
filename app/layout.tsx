@@ -25,6 +25,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'SMR2',
   description: 'Horario lectivo y portal de clase de 2º SMR',
+  manifest: '/manifest.json',
   icons: {
     icon: '/logo.png',
     apple: '/logo.png',

@@ -61,6 +61,7 @@ interface UserSettingsModalProps {
   onToggleSound: () => void;
   notificationsEnabled?: boolean;
   onToggleNotifications?: () => void;
+  onOpenPushModal?: () => void;
   onlineCount?: number;
 }
 
@@ -84,6 +85,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   onToggleSound,
   notificationsEnabled = true,
   onToggleNotifications,
+  onOpenPushModal,
   onlineCount = 1,
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'agenda' | 'stats' | 'preferences' | 'security'>('profile');
@@ -1027,6 +1029,30 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                     onClick={onToggleNotifications}
                   >
                     {notificationsEnabled ? 'Activados' : 'Desactivados'}
+                  </Button>
+                </div>
+              )}
+
+              {/* Web Push Background Notifications */}
+              {onOpenPushModal && (
+                <div className="p-3.5 rounded-xl bg-surface-raised border border-border/70 flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-semibold text-foreground">Avisos Web Push (Fuera de la web)</span>
+                    <p className="text-[11px] text-foreground-muted">
+                      Recibe notificaciones en tu móvil y PC aunque la página esté cerrada.
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-lg text-xs"
+                    onClick={() => {
+                      sound.tap();
+                      onOpenPushModal();
+                    }}
+                  >
+                    Configurar
                   </Button>
                 </div>
               )}

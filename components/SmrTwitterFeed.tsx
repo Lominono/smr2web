@@ -19,6 +19,16 @@ import {
   RotateCcw,
   BookOpen,
   ArrowUp,
+  Pin,
+  Trash2,
+  Bell,
+  Code,
+  Copy,
+  Terminal,
+  FolderGit2,
+  FileText,
+  Calendar,
+  HelpCircle,
 } from 'lucide-react';
 import { ChatMessage, UserProfile } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
@@ -29,46 +39,45 @@ interface SmrTwitterFeedProps {
   messages: ChatMessage[];
   currentUser: UserProfile | null;
   onOpenAuth: () => void;
-  onSendMessage: (text: string, tag?: string) => void;
+  onSendMessage: (text: string, tag?: string, pinned?: boolean) => void;
+  onDeleteMessage?: (messageId: string) => void;
   onTipUser: (targetUsername: string, amount: number) => void;
   onToggleLike?: (messageId: string) => void;
-  onOpenSchedule?: () => void;
-  onOpenTasks?: () => void;
-  onOpenRussianRoulette?: () => void;
+  onOpenNotifications?: () => void;
+  isRealtimeConnected?: boolean;
   composerRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
 
-type FeedFilterId = 'all' | 'avisos' | 'dudas' | 'apuntes' | 'recreo';
+type FeedFilterId = 'all' | 'avisos' | 'dudas' | 'recursos' | 'recreo';
 
 interface FeedTabItem {
   id: FeedFilterId;
   label: string;
-  icon?: React.ReactNode;
+  icon: React.ReactNode;
 }
 
 const FEED_TABS: FeedTabItem[] = [
-  { id: 'all', label: 'Todos' },
-  { id: 'avisos', label: 'Avisos' },
-  { id: 'dudas', label: 'Dudas' },
-  { id: 'apuntes', label: 'Apuntes' },
-  { id: 'recreo', label: 'Recreo' },
+  { id: 'all', label: 'Todos', icon: <MessageSquare className="w-3.5 h-3.5" /> },
+  { id: 'avisos', label: 'Avisos y Fechas', icon: <Calendar className="w-3.5 h-3.5" /> },
+  { id: 'dudas', label: 'Dudas técnicas', icon: <HelpCircle className="w-3.5 h-3.5" /> },
+  { id: 'recursos', label: 'Apuntes y Recursos', icon: <BookOpen className="w-3.5 h-3.5" /> },
+  { id: 'recreo', label: 'Sala de recreo', icon: <Trophy className="w-3.5 h-3.5" /> },
 ];
 
 const COMPOSER_TAGS = [
   { id: 'General', label: 'General' },
-  { id: 'Aviso', label: 'Aviso', color: 'sky' },
-  { id: 'Duda', label: 'Duda', color: 'violet' },
-  { id: 'Examen', label: 'Examen', color: 'amber' },
-  { id: 'Apuntes', label: 'Apuntes', color: 'emerald' },
-  { id: 'Recreo', label: 'Recreo', color: 'yellow' },
+  { id: 'Aviso', label: 'Aviso' },
+  { id: 'Duda', label: 'Duda' },
+  { id: 'Examen', label: 'Examen' },
+  { id: 'Recurso', label: 'Recurso' },
+  { id: 'Recreo', label: 'Recreo' },
 ] as const;
 
 /**
- * Format timestamp into human-readable relative time (e.g. "ahora", "hace 5m", "ayer 10:30")
+ * Formatea fechas a formato relativo legible en español ("ahora", "hace 5m", "ayer 10:30")
  */
 function formatRelativeTime(dateStr: string): string {
   if (!dateStr) return '';
-  // Legacy time strings like "13:45"
   if (/^\d{1,2}:\d{2}/.test(dateStr) && !dateStr.includes('-') && !dateStr.includes('T')) {
     return dateStr;
   }
@@ -101,20 +110,26 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   currentUser,
   onOpenAuth,
   onSendMessage,
+  onDeleteMessage,
   onTipUser,
   onToggleLike,
+  onOpenNotifications,
+  isRealtimeConnected = true,
   composerRef: externalComposerRef,
 }) => {
   const [activeTab, setActiveTab] = useState<FeedFilterId>('all');
   const [inputText, setInputText] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('General');
+  const [isPinned, setIsPinned] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [tipSuccessId, setTipSuccessId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   const [hasNewMessagesAbove, setHasNewMessagesAbove] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const prevCountRef = useRef(messages.length);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -122,7 +137,12 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   const textareaRef = externalComposerRef || localTextareaRef;
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Detect when new messages arrive while user is scrolled down
+  const isStaff =
+    currentUser?.role === 'admin' ||
+    currentUser?.role === 'delegado' ||
+    currentUser?.username === 'admin';
+
+  // Detección de mensajes nuevos cuando el usuario está scrolleando abajo
   useEffect(() => {
     if (messages.length > prevCountRef.current) {
       if (typeof window !== 'undefined' && window.scrollY > 300) {
@@ -138,16 +158,16 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
     containerRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Auto-resize textarea smoothly
+  // Auto-resize dinámico y suave del área de texto
   useEffect(() => {
     const el = textareaRef.current;
     if (el) {
       el.style.height = 'auto';
-      el.style.height = `${Math.min(180, Math.max(64, el.scrollHeight))}px`;
+      el.style.height = `${Math.min(220, Math.max(68, el.scrollHeight))}px`;
     }
   }, [inputText, textareaRef]);
 
-  // Focus search input when opened
+  // Foco en buscador al abrir
   useEffect(() => {
     if (isSearchOpen && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -165,7 +185,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
       return;
     }
 
-    if (trimmed.length > 280) return;
+    if (trimmed.length > 320) return;
 
     setIsPosting(true);
 
@@ -175,22 +195,31 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
 
       if (selectedTag && selectedTag !== 'General') {
         postTag = selectedTag.toLowerCase();
-        // If not already in text, prepend hashtag indicator for visibility
         if (!finalMessage.includes(`#${selectedTag}`)) {
           finalMessage = `[#${selectedTag}] ${finalMessage}`;
         }
       }
 
-      await onSendMessage(finalMessage, postTag);
+      await onSendMessage(finalMessage, postTag, isPinned);
       setInputText('');
       setReplyingTo(null);
       setSelectedTag('General');
+      setIsPinned(false);
       sound.tap();
     } catch (err) {
       console.error('Error al publicar mensaje:', err);
     } finally {
       setIsPosting(false);
     }
+  };
+
+  const handleInsertCodeSnippet = () => {
+    sound.tap();
+    setInputText((prev) => {
+      if (!prev) return '`comando_aqui` ';
+      return `${prev} \`comando_aqui\` `;
+    });
+    textareaRef.current?.focus();
   };
 
   const handleStartReply = (username: string) => {
@@ -237,19 +266,34 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
     }
   };
 
-  const handleLike = (msgId: string) => {
-    if (onToggleLike) {
-      onToggleLike(msgId);
+  const handleCopyCode = (codeText: string, id: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(codeText);
+      sound.tap();
+      setCopiedCodeId(id);
+      setTimeout(() => setCopiedCodeId(null), 2000);
     }
   };
 
-  // Filter messages based on active tab and search query
+  const handleDelete = async (msgId: string) => {
+    if (!onDeleteMessage) return;
+    if (!window.confirm('¿Seguro que quieres eliminar este mensaje del feed?')) return;
+    sound.tap();
+    setDeletingId(msgId);
+    try {
+      await onDeleteMessage(msgId);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // Filtrado de mensajes por pestaña y búsqueda
   const filteredMessages = messages.filter((msg) => {
-    const textLower = msg.text.toLowerCase();
-    const userLower = msg.username.toLowerCase();
+    const textLower = (msg.text || '').toLowerCase();
+    const userLower = (msg.username || '').toLowerCase();
     const tagLower = (msg.tag || '').toLowerCase();
 
-    // 1. Search filter
+    // 1. Filtro de búsqueda textual
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       const matchesText = textLower.includes(q);
@@ -258,11 +302,12 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
       if (!matchesText && !matchesUser && !matchesTag) return false;
     }
 
-    // 2. Tab category filter
+    // 2. Filtro por sección temática
     if (activeTab === 'all') return true;
 
     if (activeTab === 'avisos') {
       return (
+        msg.pinned ||
         tagLower === 'aviso' ||
         tagLower === 'examen' ||
         textLower.includes('[#aviso') ||
@@ -283,20 +328,24 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
         textLower.includes('?') ||
         textLower.includes('duda') ||
         textLower.includes('ayuda') ||
-        textLower.includes('problema')
+        textLower.includes('error') ||
+        textLower.includes('problema') ||
+        textLower.includes('packet tracer') ||
+        textLower.includes('cisco')
       );
     }
 
-    if (activeTab === 'apuntes') {
+    if (activeTab === 'recursos') {
       return (
+        tagLower === 'recurso' ||
         tagLower === 'apuntes' ||
+        textLower.includes('[#recurso') ||
         textLower.includes('[#apunte') ||
-        textLower.includes('#apunte') ||
-        textLower.includes('apunte') ||
-        textLower.includes('tema') ||
-        textLower.includes('github') ||
+        textLower.includes('github.com') ||
+        textLower.includes('drive.google') ||
         textLower.includes('pdf') ||
-        textLower.includes('drive')
+        textLower.includes('chuleta') ||
+        textLower.includes('temario')
       );
     }
 
@@ -314,20 +363,20 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
     return true;
   });
 
-  // Calculate counts for tab indicators
+  // Conteo dinámico para pestañas
   const getTabCount = (tabId: FeedFilterId) => {
     if (tabId === 'all') return messages.length;
     return messages.filter((m) => {
-      const t = m.text.toLowerCase();
+      const t = (m.text || '').toLowerCase();
       const tag = (m.tag || '').toLowerCase();
       if (tabId === 'avisos') {
-        return tag === 'aviso' || tag === 'examen' || t.includes('#aviso') || t.includes('examen');
+        return m.pinned || tag === 'aviso' || tag === 'examen' || t.includes('#aviso') || t.includes('examen');
       }
       if (tabId === 'dudas') {
-        return tag === 'duda' || t.includes('#duda') || t.includes('?');
+        return tag === 'duda' || t.includes('#duda') || t.includes('?') || t.includes('ayuda');
       }
-      if (tabId === 'apuntes') {
-        return tag === 'apuntes' || t.includes('#apunte') || t.includes('drive');
+      if (tabId === 'recursos') {
+        return tag === 'recurso' || tag === 'apuntes' || t.includes('github') || t.includes('drive');
       }
       if (tabId === 'recreo') {
         return m.is_system_win || tag === 'recreo' || t.includes('fichas');
@@ -336,8 +385,8 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
     }).length;
   };
 
-  // Helper to render text with clickable links, tags, and @mentions
-  const renderFormattedText = (rawText: string, messageTag?: string) => {
+  // Renderizado enriquecido para comandos, bloques de código, menciones y enlaces
+  const renderFormattedText = (rawText: string, messageTag?: string, msgId?: string) => {
     let cleanText = rawText;
     let extractedTag: string | null = messageTag || null;
 
@@ -345,6 +394,14 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
     if (tagMatch) {
       if (!extractedTag) extractedTag = tagMatch[1];
       cleanText = rawText.replace(tagMatch[0], '');
+    }
+
+    // Comprobar si contiene bloques de código tipo ```codigo```
+    const codeBlockMatch = cleanText.match(/```([\s\S]*?)```/);
+    let codeBlockContent: string | null = null;
+    if (codeBlockMatch) {
+      codeBlockContent = codeBlockMatch[1].trim();
+      cleanText = cleanText.replace(codeBlockMatch[0], '').trim();
     }
 
     const words = cleanText.split(/(\s+)/);
@@ -359,8 +416,28 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             </span>
           </div>
         )}
-        <p className="text-[13.5px] text-foreground leading-relaxed break-words break-all sm:break-normal font-sans max-w-prose">
+
+        <div className="text-[13.5px] text-foreground leading-relaxed break-words break-all sm:break-normal font-sans max-w-prose">
           {words.map((word, i) => {
+            // Mención @usuario
+            if (word.startsWith('@') && word.length > 1) {
+              return (
+                <span
+                  key={i}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchQuery(word);
+                    setIsSearchOpen(true);
+                  }}
+                  className="text-foreground font-semibold font-mono hover:underline cursor-pointer bg-surface-raised px-1 py-0.2 rounded text-[12.5px]"
+                  title={`Filtrar publicaciones de ${word}`}
+                >
+                  {word}
+                </span>
+              );
+            }
+
+            // Etiqueta #hashtag
             if (word.startsWith('#') && word.length > 1) {
               return (
                 <span
@@ -371,47 +448,94 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                     setIsSearchOpen(true);
                   }}
                   className="text-accent font-medium hover:underline cursor-pointer"
-                  title={`Filtrar por ${word}`}
+                  title={`Buscar etiqueta ${word}`}
                 >
                   {word}
                 </span>
               );
             }
-            if (word.startsWith('@') && word.length > 1) {
+
+            // Comando en línea entre comillas invertidas `comando`
+            if (word.startsWith('`') && word.endsWith('`') && word.length > 2) {
+              const cmd = word.slice(1, -1);
               return (
-                <span
+                <code
                   key={i}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSearchQuery(word);
-                    setIsSearchOpen(true);
+                    navigator.clipboard.writeText(cmd);
+                    sound.tap();
                   }}
-                  className="text-foreground font-semibold font-mono hover:underline cursor-pointer"
-                  title={`Ver publicaciones de ${word}`}
+                  title="Copiar comando al portapapeles"
+                  className="px-1.5 py-0.5 mx-0.5 rounded-md bg-surface-raised border border-border/80 font-mono text-xs text-accent font-semibold cursor-copy hover:border-accent/60 transition-colors"
                 >
-                  {word}
-                </span>
+                  {cmd}
+                </code>
               );
             }
+
+            // Enlaces externos con chips temáticos
             if (word.startsWith('http://') || word.startsWith('https://')) {
+              const isGithub = word.includes('github.com');
+              const isDrive = word.includes('drive.google.com') || word.includes('docs.google.com');
+
               return (
                 <a
                   key={i}
                   href={word}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-accent underline underline-offset-2 hover:opacity-80 inline-flex items-center gap-0.5 break-all"
+                  className="text-accent underline underline-offset-2 hover:opacity-85 inline-flex items-center gap-1 break-all font-medium text-xs bg-accent/5 px-1.5 py-0.5 rounded border border-accent/20"
                 >
-                  {word.length > 32 ? `${word.slice(0, 29)}...` : word}
-                  <ExternalLink className="w-3 h-3 inline shrink-0" />
+                  {isGithub ? (
+                    <FolderGit2 className="w-3 h-3 shrink-0" />
+                  ) : isDrive ? (
+                    <FileText className="w-3 h-3 shrink-0" />
+                  ) : (
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                  )}
+                  <span>{word.length > 34 ? `${word.slice(0, 31)}...` : word}</span>
                 </a>
               );
             }
+
             return <React.Fragment key={i}>{word}</React.Fragment>;
           })}
-        </p>
+        </div>
 
-        {/* Previsualización limpia si el mensaje incluye enlace directo a imagen */}
+        {/* Bloque de comandos / script terminal */}
+        {codeBlockContent && (
+          <div className="my-2 rounded-xl border border-border/80 bg-surface-raised p-3 font-mono text-xs text-foreground relative group">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/60 text-[11px] text-foreground-subtle">
+              <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                <Terminal className="w-3.5 h-3.5 text-accent" />
+                <span>Terminal / Comando SMR</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopyCode(codeBlockContent!, msgId || 'block')}
+                className="flex items-center gap-1 px-2 py-0.5 rounded bg-surface border border-border hover:text-foreground text-foreground-muted cursor-pointer transition-colors"
+              >
+                {copiedCodeId === (msgId || 'block') ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    <span className="text-emerald-400">Copiado</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3" />
+                    <span>Copiar</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
+              {codeBlockContent}
+            </pre>
+          </div>
+        )}
+
+        {/* Previsualización limpia de imagen directa */}
         {words
           .filter((w) => /^https?:\/\/.*\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(w))
           .slice(0, 1)
@@ -434,11 +558,14 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   };
 
   const charCount = inputText.length;
-  const isNearLimit = charCount > 240;
+  const isNearLimit = charCount > 280;
 
   return (
-    <div ref={containerRef} className="relative w-full flex flex-col rounded-2xl border border-border/70 bg-surface shadow-2xs">
-      {/* Píldora flotante cuando llegan nuevos mensajes mientras se hace scroll */}
+    <div
+      ref={containerRef}
+      className="relative w-full flex flex-col rounded-2xl border border-border/70 bg-surface shadow-2xs overflow-hidden"
+    >
+      {/* Píldora flotante para saltar a mensajes nuevos recibidos en tiempo real */}
       {hasNewMessagesAbove && (
         <div className="sticky top-28 z-30 flex justify-center w-full pointer-events-none -mb-8">
           <button
@@ -447,26 +574,61 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-foreground text-background font-semibold text-xs shadow-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer animate-in fade-in slide-in-from-top-2 border border-border/60"
           >
             <ArrowUp className="w-3.5 h-3.5" />
-            <span>Nuevas publicaciones</span>
+            <span>Nuevas publicaciones en directo</span>
           </button>
         </div>
       )}
 
-      {/* 1. Header & Segmented Navigation */}
-      <div className="sticky top-14 z-20 bg-surface/95 backdrop-blur-md rounded-t-2xl border-b border-border/70 transition-colors">
-        {/* Main Title Row */}
+      {/* 1. Header & Live Indicator */}
+      <div className="sticky top-14 z-20 bg-surface/95 backdrop-blur-md border-b border-border/70 transition-colors">
         <div className="flex items-center justify-between px-3.5 sm:px-5 py-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <h2 className="text-sm font-semibold text-foreground tracking-tight">
-              Feed de clase
+              Feed de clase 2º SMR
             </h2>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-raised border border-border/70 text-foreground-muted text-[11px] font-sans">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>{messages.length} publicaciones</span>
+
+            {/* Live Realtime Status Pill */}
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-raised border border-border/70 text-foreground text-[11px] font-sans">
+              {isRealtimeConnected ? (
+                <>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">
+                    En directo
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span className="text-foreground-muted font-mono">Conectando...</span>
+                </>
+              )}
+              <span className="text-foreground-subtle">·</span>
+              <span className="text-foreground-muted">{messages.length} posts</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Botón de avisos fuera de la web */}
+            {onOpenNotifications && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.tap();
+                  onOpenNotifications();
+                }}
+                title="Notificaciones y avisos fuera de la web"
+                aria-label="Abrir notificaciones push"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border/70 bg-surface-raised/60 hover:bg-surface-raised text-foreground-muted hover:text-foreground text-xs font-medium cursor-pointer transition-colors"
+              >
+                <Bell className="w-3.5 h-3.5 text-accent" />
+                <span className="hidden sm:inline">Avisos web</span>
+              </button>
+            )}
+
+            {/* Botón de búsqueda */}
             <button
               type="button"
               onClick={() => {
@@ -474,7 +636,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                 setIsSearchOpen((prev) => !prev);
               }}
               title="Buscar en el feed"
-              aria-label="Buscar mensajes"
+              aria-label="Buscar publicaciones"
               className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
                 isSearchOpen || searchQuery
                   ? 'bg-foreground text-background border-foreground font-semibold'
@@ -496,15 +658,15 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por palabra, @usuario o tema..."
-                className="w-full bg-surface-raised border border-border/80 rounded-lg pl-8 pr-8 py-1.5 text-xs text-foreground placeholder:text-foreground-subtle outline-none focus:border-accent/70 transition-colors"
+                placeholder="Buscar por tema, comando, @alumno o palabra clave..."
+                className="w-full bg-surface-raised border border-border/80 rounded-lg pl-8 pr-8 py-1.5 text-xs text-foreground placeholder:text-foreground-subtle outline-none focus:border-accent transition-colors"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
                   aria-label="Limpiar búsqueda"
-                  className="absolute right-2 text-foreground-subtle hover:text-foreground p-0.5"
+                  className="absolute right-2 text-foreground-subtle hover:text-foreground p-0.5 cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -533,6 +695,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                       : 'text-foreground-muted hover:text-foreground hover:bg-surface-raised'
                   }`}
                 >
+                  {tab.icon}
                   <span>{tab.label}</span>
                   {count > 0 && (
                     <span
@@ -552,7 +715,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
         </div>
       </div>
 
-      {/* 2. Composer Box (Linear/Twitter minimalist aesthetics) */}
+      {/* 2. Composer Box */}
       <div className="p-3.5 sm:p-4.5 border-b border-border/60 bg-surface-raised/20">
         {/* Reply Context Banner */}
         {replyingTo && (
@@ -560,7 +723,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             <div className="flex items-center gap-1.5 min-w-0">
               <CornerDownRight className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">
-                Respondiendo a <strong className="font-mono">@{replyingTo}</strong>
+                Respondiendo en directo a <strong className="font-mono">@{replyingTo}</strong>
               </span>
             </div>
             <button
@@ -576,7 +739,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
         )}
 
         <div className="flex items-start gap-3">
-          {/* Current User Avatar */}
+          {/* Avatar del usuario actual */}
           <div className="w-8 h-8 rounded-full bg-surface-raised border border-border/80 flex items-center justify-center font-mono font-semibold text-xs text-foreground uppercase shrink-0 mt-0.5">
             {currentUser ? currentUser.username.charAt(0) : '?'}
           </div>
@@ -594,44 +757,78 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
               placeholder={
                 currentUser
                   ? replyingTo
-                    ? `Escribe tu respuesta para @${replyingTo}...`
-                    : `Comparte un aviso, duda o apunte para la clase...`
+                    ? `Responde a @${replyingTo}...`
+                    : `Comparte un aviso, duda de redes, apunte o comando para la clase...`
                   : 'Inicia sesión para participar en el feed de clase...'
               }
               rows={2}
-              maxLength={280}
+              maxLength={320}
               className="w-full bg-transparent text-sm text-foreground placeholder:text-foreground-subtle resize-none outline-none leading-relaxed font-sans"
             />
 
-            {/* Tag selector chips */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 pt-0.5">
-              {COMPOSER_TAGS.map((t) => {
-                const isSelected = selectedTag === t.id;
-                return (
+            {/* Tag selector chips & Utilities */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 pt-0.5">
+                {COMPOSER_TAGS.map((t) => {
+                  const isSelected = selectedTag === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        sound.tap();
+                        setSelectedTag(t.id);
+                      }}
+                      className={`px-2.5 py-0.5 rounded-md text-xs font-mono transition-all cursor-pointer border active:scale-95 touch-manipulation shrink-0 ${
+                        isSelected
+                          ? 'bg-foreground text-background font-semibold border-foreground'
+                          : 'bg-surface text-foreground-muted border-border/70 hover:text-foreground hover:border-border'
+                      }`}
+                    >
+                      #{t.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Botones de acción rápida: código y fijado */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleInsertCodeSnippet}
+                  title="Insertar comando o código `...`"
+                  className="flex items-center gap-1 px-2 py-1 rounded text-xs font-mono text-foreground-muted hover:text-foreground hover:bg-surface-raised border border-border/70 cursor-pointer transition-colors"
+                >
+                  <Code className="w-3.5 h-3.5 text-accent" />
+                  <span className="hidden sm:inline">Comando</span>
+                </button>
+
+                {isStaff && (
                   <button
-                    key={t.id}
                     type="button"
                     onClick={() => {
                       sound.tap();
-                      setSelectedTag(t.id);
+                      setIsPinned((p) => !p);
                     }}
-                    className={`px-2.5 py-0.5 rounded-md text-xs font-mono transition-all cursor-pointer border active:scale-95 touch-manipulation shrink-0 ${
-                      isSelected
-                        ? 'bg-foreground text-background font-semibold border-foreground'
-                        : 'bg-surface text-foreground-muted border-border/70 hover:text-foreground hover:border-border'
+                    title={isPinned ? 'Desmarcar aviso fijado' : 'Fijar como aviso prioritario'}
+                    className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-mono border cursor-pointer transition-colors ${
+                      isPinned
+                        ? 'bg-amber-500/15 border-amber-500/30 text-amber-500 font-semibold'
+                        : 'text-foreground-muted hover:text-foreground hover:bg-surface-raised border-border/70'
                     }`}
                   >
-                    #{t.label}
+                    <Pin className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Fijar</span>
                   </button>
-                );
-              })}
+                )}
+              </div>
             </div>
 
             {/* Bottom Bar: Chars, Shortcut & Submit */}
             <div className="flex items-center justify-between pt-2 border-t border-border/40">
               <div className="flex items-center gap-2 text-[11px] font-mono text-foreground-subtle">
                 <span className={isNearLimit ? 'text-amber-500 font-semibold' : ''}>
-                  {280 - charCount} caracteres
+                  {320 - charCount} caracteres
                 </span>
                 <span className="hidden sm:inline opacity-60">· Ctrl + Enter</span>
               </div>
@@ -640,7 +837,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                 variant="primary"
                 size="sm"
                 onClick={() => handlePublish()}
-                disabled={!inputText.trim() || isPosting || charCount > 280}
+                disabled={!inputText.trim() || isPosting || charCount > 320}
                 isLoading={isPosting}
                 className="rounded-lg px-3.5 h-8 text-xs font-medium"
               >
@@ -665,7 +862,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
               }
               description={
                 searchQuery
-                  ? `No encontramos coincidencias para "${searchQuery}". Prueba con otra palabra clave.`
+                  ? `No encontramos coincidencias para "${searchQuery}". Prueba con otro término.`
                   : 'Sé el primero en compartir un aviso sobre prácticas, exámenes o dudas del temario.'
               }
               action={
@@ -689,10 +886,11 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
         ) : (
           filteredMessages.map((msg) => {
             const isMe = currentUser && msg.user_id === currentUser.id;
+            const canDelete = isMe || isStaff;
             const isLiked = Boolean(msg.is_liked_by_me);
             const likesCount = Number(msg.likes_count || 0);
 
-            // System Victory Announcement
+            // Anuncio del Sistema / Victoria del recreo
             if (msg.is_system_win) {
               return (
                 <article
@@ -707,7 +905,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                       <div className="space-y-0.5 min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface border border-border text-foreground-muted">
-                            Victoria recreo
+                            Recreo SMR
                           </span>
                           <span className="text-foreground-subtle font-mono text-[11px]">
                             {formatRelativeTime(msg.created_at)}
@@ -729,11 +927,13 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
               );
             }
 
-            // Normal Student / Classmate Post
+            // Publicación normal de alumno / delegado
             return (
               <article
                 key={msg.id}
-                className="p-3.5 sm:p-4 hover:bg-surface-raised/20 transition-colors border-b border-border/40 last:border-b-0 min-w-0"
+                className={`p-3.5 sm:p-4 hover:bg-surface-raised/25 transition-colors border-b border-border/40 last:border-b-0 min-w-0 ${
+                  msg.pinned ? 'bg-amber-500/5 border-l-2 border-l-amber-500' : ''
+                }`}
               >
                 <div className="flex items-start gap-3 min-w-0">
                   {/* User Avatar */}
@@ -748,6 +948,13 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                         <span className="font-semibold text-xs text-foreground font-mono truncate max-w-[140px] sm:max-w-[200px]">
                           @{msg.username}
                         </span>
+
+                        {msg.pinned && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-500 font-semibold shrink-0 border border-amber-500/20">
+                            <Pin className="w-2.5 h-2.5" />
+                            <span>Fijado</span>
+                          </span>
+                        )}
 
                         {(msg.username === 'admin' ||
                           msg.username.toLowerCase().includes('delegado')) && (
@@ -764,33 +971,48 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                         </span>
                       </div>
 
-                      {/* Share Quick Action */}
-                      <button
-                        type="button"
-                        onClick={() => handleShare(msg)}
-                        title="Copiar texto de la publicación"
-                        aria-label="Copiar texto"
-                        className="w-7 h-7 rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-raised flex items-center justify-center cursor-pointer active:scale-95 transition-all shrink-0"
-                      >
-                        {copiedId === msg.id ? (
-                          <Check className="w-3 h-3 text-emerald-400" />
-                        ) : (
-                          <Share2 className="w-3 h-3" />
+                      {/* Botones de acción rápida en cabecera */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {canDelete && onDeleteMessage && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(msg.id)}
+                            disabled={deletingId === msg.id}
+                            title="Eliminar publicación"
+                            aria-label="Eliminar publicación"
+                            className="w-7 h-7 rounded-md text-foreground-subtle hover:text-rose-500 hover:bg-rose-500/10 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
                         )}
-                      </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleShare(msg)}
+                          title="Copiar texto de la publicación"
+                          aria-label="Copiar texto"
+                          className="w-7 h-7 rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-raised flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                        >
+                          {copiedId === msg.id ? (
+                            <Check className="w-3 h-3 text-emerald-400" />
+                          ) : (
+                            <Share2 className="w-3 h-3" />
+                          )}
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Message Body */}
+                    {/* Cuerpo del mensaje */}
                     <div className="min-w-0">
-                      {renderFormattedText(msg.text, msg.tag)}
+                      {renderFormattedText(msg.text, msg.tag, msg.id)}
                     </div>
 
-                    {/* Actions Toolbar */}
+                    {/* Barra de interacción */}
                     <div className="flex items-center gap-4 pt-1.5 mt-1 border-t border-border/30 text-[11px] font-mono text-foreground-subtle">
-                      {/* Like Button */}
+                      {/* Botón de Me Gusta */}
                       <button
                         type="button"
-                        onClick={() => handleLike(msg.id)}
+                        onClick={() => onToggleLike && onToggleLike(msg.id)}
                         className={`inline-flex items-center gap-1 hover:text-rose-500 transition-colors cursor-pointer select-none active:scale-95 touch-manipulation ${
                           isLiked ? 'text-rose-500 font-semibold' : ''
                         }`}
@@ -805,7 +1027,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                         <span>{likesCount > 0 ? likesCount : ''}</span>
                       </button>
 
-                      {/* Reply Button */}
+                      {/* Botón de Responder */}
                       <button
                         type="button"
                         onClick={() => handleStartReply(msg.username)}
@@ -817,7 +1039,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                         <span className="hidden sm:inline">Responder</span>
                       </button>
 
-                      {/* Tip Button */}
+                      {/* Botón de Propina */}
                       {!isMe && currentUser && (
                         <button
                           type="button"

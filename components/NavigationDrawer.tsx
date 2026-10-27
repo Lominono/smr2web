@@ -25,6 +25,7 @@ import {
   ChevronRight,
   Users,
   ListTodo,
+  BellRing,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -43,6 +44,7 @@ interface NavigationDrawerProps {
   onOpenSettings: () => void;
   onOpenTerms: () => void;
   onOpenTasks?: () => void;
+  onOpenNotifications?: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
   onSignOut: () => void;
@@ -60,6 +62,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
   onOpenFaucet,
   onOpenSettings,
   onOpenTerms,
+  onOpenNotifications,
   soundEnabled,
   onToggleSound,
   onSignOut,
@@ -362,6 +365,23 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 {soundEnabled ? 'On' : 'Off'}
               </Badge>
             </button>
+
+            {onOpenNotifications && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenNotifications();
+                  onClose();
+                }}
+                className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
+              >
+                <div className="flex items-center gap-3">
+                  <BellRing className="w-4 h-4 text-accent" />
+                  <span className="text-sm font-sans">Avisos fuera de la web</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-foreground-subtle" />
+              </button>
+            )}
 
             {currentUser && (
               <button
