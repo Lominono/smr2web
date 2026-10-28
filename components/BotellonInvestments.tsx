@@ -221,6 +221,34 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         channel = supabase
           .channel('botellon_market_live_stream')
           .on(
+            'broadcast',
+            { event: 'market_trade' },
+            (msg: any) => {
+              if (msg && msg.payload) {
+                const { transaction, ticker, newPrice, pricePoint } = msg.payload;
+                if (pricePoint && (!pricePoint.ticker || pricePoint.ticker === selectedTicker)) {
+                  setPriceHistory((prev) => [...prev.slice(-79), pricePoint]);
+                }
+                if (transaction) {
+                  setTransactions((prev) => [transaction, ...prev.filter((t) => t.id !== transaction.id)].slice(0, 24));
+                  setRecentLiveNotification({
+                    username: transaction.username,
+                    type: transaction.type,
+                    ticker: transaction.ticker || ticker || 'BTLN',
+                    coins: Number(transaction.coins_amount || 0),
+                    time: Date.now(),
+                  });
+                  setGlowingTicker(transaction.ticker || ticker || 'BTLN');
+                  setTimeout(() => setGlowingTicker(null), 3000);
+                }
+                // Si el precio de BTLN cambió
+                if (ticker === 'BTLN' && newPrice) {
+                  setMarketState((prev) => prev ? { ...prev, current_price: Number(newPrice) } : null);
+                }
+              }
+            }
+          )
+          .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'market_state' },
             (payload) => {
@@ -541,7 +569,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           if (inputNumeric < 10) throw new Error('La inversión mínima es de 10 monedas.');
           if (inputNumeric > userCoins) throw new Error('Saldo insuficiente.');
 
-          const res = await tradeParodyStock(selectedTicker, 'buy', inputNumeric, userId, realUsername);
+          const res = await tradeParodyStock(selectedTicker, 'buy', inputNumeric, realUsername, userId);
           if (!res.success) throw new Error(res.message);
 
           setFeedback({ type: 'success', message: res.message });
@@ -550,7 +578,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           if (inputNumeric <= 0) throw new Error('Indica cuántas acciones vender.');
           if (inputNumeric > currentHolding.shares) throw new Error('No posees suficientes acciones.');
 
-          const res = await tradeParodyStock(selectedTicker, 'sell', inputNumeric, userId, realUsername);
+          const res = await tradeParodyStock(selectedTicker, 'sell', inputNumeric, realUsername, userId);
           if (!res.success) throw new Error(res.message);
 
           setFeedback({ type: 'success', message: res.message });

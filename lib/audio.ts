@@ -441,6 +441,45 @@ class SoundFX {
     osc.start();
     osc.stop(this.ctx.currentTime + 0.12);
   }
+
+  // Windows retro startup chime (nostalgic, warm harmonic progression)
+  windowsStartup() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    // Chime chords: warm harmonic notes inspired by retro OS startup
+    const notes = [
+      { freq: 155.56, time: 0.0, dur: 1.6, vol: 0.12 }, // Eb3
+      { freq: 233.08, time: 0.14, dur: 1.5, vol: 0.15 }, // Bb3
+      { freq: 311.13, time: 0.32, dur: 1.8, vol: 0.18 }, // Eb4
+      { freq: 392.00, time: 0.50, dur: 2.0, vol: 0.20 }, // G4
+      { freq: 466.16, time: 0.68, dur: 2.2, vol: 0.22 }, // Bb4
+      { freq: 622.25, time: 0.88, dur: 2.5, vol: 0.20 }, // Eb5
+    ];
+
+    notes.forEach(({ freq, time, dur, vol }) => {
+      try {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + time);
+
+        gain.gain.setValueAtTime(0.001, now + time);
+        gain.gain.exponentialRampToValueAtTime(vol, now + time + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + time + dur);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now + time);
+        osc.stop(now + time + dur);
+      } catch {}
+    });
+  }
 }
 
 export const sound = new SoundFX();

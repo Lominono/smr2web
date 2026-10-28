@@ -89,6 +89,9 @@ export function getUserSession(): UserProfile | null {
   // 1. Try reading from cookie
   const cookieUser = getJsonCookie<UserProfile>(COOKIE_SESSION);
   if (cookieUser && cookieUser.id && cookieUser.username) {
+    if (cookieUser.coins === undefined || cookieUser.coins === null) {
+      cookieUser.coins = 1000;
+    }
     return cookieUser;
   }
 
@@ -99,6 +102,9 @@ export function getUserSession(): UserProfile | null {
       if (stored) {
         const parsed = JSON.parse(stored) as UserProfile;
         if (parsed && parsed.id && parsed.username) {
+          if (parsed.coins === undefined || parsed.coins === null) {
+            parsed.coins = 1000;
+          }
           // Re-sync back to cookie so both are in harmony
           const remember = localStorage.getItem(COOKIE_REMEMBER) !== 'false';
           setJsonCookie<UserProfile>(COOKIE_SESSION, parsed, { days: remember ? 365 : 30 });

@@ -24,6 +24,7 @@ import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
 import { UpdateNotificationBanner } from '@/components/UpdateNotificationBanner';
 import { UserSettingsModal } from '@/components/UserSettingsModal';
+import { WindowsWelcomeModal } from '@/components/WindowsWelcomeModal';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
 import { OnlineUsersModal } from '@/components/OnlineUsersModal';
 import { PushNotificationModal } from '@/components/PushNotificationModal';
@@ -80,6 +81,7 @@ export default function Home() {
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isWindowsWelcomeOpen, setIsWindowsWelcomeOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isOnlineUsersOpen, setIsOnlineUsersOpen] = useState(false);
   const [isPushModalOpen, setIsPushModalOpen] = useState(false);
@@ -408,6 +410,15 @@ export default function Home() {
     if (cachedSession) {
       setUser(cachedSession);
       setAuthLoading(false);
+
+      if (typeof window !== 'undefined') {
+        const shown = sessionStorage.getItem('smr2_windows_welcome_shown');
+        const dismissed = localStorage.getItem('smr2_windows_welcome_dismissed');
+        if (!shown && dismissed !== 'true') {
+          sessionStorage.setItem('smr2_windows_welcome_shown', 'true');
+          setIsWindowsWelcomeOpen(true);
+        }
+      }
     }
 
     const isConfigured = isSupabaseConfigured();
@@ -1206,6 +1217,7 @@ export default function Home() {
           fetchMessages();
           fetchLeaderboard();
           fetchCalendarEvents();
+          setIsWindowsWelcomeOpen(true);
         }}
         supabaseConfigured={supabaseConfigured}
       />
@@ -1501,6 +1513,7 @@ export default function Home() {
           fetchMessages();
           fetchLeaderboard();
           fetchCalendarEvents();
+          setIsWindowsWelcomeOpen(true);
         }}
       />
 
@@ -1520,6 +1533,13 @@ export default function Home() {
         onToggleNotifications={handleToggleNotifications}
         onOpenPushModal={() => setIsPushModalOpen(true)}
         onlineCount={onlineCount}
+        onOpenWindowsWelcome={() => setIsWindowsWelcomeOpen(true)}
+      />
+
+      <WindowsWelcomeModal
+        isOpen={isWindowsWelcomeOpen}
+        user={user}
+        onClose={() => setIsWindowsWelcomeOpen(false)}
       />
 
       <OnlineUsersModal

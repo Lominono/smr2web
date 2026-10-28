@@ -487,7 +487,17 @@ export async function fetchParodyStocks(): Promise<ParodyStock[]> {
         .single();
 
       if (!error && data && data.parody_stocks && typeof data.parody_stocks === 'object') {
-        const remoteStocks = data.parody_stocks as Record<string, any>;
+        let remoteStocks: Record<string, any> = {};
+        if (Array.isArray(data.parody_stocks)) {
+          for (const item of data.parody_stocks) {
+            if (item && item.ticker) {
+              remoteStocks[item.ticker] = item;
+            }
+          }
+        } else {
+          remoteStocks = data.parody_stocks as Record<string, any>;
+        }
+
         const mapped = DEFAULT_PARODY_STOCKS.map((base) => {
           const remote = remoteStocks[base.ticker];
           if (remote) {
@@ -635,6 +645,55 @@ export async function investInBotellon(amount: number, username: string = 'Alumn
       message: 'La cantidad debe ser mayor que cero.',
       error: 'Cantidad no válida',
     };
+  }
+
+  // 1. Ejecutar transacción autorizada en el servidor (conectado a Supabase Realtime)
+  try {
+    const res = await fetch('/api/investments/trade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ticker: 'BTLN',
+        action: 'buy',
+        amount: cleanAmount,
+        username,
+        userId,
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (data.transaction) {
+        const trades = getStoredJson<InvestmentTransaction[]>(STORAGE_TRADES_KEY, []);
+        setStoredJson(STORAGE_TRADES_KEY, [data.transaction, ...trades.slice(0, 49)]);
+      }
+      if (data.pricePoint) {
+        const historyMap = getStoredJson<Record<string, PriceHistoryPoint[]>>(STORAGE_HISTORY_KEY, {});
+        const pts = historyMap['BTLN'] || [];
+        pts.push(data.pricePoint);
+        historyMap['BTLN'] = pts.slice(-100);
+        setStoredJson(STORAGE_HISTORY_KEY, historyMap);
+      }
+      broadcastLiveTrade(data.transaction, undefined, undefined, data.pricePoint);
+      return {
+        success: true,
+        type: 'buy',
+        coins_spent: cleanAmount,
+        shares_bought: data.shares,
+        execution_price: data.price,
+        new_price: data.newPrice,
+        new_balance: 0,
+        new_shares: data.shares,
+        message: data.message || `Has invertido ${cleanAmount} monedas con éxito.`,
+      };
+    } else if (data && !data.fallbackLocal) {
+      throw new Error(data.error || 'Error al procesar la inversión en el servidor.');
+    }
+  } catch (err: any) {
+    if (err.message && !err.message.includes('fetch') && !err.message.includes('Network') && !err.message.includes('Failed to fetch')) {
+      throw err;
+    }
+    console.warn('API /api/investments/trade fallback:', err);
   }
 
   const supabase = createClient();
@@ -796,6 +855,56 @@ export async function withdrawFromBotellon(shares: number, username: string = 'A
       message: 'Debes indicar una cantidad mayor a cero.',
       error: 'Cantidad no válida',
     };
+  }
+
+  // 1. Ejecutar venta autorizada en el servidor (conectado a Supabase Realtime)
+  try {
+    const res = await fetch('/api/investments/trade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ticker: 'BTLN',
+        action: 'sell',
+        amount: cleanShares,
+        username,
+        userId,
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (data.transaction) {
+        const trades = getStoredJson<InvestmentTransaction[]>(STORAGE_TRADES_KEY, []);
+        setStoredJson(STORAGE_TRADES_KEY, [data.transaction, ...trades.slice(0, 49)]);
+      }
+      if (data.pricePoint) {
+        const historyMap = getStoredJson<Record<string, PriceHistoryPoint[]>>(STORAGE_HISTORY_KEY, {});
+        const pts = historyMap['BTLN'] || [];
+        pts.push(data.pricePoint);
+        historyMap['BTLN'] = pts.slice(-100);
+        setStoredJson(STORAGE_HISTORY_KEY, historyMap);
+      }
+      broadcastLiveTrade(data.transaction, undefined, undefined, data.pricePoint);
+      return {
+        success: true,
+        type: 'sell',
+        shares_sold: cleanShares,
+        coins_received: data.coinsDelta,
+        fee_paid: data.feePaid,
+        execution_price: data.price,
+        new_price: data.newPrice,
+        new_balance: 0,
+        new_shares: data.remainingShares,
+        message: data.message || `Has retirado ${cleanShares} participaciones con éxito.`,
+      };
+    } else if (data && !data.fallbackLocal) {
+      throw new Error(data.error || 'Error al procesar la retirada.');
+    }
+  } catch (err: any) {
+    if (err.message && !err.message.includes('fetch') && !err.message.includes('Network') && !err.message.includes('Failed to fetch')) {
+      throw err;
+    }
+    console.warn('API /api/investments/trade fallback:', err);
   }
 
   const supabase = createClient();
@@ -962,6 +1071,76 @@ export async function tradeParodyStock(
   message: string;
   error?: string;
 }> {
+  let effectiveUsername = username;
+  let effectiveUserId = userId;
+  if (typeof username === 'string' && /^[0-9a-f-]{36}$/i.test(username) && typeof userId === 'string') {
+    effectiveUserId = username;
+    effectiveUsername = userId;
+  }
+
+  // 1. Ejecutar orden autorizada en el servidor (conectado a Supabase Realtime)
+  try {
+    const res = await fetch('/api/investments/trade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ticker,
+        action,
+        amount: amountOrShares,
+        username: effectiveUsername,
+        userId: effectiveUserId,
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      // Guardar posición local para visualización instantánea
+      const holdings = getStoredJson<Record<string, UserStockHolding>>(STORAGE_HOLDINGS_KEY, {});
+      if (action === 'buy') {
+        const cur = holdings[ticker] || { ticker, shares: 0, averagePrice: 0, totalInvested: 0 };
+        const nextShares = cur.shares + data.shares;
+        const nextInvested = cur.totalInvested + Math.abs(data.coinsDelta);
+        holdings[ticker] = {
+          ticker,
+          shares: nextShares,
+          averagePrice: nextShares > 0 ? nextInvested / nextShares : data.price,
+          totalInvested: nextInvested,
+        };
+      } else {
+        const cur = holdings[ticker];
+        if (cur) {
+          const nextShares = Math.max(0, cur.shares - data.shares);
+          if (nextShares <= 0.001) delete holdings[ticker];
+          else holdings[ticker] = { ...cur, shares: nextShares };
+        }
+      }
+      setStoredJson(STORAGE_HOLDINGS_KEY, holdings);
+
+      if (data.transaction) {
+        const trades = getStoredJson<InvestmentTransaction[]>(STORAGE_TRADES_KEY, []);
+        setStoredJson(STORAGE_TRADES_KEY, [data.transaction, ...trades.slice(0, 49)]);
+      }
+
+      if (data.pricePoint) {
+        const historyMap = getStoredJson<Record<string, PriceHistoryPoint[]>>(STORAGE_HISTORY_KEY, {});
+        const pts = historyMap[ticker] || [];
+        pts.push(data.pricePoint);
+        historyMap[ticker] = pts.slice(-100);
+        setStoredJson(STORAGE_HISTORY_KEY, historyMap);
+      }
+
+      broadcastLiveTrade(data.transaction, undefined, undefined, data.pricePoint);
+      return data;
+    } else if (data && !data.fallbackLocal) {
+      throw new Error(data.error || 'Error procesando la orden');
+    }
+  } catch (err: any) {
+    if (err.message && !err.message.includes('fetch') && !err.message.includes('Network') && !err.message.includes('Failed to fetch')) {
+      throw err;
+    }
+    console.warn('API /api/investments/trade fallback:', err);
+  }
+
   const supabase = createClient();
   if (supabase && isSupabaseConfigured()) {
     try {

@@ -167,6 +167,15 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         </div>
       )}
 
+      {mode === 'register' && !error && (
+        <div className="p-3 rounded-[var(--radius)] bg-surface-raised border border-border/80 flex items-center gap-2.5 text-xs text-foreground-muted">
+          <span className="text-base shrink-0">🪙</span>
+          <p className="leading-snug">
+            Bono de bienvenida: <strong className="text-foreground font-semibold">1.000 monedas</strong> añadidas a tu cuenta al registrarte.
+          </p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-3.5">
         {mode === 'register' ? (
           <>
