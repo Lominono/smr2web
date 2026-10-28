@@ -335,6 +335,38 @@ export default function AdminPage() {
     }
   };
 
+  // Total wipe handler
+  const handleWipeAll = async () => {
+    const confirmation = confirm(
+      '⚠️ ADVERTENCIA CRÍTICA: ¿Estás seguro de BORRAR TODOS LOS USUARIOS Y DATOS?\n\n' +
+        '• Se eliminarán todas las cuentas de usuario, correos y contraseñas.\n' +
+        '• Se vaciará todo el historial, posiciones e inversiones.\n' +
+        '• Esta acción es irreversible.'
+    );
+    if (!confirmation) return;
+
+    setIsResettingDb(true);
+    try {
+      const res = await fetch('/api/admin/reset-database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wipeUsers: true }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('Borrado total completado. Todas las cuentas han sido eliminadas.');
+        fetchUsers();
+        fetchLogs(1);
+      } else {
+        alert(data.error || 'Error al procesar el borrado total.');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error de conexión.');
+    } finally {
+      setIsResettingDb(false);
+    }
+  };
+
   // Push broadcast handler
   const handleSendPushBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -844,6 +876,29 @@ export default function AdminPage() {
                 className="shrink-0 rounded-xl"
               >
                 {isResettingDb ? 'Reiniciando...' : 'Reiniciar temporada'}
+              </Button>
+            </div>
+
+            {/* Danger Zone 2: Total Wipe */}
+            <div className="p-4 rounded-xl border border-danger/40 bg-danger/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xs font-semibold text-danger flex items-center gap-1.5">
+                  <Trash2 className="w-4 h-4 text-danger" />
+                  <span>Borrado Total y Absoluto (Cuentas y Datos)</span>
+                </h4>
+                <p className="text-xs text-foreground-muted mt-0.5">
+                  Elimina todas las cuentas de usuario, correos, sesiones y vacía por completo la base de datos para comenzar de cero.
+                </p>
+              </div>
+
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={isResettingDb}
+                onClick={handleWipeAll}
+                className="shrink-0 rounded-xl bg-danger hover:bg-danger/90 text-white font-medium"
+              >
+                {isResettingDb ? 'Borrando...' : 'Borrar todo'}
               </Button>
             </div>
           </div>

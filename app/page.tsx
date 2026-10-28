@@ -41,6 +41,7 @@ import {
   clearUserSession,
   updateSessionCoins,
   getLocalAccountsList,
+  checkAndEnforceSystemWipe,
 } from '@/lib/authSession';
 import { logoutAccount } from '@/lib/authService';
 import {
@@ -405,8 +406,17 @@ export default function Home() {
   }, [fetchLeaderboard]);
 
   useEffect(() => {
+    // 0. Forzar reseteo absoluto de datos locales si la época de reinicio no se ha aplicado
+    const wasWiped = checkAndEnforceSystemWipe();
+    if (wasWiped) {
+      try {
+        const sb = createClient();
+        if (sb) sb.auth.signOut().catch(() => {});
+      } catch {}
+    }
+
     // 1. Synchronously read local cookie session first for instant resume without flashing
-    const cachedSession = getUserSession();
+    const cachedSession = wasWiped ? null : getUserSession();
     if (cachedSession) {
       setUser(cachedSession);
       setAuthLoading(false);
@@ -419,6 +429,9 @@ export default function Home() {
           setIsWindowsWelcomeOpen(true);
         }
       }
+    } else {
+      setUser(null);
+      setAuthLoading(false);
     }
 
     const isConfigured = isSupabaseConfigured();

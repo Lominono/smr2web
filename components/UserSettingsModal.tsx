@@ -35,6 +35,7 @@ import {
   updateLocalUserPassword,
   getRememberMePreference,
   COOKIE_REMEMBER,
+  wipeAllLocalData,
 } from '@/lib/authSession';
 import {
   PersonalTask,
@@ -1105,6 +1106,33 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                   </Button>
                 </div>
               )}
+
+              {/* Wipe Local Device Data */}
+              <div className="p-3.5 rounded-xl bg-danger-subtle border border-danger/25 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Trash2 className="w-4 h-4 text-danger" />
+                    <span className="text-xs font-semibold text-danger">Borrar Todo en Este Dispositivo</span>
+                  </div>
+                  <p className="text-[11px] text-foreground-muted">
+                    Elimina todas las sesiones, cuentas guardadas y caché local del navegador.
+                  </p>
+                </div>
+
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className="rounded-lg text-xs shrink-0"
+                  onClick={() => {
+                    if (confirm('¿Eliminar todos los datos locales, cuentas y cerrar sesión en este equipo?')) {
+                      wipeAllLocalData();
+                      window.location.reload();
+                    }
+                  }}
+                >
+                  Borrar local
+                </Button>
+              </div>
             </div>
           )}
 

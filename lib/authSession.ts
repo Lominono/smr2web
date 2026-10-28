@@ -1,5 +1,5 @@
 import { UserProfile } from '@/lib/types';
-import { setCookie, getCookie, deleteCookie, setJsonCookie, getJsonCookie } from '@/lib/cookies';
+import { setCookie, getCookie, deleteCookie, deleteAllCookies, setJsonCookie, getJsonCookie } from '@/lib/cookies';
 
 export const COOKIE_SESSION = 'smr2_user_session';
 export const COOKIE_REMEMBER = 'smr2_remember_me';
@@ -213,6 +213,56 @@ export function clearUserSession(): void {
       localStorage.removeItem(STORAGE_USER_BACKUP);
     }
   } catch {}
+}
+
+export const SYSTEM_WIPE_EPOCH = 'smr2_wipe_epoch_20261028_total';
+
+/**
+ * Destructively wipes ALL client-side data:
+ * - Local user profiles, sessions, and backup accounts
+ * - Cookies and remember-me tokens
+ * - Stored investments positions, trades, history
+ * - Offline cached tasks, incidents, votes
+ * - Supabase authentication tokens in browser storage
+ */
+export function wipeAllLocalData(): void {
+  deleteAllCookies();
+  deleteCookie(COOKIE_SESSION);
+  deleteCookie(COOKIE_REMEMBER);
+  deleteCookie(COOKIE_LAST_USER);
+
+  if (typeof window !== 'undefined') {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key !== SYSTEM_WIPE_EPOCH) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      sessionStorage.clear();
+    } catch (e) {
+      console.warn('Error clearing browser storage:', e);
+    }
+  }
+}
+
+/**
+ * Automatic epoch enforcer: if a client hasn't performed the total system reset,
+ * it silently wipes all lingering local state and cookies so nobody has stale/ghost accounts.
+ */
+export function checkAndEnforceSystemWipe(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const executed = localStorage.getItem(SYSTEM_WIPE_EPOCH);
+    if (!executed) {
+      wipeAllLocalData();
+      localStorage.setItem(SYSTEM_WIPE_EPOCH, 'true');
+      return true;
+    }
+  } catch {}
+  return false;
 }
 
 /**

@@ -71,6 +71,21 @@ export function deleteCookie(name: string, path: string = '/'): void {
 }
 
 /**
+ * Deletes all cookies accessible on the current domain
+ */
+export function deleteAllCookies(): void {
+  if (typeof document === 'undefined') return;
+  const cookies = document.cookie ? document.cookie.split(';') : [];
+  for (const c of cookies) {
+    const eqPos = c.indexOf('=');
+    const name = eqPos > -1 ? c.substring(0, eqPos).trim() : c.trim();
+    if (name) {
+      document.cookie = `${encodeURIComponent(name)}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+    }
+  }
+}
+
+/**
  * Serializes and stores a JSON object in a cookie
  */
 export function setJsonCookie<T>(name: string, value: T, options?: CookieOptions): void {
