@@ -14,6 +14,7 @@ import {
   getRememberMePreference,
   translateAuthError,
 } from '@/lib/authSession';
+import { validatePasswordSecurity } from '@/lib/passwordSecurity';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -89,6 +90,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+  const passReport = mode === 'register' && password.length > 0
+    ? validatePasswordSecurity(password, username, email)
+    : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,34 +223,90 @@ export const AuthForm: React.FC<AuthFormProps> = ({
               leftIcon={<Mail className="w-4 h-4" />}
             />
 
-            <Input
-              label="Contraseña"
-              type={showPassword ? 'text' : 'password'}
-              required
-              minLength={6}
-              autoComplete="new-password"
-              placeholder="Mínimo 6 caracteres"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              leftIcon={<Lock className="w-4 h-4" />}
-              rightElement={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="w-10 h-10 flex items-center justify-center text-foreground-subtle hover:text-foreground active:scale-90 touch-manipulation cursor-pointer"
-                  title={showPassword ? 'Ocultar' : 'Mostrar'}
-                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              }
-            />
+            <div className="space-y-1.5">
+              <Input
+                label="Contraseña"
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                placeholder="Mínimo 8 caracteres"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                leftIcon={<Lock className="w-4 h-4" />}
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="w-10 h-10 flex items-center justify-center text-foreground-subtle hover:text-foreground active:scale-90 touch-manipulation cursor-pointer"
+                    title={showPassword ? 'Ocultar' : 'Mostrar'}
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                }
+              />
+
+              {/* Indicador de seguridad de contraseña */}
+              {passReport && (
+                <div className="p-2.5 rounded-lg bg-surface-raised border border-border/70 space-y-2 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-foreground-muted">Nivel de seguridad:</span>
+                    <span className={`font-semibold ${
+                      passReport.score <= 1 ? 'text-red-500' :
+                      passReport.score === 2 ? 'text-amber-500' :
+                      passReport.score === 3 ? 'text-emerald-500' : 'text-green-500'
+                    }`}>
+                      {passReport.strengthLabel}
+                    </span>
+                  </div>
+
+                  {/* 4 Barras de seguridad */}
+                  <div className="grid grid-cols-4 gap-1 h-1.5 w-full">
+                    {[1, 2, 3, 4].map((seg) => (
+                      <div
+                        key={seg}
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          passReport.score >= seg
+                            ? passReport.score <= 1
+                              ? 'bg-red-500'
+                              : passReport.score === 2
+                              ? 'bg-amber-500'
+                              : 'bg-emerald-500'
+                            : 'bg-border'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Requisitos de seguridad */}
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-foreground-subtle">
+                    <div className={`flex items-center gap-1 ${passReport.criteria.minLength ? 'text-emerald-500 font-medium' : ''}`}>
+                      <span>{passReport.criteria.minLength ? '✓' : '•'}</span>
+                      <span>Mín. 8 caracteres</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${passReport.criteria.hasUppercase && passReport.criteria.hasLowercase ? 'text-emerald-500 font-medium' : ''}`}>
+                      <span>{passReport.criteria.hasUppercase && passReport.criteria.hasLowercase ? '✓' : '•'}</span>
+                      <span>Mayús. y minús.</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${passReport.criteria.hasNumber ? 'text-emerald-500 font-medium' : ''}`}>
+                      <span>{passReport.criteria.hasNumber ? '✓' : '•'}</span>
+                      <span>Al menos 1 número</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${passReport.criteria.hasSpecial ? 'text-emerald-500 font-medium' : ''}`}>
+                      <span>{passReport.criteria.hasSpecial ? '✓' : '•'}</span>
+                      <span>Al menos 1 símbolo</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <Input
               label="Confirmar contraseña"
               type={showPassword ? 'text' : 'password'}
               required
-              minLength={6}
+              minLength={8}
               autoComplete="new-password"
               placeholder="Repite la contraseña"
               value={confirmPassword}
@@ -329,7 +389,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             size="lg"
             className={onCancel ? 'flex-1' : 'w-full'}
             isLoading={loading}
-            disabled={mode === 'register' && passwordsMismatch}
+            disabled={mode === 'register' && (passwordsMismatch || (passReport !== null && !passReport.valid))}
           >
             {mode === 'login' ? 'Acceder' : 'Crear cuenta'}
           </Button>

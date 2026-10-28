@@ -37,6 +37,7 @@ import {
   COOKIE_REMEMBER,
   wipeAllLocalData,
 } from '@/lib/authSession';
+import { validatePasswordSecurity } from '@/lib/passwordSecurity';
 import {
   PersonalTask,
   getPersonalTasks,
@@ -120,6 +121,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const newPassReport = newPassword.length > 0 ? validatePasswordSecurity(newPassword, user?.username, user?.email) : null;
 
   // Preferences
   const [rememberMe, setRememberMe] = useState(true);
@@ -287,8 +289,12 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
     e.preventDefault();
     setPasswordMsg(null);
 
-    if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'err', text: 'La contraseña debe tener mínimo 6 caracteres.' });
+    const passCheck = validatePasswordSecurity(newPassword, user?.username, user?.email);
+    if (!passCheck.valid) {
+      setPasswordMsg({
+        type: 'err',
+        text: passCheck.errors[0] || 'La contraseña debe tener al menos 8 caracteres y combinar mayúsculas, minúsculas y números o símbolos.',
+      });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -1140,14 +1146,68 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
           {activeTab === 'security' && (
             <div className="space-y-4">
               <form onSubmit={handleChangePassword} className="space-y-3">
-                <Input
-                  label="Nueva Contraseña"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  required
-                />
+                <div className="space-y-1.5">
+                  <Input
+                    label="Nueva Contraseña"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 8 caracteres"
+                    minLength={8}
+                    required
+                  />
+
+                  {newPassReport && (
+                    <div className="p-2.5 rounded-lg bg-surface-raised border border-border/70 space-y-2 animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-foreground-muted">Nivel de seguridad:</span>
+                        <span className={`font-semibold ${
+                          newPassReport.score <= 1 ? 'text-red-500' :
+                          newPassReport.score === 2 ? 'text-amber-500' :
+                          newPassReport.score === 3 ? 'text-emerald-500' : 'text-green-500'
+                        }`}>
+                          {newPassReport.strengthLabel}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1 h-1.5 w-full">
+                        {[1, 2, 3, 4].map((seg) => (
+                          <div
+                            key={seg}
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              newPassReport.score >= seg
+                                ? newPassReport.score <= 1
+                                  ? 'bg-red-500'
+                                  : newPassReport.score === 2
+                                  ? 'bg-amber-500'
+                                  : 'bg-emerald-500'
+                                : 'bg-border'
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-foreground-subtle">
+                        <div className={`flex items-center gap-1 ${newPassReport.criteria.minLength ? 'text-emerald-500 font-medium' : ''}`}>
+                          <span>{newPassReport.criteria.minLength ? '✓' : '•'}</span>
+                          <span>Mín. 8 caracteres</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${newPassReport.criteria.hasUppercase && newPassReport.criteria.hasLowercase ? 'text-emerald-500 font-medium' : ''}`}>
+                          <span>{newPassReport.criteria.hasUppercase && newPassReport.criteria.hasLowercase ? '✓' : '•'}</span>
+                          <span>Mayús. y minús.</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${newPassReport.criteria.hasNumber ? 'text-emerald-500 font-medium' : ''}`}>
+                          <span>{newPassReport.criteria.hasNumber ? '✓' : '•'}</span>
+                          <span>Al menos 1 número</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${newPassReport.criteria.hasSpecial ? 'text-emerald-500 font-medium' : ''}`}>
+                          <span>{newPassReport.criteria.hasSpecial ? '✓' : '•'}</span>
+                          <span>Al menos 1 símbolo</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <Input
                   label="Confirmar Nueva Contraseña"
@@ -1155,6 +1215,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repite la contraseña"
+                  minLength={8}
                   required
                 />
 

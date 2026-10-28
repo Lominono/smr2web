@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { verifyUserSession } from '@/lib/adminAuth';
 import { logEvent } from '@/lib/logger';
+import { validatePasswordSecurity } from '@/lib/passwordSecurity';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,9 +119,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No autenticado.' }, { status: 401 });
     }
 
-    if (!newPassword || newPassword.length < 6) {
+    const passCheck = validatePasswordSecurity(newPassword, session.user?.username, session.user?.email);
+    if (!passCheck.valid) {
       return NextResponse.json(
-        { success: false, error: 'La nueva contraseña debe tener un mínimo de 6 caracteres.' },
+        { success: false, error: passCheck.errors[0] || 'La contraseña no cumple con los requisitos de seguridad.' },
         { status: 400 }
       );
     }

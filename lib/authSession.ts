@@ -28,16 +28,20 @@ interface StoredLocalAccount {
   created_at: string;
 }
 
+const SYSTEM_PEPPER = 'smr2_salt_pepper_v2_2026';
+
 /**
- * Hash password securely in the browser using SHA-256 with safe UTF-8 fallback
+ * Hash password securely in the browser using SHA-256 with cryptographic salt & pepper
  */
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string, userSalt: string = ''): Promise<string> {
+  const combined = `${userSalt.toLowerCase().trim()}:${password}:${SYSTEM_PEPPER}`;
+
   if (typeof window !== 'undefined' && window.crypto?.subtle) {
     try {
-      const msgBuffer = new TextEncoder().encode(password);
+      const msgBuffer = new TextEncoder().encode(combined);
       const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      return 's2_' + hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
     } catch {
       // Fallback below
     }
@@ -45,13 +49,28 @@ async function hashPassword(password: string): Promise<string> {
 
   // Safe fallback for environments where Web Crypto Subtle is unavailable
   try {
-    const encoded = encodeURIComponent(password).replace(/%([0-9A-F]{2})/g, (_, p1) =>
+    const encoded = encodeURIComponent(combined).replace(/%([0-9A-F]{2})/g, (_, p1) =>
       String.fromCharCode(parseInt(p1, 16))
     );
-    return btoa(encoded);
+    return 's2_' + btoa(encoded);
   } catch {
-    return btoa(password.slice(0, 32));
+    return 's2_' + btoa(combined.slice(0, 32));
   }
+}
+
+/**
+ * Legacy hash calculation for backwards compatibility during migration
+ */
+async function legacyUnsaltedHash(password: string): Promise<string> {
+  if (typeof window !== 'undefined' && window.crypto?.subtle) {
+    try {
+      const msgBuffer = new TextEncoder().encode(password);
+      const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    } catch {}
+  }
+  return btoa(password.slice(0, 32));
 }
 
 /**
@@ -195,7 +214,7 @@ export async function updateLocalUserPassword(userId: string, newPassword: strin
   const idx = accounts.findIndex((a) => a.id === userId);
   if (idx === -1) return false;
 
-  const passwordHash = await hashPassword(newPassword);
+  const passwordHash = await hashPassword(newPassword, accounts[idx].username);
   accounts[idx].passwordHash = passwordHash;
   saveLocalAccounts(accounts);
   return true;
@@ -368,7 +387,7 @@ export async function registerLocalUser(
     throw new Error(`El nombre de usuario "${cleanUsername}" ya está en uso. Por favor, elige otro apodo.`);
   }
 
-  const passwordHash = await hashPassword(password);
+  const passwordHash = await hashPassword(password, cleanUsername);
   const now = new Date().toISOString();
   const role: 'admin' | 'delegado' | 'student' = cleanUsername === 'admin' ? 'admin' : 'student';
 
@@ -419,7 +438,6 @@ export async function loginLocalUser(
 ): Promise<UserProfile> {
   const accounts = getLocalAccounts();
   const cleanId = identifier.trim().toLowerCase();
-  const passwordHash = await hashPassword(password);
 
   const account = accounts.find(
     (a) => a.email.toLowerCase() === cleanId || a.username.toLowerCase() === cleanId
@@ -429,8 +447,19 @@ export async function loginLocalUser(
     throw new Error(`No se encontró ninguna cuenta con el usuario o correo "${identifier}".`);
   }
 
-  if (account.passwordHash !== passwordHash) {
+  const saltedHash = await hashPassword(password, account.username);
+  const legacyHash = await legacyUnsaltedHash(password);
+
+  const isValid = account.passwordHash === saltedHash || account.passwordHash === legacyHash;
+
+  if (!isValid) {
     throw new Error('Contraseña incorrecta. Por favor, compruébala e inténtalo de nuevo.');
+  }
+
+  // Actualizar hash antiguo a hash salteado de forma transparente
+  if (account.passwordHash !== saltedHash) {
+    account.passwordHash = saltedHash;
+    saveLocalAccounts(accounts);
   }
 
   const profile: UserProfile = {

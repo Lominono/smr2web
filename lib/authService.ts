@@ -9,6 +9,12 @@ import {
   translateAuthError,
   updateUserProfileSession,
 } from '@/lib/authSession';
+import {
+  validatePasswordSecurity,
+  checkLoginLockout,
+  recordFailedLoginAttempt,
+  resetFailedLoginAttempts,
+} from '@/lib/passwordSecurity';
 
 export interface SignUpParams {
   username: string;
@@ -113,8 +119,10 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
   const emailValid = validateEmail(cleanEmail);
   if (!emailValid.valid) throw new Error(emailValid.error);
 
-  if (!params.password || params.password.length < 6) {
-    throw new Error('La contraseña debe tener al menos 6 caracteres.');
+  // 1.2 Validación estricta de seguridad de contraseñas
+  const passCheck = validatePasswordSecurity(params.password, cleanUsername, cleanEmail);
+  if (!passCheck.valid) {
+    throw new Error(passCheck.errors[0] || 'La contraseña no cumple los requisitos de seguridad.');
   }
 
   if (params.confirmPassword !== undefined && params.password !== params.confirmPassword) {
@@ -254,6 +262,14 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
     throw new Error('Por favor, introduce tu contraseña.');
   }
 
+  // Comprobar bloqueo temporal por intentos fallidos de fuerza bruta
+  const lockout = checkLoginLockout();
+  if (lockout.locked) {
+    throw new Error(
+      `Demasiados intentos fallidos seguidos. Por seguridad, la cuenta está bloqueada temporalmente durante ${lockout.remainingSeconds} segundos.`
+    );
+  }
+
   const hasSupabase = isSupabaseConfigured();
   const supabase = createClient();
 
@@ -331,6 +347,7 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
           };
 
           saveUserSession(profile, rememberMe);
+          resetFailedLoginAttempts();
           return { success: true, user: profile };
         }
       } catch (supErr: any) {
@@ -338,6 +355,17 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
           supErr?.message?.includes('Correo o contraseña incorrectos') ||
           supErr?.message?.includes('no ha sido confirmado')
         ) {
+          const fail = recordFailedLoginAttempt();
+          if (fail.locked) {
+            throw new Error(
+              'Límite de 5 intentos fallidos alcanzado. Por seguridad, la cuenta está bloqueada temporalmente durante 30 segundos.'
+            );
+          }
+          if (fail.attemptsLeft <= 2) {
+            throw new Error(
+              `Correo o contraseña incorrectos. Te quedan ${fail.attemptsLeft} intentos antes del bloqueo temporal.`
+            );
+          }
           throw supErr;
         }
         console.warn('Supabase sign-in warning:', supErr);
@@ -348,8 +376,20 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
   // Fallback to local accounts
   try {
     const localProfile = await loginLocalUser(cleanIdentifier, password, rememberMe);
+    resetFailedLoginAttempts();
     return { success: true, user: localProfile };
   } catch (localErr: any) {
+    const fail = recordFailedLoginAttempt();
+    if (fail.locked) {
+      throw new Error(
+        'Límite de 5 intentos fallidos alcanzado. Por seguridad, la cuenta está bloqueada temporalmente durante 30 segundos.'
+      );
+    }
+    if (fail.attemptsLeft <= 2) {
+      throw new Error(
+        `Contraseña incorrecta. Te quedan ${fail.attemptsLeft} intentos antes del bloqueo temporal.`
+      );
+    }
     if (hasSupabase && cleanIdentifier.includes('@')) {
       throw new Error('Correo o contraseña incorrectos. Por favor, compruébalos e inténtalo de nuevo.');
     }
