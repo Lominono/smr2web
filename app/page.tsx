@@ -97,6 +97,7 @@ export default function Home() {
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const userRef = useRef<UserProfile | null>(user);
   const notificationsEnabledRef = useRef(notificationsEnabled);
+  const globalChannelRef = useRef<any>(null);
 
   useEffect(() => {
     userRef.current = user;
@@ -452,8 +453,45 @@ export default function Home() {
     fetchLeaderboard();
 
     // Multi-table Realtime subscription: Chat, Calendar, System Updates and Profiles
-    const channel = supabase
-      .channel('portal_global_realtime')
+    const channel = supabase.channel('portal_global_realtime');
+    globalChannelRef.current = channel;
+
+    // Escucha local instantánea entre pestañas
+    let chatBc: BroadcastChannel | null = null;
+    try {
+      chatBc = new BroadcastChannel('smr2_chat_realtime_channel');
+      chatBc.onmessage = (ev) => {
+        if (ev.data?.type === 'NEW_CHAT_MESSAGE' && ev.data.message) {
+          const incoming = ev.data.message as ChatMessage;
+          setChatMessages((prev) => {
+            if (prev.some((m) => m.id === incoming.id)) return prev;
+            return [incoming, ...prev];
+          });
+        }
+      };
+    } catch (_) {}
+
+    channel
+      .on('broadcast', { event: 'new_chat_message' }, (payload: any) => {
+        if (payload?.payload) {
+          const incoming = payload.payload as ChatMessage;
+          setChatMessages((prev) => {
+            if (prev.some((m) => m.id === incoming.id)) return prev;
+            return [incoming, ...prev];
+          });
+
+          if (notificationsEnabledRef.current && userRef.current && incoming.user_id !== userRef.current.id) {
+            setRealtimeNotification({
+              id: String(Date.now()),
+              type: 'chat',
+              title: incoming.pinned ? `Aviso fijado: @${incoming.username}` : `@${incoming.username}`,
+              description: incoming.text.replace(/^\[#.*?\]\s*/, ''),
+              actionLabel: 'Ver',
+              onAction: () => setActiveView('feed'),
+            });
+          }
+        }
+      })
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
@@ -662,6 +700,9 @@ export default function Home() {
 
     return () => {
       authListener.subscription.unsubscribe();
+      try {
+        if (chatBc) chatBc.close();
+      } catch (_) {}
       supabase.removeChannel(channel);
       setIsRealtimeConnected(false);
     };
@@ -902,22 +943,76 @@ export default function Home() {
     if (!supabase) return;
 
     try {
+      const isValidUUID = (val?: string) =>
+        Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+      const dbUserId = isValidUUID(user.id) ? user.id : null;
+
       const payload: Record<string, any> = {
-        user_id: user.id,
         username: user.username,
         text,
       };
+      if (dbUserId) payload.user_id = dbUserId;
       if (tag) payload.tag = tag;
       if (pinned) payload.pinned = true;
 
-      const { data, error } = await supabase.from('chat_messages').insert([payload]).select().single();
-      if (!error && data) {
-        setChatMessages((prev) =>
-          prev.map((m) => (m.id === optimisticId ? { ...m, id: data.id, created_at: data.created_at } : m))
-        );
+      let { data, error } = await supabase.from('chat_messages').insert([payload]).select().single();
+
+      // Si falla porque no existen columnas tag o pinned en la tabla remota, reintentar sin ellas
+      if (error && (tag || pinned)) {
+        const simplePayload: Record<string, any> = {
+          username: user.username,
+          text,
+        };
+        if (dbUserId) simplePayload.user_id = dbUserId;
+        const retry = await supabase.from('chat_messages').insert([simplePayload]).select().single();
+        data = retry.data;
+        error = retry.error;
       }
-    } catch (err) {
-      console.warn('Error inserting message to Supabase:', err);
+
+      if (error) {
+        console.error('Error insertando mensaje en Supabase:', error);
+        setChatMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+        setRealtimeNotification({
+          id: String(Date.now()),
+          type: 'chat',
+          title: 'Error al publicar',
+          description: error.message || 'No se pudo guardar el mensaje en la base de datos.',
+          actionLabel: 'Entendido',
+        });
+        return;
+      }
+
+      if (data) {
+        const confirmedMsg: ChatMessage = {
+          ...optimisticMsg,
+          id: data.id,
+          created_at: data.created_at,
+          likes_count: Number(data.likes_count || 0),
+        };
+
+        setChatMessages((prev) =>
+          prev.map((m) => (m.id === optimisticId ? confirmedMsg : m))
+        );
+
+        // Difusión WebSocket instantánea a todos los clientes conectados
+        try {
+          globalChannelRef.current?.send({
+            type: 'broadcast',
+            event: 'new_chat_message',
+            payload: confirmedMsg,
+          });
+        } catch (_) {}
+
+        // Difusión entre pestañas locales
+        try {
+          const bc = new BroadcastChannel('smr2_chat_realtime_channel');
+          bc.postMessage({ type: 'NEW_CHAT_MESSAGE', message: confirmedMsg });
+          bc.close();
+        } catch (_) {}
+      }
+    } catch (err: any) {
+      console.warn('Error general al enviar mensaje:', err);
+      setChatMessages((prev) => prev.filter((m) => m.id !== optimisticId));
     }
   };
 

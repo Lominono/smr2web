@@ -146,15 +146,13 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             </button>
           )}
 
-          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'delegado') && (
-            <Link
-              href="/admin"
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all cursor-pointer"
-            >
-              <ShieldCheck className="w-4 h-4 text-amber-500" />
-              <span className="font-semibold">Panel Admin</span>
-            </Link>
-          )}
+          <Link
+            href="/admin"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
+          >
+            <ShieldCheck className="w-4 h-4 text-accent" />
+            <span className="font-semibold">Panel Admin</span>
+          </Link>
 
           {onOpenFeedback && (
             <button

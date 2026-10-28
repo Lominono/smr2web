@@ -27,6 +27,7 @@ import {
   ListTodo,
   BellRing,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -435,19 +436,32 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               <ChevronRight className="w-4 h-4 text-foreground-subtle" />
             </button>
 
-            {currentUser && (currentUser.role === 'admin' || currentUser.role === 'delegado') && (
-              <Link
-                href="/admin"
-                onClick={onClose}
-                className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-accent hover:bg-accent/10 transition-all active:scale-[0.98] touch-manipulation"
-              >
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span className="text-sm font-sans">Panel de administración</span>
-                </div>
-                <ChevronRight className="w-4 h-4" />
-              </Link>
-            )}
+            <Link
+              href="/admin"
+              onClick={onClose}
+              className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all active:scale-[0.98] touch-manipulation"
+            >
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-4 h-4 text-accent" />
+                <span className="text-sm font-sans">Panel de administración</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-foreground-subtle" />
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                window.dispatchEvent(new CustomEvent('smr2_open_changelog'));
+              }}
+              className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm font-sans">Novedades y versiones</span>
+              </div>
+              <span className="text-[11px] font-mono text-foreground-subtle">v2.6.0</span>
+            </button>
 
             <button
               type="button"

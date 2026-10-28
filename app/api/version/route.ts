@@ -14,13 +14,13 @@ const COMMIT_SHA =
 
 const DEFAULT_CHANGELOG = {
   version: '2.6.0',
-  title: 'Versión 2.6.0 disponible',
-  description: 'Actualización en tiempo real y panel de administración',
+  title: 'SMR2 v2.6.0 en Directo',
+  description: 'Feed de publicaciones en tiempo real y mercado de cotizaciones interactivo',
   changes: [
-    'Feed en tiempo real con WebSockets y soporte completo de publicaciones y código.',
-    'Notificaciones push en segundo plano para avisos del aula.',
-    'Panel de administración con usuarios reales y resolución técnica de incidencias.',
-    'Interfaz minimalista optimizada para móvil y PC sin datos ficticios.',
+    'Feed en tiempo real: los mensajes que publicas se ven al instante para todos los compañeros.',
+    'Gráfica de cotizaciones en directo: cotización real por oferta y demanda de la clase.',
+    'Acceso unificado al panel de administración para delegados y profesores.',
+    'Eliminación de datos ficticios y optimización móvil ligera sin diseños innecesarios.',
   ],
   created_at: new Date(SERVER_BOOT_TIME).toISOString(),
 };

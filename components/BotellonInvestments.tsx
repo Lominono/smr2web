@@ -177,6 +177,13 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
   useEffect(() => {
     // 1. Canal de difusión instantáneo entre pestañas y clientes
     const unsubscribeTrades = subscribeToRealtimeTrades((payload) => {
+      if (payload.pricePoint) {
+        const pt = payload.pricePoint;
+        if (!pt.ticker || pt.ticker === selectedTicker) {
+          setPriceHistory((prev) => [...prev.slice(-79), pt]);
+        }
+      }
+
       if (payload.transaction) {
         const newTx = payload.transaction;
         setTransactions((prev) => [newTx, ...prev.filter((t) => t.id !== newTx.id)].slice(0, 25));

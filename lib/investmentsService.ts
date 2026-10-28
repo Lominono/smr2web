@@ -205,13 +205,17 @@ export async function fetchPriceHistory(limit: number = 80, ticker: string = 'BT
         .order('created_at', { ascending: false })
         .limit(limit);
 
+      if (ticker) {
+        query = query.eq('ticker', ticker);
+      }
+
       const { data, error } = await query;
 
       if (!error && Array.isArray(data) && data.length > 0) {
         const mapped = data
           .map((item) => ({
             id: item.id,
-            ticker: item.ticker || 'BTLN',
+            ticker: item.ticker || ticker,
             price: Number(item.price),
             pool_balance: Number(item.pool_balance || 0),
             total_shares: Number(item.total_shares || 0),
@@ -236,7 +240,7 @@ export async function fetchPriceHistory(limit: number = 80, ticker: string = 'BT
   if (points.length === 0) {
     // Si no hay operaciones previas, un punto base inicial limpio
     const baseP = ticker === 'BTLN' ? 10.0 : DEFAULT_PARODY_STOCKS.find((s) => s.ticker === ticker)?.basePrice || 10.0;
-    return [
+    const initialPoints: PriceHistoryPoint[] = [
       {
         id: `init-${ticker}`,
         ticker,
@@ -258,6 +262,9 @@ export async function fetchPriceHistory(limit: number = 80, ticker: string = 'BT
         created_at: new Date().toISOString(),
       },
     ];
+    historyMap[ticker] = initialPoints;
+    setStoredJson(STORAGE_HISTORY_KEY, historyMap);
+    return initialPoints;
   }
 
   return points.slice(-limit);
@@ -558,7 +565,12 @@ export async function fetchUserStocksPortfolio(): Promise<Record<string, UserSto
 /**
  * Emite una difusión en tiempo real a otras pestañas y Supabase
  */
-function broadcastLiveTrade(tx: InvestmentTransaction, updatedStock?: ParodyStock, updatedMarket?: MarketState) {
+function broadcastLiveTrade(
+  tx: InvestmentTransaction,
+  updatedStock?: ParodyStock,
+  updatedMarket?: MarketState,
+  pricePoint?: PriceHistoryPoint
+) {
   if (broadcastChannel) {
     try {
       broadcastChannel.postMessage({
@@ -566,6 +578,7 @@ function broadcastLiveTrade(tx: InvestmentTransaction, updatedStock?: ParodyStoc
         transaction: tx,
         stock: updatedStock,
         market: updatedMarket,
+        pricePoint,
       });
     } catch (_) {}
   }
@@ -579,10 +592,29 @@ function broadcastLiveTrade(tx: InvestmentTransaction, updatedStock?: ParodyStoc
           channel.send({
             type: 'broadcast',
             event: 'market_trade',
-            payload: { transaction: tx, stock: updatedStock, market: updatedMarket },
+            payload: { transaction: tx, stock: updatedStock, market: updatedMarket, pricePoint },
           });
         }
       });
+
+      // Insertar punto en price_history de Supabase para alimentar las gráficas
+      if (pricePoint) {
+        Promise.resolve(
+          supabase
+            .from('price_history')
+            .insert([
+              {
+                ticker: pricePoint.ticker || tx.ticker || 'BTLN',
+                price: pricePoint.price,
+                pool_balance: pricePoint.pool_balance || 0,
+                total_shares: pricePoint.total_shares || 0,
+                change_percent: pricePoint.change_percent || 0,
+                trigger_type: pricePoint.trigger_type || tx.type,
+                event_description: pricePoint.event_description,
+              },
+            ])
+        ).catch(() => {});
+      }
     } catch (_) {}
   }
 }
@@ -639,7 +671,19 @@ export async function investInBotellon(amount: number, username: string = 'Alumn
           created_at: new Date().toISOString(),
         };
 
-        broadcastLiveTrade(tx);
+        const pt: PriceHistoryPoint = {
+          id: `hist-BTLN-${Date.now()}`,
+          ticker: 'BTLN',
+          price: result.new_price,
+          pool_balance: result.new_balance || 0,
+          total_shares: result.new_shares || 0,
+          change_percent: 1.0,
+          trigger_type: 'buy',
+          event_description: `@${username} invirtió en BTLN`,
+          created_at: new Date().toISOString(),
+        };
+
+        broadcastLiveTrade(tx, undefined, undefined, pt);
         return result;
       }
     } catch (err: any) {
@@ -721,7 +765,7 @@ export async function investInBotellon(amount: number, username: string = 'Alumn
   historyMap['BTLN'] = btlPoints.slice(-100);
   setStoredJson(STORAGE_HISTORY_KEY, historyMap);
 
-  broadcastLiveTrade(newTx, undefined, mState);
+  broadcastLiveTrade(newTx, undefined, mState, btlPoints[btlPoints.length - 1]);
 
   return {
     success: true,
@@ -789,7 +833,19 @@ export async function withdrawFromBotellon(shares: number, username: string = 'A
           created_at: new Date().toISOString(),
         };
 
-        broadcastLiveTrade(tx);
+        const pt: PriceHistoryPoint = {
+          id: `hist-BTLN-${Date.now()}`,
+          ticker: 'BTLN',
+          price: result.new_price,
+          pool_balance: result.new_balance || 0,
+          total_shares: result.new_shares || 0,
+          change_percent: -1.0,
+          trigger_type: 'sell',
+          event_description: `@${username} retiró de BTLN`,
+          created_at: new Date().toISOString(),
+        };
+
+        broadcastLiveTrade(tx, undefined, undefined, pt);
         return result;
       }
     } catch (err: any) {
@@ -866,7 +922,7 @@ export async function withdrawFromBotellon(shares: number, username: string = 'A
   historyMap['BTLN'] = btlPoints.slice(-100);
   setStoredJson(STORAGE_HISTORY_KEY, historyMap);
 
-  broadcastLiveTrade(newTx, undefined, mState);
+  broadcastLiveTrade(newTx, undefined, mState, btlPoints[btlPoints.length - 1]);
 
   return {
     success: true,
@@ -947,7 +1003,19 @@ export async function tradeParodyStock(
           created_at: new Date().toISOString(),
         };
 
-        broadcastLiveTrade(tx);
+        const pt: PriceHistoryPoint = {
+          id: `hist-${ticker}-${Date.now()}`,
+          ticker,
+          price: result.newPrice,
+          pool_balance: Math.abs(result.coinsDelta),
+          total_shares: result.shares,
+          change_percent: action === 'buy' ? 1.0 : -1.0,
+          trigger_type: action,
+          event_description: `@${username} ${action === 'buy' ? 'compró' : 'vendió'} ${ticker}`,
+          created_at: new Date().toISOString(),
+        };
+
+        broadcastLiveTrade(tx, undefined, undefined, pt);
         return result;
       }
     } catch (err: any) {
@@ -1050,7 +1118,7 @@ export async function tradeParodyStock(
     historyMap[ticker] = stPoints.slice(-100);
     setStoredJson(STORAGE_HISTORY_KEY, historyMap);
 
-    broadcastLiveTrade(newTx, stock);
+    broadcastLiveTrade(newTx, stock, undefined, stPoints[stPoints.length - 1]);
 
     return {
       success: true,
@@ -1140,7 +1208,7 @@ export async function tradeParodyStock(
     historyMap[ticker] = stPoints.slice(-100);
     setStoredJson(STORAGE_HISTORY_KEY, historyMap);
 
-    broadcastLiveTrade(newTx, stock);
+    broadcastLiveTrade(newTx, stock, undefined, stPoints[stPoints.length - 1]);
 
     return {
       success: true,
@@ -1161,7 +1229,12 @@ export async function tradeParodyStock(
  * Escucha cambios en tiempo real vía BroadcastChannel y Supabase Broadcast
  */
 export function subscribeToRealtimeTrades(
-  callback: (payload: { transaction: InvestmentTransaction; stock?: ParodyStock; market?: MarketState }) => void
+  callback: (payload: {
+    transaction: InvestmentTransaction;
+    stock?: ParodyStock;
+    market?: MarketState;
+    pricePoint?: PriceHistoryPoint;
+  }) => void
 ): () => void {
   if (typeof window === 'undefined') return () => {};
 
@@ -1174,6 +1247,7 @@ export function subscribeToRealtimeTrades(
           transaction: event.data.transaction,
           stock: event.data.stock,
           market: event.data.market,
+          pricePoint: event.data.pricePoint,
         });
       }
     };
@@ -1191,6 +1265,7 @@ export function subscribeToRealtimeTrades(
               transaction: payload.payload.transaction,
               stock: payload.payload.stock,
               market: payload.payload.market,
+              pricePoint: payload.payload.pricePoint,
             });
           }
         })
