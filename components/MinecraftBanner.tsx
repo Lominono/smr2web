@@ -30,7 +30,7 @@ export const MinecraftBanner: React.FC = () => {
   return (
     <aside
       aria-label="Servidor comunitario de Minecraft"
-      className="rounded-xl bg-surface border border-border/80 px-3.5 py-2.5 transition-all text-xs flex items-center justify-between gap-3 shadow-2xs"
+      className="mx-3 sm:mx-0 mt-2 sm:mt-0 rounded-xl bg-surface border border-border/80 px-3.5 py-2.5 transition-all text-xs flex items-center justify-between gap-3 shadow-2xs"
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />

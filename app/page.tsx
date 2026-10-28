@@ -1142,7 +1142,7 @@ export default function Home() {
       <main className="relative z-10 flex-1 w-full pb-24 lg:pb-12">
         {/* VIEW 1: TWITTER FEED (Hero Experience) */}
         {activeView === 'feed' ? (
-          <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 pt-4">
+          <div className="max-w-7xl mx-auto w-full px-0 sm:px-6 lg:px-8 pt-0 sm:pt-4">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* Left Sidebar Rail (Desktop) */}
               <div className="hidden lg:block lg:col-span-3">
@@ -1167,7 +1167,7 @@ export default function Home() {
               </div>
 
               {/* Center Feed Column (Twitter Timeline) */}
-              <div className="col-span-1 lg:col-span-6 w-full min-w-0 space-y-3.5">
+              <div className="col-span-1 lg:col-span-6 w-full min-w-0 space-y-2 sm:space-y-3.5">
                 {/* Community Minecraft Project (Aligned with center column) */}
                 <MinecraftBanner />
 
