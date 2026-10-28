@@ -25,6 +25,7 @@ import { CookieBanner } from '@/components/CookieBanner';
 import { UpdateNotificationBanner } from '@/components/UpdateNotificationBanner';
 import { UserSettingsModal } from '@/components/UserSettingsModal';
 import { WindowsWelcomeModal } from '@/components/WindowsWelcomeModal';
+import { PutoIsaacTour } from '@/components/PutoIsaacTour';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
 import { OnlineUsersModal } from '@/components/OnlineUsersModal';
 import { PushNotificationModal } from '@/components/PushNotificationModal';
@@ -1609,6 +1610,15 @@ export default function Home() {
       <RealtimeToast
         notification={realtimeNotification}
         onDismiss={() => setRealtimeNotification(null)}
+      />
+
+      {/* 9. PUTOISAAC interactive ball mascot and tour */}
+      <PutoIsaacTour
+        onSelectTab={(tab) => {
+          if (tab === 'investments') setActiveView('party_idle');
+          else if (tab === 'chat') setActiveView('feed');
+          else if (tab === 'schedule') setActiveView('calendar');
+        }}
       />
 
       {/* 9. Footer */}
