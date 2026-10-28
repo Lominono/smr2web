@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '@/lib/audio';
-import { X, ArrowRight, RotateCcw } from 'lucide-react';
+import { X, ArrowRight, RotateCcw, Send, Sparkles, Loader2 } from 'lucide-react';
 
 interface TourStep {
   title: string;
@@ -62,12 +62,23 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
+
+  // Modo libre o IA
   const [isIdleChat, setIsIdleChat] = useState(false);
   const [idleMessage, setIdleMessage] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
+  // Control estricto para que los textos nunca se reinicien mientras se leen
+  const currentTextKeyRef = useRef<string>('');
   const typewriterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const onSelectTabRef = useRef(onSelectTab);
 
-  // Sincronizar apertura controlada desde el componente padre
+  useEffect(() => {
+    onSelectTabRef.current = onSelectTab;
+  }, [onSelectTab]);
+
+  // Sincronizar apertura externa controlada (ej: tras bienvenida o desde ajustes)
   useEffect(() => {
     if (isOpenControlled) {
       setCurrentStep(0);
@@ -90,70 +101,88 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     } catch {}
   }, [isOpenControlled]);
 
-  // Parpadeo natural de los ojos cada 3-5 segundos
+  // Parpadeo natural de los ojos
   useEffect(() => {
     const blinkInterval = setInterval(() => {
       setIsBlinking(true);
       setTimeout(() => setIsBlinking(false), 180);
-    }, 3200 + Math.random() * 2500);
+    }, 3400 + Math.random() * 2600);
 
     return () => clearInterval(blinkInterval);
   }, []);
 
-  // Efecto máquina de escribir (Typewriter)
+  // Máquina de escribir sólida: NUNCA se reinicia salvo que cambie de paso o de prompt
+  const startTypewriter = useCallback((targetText: string, messageKey: string) => {
+    if (typewriterTimeoutRef.current) {
+      clearTimeout(typewriterTimeoutRef.current);
+    }
+
+    currentTextKeyRef.current = messageKey;
+    setDisplayedText('');
+    setIsTyping(true);
+    setIsTalking(true);
+
+    let charIndex = 0;
+
+    const typeNext = () => {
+      // Si la clave ya no coincide, abortar
+      if (currentTextKeyRef.current !== messageKey) return;
+
+      if (charIndex <= targetText.length) {
+        setDisplayedText(targetText.slice(0, charIndex));
+        charIndex += 1;
+
+        const char = targetText[charIndex - 1];
+        const delay = char === '.' || char === '!' || char === '?' ? 60 : 18;
+
+        typewriterTimeoutRef.current = setTimeout(typeNext, delay);
+      } else {
+        // Al terminar, el texto queda fijo y finalizado
+        setDisplayedText(targetText);
+        setIsTyping(false);
+        setIsTalking(false);
+      }
+    };
+
+    typewriterTimeoutRef.current = setTimeout(typeNext, 60);
+  }, []);
+
+  // Efecto disparador según el paso activo
   useEffect(() => {
     if (!isOpen) {
       setIsTalking(false);
       return;
     }
 
-    if (typewriterTimeoutRef.current) {
-      clearTimeout(typewriterTimeoutRef.current);
+    if (isIdleChat) {
+      const key = `idle_${idleMessage}`;
+      if (currentTextKeyRef.current !== key) {
+        startTypewriter(idleMessage, key);
+      }
+      return;
     }
 
-    setDisplayedText('');
-    setIsTyping(true);
-    setIsTalking(true);
+    const step = TOUR_STEPS[currentStep];
+    if (!step) return;
 
-    const targetText = isIdleChat ? idleMessage : TOUR_STEPS[currentStep].text;
-
-    // Cambiar de pestaña automáticamente si el paso lo sugiere
-    if (!isIdleChat && onSelectTab && TOUR_STEPS[currentStep].tabTarget) {
-      onSelectTab(TOUR_STEPS[currentStep].tabTarget!);
+    // Cambiar de vista en la web si el paso lo requiere
+    if (onSelectTabRef.current && step.tabTarget) {
+      onSelectTabRef.current(step.tabTarget);
     }
 
-    let charIndex = 0;
+    const key = `tour_step_${currentStep}`;
+    if (currentTextKeyRef.current !== key) {
+      startTypewriter(step.text, key);
+    }
+  }, [isOpen, currentStep, isIdleChat, idleMessage, startTypewriter]);
 
-    const typeNext = () => {
-      if (charIndex <= targetText.length) {
-        setDisplayedText(targetText.slice(0, charIndex));
-        charIndex += 1;
-
-        const char = targetText[charIndex - 1];
-        const delay = char === '.' || char === '!' || char === '?' ? 65 : 20;
-
-        typewriterTimeoutRef.current = setTimeout(typeNext, delay);
-      } else {
-        setIsTyping(false);
-        setIsTalking(false);
-      }
-    };
-
-    typewriterTimeoutRef.current = setTimeout(typeNext, 80);
-
-    return () => {
-      if (typewriterTimeoutRef.current) {
-        clearTimeout(typewriterTimeoutRef.current);
-      }
-    };
-  }, [currentStep, isOpen, isIdleChat, idleMessage, onSelectTab]);
-
+  // Completar el texto instantáneamente si el usuario hace clic en el globo
   const handleBubbleClick = () => {
     if (isTyping) {
       if (typewriterTimeoutRef.current) {
         clearTimeout(typewriterTimeoutRef.current);
       }
-      const targetText = isIdleChat ? idleMessage : TOUR_STEPS[currentStep].text;
+      const targetText = isIdleChat ? idleMessage : TOUR_STEPS[currentStep]?.text || '';
       setDisplayedText(targetText);
       setIsTyping(false);
       setIsTalking(false);
@@ -164,27 +193,31 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
   const handleNext = () => {
     try { sound.tap(); } catch {}
 
-    if (isIdleChat) {
-      handleClose(false);
-      return;
-    }
-
     if (currentStep < TOUR_STEPS.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      handleClose(true);
-    }
-  };
-
-  const handleClose = (markCompleted: boolean = false) => {
-    setIsOpen(false);
-    setIsIdleChat(false);
-    if (onCloseControlled) onCloseControlled();
-
-    if (markCompleted && typeof window !== 'undefined') {
+      // Fin del tour: guardar marca y pasar al modo acoplado en su nuevo lugar
       try {
         localStorage.setItem('smr2_putoisaac_tour_done', 'true');
       } catch {}
+      setIsOpen(false);
+      setIsIdleChat(true);
+      if (onCloseControlled) {
+        onCloseControlled();
+      }
+    }
+  };
+
+  const handleClose = (markDone: boolean = true) => {
+    try { sound.tap(); } catch {}
+    if (markDone) {
+      try {
+        localStorage.setItem('smr2_putoisaac_tour_done', 'true');
+      } catch {}
+    }
+    setIsOpen(false);
+    if (onCloseControlled) {
+      onCloseControlled();
     }
   };
 
@@ -199,13 +232,11 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     const tourDone = typeof window !== 'undefined' && localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
 
     if (tourDone) {
-      // Si ya completó el tour, decir una frase aleatoria
       const randomMsg = RANDOM_TIPS[Math.floor(Math.random() * RANDOM_TIPS.length)];
       setIdleMessage(randomMsg);
       setIsIdleChat(true);
       setIsOpen(true);
     } else {
-      // Iniciar el tour desde el principio
       setCurrentStep(0);
       setIsIdleChat(false);
       setIsOpen(true);
@@ -219,8 +250,81 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     setIsOpen(true);
   };
 
+  // Enviar pregunta a la IA de PUTOISAAC (OpenRouter)
+  const handleSendAiPrompt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const prompt = aiPrompt.trim();
+    if (!prompt || isAiLoading) return;
+
+    try {
+      sound.tap();
+      setIsAiLoading(true);
+      setAiPrompt('');
+
+      const res = await fetch('/api/ai/isaac', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const data = await res.json();
+      const reply = data.reply || '¡Se me ha quedado pillado el proceso! Pregúntame otra vez.';
+
+      setIdleMessage(reply);
+      setIsIdleChat(true);
+      startTypewriter(reply, `ai_${Date.now()}`);
+    } catch {
+      const errorMsg = 'No he podido conectar con el servidor. Revisa si hay conexión a internet.';
+      setIdleMessage(errorMsg);
+      startTypewriter(errorMsg, `ai_err_${Date.now()}`);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // Posicionamiento dinámico:
+  // Durante el tour se mueve, acerca, aleja y cambia de lugar según el paso.
+  // Al terminar o estar docked, se queda en su NUEVO LUGAR: esquina inferior izquierda (bottom-left).
+  const isTourActive = isOpen && !isIdleChat;
+
+  let positionClasses = 'bottom-20 sm:bottom-6 left-4 sm:left-6'; // Nuevo lugar definitivo tras el tour (bottom-left)
+  let mascotScale = 'scale-100';
+  let bubblePosition = 'items-start';
+
+  if (isTourActive) {
+    if (currentStep === 0) {
+      // Paso 0: Bienvenida en el centro, se acerca en grande (scale-135)
+      positionClasses = 'bottom-28 sm:bottom-36 left-1/2 -translate-x-1/2';
+      mascotScale = 'scale-125 sm:scale-135';
+      bubblePosition = 'items-center';
+    } else if (currentStep === 1) {
+      // Paso 1: Se desplaza a la izquierda hacia el tablón de anuncios
+      positionClasses = 'bottom-28 sm:bottom-32 left-4 sm:left-14';
+      mascotScale = 'scale-110 rotate-3';
+      bubblePosition = 'items-start';
+    } else if (currentStep === 2) {
+      // Paso 2: Flota hacia la derecha arriba hacia la bolsa de inversiones
+      positionClasses = 'bottom-36 sm:bottom-44 right-4 sm:right-14';
+      mascotScale = 'scale-115 -rotate-3';
+      bubblePosition = 'items-end';
+    } else if (currentStep === 3) {
+      // Paso 3: Se acerca en primer plano al centro ("Ojo con el mercado")
+      positionClasses = 'bottom-28 sm:bottom-36 left-1/2 -translate-x-1/2';
+      mascotScale = 'scale-130';
+      bubblePosition = 'items-center';
+    } else if (currentStep === 4) {
+      // Paso 4: Sube flotando hacia las pestañas de navegación superior
+      positionClasses = 'top-28 sm:top-32 left-6 sm:left-14';
+      mascotScale = 'scale-110';
+      bubblePosition = 'items-start';
+    }
+  }
+
   return (
-    <div className="fixed z-45 bottom-20 sm:bottom-6 right-4 sm:right-6 pointer-events-none select-none font-sans">
+    <aside
+      aria-label="Asistente interactivo PUTOISAAC"
+      className={`fixed z-45 pointer-events-none select-none font-sans transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1) ${positionClasses}`}
+    >
       <style jsx>{`
         @keyframes putoFloat {
           0%, 100% { transform: translateY(0px); }
@@ -228,12 +332,12 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
         }
       `}</style>
 
-      <div className="relative flex flex-col items-end pointer-events-auto">
-        {/* Bocadillo de diálogo estilo cómic con typewriter */}
+      <div className={`relative flex flex-col pointer-events-auto ${bubblePosition}`}>
+        {/* Bocadillo de diálogo estilo cómic */}
         {isOpen && (
           <div
             onClick={handleBubbleClick}
-            className="mb-3.5 max-w-[290px] sm:max-w-[340px] bg-neutral-950 text-white border-2 border-neutral-800 rounded-2xl p-4 shadow-2xl cursor-pointer relative animate-in fade-in zoom-in-95 duration-200"
+            className="mb-3 max-w-[300px] sm:max-w-[360px] bg-neutral-950 text-white border-2 border-neutral-800 rounded-2xl p-4 shadow-2xl cursor-pointer relative animate-in fade-in zoom-in-95 duration-200"
             style={{
               boxShadow: '0 15px 35px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
             }}
@@ -248,6 +352,12 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                 {!isIdleChat && (
                   <span className="text-[10px] text-neutral-400 font-mono ml-1">
                     {currentStep + 1}/{TOUR_STEPS.length}
+                  </span>
+                )}
+                {isIdleChat && (
+                  <span className="text-[10px] text-amber-400 flex items-center gap-0.5 ml-1 font-mono">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    <span>AI</span>
                   </span>
                 )}
               </div>
@@ -267,19 +377,47 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
             {/* Título */}
             <h4 className="text-xs font-bold text-amber-400 mb-1">
-              {isIdleChat ? 'Consejo de Clase' : TOUR_STEPS[currentStep].title}
+              {isIdleChat ? 'Asistente de Clase' : TOUR_STEPS[currentStep]?.title}
             </h4>
 
-            {/* Texto mecanografiado */}
-            <p className="text-xs text-neutral-200 leading-relaxed min-h-[50px]">
+            {/* Texto mecanografiado que permanece fijo al terminar */}
+            <p className="text-xs text-neutral-200 leading-relaxed min-h-[46px]">
               {displayedText}
               {isTyping && (
                 <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-amber-400 animate-pulse align-middle" />
               )}
             </p>
 
+            {/* Si está en modo libre / acoplado en su nuevo lugar: entrada de chat con IA */}
+            {isIdleChat && (
+              <form onSubmit={handleSendAiPrompt} className="mt-3 pt-2 border-t border-neutral-800/80">
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="Hazle una pregunta a PUTOISAAC..."
+                    disabled={isAiLoading}
+                    className="w-full text-[11px] bg-neutral-900 border border-neutral-700/80 rounded-lg px-2.5 py-1.5 pr-8 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400/80 transition-colors"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isAiLoading || !aiPrompt.trim()}
+                    className="absolute right-1 w-6 h-6 rounded flex items-center justify-center text-neutral-400 hover:text-amber-400 disabled:opacity-30 cursor-pointer"
+                    title="Preguntar"
+                  >
+                    {isAiLoading ? (
+                      <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                    ) : (
+                      <Send className="w-3 h-3" />
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+
             {/* Acciones y navegación del tour */}
-            <div className="mt-3 pt-2.5 border-t border-neutral-800 flex items-center justify-between gap-2">
+            <div className="mt-2.5 pt-2 border-t border-neutral-800 flex items-center justify-between gap-2">
               {!isIdleChat ? (
                 <>
                   {/* Puntos de paso */}
@@ -338,7 +476,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                     className="text-[11px] text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <RotateCcw className="w-3 h-3" />
-                    <span>Ver tour completo</span>
+                    <span>Ver tour de la web</span>
                   </button>
 
                   <button
@@ -355,15 +493,23 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
               )}
             </div>
 
-            {/* Puntero triangular que conecta el bocadillo con la esfera */}
-            <div className="absolute -bottom-2 right-6 w-3.5 h-3.5 bg-neutral-950 border-r-2 border-b-2 border-neutral-800 transform rotate-45" />
+            {/* Puntero triangular del bocadillo */}
+            <div
+              className={`absolute -bottom-2 w-3.5 h-3.5 bg-neutral-950 border-r-2 border-b-2 border-neutral-800 transform rotate-45 ${
+                bubblePosition === 'items-end'
+                  ? 'right-6'
+                  : bubblePosition === 'items-center'
+                  ? 'left-1/2 -translate-x-1/2'
+                  : 'left-6'
+              }`}
+            />
           </div>
         )}
 
-        {/* Mascota esférica interactiva PUTOISAAC */}
+        {/* Mascota esférica interactiva PUTOISAAC con movimiento y zoom */}
         <div
           onClick={handleMascotClick}
-          className="group relative flex flex-col items-center cursor-pointer transition-transform active:scale-90"
+          className={`group relative flex flex-col items-center cursor-pointer transition-all duration-700 active:scale-90 ${mascotScale}`}
           style={{
             animation: 'putoFloat 3.8s ease-in-out infinite',
           }}
@@ -375,9 +521,9 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
             <span className="font-mono">PUTOISAAC</span>
           </div>
 
-          {/* Esfera 3D brillante */}
+          {/* Esfera 3D brillante con reflejos y sombras */}
           <div
-            className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-amber-600 via-orange-500 to-yellow-400 border-2 border-white/80 shadow-2xl flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:shadow-amber-500/50 group-hover:scale-105"
+            className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-gradient-to-tr from-amber-600 via-orange-500 to-yellow-400 border-2 border-white/80 shadow-2xl flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:shadow-amber-500/50 group-hover:scale-105"
             style={{
               boxShadow: '0 8px 25px rgba(245, 158, 11, 0.45), inset 0 3px 6px rgba(255,255,255,0.7)',
             }}
@@ -387,7 +533,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
             {/* Cara de PUTOISAAC */}
             <div className="flex flex-col items-center justify-center relative z-10 space-y-1.5 mt-0.5">
-              {/* Ojos expresivos */}
+              {/* Ojos expresivos con parpadeo */}
               <div className="flex items-center gap-2">
                 <div
                   className={`w-2 h-2.5 rounded-full bg-neutral-950 transition-all duration-150 flex items-center justify-center relative ${
@@ -422,6 +568,6 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </aside>
   );
 };

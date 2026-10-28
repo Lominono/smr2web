@@ -12,12 +12,12 @@ interface WindowsWelcomeModalProps {
 }
 
 const PHRASES = [
-  { text: 'Hola :)', subtext: '', duration: 2600 },
-  { text: 'Estamos preparando todo para ti.', subtext: 'Configurando tu entorno personal...', duration: 3000 },
-  { text: 'Esto puede tardar unos minutos...', subtext: 'Por favor, no apagues el equipo.', duration: 3200 },
-  { text: 'Configurando el aula de 2º SMR...', subtext: 'Sincronizando servicios de red y bolsa en tiempo real.', duration: 3000 },
-  { text: 'Acreditando 1.000 monedas en tu cuenta...', subtext: 'Saldo inicial de cortesía del Departamento de Informática.', duration: 3000 },
-  { text: 'Casi hemos terminado.', subtext: 'Últimos retoques en el escritorio.', duration: 2500 },
+  { text: 'Hola :)', subtext: '', duration: 2800 },
+  { text: 'Estamos preparando todo para ti.', subtext: 'Configurando tu entorno personal...', duration: 3200 },
+  { text: 'Esto puede tardar unos minutos...', subtext: 'Por favor, no apagues el equipo.', duration: 3400 },
+  { text: 'Configurando el aula de 2º SMR...', subtext: 'Sincronizando servicios de red y bolsa en tiempo real.', duration: 3300 },
+  { text: 'Acreditando 1.000 monedas en tu cuenta...', subtext: 'Saldo inicial de cortesía del Departamento de Informática.', duration: 3300 },
+  { text: 'Casi hemos terminado.', subtext: 'Últimos retoques en el escritorio.', duration: 2700 },
 ];
 
 export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
@@ -27,7 +27,7 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
 }) => {
   const [stepIndex, setStepIndex] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
-  const [opacity, setOpacity] = useState(0);
+  const [fadeState, setFadeState] = useState<'hidden' | 'visible' | 'exiting'>('hidden');
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const audioPlayedRef = useRef(false);
 
@@ -37,7 +37,7 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
     if (!isOpen) {
       setStepIndex(0);
       setIsFinished(false);
-      setOpacity(0);
+      setFadeState('hidden');
       audioPlayedRef.current = false;
       return;
     }
@@ -46,7 +46,7 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
     audioPlayedRef.current = false;
     let current = 0;
 
-    const showStep = () => {
+    const playStep = () => {
       if (!isMounted) return;
 
       if (current >= PHRASES.length) {
@@ -61,33 +61,40 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
       }
 
       setStepIndex(current);
-      // Suave Fade In
-      setOpacity(1);
+      // Suave Fade In con cubic-bezier
+      setFadeState('visible');
 
       const phraseDuration = PHRASES[current].duration;
 
-      // Iniciar Fade Out suave antes de terminar la frase
+      // Iniciar Fade Out suave 850ms antes de que concluya el tiempo de la frase
       const fadeOutTimer = setTimeout(() => {
         if (!isMounted) return;
-        setOpacity(0);
+        setFadeState('exiting');
 
-        // Pasar a la siguiente frase cuando termine el Fade Out
-        const nextTimer = setTimeout(() => {
+        // Pausa en negro puro (350ms) entre frases antes de montar la siguiente
+        const gapTimer = setTimeout(() => {
           if (!isMounted) return;
+          setFadeState('hidden');
           current += 1;
-          showStep();
-        }, 700);
 
-        return () => clearTimeout(nextTimer);
-      }, phraseDuration - 700);
+          const nextTimer = setTimeout(() => {
+            if (!isMounted) return;
+            playStep();
+          }, 350);
+
+          return () => clearTimeout(nextTimer);
+        }, 850);
+
+        return () => clearTimeout(gapTimer);
+      }, Math.max(1600, phraseDuration - 850));
 
       return () => clearTimeout(fadeOutTimer);
     };
 
-    // Pausa inicial suave
+    // Pausa inicial en negro absoluto antes de la primera frase
     const initialTimer = setTimeout(() => {
-      showStep();
-    }, 400);
+      playStep();
+    }, 500);
 
     return () => {
       isMounted = false;
@@ -141,7 +148,7 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
 
       {!isFinished ? (
         /* Secuencia de arranque pausada y cinematográfica */
-        <div className="max-w-xl w-full text-center px-4 flex flex-col items-center justify-center min-h-[300px]">
+        <div className="max-w-xl w-full text-center px-4 flex flex-col items-center justify-center min-h-[320px]">
           {/* Anillo de carga de Windows: 6 puntos que rotan a velocidad no-lineal */}
           <div className="relative w-12 h-12 mb-14">
             {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -149,7 +156,7 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
                 key={i}
                 className="absolute inset-0 flex items-start justify-center"
                 style={{
-                  animation: 'winDotSpin 3.2s cubic-bezier(0.5, 0.05, 0.45, 0.95) infinite',
+                  animation: 'winDotSpin 3.4s cubic-bezier(0.5, 0.05, 0.45, 0.95) infinite',
                   animationDelay: `${i * 0.16}s`,
                 }}
               >
@@ -158,12 +165,18 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
             ))}
           </div>
 
-          {/* Frase con animación fade suave y presencia */}
+          {/* Frase con animación fade pura cinematográfica */}
           <div
-            className="transition-all duration-700 ease-in-out transform"
+            className="transition-all duration-900 ease-out transform"
             style={{
-              opacity,
-              transform: opacity === 1 ? 'translateY(0px) scale(1)' : 'translateY(-4px) scale(0.98)',
+              opacity: fadeState === 'visible' ? 1 : 0,
+              transform:
+                fadeState === 'visible'
+                  ? 'translateY(0px) scale(1)'
+                  : fadeState === 'exiting'
+                  ? 'translateY(-6px) scale(1.008)'
+                  : 'translateY(8px) scale(0.985)',
+              filter: fadeState === 'visible' ? 'blur(0px)' : 'blur(1.5px)',
             }}
           >
             <h1 className="text-2xl sm:text-4xl font-light tracking-tight text-white leading-relaxed">
@@ -179,7 +192,7 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
         </div>
       ) : (
         /* Pantalla final ¡Listo! limpia, sobria y elegante */
-        <div className="max-w-md w-full bg-neutral-950 border border-neutral-800/80 rounded-2xl p-7 sm:p-8 text-center space-y-6 animate-in fade-in zoom-in-95 duration-500 shadow-2xl">
+        <div className="max-w-md w-full bg-neutral-950 border border-neutral-800/80 rounded-2xl p-7 sm:p-8 text-center space-y-6 animate-in fade-in zoom-in-95 duration-700 shadow-2xl">
           <div className="w-14 h-14 rounded-full bg-white text-black mx-auto flex items-center justify-center shadow-lg font-bold">
             <Check className="w-7 h-7 stroke-[2.5]" />
           </div>

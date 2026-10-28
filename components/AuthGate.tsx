@@ -12,8 +12,8 @@ interface AuthGateProps {
 
 export const AuthGate: React.FC<AuthGateProps> = ({ onAuthSuccess }) => {
   return (
-    <div className="min-h-[100dvh] flex flex-col justify-center items-center bg-background text-foreground p-4 sm:p-6 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="min-h-[100dvh] flex flex-col justify-center items-center bg-background text-foreground p-4 sm:p-6 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] transition-opacity duration-700 ease-out animate-in fade-in">
+      <div className="w-full max-w-sm space-y-6 transition-all duration-700 ease-out transform animate-in fade-in slide-in-from-bottom-2">
         <div className="flex flex-col items-center text-center space-y-2.5">
           <div className="w-14 h-14 flex items-center justify-center shrink-0 mx-auto">
             <Image
@@ -35,7 +35,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthSuccess }) => {
           </div>
         </div>
 
-        <div className="p-5 sm:p-6 rounded-2xl border border-border/80 bg-surface shadow-xs">
+        <div className="p-5 sm:p-6 rounded-2xl border border-border/80 bg-surface shadow-xs transition-all duration-300">
           <AuthForm onSuccess={onAuthSuccess} />
         </div>
 

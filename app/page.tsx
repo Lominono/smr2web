@@ -96,6 +96,12 @@ export default function Home() {
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
   const [realtimeNotification, setRealtimeNotification] = useState<RealtimeNotification | null>(null);
 
+  const handleIsaacSelectTab = useCallback((tab: 'chat' | 'investments' | 'schedule') => {
+    if (tab === 'investments') setActiveView('party_idle');
+    else if (tab === 'chat') setActiveView('feed');
+    else if (tab === 'schedule') setActiveView('calendar');
+  }, []);
+
   // Real-time presence hook (tracks active user view and aggregates online classmates)
   const { onlineUsers, onlineCount } = useRealtimePresence(user, activeView);
 
@@ -1626,11 +1632,7 @@ export default function Home() {
       <PutoIsaacTour
         isOpenControlled={isIsaacTourOpen}
         onCloseControlled={() => setIsIsaacTourOpen(false)}
-        onSelectTab={(tab) => {
-          if (tab === 'investments') setActiveView('party_idle');
-          else if (tab === 'chat') setActiveView('feed');
-          else if (tab === 'schedule') setActiveView('calendar');
-        }}
+        onSelectTab={handleIsaacSelectTab}
       />
 
       {/* 9. Footer */}
