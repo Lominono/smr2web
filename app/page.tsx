@@ -84,6 +84,7 @@ export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isWindowsWelcomeOpen, setIsWindowsWelcomeOpen] = useState(false);
+  const [isIsaacTourOpen, setIsIsaacTourOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isOnlineUsersOpen, setIsOnlineUsersOpen] = useState(false);
   const [isPushModalOpen, setIsPushModalOpen] = useState(false);
@@ -428,6 +429,11 @@ export default function Home() {
         if (!shown && dismissed !== 'true') {
           sessionStorage.setItem('smr2_windows_welcome_shown', 'true');
           setIsWindowsWelcomeOpen(true);
+        } else {
+          const tourDone = localStorage.getItem('smr2_putoisaac_tour_done');
+          if (!tourDone) {
+            setTimeout(() => setIsIsaacTourOpen(true), 900);
+          }
         }
       }
     } else {
@@ -1548,12 +1554,16 @@ export default function Home() {
         onOpenPushModal={() => setIsPushModalOpen(true)}
         onlineCount={onlineCount}
         onOpenWindowsWelcome={() => setIsWindowsWelcomeOpen(true)}
+        onOpenIsaacTour={() => setIsIsaacTourOpen(true)}
       />
 
       <WindowsWelcomeModal
         isOpen={isWindowsWelcomeOpen}
         user={user}
-        onClose={() => setIsWindowsWelcomeOpen(false)}
+        onClose={() => {
+          setIsWindowsWelcomeOpen(false);
+          setTimeout(() => setIsIsaacTourOpen(true), 400);
+        }}
       />
 
       <OnlineUsersModal
@@ -1614,6 +1624,8 @@ export default function Home() {
 
       {/* 9. PUTOISAAC interactive ball mascot and tour */}
       <PutoIsaacTour
+        isOpenControlled={isIsaacTourOpen}
+        onCloseControlled={() => setIsIsaacTourOpen(false)}
         onSelectTab={(tab) => {
           if (tab === 'investments') setActiveView('party_idle');
           else if (tab === 'chat') setActiveView('feed');

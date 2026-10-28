@@ -12,11 +12,12 @@ interface WindowsWelcomeModalProps {
 }
 
 const PHRASES = [
-  { text: 'Hola :)', subtext: '', duration: 1800 },
-  { text: 'Estamos preparando todo para ti.', subtext: '', duration: 2000 },
-  { text: 'Esto puede tardar unos minutos...', subtext: 'Por favor, espera.', duration: 1900 },
-  { text: 'No apagues el equipo.', subtext: '', duration: 1800 },
-  { text: 'Casi hemos terminado.', subtext: '', duration: 1700 },
+  { text: 'Hola :)', subtext: '', duration: 2600 },
+  { text: 'Estamos preparando todo para ti.', subtext: 'Configurando tu entorno personal...', duration: 3000 },
+  { text: 'Esto puede tardar unos minutos...', subtext: 'Por favor, no apagues el equipo.', duration: 3200 },
+  { text: 'Configurando el aula de 2º SMR...', subtext: 'Sincronizando servicios de red y bolsa en tiempo real.', duration: 3000 },
+  { text: 'Acreditando 1.000 monedas en tu cuenta...', subtext: 'Saldo inicial de cortesía del Departamento de Informática.', duration: 3000 },
+  { text: 'Casi hemos terminado.', subtext: 'Últimos retoques en el escritorio.', duration: 2500 },
 ];
 
 export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
@@ -60,33 +61,33 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
       }
 
       setStepIndex(current);
-      // Fade in
+      // Suave Fade In
       setOpacity(1);
 
       const phraseDuration = PHRASES[current].duration;
 
-      // Start fade out before the step ends
+      // Iniciar Fade Out suave antes de terminar la frase
       const fadeOutTimer = setTimeout(() => {
         if (!isMounted) return;
         setOpacity(0);
 
-        // Advance to next step after fade out completes
+        // Pasar a la siguiente frase cuando termine el Fade Out
         const nextTimer = setTimeout(() => {
           if (!isMounted) return;
           current += 1;
           showStep();
-        }, 500);
+        }, 700);
 
         return () => clearTimeout(nextTimer);
-      }, phraseDuration - 500);
+      }, phraseDuration - 700);
 
       return () => clearTimeout(fadeOutTimer);
     };
 
-    // Small delay on mount before starting first phrase
+    // Pausa inicial suave
     const initialTimer = setTimeout(() => {
       showStep();
-    }, 150);
+    }, 400);
 
     return () => {
       isMounted = false;
@@ -126,12 +127,12 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
         }
       `}</style>
 
-      {/* Botón sutil para saltar en la esquina */}
+      {/* Botón discreto para saltar la intro en la esquina */}
       {!isFinished && (
         <button
           type="button"
           onClick={handleSkip}
-          className="absolute top-5 right-5 sm:top-8 sm:right-8 text-xs text-neutral-500 hover:text-white px-3 py-1.5 rounded-md transition-colors cursor-pointer flex items-center gap-1.5"
+          className="absolute top-6 right-6 sm:top-8 sm:right-8 text-xs text-neutral-500 hover:text-white px-3.5 py-1.5 rounded-lg bg-neutral-900/60 hover:bg-neutral-800 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
         >
           <span>Saltar</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -139,64 +140,82 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
       )}
 
       {!isFinished ? (
-        /* Secuencia de frases limpia sobre fondo negro puro */
-        <div className="max-w-xl w-full text-center px-4 flex flex-col items-center justify-center min-h-[280px]">
-          {/* Anillo de carga de puntos clásico Windows */}
-          <div className="relative w-10 h-10 mb-12">
+        /* Secuencia de arranque pausada y cinematográfica */
+        <div className="max-w-xl w-full text-center px-4 flex flex-col items-center justify-center min-h-[300px]">
+          {/* Anillo de carga de Windows: 6 puntos que rotan a velocidad no-lineal */}
+          <div className="relative w-12 h-12 mb-14">
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
                 className="absolute inset-0 flex items-start justify-center"
                 style={{
-                  animation: 'winDotSpin 2.8s cubic-bezier(0.5, 0.05, 0.45, 0.95) infinite',
-                  animationDelay: `${i * 0.15}s`,
+                  animation: 'winDotSpin 3.2s cubic-bezier(0.5, 0.05, 0.45, 0.95) infinite',
+                  animationDelay: `${i * 0.16}s`,
                 }}
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-white/80" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
               </div>
             ))}
           </div>
 
-          {/* Frase con animación fade suave */}
+          {/* Frase con animación fade suave y presencia */}
           <div
-            className="transition-opacity duration-700 ease-in-out"
-            style={{ opacity }}
+            className="transition-all duration-700 ease-in-out transform"
+            style={{
+              opacity,
+              transform: opacity === 1 ? 'translateY(0px) scale(1)' : 'translateY(-4px) scale(0.98)',
+            }}
           >
             <h1 className="text-2xl sm:text-4xl font-light tracking-tight text-white leading-relaxed">
               {currentPhrase.text}
             </h1>
 
             {currentPhrase.subtext && (
-              <p className="mt-3 text-xs sm:text-sm text-neutral-400 font-normal">
+              <p className="mt-3.5 text-xs sm:text-sm text-neutral-400 font-normal tracking-wide max-w-md mx-auto">
                 {currentPhrase.subtext}
               </p>
             )}
           </div>
         </div>
       ) : (
-        /* Pantalla final simple y limpia */
-        <div className="max-w-sm w-full bg-neutral-950 border border-neutral-800 rounded-2xl p-6 sm:p-7 text-center space-y-5 animate-in fade-in duration-500">
-          <div className="w-12 h-12 rounded-full bg-white text-black mx-auto flex items-center justify-center shadow-md font-bold">
-            <Check className="w-6 h-6 stroke-[2.5]" />
+        /* Pantalla final ¡Listo! limpia, sobria y elegante */
+        <div className="max-w-md w-full bg-neutral-950 border border-neutral-800/80 rounded-2xl p-7 sm:p-8 text-center space-y-6 animate-in fade-in zoom-in-95 duration-500 shadow-2xl">
+          <div className="w-14 h-14 rounded-full bg-white text-black mx-auto flex items-center justify-center shadow-lg font-bold">
+            <Check className="w-7 h-7 stroke-[2.5]" />
           </div>
 
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold tracking-tight text-white">
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-semibold tracking-tight text-white">
               ¡Listo!
             </h2>
-            <p className="text-xs text-neutral-400 leading-relaxed">
-              Sesión iniciada como <strong className="text-white font-medium">@{username}</strong>. Tu cuenta tiene 1.000 monedas de bienvenida.
+            <p className="text-xs text-neutral-400 leading-relaxed max-w-sm mx-auto">
+              Sesión iniciada correctamente como <strong className="text-white font-medium">@{username}</strong>. Se han acreditado 1.000 monedas de bienvenida en tu cuenta.
             </p>
           </div>
 
-          <div className="pt-2 space-y-3">
+          <div className="p-3.5 rounded-xl bg-neutral-900/60 border border-neutral-800 text-left text-xs space-y-2 text-neutral-300">
+            <div className="flex items-center justify-between">
+              <span className="text-neutral-400">Entorno:</span>
+              <span className="font-mono text-white">AULA_2_SMR</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-neutral-400">Saldo inicial:</span>
+              <span className="font-semibold text-emerald-400 font-mono">+1.000 monedas</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-neutral-400">Mercado:</span>
+              <span className="text-white">Tiempo Real (WebSockets)</span>
+            </div>
+          </div>
+
+          <div className="pt-1 space-y-3">
             <button
               type="button"
               onClick={handleFinish}
-              className="w-full min-h-[44px] bg-white hover:bg-neutral-200 active:scale-95 text-black text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              className="w-full min-h-[44px] bg-white hover:bg-neutral-200 active:scale-95 text-black text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm"
             >
-              <span>Continuar</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Iniciar escritorio</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
 
             <label className="flex items-center justify-center gap-2 text-[11px] text-neutral-500 hover:text-neutral-300 cursor-pointer select-none">
@@ -211,6 +230,11 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Pie de pantalla sutil */}
+      <div className="absolute bottom-5 text-center text-[10px] text-neutral-600 font-mono tracking-wider uppercase">
+        2º Sistemas Microinformáticos y Redes
+      </div>
     </div>
   );
 };

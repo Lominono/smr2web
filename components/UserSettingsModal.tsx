@@ -66,6 +66,7 @@ interface UserSettingsModalProps {
   onOpenPushModal?: () => void;
   onlineCount?: number;
   onOpenWindowsWelcome?: () => void;
+  onOpenIsaacTour?: () => void;
 }
 
 const AVATAR_COLORS = [
@@ -91,6 +92,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   onOpenPushModal,
   onlineCount = 1,
   onOpenWindowsWelcome,
+  onOpenIsaacTour,
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'agenda' | 'stats' | 'preferences' | 'security'>('profile');
 
@@ -1109,6 +1111,34 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                     }}
                   >
                     Ver inicio
+                  </Button>
+                </div>
+              )}
+
+              {/* PUTOISAAC Assistant Tour */}
+              {onOpenIsaacTour && (
+                <div className="p-3.5 rounded-xl bg-surface-raised border border-border/70 flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">💬</span>
+                      <span className="text-xs font-semibold text-foreground">Asistente PUTOISAAC</span>
+                    </div>
+                    <p className="text-[11px] text-foreground-muted">
+                      Iniciar el tour guiado por la web y consejos de clase.
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-lg text-xs"
+                    onClick={() => {
+                      sound.tap();
+                      onClose();
+                      onOpenIsaacTour();
+                    }}
+                  >
+                    Ver tour
                   </Button>
                 </div>
               )}
