@@ -20,6 +20,7 @@ import { AuthGate } from '@/components/AuthGate';
 import { ScheduleCalendarView } from '@/components/ScheduleCalendarView';
 import { MobileTabBar } from '@/components/MobileTabBar';
 import { MinecraftBanner } from '@/components/MinecraftBanner';
+import { LaunchCountdownBanner } from '@/components/LaunchCountdownBanner';
 import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
 import { UpdateNotificationBanner } from '@/components/UpdateNotificationBanner';
@@ -1299,6 +1300,9 @@ export default function Home() {
 
               {/* Center Feed Column (Twitter Timeline) */}
               <div className="col-span-1 lg:col-span-6 w-full min-w-0 space-y-2 sm:space-y-3.5">
+                {/* Salida Oficial de la Web: Cuenta Regresiva */}
+                <LaunchCountdownBanner />
+
                 {/* Community Minecraft Project (Aligned with center column) */}
                 <MinecraftBanner />
 

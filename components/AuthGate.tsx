@@ -4,6 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import { UserProfile } from '@/lib/types';
 import { AuthForm } from '@/components/AuthForm';
+import { LaunchCountdownBanner } from '@/components/LaunchCountdownBanner';
 
 interface AuthGateProps {
   onAuthSuccess: (user: UserProfile) => void;
@@ -34,6 +35,9 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthSuccess }) => {
             </p>
           </div>
         </div>
+
+        {/* Cuenta regresiva de salida oficial */}
+        <LaunchCountdownBanner compact={true} />
 
         <div className="p-5 sm:p-6 rounded-2xl border border-border/80 bg-surface shadow-xs transition-all duration-300">
           <AuthForm onSuccess={onAuthSuccess} />
