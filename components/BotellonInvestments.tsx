@@ -43,6 +43,7 @@ import {
   tradeParodyStock,
   triggerMarketTick,
   calculateMarketSentiment,
+  subscribeToRealtimeTrades,
   DEFAULT_PARODY_STOCKS,
 } from '@/lib/investmentsService';
 import { InvestmentsTutorialModal } from '@/components/InvestmentsTutorialModal';
@@ -124,7 +125,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     try {
       const [mState, pHistory, port, txs, stocks, holdings] = await Promise.all([
         fetchMarketState(),
-        fetchPriceHistory(60),
+        fetchPriceHistory(60, selectedTicker),
         fetchUserPortfolio(),
         fetchRecentMarketTrades(20),
         fetchParodyStocks(),
@@ -146,11 +147,22 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectedTicker]);
 
   useEffect(() => {
     loadAllData();
   }, [loadAllData, userId]);
+
+  // Actualizar historial al cambiar de activo seleccionado
+  useEffect(() => {
+    let active = true;
+    fetchPriceHistory(60, selectedTicker).then((history) => {
+      if (active) setPriceHistory(history);
+    });
+    return () => {
+      active = false;
+    };
+  }, [selectedTicker]);
 
   // Cooldown de 60 segundos
   useEffect(() => {
@@ -161,103 +173,144 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     return () => clearInterval(interval);
   }, [cooldownSeconds]);
 
-  // Suscripción Realtime (Market State, Price History y Live Transactions Tape)
+  // Suscripción Realtime (BroadcastChannel + Supabase Realtime)
   useEffect(() => {
-    const supabase = createClient();
-    if (!supabase) return;
+    // 1. Canal de difusión instantáneo entre pestañas y clientes
+    const unsubscribeTrades = subscribeToRealtimeTrades((payload) => {
+      if (payload.transaction) {
+        const newTx = payload.transaction;
+        setTransactions((prev) => [newTx, ...prev.filter((t) => t.id !== newTx.id)].slice(0, 25));
+        setRecentLiveNotification({
+          username: newTx.username,
+          type: newTx.type,
+          ticker: newTx.ticker || 'BTLN',
+          coins: newTx.coins_amount,
+          time: Date.now(),
+        });
+        setGlowingTicker(newTx.ticker || 'BTLN');
+        setTimeout(() => setGlowingTicker(null), 3000);
 
-    try {
-      const channel = supabase
-        .channel('botellon_market_live_stream')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'market_state' },
-          (payload) => {
-            if (payload.new) {
-              const updated = payload.new as any;
-              setMarketState((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      current_price: Number(updated.current_price),
-                      total_shares: Number(updated.total_shares),
-                      pool_balance: Number(updated.pool_balance),
-                      total_volume: Number(updated.total_volume),
-                      total_investors: Number(updated.total_investors),
-                      updated_at: updated.updated_at,
-                    }
-                  : null
-              );
-              if (updated.parody_stocks && typeof updated.parody_stocks === 'object') {
-                fetchParodyStocks().then(setParodyStocks).catch(() => {});
+        if (!newTx.ticker || newTx.ticker === selectedTicker) {
+          fetchPriceHistory(60, selectedTicker).then(setPriceHistory).catch(() => {});
+        }
+      }
+
+      if (payload.stock) {
+        setParodyStocks((prev) =>
+          prev.map((s) => (s.ticker === payload.stock!.ticker ? payload.stock! : s))
+        );
+      }
+
+      if (payload.market) {
+        setMarketState(payload.market);
+      }
+    });
+
+    // 2. Suscripción Postgres Changes para actualizaciones persistentes
+    const supabase = createClient();
+    let channel: any = null;
+    if (supabase) {
+      try {
+        channel = supabase
+          .channel('botellon_market_live_stream')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'market_state' },
+            (payload) => {
+              if (payload.new) {
+                const updated = payload.new as any;
+                setMarketState((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        current_price: Number(updated.current_price),
+                        total_shares: Number(updated.total_shares),
+                        pool_balance: Number(updated.pool_balance),
+                        total_volume: Number(updated.total_volume),
+                        total_investors: Number(updated.total_investors),
+                        updated_at: updated.updated_at,
+                      }
+                    : null
+                );
+                if (updated.parody_stocks && typeof updated.parody_stocks === 'object') {
+                  fetchParodyStocks().then(setParodyStocks).catch(() => {});
+                }
               }
             }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'price_history' },
-          (payload) => {
-            if (payload.new) {
-              const newPoint: PriceHistoryPoint = {
-                id: payload.new.id,
-                price: Number(payload.new.price),
-                pool_balance: Number(payload.new.pool_balance),
-                total_shares: Number(payload.new.total_shares),
-                change_percent: Number(payload.new.change_percent),
-                trigger_type: payload.new.trigger_type,
-                created_at: payload.new.created_at,
-              };
-              setPriceHistory((prev) => [...prev.slice(-79), newPoint]);
+          )
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'price_history' },
+            (payload) => {
+              if (payload.new) {
+                const ptTicker = payload.new.ticker || 'BTLN';
+                if (ptTicker === selectedTicker) {
+                  const newPoint: PriceHistoryPoint = {
+                    id: payload.new.id,
+                    ticker: ptTicker,
+                    price: Number(payload.new.price),
+                    pool_balance: Number(payload.new.pool_balance),
+                    total_shares: Number(payload.new.total_shares),
+                    change_percent: Number(payload.new.change_percent),
+                    trigger_type: payload.new.trigger_type,
+                    created_at: payload.new.created_at,
+                  };
+                  setPriceHistory((prev) => [...prev.slice(-79), newPoint]);
+                }
+              }
             }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'transactions' },
-          (payload) => {
-            if (payload.new) {
-              const newTx: InvestmentTransaction = {
-                id: payload.new.id,
-                user_id: payload.new.user_id,
-                username: payload.new.username || 'Compañero',
-                ticker: payload.new.ticker || 'BTLN',
-                type: payload.new.type as 'buy' | 'sell',
-                coins_amount: Number(payload.new.coins_amount || 0),
-                shares_amount: Number(payload.new.shares_amount || 0),
-                price_per_share: Number(payload.new.price_per_share || 0),
-                fee_coins: Number(payload.new.fee_coins || 0),
-                net_coins: Number(payload.new.net_coins || 0),
-                price_impact_percent: payload.new.type === 'buy' ? 0.9 : -0.7,
-                created_at: payload.new.created_at,
-              };
+          )
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'transactions' },
+            (payload) => {
+              if (payload.new) {
+                const newTx: InvestmentTransaction = {
+                  id: payload.new.id,
+                  user_id: payload.new.user_id,
+                  username: payload.new.username || 'Compañero',
+                  ticker: payload.new.ticker || 'BTLN',
+                  type: payload.new.type as 'buy' | 'sell',
+                  coins_amount: Number(payload.new.coins_amount || 0),
+                  shares_amount: Number(payload.new.shares_amount || 0),
+                  price_per_share: Number(payload.new.price_per_share || 0),
+                  fee_coins: Number(payload.new.fee_coins || 0),
+                  net_coins: Number(payload.new.net_coins || 0),
+                  price_impact_percent: payload.new.type === 'buy' ? 0.9 : -0.7,
+                  created_at: payload.new.created_at,
+                };
 
-              setTransactions((prev) => [newTx, ...prev.slice(0, 24)]);
-              setRecentLiveNotification({
-                username: newTx.username,
-                type: newTx.type,
-                ticker: newTx.ticker || 'BTLN',
-                coins: newTx.coins_amount,
-                time: Date.now(),
-              });
-              setGlowingTicker(newTx.ticker || 'BTLN');
-              setTimeout(() => setGlowingTicker(null), 3000);
+                setTransactions((prev) => [newTx, ...prev.filter((t) => t.id !== newTx.id)].slice(0, 24));
+                setRecentLiveNotification({
+                  username: newTx.username,
+                  type: newTx.type,
+                  ticker: newTx.ticker || 'BTLN',
+                  coins: newTx.coins_amount,
+                  time: Date.now(),
+                });
+                setGlowingTicker(newTx.ticker || 'BTLN');
+                setTimeout(() => setGlowingTicker(null), 3000);
+              }
             }
-          }
-        )
-        .subscribe();
+          )
+          .subscribe();
+      } catch (_) {}
+    }
 
-      return () => {
+    return () => {
+      unsubscribeTrades();
+      if (supabase && channel) {
         try {
           supabase.removeChannel(channel);
         } catch (_) {}
-      };
-    } catch (_) {}
-  }, []);
+      }
+    };
+  }, [selectedTicker]);
 
   // Lista combinada de todos los activos disponibles
   const allAssets = useMemo(() => {
-    const btlPrice = marketState?.current_price || 12.5;
+    const btlPrice = marketState?.current_price || 10.0;
+    const btlChange = Number((((btlPrice - 10.0) / 10.0) * 100).toFixed(2));
 
     const btlAsset: ParodyStock = {
       ticker: 'BTLN',
@@ -266,8 +319,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
       slogan: 'Fondo general compartido y alimentado por las comisiones',
       sector: 'Índice general',
       price: btlPrice,
-      change24h: 1.5,
-      volume: marketState?.total_volume || 25000,
+      change24h: btlChange,
+      volume: marketState?.total_volume || 0,
       accentColor: '#10b981',
       iconType: 'wine',
     };
@@ -355,17 +408,12 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     return filtered.length >= 2 ? filtered : priceHistory.slice(-18);
   }, [priceHistory, timeFilter]);
 
-  // Escala para la gráfica
+  // Escala para la gráfica con precios reales
   const { minPrice, maxPrice, isPriceUp } = useMemo(() => {
     const assetPrice = activeAsset.price;
-    const baseMarketPrice = marketState?.current_price || 12.5;
+    const prices = filteredHistory.map((p) => p.price);
 
-    const scaledPrices = filteredHistory.map((p) => {
-      if (selectedTicker === 'BTLN') return p.price;
-      return (p.price / baseMarketPrice) * assetPrice;
-    });
-
-    if (scaledPrices.length < 2) {
+    if (prices.length < 2) {
       return {
         minPrice: Number((assetPrice * 0.95).toFixed(2)),
         maxPrice: Number((assetPrice * 1.05).toFixed(2)),
@@ -373,8 +421,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
       };
     }
 
-    const min = Math.min(...scaledPrices);
-    const max = Math.max(...scaledPrices);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
     const pad = (max - min) * 0.15 || assetPrice * 0.05;
 
     return {
@@ -382,9 +430,9 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
       maxPrice: Number((max + pad).toFixed(2)),
       isPriceUp: activeAsset.change24h >= 0,
     };
-  }, [filteredHistory, activeAsset, marketState?.current_price, selectedTicker]);
+  }, [filteredHistory, activeAsset]);
 
-  // Generación SVG de la curva
+  // Generación SVG de la curva con cotizaciones reales
   const chartData = useMemo(() => {
     if (filteredHistory.length < 2) return { line: '', area: '', points: [] };
 
@@ -395,23 +443,19 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     const plotW = svgW - padX * 2;
     const plotH = svgH - padY * 2;
     const range = maxPrice - minPrice || 1;
-    const assetPrice = activeAsset.price;
-    const baseMarketPrice = marketState?.current_price || 12.5;
-    const firstPrice =
-      selectedTicker === 'BTLN' ? filteredHistory[0].price : (filteredHistory[0].price / baseMarketPrice) * assetPrice;
+    const firstPrice = filteredHistory[0]?.price || activeAsset.price;
 
     const points = filteredHistory.map((pt, i) => {
-      const scaledPrice =
-        selectedTicker === 'BTLN' ? pt.price : (pt.price / baseMarketPrice) * assetPrice;
+      const realPrice = pt.price;
       const x = padX + (i / (filteredHistory.length - 1)) * plotW;
-      const norm = (scaledPrice - minPrice) / range;
+      const norm = (realPrice - minPrice) / range;
       const y = svgH - padY - Math.max(0, Math.min(1, norm)) * plotH;
-      const changeFromStart = firstPrice > 0 ? Number((((scaledPrice - firstPrice) / firstPrice) * 100).toFixed(2)) : 0;
+      const changeFromStart = firstPrice > 0 ? Number((((realPrice - firstPrice) / firstPrice) * 100).toFixed(2)) : 0;
 
       return {
         x: Number(x.toFixed(1)),
         y: Number(y.toFixed(1)),
-        price: Number(scaledPrice.toFixed(2)),
+        price: Number(realPrice.toFixed(2)),
         time: pt.created_at,
         changeFromStart,
       };
@@ -463,12 +507,14 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     sound.tap();
 
     try {
+      const realUsername = username || 'Alumno';
+
       if (selectedTicker === 'BTLN') {
         if (tradeMode === 'buy') {
           if (inputNumeric < 10) throw new Error('La inversión mínima es de 10 monedas.');
           if (inputNumeric > userCoins) throw new Error('Saldo insuficiente.');
 
-          const res = await investInBotellon(inputNumeric);
+          const res = await investInBotellon(inputNumeric, realUsername, userId);
           if (!res.success) throw new Error(res.message);
 
           setFeedback({ type: 'success', message: res.message });
@@ -477,7 +523,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           if (inputNumeric <= 0) throw new Error('Indica una cantidad de participaciones.');
           if (inputNumeric > currentHolding.shares) throw new Error('No posees suficientes participaciones.');
 
-          const res = await withdrawFromBotellon(inputNumeric);
+          const res = await withdrawFromBotellon(inputNumeric, realUsername, userId);
           if (!res.success) throw new Error(res.message);
 
           setFeedback({ type: 'success', message: res.message });
@@ -488,7 +534,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           if (inputNumeric < 10) throw new Error('La inversión mínima es de 10 monedas.');
           if (inputNumeric > userCoins) throw new Error('Saldo insuficiente.');
 
-          const res = await tradeParodyStock(selectedTicker, 'buy', inputNumeric);
+          const res = await tradeParodyStock(selectedTicker, 'buy', inputNumeric, userId, realUsername);
           if (!res.success) throw new Error(res.message);
 
           setFeedback({ type: 'success', message: res.message });
@@ -497,7 +543,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           if (inputNumeric <= 0) throw new Error('Indica cuántas acciones vender.');
           if (inputNumeric > currentHolding.shares) throw new Error('No posees suficientes acciones.');
 
-          const res = await tradeParodyStock(selectedTicker, 'sell', inputNumeric);
+          const res = await tradeParodyStock(selectedTicker, 'sell', inputNumeric, userId, realUsername);
           if (!res.success) throw new Error(res.message);
 
           setFeedback({ type: 'success', message: res.message });
@@ -797,18 +843,28 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               Presión de mercado en vivo
             </span>
             <div className="flex items-center gap-2 font-mono text-[11px]">
-              <span className="text-emerald-500 font-semibold">{marketSentiment.buyPercentage}% Compras</span>
-              <span className="text-foreground-subtle">/</span>
-              <span className="text-rose-500 font-semibold">{100 - marketSentiment.buyPercentage}% Ventas</span>
+              {transactions.length === 0 ? (
+                <span className="text-foreground-subtle text-[11px]">Esperando primeras operaciones</span>
+              ) : (
+                <>
+                  <span className="text-emerald-500 font-semibold">{marketSentiment.buyPercentage}% Compras</span>
+                  <span className="text-foreground-subtle">/</span>
+                  <span className="text-rose-500 font-semibold">{100 - marketSentiment.buyPercentage}% Ventas</span>
+                </>
+              )}
             </div>
           </div>
 
           {/* Barra de progreso bicolor */}
-          <div className="w-full h-1.5 rounded-full bg-rose-500/30 overflow-hidden flex">
-            <div
-              className="h-full bg-emerald-500 transition-all duration-300 rounded-l-full"
-              style={{ width: `${marketSentiment.buyPercentage}%` }}
-            />
+          <div className="w-full h-1.5 rounded-full bg-surface-raised border border-border/40 overflow-hidden flex">
+            {transactions.length === 0 ? (
+              <div className="w-full h-full bg-border/40" />
+            ) : (
+              <div
+                className="h-full bg-emerald-500 transition-all duration-300 rounded-l-full"
+                style={{ width: `${marketSentiment.buyPercentage}%` }}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -1181,7 +1237,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                       </span>
                     </div>
                     <div className="text-[11px] text-foreground-subtle">
-                      {asset.sector}
+                      {asset.sector} {asset.volume > 0 ? `· Vol: ${asset.volume.toLocaleString()} 🪙` : ''}
                     </div>
                   </div>
                 </div>

@@ -156,6 +156,7 @@ export interface MarketSentiment {
 
 export interface PriceHistoryPoint {
   id: string;
+  ticker?: string;
   price: number;
   pool_balance: number;
   total_shares: number;
@@ -197,6 +198,7 @@ export interface ParodyStock {
   parodyOf: string;
   slogan: string;
   sector: string;
+  basePrice?: number;
   price: number;
   change24h: number;
   volume: number;

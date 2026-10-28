@@ -14,25 +14,27 @@ import {
 export const DEFAULT_PARODY_STOCKS: ParodyStock[] = [
   {
     ticker: 'ONION',
-    name: 'Onion',
+    name: 'Onion Inc.',
     parodyOf: 'Apple',
     slogan: 'Dispositivos y tecnología',
     sector: 'Tecnología',
-    price: 45.2,
-    change24h: 3.4,
-    volume: 128400,
+    basePrice: 45.0,
+    price: 45.0,
+    change24h: 0.0,
+    volume: 0,
     accentColor: '#10b981',
     iconType: 'onion',
   },
   {
     ticker: 'ARDI',
-    name: 'Ardidas',
+    name: 'Ardidas Sport',
     parodyOf: 'Adidas',
     slogan: 'Ropa y zapatillas deportivas',
     sector: 'Deporte',
-    price: 28.5,
-    change24h: -1.2,
-    volume: 84200,
+    basePrice: 28.0,
+    price: 28.0,
+    change24h: 0.0,
+    volume: 0,
     accentColor: '#3b82f6',
     iconType: 'shoe',
   },
@@ -42,107 +44,109 @@ export const DEFAULT_PARODY_STOCKS: ParodyStock[] = [
     parodyOf: 'Carolina Herrera',
     slogan: 'Fragancias y moda',
     sector: 'Perfumería',
-    price: 19.8,
-    change24h: 2.1,
-    volume: 62500,
+    basePrice: 20.0,
+    price: 20.0,
+    change24h: 0.0,
+    volume: 0,
     accentColor: '#ec4899',
     iconType: 'perfume',
   },
   {
     ticker: 'MBRON',
-    name: 'Mercabrona',
+    name: 'Mercabrona Hielos',
     parodyOf: 'Mercadona',
     slogan: 'Supermercados y alimentación',
     sector: 'Alimentación',
-    price: 12.1,
-    change24h: 0.8,
-    volume: 215000,
+    basePrice: 12.0,
+    price: 12.0,
+    change24h: 0.0,
+    volume: 0,
     accentColor: '#059669',
     iconType: 'cart',
   },
   {
     ticker: 'CUTI',
-    name: 'Cutify',
+    name: 'Cutify Music',
     parodyOf: 'Spotify',
     slogan: 'Música y podcasts en streaming',
     sector: 'Streaming',
-    price: 8.4,
-    change24h: 4.2,
-    volume: 94100,
+    basePrice: 8.0,
+    price: 8.0,
+    change24h: 0.0,
+    volume: 0,
     accentColor: '#84cc16',
     iconType: 'music',
   },
   {
     ticker: 'TOLED',
-    name: 'Toledo TDI',
+    name: 'Toledo TDI Repro',
     parodyOf: 'Tesla',
     slogan: 'Vehículos y motor',
     sector: 'Automoción',
+    basePrice: 34.0,
     price: 34.0,
-    change24h: -0.9,
-    volume: 110400,
+    change24h: 0.0,
+    volume: 0,
     accentColor: '#f59e0b',
     iconType: 'car',
   },
 ];
 
-let mockParodyStocks: ParodyStock[] = [...DEFAULT_PARODY_STOCKS];
-let mockUserStockHoldings: Record<string, UserStockHolding> = {};
+// Claves de almacenamiento local para persistencia real sin pérdida de transacciones
+const STORAGE_MARKET_KEY = 'smr2_investments_market_v3';
+const STORAGE_STOCKS_KEY = 'smr2_investments_stocks_v3';
+const STORAGE_TRADES_KEY = 'smr2_investments_trades_v3';
+const STORAGE_HISTORY_KEY = 'smr2_investments_history_v3';
+const STORAGE_HOLDINGS_KEY = 'smr2_investments_holdings_v3';
+const STORAGE_BTLN_KEY = 'smr2_investments_btln_pos_v3';
 
-// Estado de simulación en memoria para desarrollo local o si faltan tablas en Supabase
-let mockMarketState: MarketState = {
-  id: 1,
-  current_price: 12.5,
-  total_shares: 420.0,
-  pool_balance: 15200,
-  reserve_balance: 25000,
-  total_volume: 48500,
-  total_investors: 6,
-  fee_rate: 0.02,
-  cooldown_seconds: 60,
-  min_investment: 10,
-  max_investment: 25000,
-  last_event: 'Mercado estable',
-  last_event_type: 'neutral',
-  last_event_impact: 0.0,
-  last_tick_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
+// Canal de difusión en tiempo real entre pestañas y ventanas
+const BROADCAST_CHANNEL_NAME = 'smr2_investments_realtime_channel';
+let broadcastChannel: BroadcastChannel | null = null;
 
-let mockPriceHistory: PriceHistoryPoint[] = generateInitialMockHistory();
-let mockTransactions: InvestmentTransaction[] = [];
-let mockPosition: InvestmentPosition = {
-  id: 'mock-pos',
-  user_id: 'local-user',
-  shares: 0,
-  total_invested_coins: 0,
-  total_withdrawn_coins: 0,
-  average_buy_price: 0,
-  last_transaction_at: undefined,
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
+if (typeof window !== 'undefined') {
+  try {
+    broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+  } catch {}
+}
 
-function generateInitialMockHistory(): PriceHistoryPoint[] {
-  const points: PriceHistoryPoint[] = [];
-  const now = Date.now();
-  let base = 10.0;
-  for (let i = 24; i >= 0; i--) {
-    const time = new Date(now - i * 15 * 60 * 1000).toISOString();
-    const fluctuation = (Math.sin(i * 0.7) * 0.8) + ((Math.random() - 0.48) * 0.4);
-    base = Math.max(1.0, Number((base + fluctuation).toFixed(4)));
-    points.push({
-      id: `mock-hist-${i}`,
-      price: base,
-      pool_balance: 10000 + i * 200,
-      total_shares: 300 + i * 5,
-      change_percent: Number((fluctuation * 10).toFixed(2)),
-      trigger_type: i === 5 ? 'event' : i % 4 === 0 ? 'buy' : 'tick',
-      event_description: i === 5 ? '🎉 ¡Noche Épica de Botellón!' : undefined,
-      created_at: time,
-    });
+function getStoredJson<T>(key: string, defaultValue: T): T {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : defaultValue;
+  } catch {
+    return defaultValue;
   }
-  return points;
+}
+
+function setStoredJson(key: string, value: any): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+// Estado base sin datos falsos
+function getInitialMarketState(): MarketState {
+  return {
+    id: 1,
+    current_price: 10.0,
+    total_shares: 0.0,
+    pool_balance: 0,
+    reserve_balance: 10000,
+    total_volume: 0,
+    total_investors: 0,
+    fee_rate: 0.02,
+    cooldown_seconds: 60,
+    min_investment: 10,
+    max_investment: 25000,
+    last_event: 'Mercado activo',
+    last_event_type: 'neutral',
+    last_event_impact: 0.0,
+    last_tick_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 /**
@@ -159,71 +163,108 @@ export async function fetchMarketState(): Promise<MarketState> {
         .single();
 
       if (!error && data) {
-        return {
+        const state: MarketState = {
           id: data.id,
-          current_price: Number(data.current_price),
-          total_shares: Number(data.total_shares),
-          pool_balance: Number(data.pool_balance),
-          reserve_balance: Number(data.reserve_balance),
-          total_volume: Number(data.total_volume),
-          total_investors: Number(data.total_investors),
-          fee_rate: Number(data.fee_rate),
-          cooldown_seconds: Number(data.cooldown_seconds),
-          min_investment: Number(data.min_investment),
-          max_investment: Number(data.max_investment),
-          last_event: data.last_event,
-          last_event_type: data.last_event_type,
-          last_event_impact: Number(data.last_event_impact),
-          last_tick_at: data.last_tick_at,
-          updated_at: data.updated_at,
+          current_price: Number(data.current_price || 10.0),
+          total_shares: Number(data.total_shares || 0),
+          pool_balance: Number(data.pool_balance || 0),
+          reserve_balance: Number(data.reserve_balance || 10000),
+          total_volume: Number(data.total_volume || 0),
+          total_investors: Number(data.total_investors || 0),
+          fee_rate: Number(data.fee_rate || 0.02),
+          cooldown_seconds: Number(data.cooldown_seconds || 60),
+          min_investment: Number(data.min_investment || 10),
+          max_investment: Number(data.max_investment || 25000),
+          last_event: data.last_event || 'Mercado activo',
+          last_event_type: data.last_event_type || 'neutral',
+          last_event_impact: Number(data.last_event_impact || 0),
+          last_tick_at: data.last_tick_at || new Date().toISOString(),
+          updated_at: data.updated_at || new Date().toISOString(),
         };
+        setStoredJson(STORAGE_MARKET_KEY, state);
+        return state;
       }
     } catch (err) {
-      console.warn('Error fetching market state from Supabase, using local fallback:', err);
+      console.warn('Error consultando market_state en Supabase:', err);
     }
   }
 
-  return mockMarketState;
+  return getStoredJson<MarketState>(STORAGE_MARKET_KEY, getInitialMarketState());
 }
 
 /**
- * Consulta el histórico de precios para alimentar la gráfica
+ * Consulta el histórico de precios para alimentar la gráfica de un activo
  */
-export async function fetchPriceHistory(limit: number = 80): Promise<PriceHistoryPoint[]> {
+export async function fetchPriceHistory(limit: number = 80, ticker: string = 'BTLN'): Promise<PriceHistoryPoint[]> {
   const supabase = createClient();
   if (supabase && isSupabaseConfigured()) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('price_history')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
 
+      const { data, error } = await query;
+
       if (!error && Array.isArray(data) && data.length > 0) {
-        // Invertir para orden cronológico ascendente (izquierda a derecha en gráfica)
-        return data
+        const mapped = data
           .map((item) => ({
             id: item.id,
+            ticker: item.ticker || 'BTLN',
             price: Number(item.price),
-            pool_balance: Number(item.pool_balance),
-            total_shares: Number(item.total_shares),
-            change_percent: Number(item.change_percent),
+            pool_balance: Number(item.pool_balance || 0),
+            total_shares: Number(item.total_shares || 0),
+            change_percent: Number(item.change_percent || 0),
             trigger_type: item.trigger_type,
             event_description: item.event_description,
             created_at: item.created_at,
           }))
           .reverse();
+
+        return mapped;
       }
     } catch (err) {
-      console.warn('Error fetching price history from Supabase:', err);
+      console.warn('Error consultando price_history en Supabase:', err);
     }
   }
 
-  return [...mockPriceHistory];
+  // Fallback persistente local
+  const historyMap = getStoredJson<Record<string, PriceHistoryPoint[]>>(STORAGE_HISTORY_KEY, {});
+  const points = historyMap[ticker] || [];
+
+  if (points.length === 0) {
+    // Si no hay operaciones previas, un punto base inicial limpio
+    const baseP = ticker === 'BTLN' ? 10.0 : DEFAULT_PARODY_STOCKS.find((s) => s.ticker === ticker)?.basePrice || 10.0;
+    return [
+      {
+        id: `init-${ticker}`,
+        ticker,
+        price: baseP,
+        pool_balance: 0,
+        total_shares: 0,
+        change_percent: 0,
+        trigger_type: 'initial',
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+      },
+      {
+        id: `init-${ticker}-now`,
+        ticker,
+        price: baseP,
+        pool_balance: 0,
+        total_shares: 0,
+        change_percent: 0,
+        trigger_type: 'initial',
+        created_at: new Date().toISOString(),
+      },
+    ];
+  }
+
+  return points.slice(-limit);
 }
 
 /**
- * Consulta la cartera de inversión del usuario actual
+ * Consulta la cartera del usuario en el Fondo Botellón
  */
 export async function fetchUserPortfolio(): Promise<{
   authenticated: boolean;
@@ -257,40 +298,46 @@ export async function fetchUserPortfolio(): Promise<{
         };
       }
     } catch (err) {
-      console.warn('Error fetching portfolio via RPC:', err);
+      console.warn('Error get_botellon_portfolio RPC:', err);
     }
   }
 
-  // Fallback local
-  const price = mockMarketState.current_price;
-  const value = mockPosition.shares * price;
-  const invested = mockPosition.shares * mockPosition.average_buy_price;
-  const profit = invested > 0 ? value - invested : 0;
-  const profitPct = invested > 0 ? (profit / invested) * 100 : 0;
+  // Fallback local real
+  const localBtln = getStoredJson<InvestmentPosition>(STORAGE_BTLN_KEY, {
+    id: 'local-btln',
+    user_id: 'local-user',
+    shares: 0,
+    total_invested_coins: 0,
+    total_withdrawn_coins: 0,
+    average_buy_price: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  const mState = getStoredJson<MarketState>(STORAGE_MARKET_KEY, getInitialMarketState());
+  const price = mState.current_price;
+  const val = localBtln.shares * price;
+  const invested = localBtln.total_invested_coins;
+  const diff = invested > 0 ? val - invested : 0;
+  const diffPct = invested > 0 ? (diff / invested) * 100 : 0;
 
   return {
     authenticated: true,
-    shares: mockPosition.shares,
-    average_buy_price: mockPosition.average_buy_price,
-    total_invested_coins: mockPosition.total_invested_coins,
-    total_withdrawn_coins: mockPosition.total_withdrawn_coins,
-    position_value: Number(value.toFixed(2)),
-    unrealized_profit_coins: Number(profit.toFixed(2)),
-    unrealized_profit_percent: Number(profitPct.toFixed(2)),
+    shares: Number(localBtln.shares.toFixed(4)),
+    average_buy_price: Number(localBtln.average_buy_price.toFixed(4)),
+    total_invested_coins: localBtln.total_invested_coins,
+    total_withdrawn_coins: localBtln.total_withdrawn_coins,
+    position_value: Math.round(val),
+    unrealized_profit_coins: Math.round(diff),
+    unrealized_profit_percent: Number(diffPct.toFixed(1)),
     cooldown_remaining_seconds: 0,
-    last_transaction_at: mockPosition.last_transaction_at,
+    last_transaction_at: localBtln.last_transaction_at,
   };
 }
 
 /**
- * Consulta el historial de transacciones propias y del mercado general
- */
-export async function fetchUserTransactions(limit: number = 20): Promise<InvestmentTransaction[]> {
-  return fetchRecentMarketTrades(limit);
-}
-
-/**
- * Consulta la cinta en vivo de transacciones globales del mercado ejecutadas por toda la clase
+ * Consulta la cinta en vivo de transacciones REALES del mercado ejecutadas por alumnos
+ * (Sin usuarios falsos ni datos inventados)
  */
 export async function fetchRecentMarketTrades(limit: number = 20): Promise<InvestmentTransaction[]> {
   const supabase = createClient();
@@ -303,10 +350,10 @@ export async function fetchRecentMarketTrades(limit: number = 20): Promise<Inves
         .limit(limit);
 
       if (!error && Array.isArray(data)) {
-        return data.map((t) => ({
+        const mapped: InvestmentTransaction[] = data.map((t) => ({
           id: t.id,
           user_id: t.user_id,
-          username: t.username || 'Anónimo',
+          username: t.username || 'Alumno',
           ticker: t.ticker || 'BTLN',
           type: t.type as 'buy' | 'sell',
           coins_amount: Number(t.coins_amount || 0),
@@ -314,30 +361,35 @@ export async function fetchRecentMarketTrades(limit: number = 20): Promise<Inves
           price_per_share: Number(t.price_per_share || 0),
           fee_coins: Number(t.fee_coins || 0),
           net_coins: Number(t.net_coins || 0),
-          price_impact_percent: t.type === 'buy' ? 0.8 : -0.6,
+          price_impact_percent: t.type === 'buy' ? 1.2 : -1.0,
           created_at: t.created_at,
         }));
+
+        setStoredJson(STORAGE_TRADES_KEY, mapped);
+        return mapped;
       }
     } catch (err) {
-      console.warn('Error fetching market trades from Supabase:', err);
+      console.warn('Error consultando transactions en Supabase:', err);
     }
   }
 
-  return [...mockTransactions];
+  // Fallback local real
+  const localTrades = getStoredJson<InvestmentTransaction[]>(STORAGE_TRADES_KEY, []);
+  return localTrades.slice(0, limit);
 }
 
 /**
- * Calcula la métrica de sentimiento de mercado (presión compradora vs vendedora)
+ * Calcula la métrica real de sentimiento del mercado (compras vs ventas de usuarios reales)
  */
 export function calculateMarketSentiment(transactions: InvestmentTransaction[]): MarketSentiment {
   if (!transactions || transactions.length === 0) {
     return {
-      buyVolume: 1200,
-      sellVolume: 800,
-      buyCount: 6,
-      sellCount: 4,
-      buyPercentage: 60,
-      recentTrend: 'bullish',
+      buyVolume: 0,
+      sellVolume: 0,
+      buyCount: 0,
+      sellCount: 0,
+      buyPercentage: 50,
+      recentTrend: 'neutral',
     };
   }
 
@@ -356,12 +408,23 @@ export function calculateMarketSentiment(transactions: InvestmentTransaction[]):
     }
   });
 
-  const totalVol = buyVolume + sellVolume || 1;
+  const totalVol = buyVolume + sellVolume;
+  if (totalVol === 0) {
+    return {
+      buyVolume: 0,
+      sellVolume: 0,
+      buyCount: 0,
+      sellCount: 0,
+      buyPercentage: 50,
+      recentTrend: 'neutral',
+    };
+  }
+
   const buyPercentage = Math.round((buyVolume / totalVol) * 100);
 
   let recentTrend: 'bullish' | 'bearish' | 'neutral' = 'neutral';
-  if (buyPercentage >= 55) recentTrend = 'bullish';
-  else if (buyPercentage <= 45) recentTrend = 'bearish';
+  if (buyPercentage > 52) recentTrend = 'bullish';
+  else if (buyPercentage < 48) recentTrend = 'bearish';
 
   return {
     buyVolume,
@@ -374,7 +437,7 @@ export function calculateMarketSentiment(transactions: InvestmentTransaction[]):
 }
 
 /**
- * Consulta el ranking público de mayores inversores
+ * Consulta el ranking público de mayores inversores reales
  */
 export async function fetchTopInvestors(limit: number = 10): Promise<TopInvestor[]> {
   const supabase = createClient();
@@ -400,260 +463,11 @@ export async function fetchTopInvestors(limit: number = 10): Promise<TopInvestor
     }
   }
 
-  // Sin inversores ficticios por defecto
   return [];
 }
 
 /**
- * RPC: Invertir monedas en el fondo botellón
- */
-export async function investInBotellon(amount: number): Promise<InvestmentActionResult> {
-  const cleanAmount = Math.round(amount);
-  if (cleanAmount <= 0) {
-    return {
-      success: false,
-      type: 'buy',
-      execution_price: 0,
-      new_price: 0,
-      new_balance: 0,
-      new_shares: 0,
-      message: 'La cantidad debe ser mayor que cero.',
-      error: 'Cantidad no válida',
-    };
-  }
-
-  const supabase = createClient();
-  if (supabase && isSupabaseConfigured()) {
-    try {
-      const { data, error } = await supabase.rpc('invest_in_botellon', {
-        p_amount: cleanAmount,
-      });
-
-      if (error) {
-        const isMissingRpc =
-          error?.code === '42883' ||
-          error?.message?.toLowerCase().includes('function') ||
-          error?.message?.toLowerCase().includes('does not exist');
-
-        if (!isMissingRpc) {
-          return {
-            success: false,
-            type: 'buy',
-            execution_price: 0,
-            new_price: 0,
-            new_balance: 0,
-            new_shares: 0,
-            message: error.message,
-            error: error.message,
-          };
-        }
-      } else {
-        return {
-          success: true,
-          type: 'buy',
-          coins_spent: Number(data.coins_spent),
-          shares_bought: Number(data.shares_bought),
-          execution_price: Number(data.execution_price),
-          new_price: Number(data.new_price),
-          new_balance: Number(data.new_balance),
-          new_shares: Number(data.new_shares),
-          message: data.message || 'Inversión realizada con éxito.',
-        };
-      }
-    } catch (err: any) {
-      console.warn('invest_in_botellon error, falling back to local simulation:', err);
-    }
-  }
-
-  // Fallback local simulation
-  const execPrice = mockMarketState.current_price;
-  const sharesBought = Number((cleanAmount / execPrice).toFixed(4));
-  const slippage = Math.min(0.12, cleanAmount / (mockMarketState.reserve_balance + mockMarketState.pool_balance));
-  const newPrice = Number((execPrice * (1 + slippage)).toFixed(4));
-
-  mockMarketState.current_price = newPrice;
-  mockMarketState.pool_balance += cleanAmount;
-  mockMarketState.total_shares += sharesBought;
-  mockMarketState.total_volume += cleanAmount;
-
-  mockPosition.shares += sharesBought;
-  mockPosition.total_invested_coins += cleanAmount;
-  mockPosition.average_buy_price = Number(
-    ((mockPosition.average_buy_price * (mockPosition.shares - sharesBought) + execPrice * sharesBought) / mockPosition.shares).toFixed(4)
-  );
-  mockPosition.last_transaction_at = new Date().toISOString();
-
-  const newTx: InvestmentTransaction = {
-    id: `local-tx-${Date.now()}`,
-    user_id: 'local-user',
-    username: 'Tú',
-    type: 'buy',
-    coins_amount: cleanAmount,
-    shares_amount: sharesBought,
-    price_per_share: execPrice,
-    fee_coins: 0,
-    net_coins: cleanAmount,
-    created_at: new Date().toISOString(),
-  };
-  mockTransactions.unshift(newTx);
-
-  mockPriceHistory.push({
-    id: `hist-${Date.now()}`,
-    price: newPrice,
-    pool_balance: mockMarketState.pool_balance,
-    total_shares: mockMarketState.total_shares,
-    change_percent: Number((slippage * 100).toFixed(2)),
-    trigger_type: 'buy',
-    event_description: `Inversión de ${cleanAmount} monedas`,
-    created_at: new Date().toISOString(),
-  });
-
-  return {
-    success: true,
-    type: 'buy',
-    coins_spent: cleanAmount,
-    shares_bought: sharesBought,
-    execution_price: execPrice,
-    new_price: newPrice,
-    new_balance: 0,
-    new_shares: mockPosition.shares,
-    message: `Has invertido ${cleanAmount} monedas y recibido ${sharesBought} participaciones a ${execPrice} 🪙`,
-  };
-}
-
-/**
- * RPC: Vender participaciones al precio actual
- */
-export async function withdrawFromBotellon(shares: number): Promise<InvestmentActionResult> {
-  const cleanShares = Number(shares.toFixed(4));
-  if (cleanShares <= 0) {
-    return {
-      success: false,
-      type: 'sell',
-      execution_price: 0,
-      new_price: 0,
-      new_balance: 0,
-      new_shares: 0,
-      message: 'Debes indicar una cantidad de participaciones superior a cero.',
-      error: 'Cantidad no válida',
-    };
-  }
-
-  const supabase = createClient();
-  if (supabase && isSupabaseConfigured()) {
-    try {
-      const { data, error } = await supabase.rpc('withdraw_from_botellon', {
-        p_shares: cleanShares,
-      });
-
-      if (error) {
-        const isMissingRpc =
-          error?.code === '42883' ||
-          error?.message?.toLowerCase().includes('function') ||
-          error?.message?.toLowerCase().includes('does not exist');
-
-        if (!isMissingRpc) {
-          return {
-            success: false,
-            type: 'sell',
-            execution_price: 0,
-            new_price: 0,
-            new_balance: 0,
-            new_shares: 0,
-            message: error.message,
-            error: error.message,
-          };
-        }
-      } else {
-        return {
-          success: true,
-          type: 'sell',
-          shares_sold: Number(data.shares_sold),
-          coins_received: Number(data.coins_received),
-          fee_paid: Number(data.fee_paid),
-          execution_price: Number(data.execution_price),
-          new_price: Number(data.new_price),
-          new_balance: Number(data.new_balance),
-          new_shares: Number(data.new_shares),
-          message: data.message || 'Retirada completada.',
-        };
-      }
-    } catch (err: any) {
-      console.warn('withdraw_from_botellon error, falling back to local simulation:', err);
-    }
-  }
-
-  // Fallback local simulation
-  const execPrice = mockMarketState.current_price;
-  const gross = Math.round(cleanShares * execPrice);
-  const fee = Math.max(1, Math.round(gross * mockMarketState.fee_rate));
-  const net = gross - fee;
-  const slippage = Math.min(0.12, gross / (mockMarketState.reserve_balance + mockMarketState.pool_balance));
-  const newPrice = Math.max(1.0, Number((execPrice * (1 - slippage)).toFixed(4)));
-
-  mockMarketState.current_price = newPrice;
-  mockMarketState.pool_balance = Math.max(0, mockMarketState.pool_balance - net);
-  mockMarketState.total_shares = Math.max(0, mockMarketState.total_shares - cleanShares);
-  mockMarketState.total_volume += gross;
-
-  mockPosition.shares = Math.max(0, Number((mockPosition.shares - cleanShares).toFixed(4)));
-  mockPosition.total_withdrawn_coins += net;
-  mockPosition.last_transaction_at = new Date().toISOString();
-
-  const newTx: InvestmentTransaction = {
-    id: `local-tx-${Date.now()}`,
-    user_id: 'local-user',
-    username: 'Tú',
-    type: 'sell',
-    coins_amount: gross,
-    shares_amount: cleanShares,
-    price_per_share: execPrice,
-    fee_coins: fee,
-    net_coins: net,
-    created_at: new Date().toISOString(),
-  };
-  mockTransactions.unshift(newTx);
-
-  mockPriceHistory.push({
-    id: `hist-${Date.now()}`,
-    price: newPrice,
-    pool_balance: mockMarketState.pool_balance,
-    total_shares: mockMarketState.total_shares,
-    change_percent: -Number((slippage * 100).toFixed(2)),
-    trigger_type: 'sell',
-    event_description: `Retirada de ${cleanShares} participaciones`,
-    created_at: new Date().toISOString(),
-  });
-
-  return {
-    success: true,
-    type: 'sell',
-    shares_sold: cleanShares,
-    coins_received: net,
-    fee_paid: fee,
-    execution_price: execPrice,
-    new_price: newPrice,
-    new_balance: 0,
-    new_shares: mockPosition.shares,
-    message: `Has vendido ${cleanShares} participaciones y cobrado ${net} monedas (comisión de ${fee} 🪙 al pool)`,
-  };
-}
-
-/**
- * Fuerza un tick de mercado (para admins o pruebas)
- */
-export async function triggerMarketTick(): Promise<{ success: boolean; data?: any; error?: string }> {
-  try {
-    const res = await fetch('/api/investments/tick', { method: 'POST' });
-    const data = await res.json();
-    return { success: res.ok, data };
-  } catch (err: any) {
-    return { success: false, error: err?.message };
-  }
-}
-
-/**
- * Consulta la lista de empresas parodia con cotización en vivo
+ * Consulta la lista de empresas parodia con cotización en vivo y cambio real
  */
 export async function fetchParodyStocks(): Promise<ParodyStock[]> {
   const supabase = createClient();
@@ -667,26 +481,44 @@ export async function fetchParodyStocks(): Promise<ParodyStock[]> {
 
       if (!error && data && data.parody_stocks && typeof data.parody_stocks === 'object') {
         const remoteStocks = data.parody_stocks as Record<string, any>;
-        return DEFAULT_PARODY_STOCKS.map((base) => {
+        const mapped = DEFAULT_PARODY_STOCKS.map((base) => {
           const remote = remoteStocks[base.ticker];
           if (remote) {
+            const p = Number(remote.price ?? base.price);
+            const baseP = base.basePrice || base.price;
+            const diffPct = Number((((p - baseP) / baseP) * 100).toFixed(2));
             return {
               ...base,
-              price: Number(remote.price ?? base.price),
-              change24h: Number(remote.change_24h ?? base.change24h),
+              price: p,
+              change24h: remote.change_24h !== undefined ? Number(remote.change_24h) : diffPct,
               volume: Number(remote.volume ?? base.volume),
               lastNews: remote.last_news || base.lastNews,
             };
           }
           return base;
         });
+
+        setStoredJson(STORAGE_STOCKS_KEY, mapped);
+        return mapped;
       }
     } catch (err) {
-      console.warn('Error fetching parody stocks from Supabase, using local defaults:', err);
+      console.warn('Error consultando parody_stocks en Supabase:', err);
     }
   }
 
-  return mockParodyStocks;
+  // Fallback local real
+  const stored = getStoredJson<ParodyStock[]>(STORAGE_STOCKS_KEY, DEFAULT_PARODY_STOCKS);
+  // Recalcular change24h según precio actual vs precio base real
+  return stored.map((s) => {
+    const defaultDef = DEFAULT_PARODY_STOCKS.find((d) => d.ticker === s.ticker);
+    const baseP = defaultDef?.basePrice || s.price;
+    const realDiffPct = Number((((s.price - baseP) / baseP) * 100).toFixed(2));
+    return {
+      ...s,
+      basePrice: baseP,
+      change24h: realDiffPct,
+    };
+  });
 }
 
 /**
@@ -712,23 +544,354 @@ export async function fetchUserStocksPortfolio(): Promise<Record<string, UserSto
             totalInvested: Number(raw[key].total_invested || 0),
           };
         }
+        setStoredJson(STORAGE_HOLDINGS_KEY, result);
         return result;
       }
     } catch (err) {
-      console.warn('Error fetching stocks portfolio from Supabase:', err);
+      console.warn('Error consultando stocks_portfolio en Supabase:', err);
     }
   }
 
-  return mockUserStockHoldings;
+  return getStoredJson<Record<string, UserStockHolding>>(STORAGE_HOLDINGS_KEY, {});
 }
 
 /**
- * Ejecuta una operación de compra o venta de acciones parodia
+ * Emite una difusión en tiempo real a otras pestañas y Supabase
+ */
+function broadcastLiveTrade(tx: InvestmentTransaction, updatedStock?: ParodyStock, updatedMarket?: MarketState) {
+  if (broadcastChannel) {
+    try {
+      broadcastChannel.postMessage({
+        type: 'REALTIME_TRADE',
+        transaction: tx,
+        stock: updatedStock,
+        market: updatedMarket,
+      });
+    } catch (_) {}
+  }
+
+  const supabase = createClient();
+  if (supabase && isSupabaseConfigured()) {
+    try {
+      const channel = supabase.channel('botellon_market_realtime_broadcast');
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          channel.send({
+            type: 'broadcast',
+            event: 'market_trade',
+            payload: { transaction: tx, stock: updatedStock, market: updatedMarket },
+          });
+        }
+      });
+    } catch (_) {}
+  }
+}
+
+/**
+ * Invertir monedas en el fondo botellón (BTLN)
+ */
+export async function investInBotellon(amount: number, username: string = 'Alumno', userId?: string): Promise<InvestmentActionResult> {
+  const cleanAmount = Math.round(amount);
+  if (cleanAmount <= 0) {
+    return {
+      success: false,
+      type: 'buy',
+      execution_price: 0,
+      new_price: 0,
+      new_balance: 0,
+      new_shares: 0,
+      message: 'La cantidad debe ser mayor que cero.',
+      error: 'Cantidad no válida',
+    };
+  }
+
+  const supabase = createClient();
+  if (supabase && isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase.rpc('invest_in_botellon', {
+        p_amount: cleanAmount,
+      });
+
+      if (!error && data) {
+        const result: InvestmentActionResult = {
+          success: true,
+          type: 'buy',
+          coins_spent: Number(data.coins_spent),
+          shares_bought: Number(data.shares_bought),
+          execution_price: Number(data.execution_price),
+          new_price: Number(data.new_price),
+          new_balance: Number(data.new_balance),
+          new_shares: Number(data.new_shares),
+          message: data.message || `Has invertido ${cleanAmount} monedas con éxito.`,
+        };
+
+        const tx: InvestmentTransaction = {
+          id: `tx-${Date.now()}`,
+          user_id: userId || 'user',
+          username,
+          ticker: 'BTLN',
+          type: 'buy',
+          coins_amount: cleanAmount,
+          shares_amount: result.shares_bought || 0,
+          price_per_share: result.execution_price,
+          fee_coins: 0,
+          net_coins: cleanAmount,
+          created_at: new Date().toISOString(),
+        };
+
+        broadcastLiveTrade(tx);
+        return result;
+      }
+    } catch (err: any) {
+      console.warn('invest_in_botellon RPC error, aplicando lógica local:', err);
+    }
+  }
+
+  // Operación local real y persistente
+  const mState = getStoredJson<MarketState>(STORAGE_MARKET_KEY, getInitialMarketState());
+  const execPrice = mState.current_price;
+  const sharesBought = Number((cleanAmount / execPrice).toFixed(4));
+  // Impacto de oferta y demanda real (comprar sube el precio)
+  const slippage = Math.min(0.12, cleanAmount / (mState.reserve_balance + mState.pool_balance + 5000));
+  const newPrice = Number((execPrice * (1 + slippage)).toFixed(4));
+
+  mState.current_price = newPrice;
+  mState.pool_balance += cleanAmount;
+  mState.total_shares += sharesBought;
+  mState.total_volume += cleanAmount;
+  mState.total_investors = Math.max(1, mState.total_investors + 1);
+  mState.updated_at = new Date().toISOString();
+  setStoredJson(STORAGE_MARKET_KEY, mState);
+
+  // Cartera BTLN del usuario
+  const userBtln = getStoredJson<InvestmentPosition>(STORAGE_BTLN_KEY, {
+    id: 'local-btln',
+    user_id: userId || 'local-user',
+    shares: 0,
+    total_invested_coins: 0,
+    total_withdrawn_coins: 0,
+    average_buy_price: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  const nextShares = userBtln.shares + sharesBought;
+  const nextAvg = Number(
+    ((userBtln.average_buy_price * userBtln.shares + execPrice * sharesBought) / nextShares).toFixed(4)
+  );
+  userBtln.shares = nextShares;
+  userBtln.average_buy_price = nextAvg;
+  userBtln.total_invested_coins += cleanAmount;
+  userBtln.last_transaction_at = new Date().toISOString();
+  setStoredJson(STORAGE_BTLN_KEY, userBtln);
+
+  // Registro de transacción real
+  const newTx: InvestmentTransaction = {
+    id: `tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    user_id: userId || 'local-user',
+    username,
+    ticker: 'BTLN',
+    type: 'buy',
+    coins_amount: cleanAmount,
+    shares_amount: sharesBought,
+    price_per_share: execPrice,
+    fee_coins: 0,
+    net_coins: cleanAmount,
+    price_impact_percent: Number((slippage * 100).toFixed(1)),
+    created_at: new Date().toISOString(),
+  };
+
+  const trades = getStoredJson<InvestmentTransaction[]>(STORAGE_TRADES_KEY, []);
+  setStoredJson(STORAGE_TRADES_KEY, [newTx, ...trades.slice(0, 49)]);
+
+  // Registro en histórico de precios
+  const historyMap = getStoredJson<Record<string, PriceHistoryPoint[]>>(STORAGE_HISTORY_KEY, {});
+  const btlPoints = historyMap['BTLN'] || [];
+  btlPoints.push({
+    id: `hist-btln-${Date.now()}`,
+    ticker: 'BTLN',
+    price: newPrice,
+    pool_balance: mState.pool_balance,
+    total_shares: mState.total_shares,
+    change_percent: Number((slippage * 100).toFixed(2)),
+    trigger_type: 'buy',
+    event_description: `@${username} compró ${cleanAmount} 🪙`,
+    created_at: new Date().toISOString(),
+  });
+  historyMap['BTLN'] = btlPoints.slice(-100);
+  setStoredJson(STORAGE_HISTORY_KEY, historyMap);
+
+  broadcastLiveTrade(newTx, undefined, mState);
+
+  return {
+    success: true,
+    type: 'buy',
+    coins_spent: cleanAmount,
+    shares_bought: sharesBought,
+    execution_price: execPrice,
+    new_price: newPrice,
+    new_balance: 0,
+    new_shares: nextShares,
+    message: `Has invertido ${cleanAmount} monedas (+${sharesBought.toFixed(2)} participaciones en $BTLN a ${execPrice} 🪙)`,
+  };
+}
+
+/**
+ * Vender participaciones del fondo botellón (BTLN)
+ */
+export async function withdrawFromBotellon(shares: number, username: string = 'Alumno', userId?: string): Promise<InvestmentActionResult> {
+  const cleanShares = Number(shares.toFixed(4));
+  if (cleanShares <= 0) {
+    return {
+      success: false,
+      type: 'sell',
+      execution_price: 0,
+      new_price: 0,
+      new_balance: 0,
+      new_shares: 0,
+      message: 'Debes indicar una cantidad mayor a cero.',
+      error: 'Cantidad no válida',
+    };
+  }
+
+  const supabase = createClient();
+  if (supabase && isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase.rpc('withdraw_from_botellon', {
+        p_shares: cleanShares,
+      });
+
+      if (!error && data) {
+        const result: InvestmentActionResult = {
+          success: true,
+          type: 'sell',
+          shares_sold: Number(data.shares_sold),
+          coins_received: Number(data.coins_received),
+          fee_paid: Number(data.fee_paid),
+          execution_price: Number(data.execution_price),
+          new_price: Number(data.new_price),
+          new_balance: Number(data.new_balance),
+          new_shares: Number(data.new_shares),
+          message: data.message || `Has retirado ${cleanShares} participaciones con éxito.`,
+        };
+
+        const tx: InvestmentTransaction = {
+          id: `tx-${Date.now()}`,
+          user_id: userId || 'user',
+          username,
+          ticker: 'BTLN',
+          type: 'sell',
+          coins_amount: result.coins_received || 0,
+          shares_amount: cleanShares,
+          price_per_share: result.execution_price,
+          fee_coins: result.fee_paid || 0,
+          net_coins: result.coins_received || 0,
+          created_at: new Date().toISOString(),
+        };
+
+        broadcastLiveTrade(tx);
+        return result;
+      }
+    } catch (err: any) {
+      console.warn('withdraw_from_botellon RPC error, aplicando lógica local:', err);
+    }
+  }
+
+  // Operación local real y persistente
+  const mState = getStoredJson<MarketState>(STORAGE_MARKET_KEY, getInitialMarketState());
+  const execPrice = mState.current_price;
+  const gross = Math.round(cleanShares * execPrice);
+  const fee = Math.max(1, Math.round(gross * mState.fee_rate));
+  const net = Math.max(0, gross - fee);
+
+  // Vender baja la cotización
+  const slippage = Math.min(0.12, gross / (mState.reserve_balance + mState.pool_balance + 5000));
+  const newPrice = Math.max(1.0, Number((execPrice * (1 - slippage)).toFixed(4)));
+
+  mState.current_price = newPrice;
+  mState.pool_balance = Math.max(0, mState.pool_balance - net);
+  mState.total_shares = Math.max(0, mState.total_shares - cleanShares);
+  mState.total_volume += gross;
+  mState.updated_at = new Date().toISOString();
+  setStoredJson(STORAGE_MARKET_KEY, mState);
+
+  const userBtln = getStoredJson<InvestmentPosition>(STORAGE_BTLN_KEY, {
+    id: 'local-btln',
+    user_id: userId || 'local-user',
+    shares: 0,
+    total_invested_coins: 0,
+    total_withdrawn_coins: 0,
+    average_buy_price: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  const nextShares = Math.max(0, Number((userBtln.shares - cleanShares).toFixed(4)));
+  userBtln.shares = nextShares;
+  userBtln.total_withdrawn_coins += net;
+  userBtln.last_transaction_at = new Date().toISOString();
+  setStoredJson(STORAGE_BTLN_KEY, userBtln);
+
+  const newTx: InvestmentTransaction = {
+    id: `tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    user_id: userId || 'local-user',
+    username,
+    ticker: 'BTLN',
+    type: 'sell',
+    coins_amount: gross,
+    shares_amount: cleanShares,
+    price_per_share: execPrice,
+    fee_coins: fee,
+    net_coins: net,
+    price_impact_percent: -Number((slippage * 100).toFixed(1)),
+    created_at: new Date().toISOString(),
+  };
+
+  const trades = getStoredJson<InvestmentTransaction[]>(STORAGE_TRADES_KEY, []);
+  setStoredJson(STORAGE_TRADES_KEY, [newTx, ...trades.slice(0, 49)]);
+
+  const historyMap = getStoredJson<Record<string, PriceHistoryPoint[]>>(STORAGE_HISTORY_KEY, {});
+  const btlPoints = historyMap['BTLN'] || [];
+  btlPoints.push({
+    id: `hist-btln-${Date.now()}`,
+    ticker: 'BTLN',
+    price: newPrice,
+    pool_balance: mState.pool_balance,
+    total_shares: mState.total_shares,
+    change_percent: -Number((slippage * 100).toFixed(2)),
+    trigger_type: 'sell',
+    event_description: `@${username} vendió ${cleanShares} acc.`,
+    created_at: new Date().toISOString(),
+  });
+  historyMap['BTLN'] = btlPoints.slice(-100);
+  setStoredJson(STORAGE_HISTORY_KEY, historyMap);
+
+  broadcastLiveTrade(newTx, undefined, mState);
+
+  return {
+    success: true,
+    type: 'sell',
+    shares_sold: cleanShares,
+    coins_received: net,
+    fee_paid: fee,
+    execution_price: execPrice,
+    new_price: newPrice,
+    new_balance: 0,
+    new_shares: nextShares,
+    message: `Has vendido ${cleanShares} participaciones de $BTLN y cobrado ${net} monedas (comisión de ${fee} 🪙 al pool)`,
+  };
+}
+
+/**
+ * Operación de compra o venta de empresas parodia (Bolsa de la clase)
+ * Las compras SUBEN el precio de la empresa y las ventas lo BAJAN en tiempo real.
  */
 export async function tradeParodyStock(
   ticker: string,
   action: 'buy' | 'sell',
-  amountOrShares: number
+  amountOrShares: number,
+  username: string = 'Alumno',
+  userId?: string
 ): Promise<{
   success: boolean;
   ticker: string;
@@ -753,7 +916,7 @@ export async function tradeParodyStock(
       });
 
       if (!error && data && data.success) {
-        return {
+        const result = {
           success: true,
           ticker: data.ticker,
           action: data.action,
@@ -766,40 +929,36 @@ export async function tradeParodyStock(
           newBalance: data.new_balance ? Number(data.new_balance) : undefined,
           message:
             action === 'buy'
-              ? `Has comprado ${Number(data.shares).toFixed(2)} acciones de ${ticker}`
+              ? `Has comprado ${Number(data.shares).toFixed(2)} acciones de ${ticker} (+${((Number(data.new_price) - Number(data.price)) / Number(data.price) * 100).toFixed(1)}% subida)`
               : `Has vendido ${Number(data.shares).toFixed(2)} acciones de ${ticker} (+${Number(data.coins_delta)} monedas)`,
         };
-      }
 
-      // Si el error es de función no encontrada en Supabase, recurrir a simulación local
-      const isMissingRpc =
-        error?.code === '42883' ||
-        error?.message?.toLowerCase().includes('function') ||
-        error?.message?.toLowerCase().includes('does not exist');
-
-      if (!isMissingRpc && error) {
-        return {
-          success: false,
+        const tx: InvestmentTransaction = {
+          id: `tx-${Date.now()}`,
+          user_id: userId || 'user',
+          username,
           ticker,
-          action,
-          shares: 0,
-          price: 0,
-          newPrice: 0,
-          coinsDelta: 0,
-          feePaid: 0,
-          remainingShares: 0,
-          message: error.message,
-          error: error.message,
+          type: action,
+          coins_amount: Math.abs(result.coinsDelta),
+          shares_amount: result.shares,
+          price_per_share: result.price,
+          fee_coins: result.feePaid,
+          net_coins: Math.abs(result.coinsDelta),
+          created_at: new Date().toISOString(),
         };
+
+        broadcastLiveTrade(tx);
+        return result;
       }
     } catch (err: any) {
-      console.warn('RPC trade_parody_stock error, falling back to local simulation:', err);
+      console.warn('trade_parody_stock RPC error, aplicando lógica de mercado local:', err);
     }
   }
 
-  // Simulación local en memoria
-  const stock = mockParodyStocks.find((s) => s.ticker === ticker);
-  if (!stock) {
+  // Operación local real y persistente con impacto real en la tabla de cotizaciones
+  const stocks = getStoredJson<ParodyStock[]>(STORAGE_STOCKS_KEY, DEFAULT_PARODY_STOCKS);
+  const stockIndex = stocks.findIndex((s) => s.ticker === ticker);
+  if (stockIndex === -1) {
     return {
       success: false,
       ticker,
@@ -810,44 +969,57 @@ export async function tradeParodyStock(
       coinsDelta: 0,
       feePaid: 0,
       remainingShares: 0,
-      message: 'Empresa no encontrada',
-      error: 'Stock no encontrado',
+      message: 'Empresa no encontrada.',
+      error: 'Empresa no encontrada',
     };
   }
 
+  const stock = stocks[stockIndex];
+  const defaultDef = DEFAULT_PARODY_STOCKS.find((d) => d.ticker === ticker);
+  const basePrice = defaultDef?.basePrice || stock.basePrice || stock.price;
   const currentPrice = stock.price;
-  const holding = mockUserStockHoldings[ticker] || {
+
+  const holdings = getStoredJson<Record<string, UserStockHolding>>(STORAGE_HOLDINGS_KEY, {});
+  const userHolding = holdings[ticker] || {
     ticker,
     shares: 0,
     averagePrice: 0,
     totalInvested: 0,
   };
 
+  const poolLiquidity = 15000; // Profundidad de liquidez de cada acción
+
   if (action === 'buy') {
     const coins = Math.round(amountOrShares);
     const sharesBought = Number((coins / currentPrice).toFixed(4));
-    const slippage = Math.min(0.08, coins / 40000);
-    const newPrice = Number((currentPrice * (1 + slippage)).toFixed(4));
+    // La compra eleva la cotización según el volumen invertido
+    const slippage = Math.min(0.18, coins / poolLiquidity);
+    const newPrice = Number((currentPrice * (1 + slippage)).toFixed(2));
 
     stock.price = newPrice;
     stock.volume += coins;
+    // El porcentaje 24h refleja el cambio real respecto al precio base
+    stock.change24h = Number((((newPrice - basePrice) / basePrice) * 100).toFixed(2));
+    stocks[stockIndex] = stock;
+    setStoredJson(STORAGE_STOCKS_KEY, stocks);
 
-    const newShares = holding.shares + sharesBought;
+    const newTotalShares = userHolding.shares + sharesBought;
     const newAvg = Number(
-      ((holding.averagePrice * holding.shares + currentPrice * sharesBought) / newShares).toFixed(4)
+      ((userHolding.averagePrice * userHolding.shares + currentPrice * sharesBought) / newTotalShares).toFixed(4)
     );
 
-    mockUserStockHoldings[ticker] = {
+    holdings[ticker] = {
       ticker,
-      shares: newShares,
+      shares: newTotalShares,
       averagePrice: newAvg,
-      totalInvested: holding.totalInvested + coins,
+      totalInvested: userHolding.totalInvested + coins,
     };
+    setStoredJson(STORAGE_HOLDINGS_KEY, holdings);
 
-    mockTransactions.unshift({
-      id: `mock-tx-${Date.now()}`,
-      user_id: 'local-user',
-      username: 'Tú',
+    const newTx: InvestmentTransaction = {
+      id: `tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      user_id: userId || 'local-user',
+      username,
       ticker,
       type: 'buy',
       coins_amount: coins,
@@ -857,7 +1029,28 @@ export async function tradeParodyStock(
       net_coins: coins,
       price_impact_percent: Number((slippage * 100).toFixed(1)),
       created_at: new Date().toISOString(),
+    };
+
+    const trades = getStoredJson<InvestmentTransaction[]>(STORAGE_TRADES_KEY, []);
+    setStoredJson(STORAGE_TRADES_KEY, [newTx, ...trades.slice(0, 49)]);
+
+    const historyMap = getStoredJson<Record<string, PriceHistoryPoint[]>>(STORAGE_HISTORY_KEY, {});
+    const stPoints = historyMap[ticker] || [];
+    stPoints.push({
+      id: `hist-${ticker}-${Date.now()}`,
+      ticker,
+      price: newPrice,
+      pool_balance: stock.volume,
+      total_shares: newTotalShares,
+      change_percent: Number((slippage * 100).toFixed(2)),
+      trigger_type: 'buy',
+      event_description: `@${username} compró ${coins} 🪙`,
+      created_at: new Date().toISOString(),
     });
+    historyMap[ticker] = stPoints.slice(-100);
+    setStoredJson(STORAGE_HISTORY_KEY, historyMap);
+
+    broadcastLiveTrade(newTx, stock);
 
     return {
       success: true,
@@ -868,12 +1061,12 @@ export async function tradeParodyStock(
       newPrice,
       coinsDelta: -coins,
       feePaid: 0,
-      remainingShares: newShares,
-      message: `Has comprado ${sharesBought.toFixed(2)} acciones de ${stock.name} a ${currentPrice.toFixed(2)} 🪙`,
+      remainingShares: newTotalShares,
+      message: `Has comprado ${sharesBought.toFixed(2)} acciones de ${stock.name}. Precio sube a ${newPrice.toFixed(2)} 🪙 (+${(slippage * 100).toFixed(1)}%)`,
     };
   } else {
     const sharesToSell = Number(amountOrShares.toFixed(4));
-    if (sharesToSell > holding.shares) {
+    if (sharesToSell > userHolding.shares) {
       return {
         success: false,
         ticker,
@@ -883,35 +1076,40 @@ export async function tradeParodyStock(
         newPrice: currentPrice,
         coinsDelta: 0,
         feePaid: 0,
-        remainingShares: holding.shares,
+        remainingShares: userHolding.shares,
         message: `No posees suficientes acciones de ${ticker}.`,
       };
     }
 
     const gross = Math.round(sharesToSell * currentPrice);
     const fee = Math.max(1, Math.round(gross * 0.02));
-    const net = gross - fee;
+    const net = Math.max(0, gross - fee);
 
-    const slippage = Math.min(0.08, gross / 40000);
-    const newPrice = Math.max(1.0, Number((currentPrice * (1 - slippage)).toFixed(4)));
+    // La venta hace caer la cotización
+    const slippage = Math.min(0.18, gross / poolLiquidity);
+    const newPrice = Math.max(1.0, Number((currentPrice * (1 - slippage)).toFixed(2)));
 
     stock.price = newPrice;
     stock.volume += gross;
+    stock.change24h = Number((((newPrice - basePrice) / basePrice) * 100).toFixed(2));
+    stocks[stockIndex] = stock;
+    setStoredJson(STORAGE_STOCKS_KEY, stocks);
 
-    const remaining = Number((holding.shares - sharesToSell).toFixed(4));
+    const remaining = Number((userHolding.shares - sharesToSell).toFixed(4));
     if (remaining <= 0.0001) {
-      delete mockUserStockHoldings[ticker];
+      delete holdings[ticker];
     } else {
-      mockUserStockHoldings[ticker] = {
-        ...holding,
+      holdings[ticker] = {
+        ...userHolding,
         shares: remaining,
       };
     }
+    setStoredJson(STORAGE_HOLDINGS_KEY, holdings);
 
-    mockTransactions.unshift({
-      id: `mock-tx-${Date.now()}`,
-      user_id: 'local-user',
-      username: 'Tú',
+    const newTx: InvestmentTransaction = {
+      id: `tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      user_id: userId || 'local-user',
+      username,
       ticker,
       type: 'sell',
       coins_amount: gross,
@@ -921,7 +1119,28 @@ export async function tradeParodyStock(
       net_coins: net,
       price_impact_percent: -Number((slippage * 100).toFixed(1)),
       created_at: new Date().toISOString(),
+    };
+
+    const trades = getStoredJson<InvestmentTransaction[]>(STORAGE_TRADES_KEY, []);
+    setStoredJson(STORAGE_TRADES_KEY, [newTx, ...trades.slice(0, 49)]);
+
+    const historyMap = getStoredJson<Record<string, PriceHistoryPoint[]>>(STORAGE_HISTORY_KEY, {});
+    const stPoints = historyMap[ticker] || [];
+    stPoints.push({
+      id: `hist-${ticker}-${Date.now()}`,
+      ticker,
+      price: newPrice,
+      pool_balance: stock.volume,
+      total_shares: remaining,
+      change_percent: -Number((slippage * 100).toFixed(2)),
+      trigger_type: 'sell',
+      event_description: `@${username} vendió ${sharesToSell.toFixed(2)} acc.`,
+      created_at: new Date().toISOString(),
     });
+    historyMap[ticker] = stPoints.slice(-100);
+    setStoredJson(STORAGE_HISTORY_KEY, historyMap);
+
+    broadcastLiveTrade(newTx, stock);
 
     return {
       success: true,
@@ -933,8 +1152,71 @@ export async function tradeParodyStock(
       coinsDelta: net,
       feePaid: fee,
       remainingShares: remaining,
-      message: `Has vendido ${sharesToSell.toFixed(2)} acciones de ${stock.name} y cobrado ${net} 🪙 (Comisión: ${fee} 🪙)`,
+      message: `Has vendido ${sharesToSell.toFixed(2)} acciones de ${stock.name} y cobrado ${net} 🪙 (Precio ajustado a ${newPrice.toFixed(2)} 🪙)`,
     };
   }
 }
 
+/**
+ * Escucha cambios en tiempo real vía BroadcastChannel y Supabase Broadcast
+ */
+export function subscribeToRealtimeTrades(
+  callback: (payload: { transaction: InvestmentTransaction; stock?: ParodyStock; market?: MarketState }) => void
+): () => void {
+  if (typeof window === 'undefined') return () => {};
+
+  let bc: BroadcastChannel | null = null;
+  try {
+    bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+    bc.onmessage = (event) => {
+      if (event.data && event.data.type === 'REALTIME_TRADE') {
+        callback({
+          transaction: event.data.transaction,
+          stock: event.data.stock,
+          market: event.data.market,
+        });
+      }
+    };
+  } catch {}
+
+  let supabaseChannel: any = null;
+  const supabase = createClient();
+  if (supabase && isSupabaseConfigured()) {
+    try {
+      supabaseChannel = supabase
+        .channel('botellon_market_realtime_broadcast')
+        .on('broadcast', { event: 'market_trade' }, (payload: any) => {
+          if (payload && payload.payload) {
+            callback({
+              transaction: payload.payload.transaction,
+              stock: payload.payload.stock,
+              market: payload.payload.market,
+            });
+          }
+        })
+        .subscribe();
+    } catch {}
+  }
+
+  return () => {
+    try {
+      if (bc) bc.close();
+      if (supabase && supabaseChannel) {
+        supabase.removeChannel(supabaseChannel);
+      }
+    } catch {}
+  };
+}
+
+/**
+ * Fuerza un tick de mercado
+ */
+export async function triggerMarketTick(): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const res = await fetch('/api/investments/tick', { method: 'POST' });
+    const data = await res.json();
+    return { success: res.ok, data };
+  } catch (err: any) {
+    return { success: false, error: err?.message };
+  }
+}
