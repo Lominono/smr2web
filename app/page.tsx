@@ -21,6 +21,7 @@ import { ScheduleCalendarView } from '@/components/ScheduleCalendarView';
 import { MobileTabBar } from '@/components/MobileTabBar';
 import { MinecraftBanner } from '@/components/MinecraftBanner';
 import { LaunchCountdownBanner } from '@/components/LaunchCountdownBanner';
+import { LaunchCountdownGate, TARGET_LAUNCH_TIMESTAMP } from '@/components/LaunchCountdownGate';
 import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
 import { UpdateNotificationBanner } from '@/components/UpdateNotificationBanner';
@@ -96,6 +97,7 @@ export default function Home() {
   const [dismissedIdentification, setDismissedIdentification] = useState(false);
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
   const [realtimeNotification, setRealtimeNotification] = useState<RealtimeNotification | null>(null);
+  const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
 
   const handleIsaacSelectTab = useCallback((tab: 'chat' | 'investments' | 'schedule') => {
     if (tab === 'investments') setActiveView('party_idle');
@@ -415,6 +417,11 @@ export default function Home() {
   }, [fetchLeaderboard]);
 
   useEffect(() => {
+    // Comprobar estado de salida oficial (9 de noviembre a las 8:35 AM)
+    const isLaunched = Date.now() >= TARGET_LAUNCH_TIMESTAMP;
+    const hasBypass = typeof window !== 'undefined' && localStorage.getItem('smr2_prelaunch_bypass') === 'true';
+    setIsSiteUnlocked(isLaunched || hasBypass);
+
     // 0. Forzar reseteo absoluto de datos locales si la época de reinicio no se ha aplicado
     const wasWiped = checkAndEnforceSystemWipe();
     if (wasWiped) {
@@ -1233,7 +1240,12 @@ export default function Home() {
     );
   }
 
-  // Mandatory Auth Gate
+  // Web cerrada con cuenta regresiva en GRANDE hasta la salida oficial (9 de noviembre 8:35 AM)
+  if (!isSiteUnlocked) {
+    return <LaunchCountdownGate onUnlock={() => setIsSiteUnlocked(true)} />;
+  }
+
+  // Mandatory Auth Gate (acceso a registro e inicio de sesión tras la salida oficial)
   if (!user) {
     return (
       <AuthGate

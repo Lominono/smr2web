@@ -30,6 +30,7 @@ import {
   ExternalLink,
   Copy,
   Check,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -101,15 +102,31 @@ export default function AdminPage() {
   // Copied code snippet feedback
   const [copiedScript, setCopiedScript] = useState(false);
 
-  // Check auth
+  // Verificación estricta en el servidor
   useEffect(() => {
-    const user = getUserSession();
-    setSessionUser(user);
-    if (user && (user.role === 'admin' || user.role === 'delegado')) {
-      setIsAdmin(true);
-    } else {
-      setIsAdmin(false);
+    let isMounted = true;
+    async function checkServerAdminAuth() {
+      try {
+        const res = await fetch('/api/admin/verify');
+        const data = await res.json();
+        if (isMounted) {
+          if (res.ok && data.authorized) {
+            setIsAdmin(true);
+            setSessionUser(data.user);
+          } else {
+            setIsAdmin(false);
+          }
+        }
+      } catch {
+        if (isMounted) {
+          setIsAdmin(false);
+        }
+      }
     }
+    checkServerAdminAuth();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleClaimAdmin = async (e: React.FormEvent) => {
@@ -127,20 +144,29 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setClaimSuccess(data.message || 'Acceso concedido correctamente.');
+        setClaimSuccess(data.message || 'Acceso concedido.');
         if (data.user) {
           saveUserSession(data.user);
           setSessionUser(data.user);
         }
+        setAccessCodeInput('');
         setIsAdmin(true);
       } else {
-        setClaimError(data.error || 'Código incorrecto. Verifica la clave.');
+        setClaimError(data.error || 'Credenciales de administración incorrectas.');
       }
     } catch (err: any) {
       setClaimError(err?.message || 'Error de conexión.');
     } finally {
       setClaimLoading(false);
     }
+  };
+
+  const handleAdminLogout = async () => {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' });
+    } catch {}
+    setIsAdmin(false);
+    setSessionUser(null);
   };
 
   // Fetch logs
@@ -485,7 +511,7 @@ export default function AdminPage() {
     );
   }
 
-  // Claim Admin Login Form
+  // Formulario de autenticación restringida para administradores
   if (isAdmin === false) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
@@ -496,26 +522,27 @@ export default function AdminPage() {
 
           <div className="space-y-1.5">
             <Badge variant="outline" className="text-[11px] font-semibold text-accent border-accent/30">
-              Acceso Restringido · 2º SMR
+              Acceso Restringido · Solo Administradores
             </Badge>
-            <h1 className="text-lg font-semibold tracking-tight text-foreground">Panel de Control</h1>
+            <h1 className="text-lg font-semibold tracking-tight text-foreground">Autenticación de Administrador</h1>
             <p className="text-xs text-foreground-muted leading-relaxed">
-              Introduce la clave oficial de administración (<code className="text-accent font-semibold font-mono">2026papu</code>) para acceder al panel.
+              Esta sección está estrictamente protegida. Introduce tu contraseña maestra de administrador para verificar tu identidad y desbloquear las herramientas.
             </p>
           </div>
 
           <form onSubmit={handleClaimAdmin} className="space-y-3.5 pt-1">
             <div className="space-y-1.5 text-left">
               <label className="text-xs font-medium text-foreground-muted">
-                Clave de administrador:
+                Contraseña maestra de administración:
               </label>
               <input
                 type="password"
                 value={accessCodeInput}
                 onChange={(e) => setAccessCodeInput(e.target.value)}
-                placeholder="Introduce la clave 2026papu..."
+                placeholder="Introduce la contraseña de administrador..."
                 className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:outline-hidden focus:border-accent focus:ring-1 focus:ring-accent transition-all text-center tracking-wider font-mono"
                 autoFocus
+                required
               />
             </div>
 
@@ -544,16 +571,14 @@ export default function AdminPage() {
               ) : (
                 <Key className="w-3.5 h-3.5" />
               )}
-              <span>Acceder al Panel</span>
+              <span>Verificar y Acceder</span>
             </Button>
           </form>
 
           <div className="pt-2 border-t border-border/60 text-left">
-            <p className="text-[11px] text-foreground-muted font-mono leading-relaxed">
-              <span className="font-semibold text-foreground">Clave oficial:</span>{' '}
-              <code className="bg-surface-raised px-1.5 py-0.5 rounded text-[11px] text-accent select-all">
-                2026papu
-              </code>
+            <p className="text-[11px] text-foreground-subtle leading-relaxed flex items-center gap-1.5">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>Los intentos fallidos de acceso no autorizado quedan registrados en la auditoría de seguridad del sistema.</span>
             </p>
           </div>
 
@@ -561,7 +586,7 @@ export default function AdminPage() {
             <Link href="/">
               <Button variant="ghost" size="sm" className="rounded-xl text-xs w-full">
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Volver al portal</span>
+                <span>Volver al portal público</span>
               </Button>
             </Link>
           </div>
@@ -592,7 +617,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <span className="text-xs text-foreground-muted hidden sm:inline font-mono">
               Admin: <span className="text-accent font-semibold">@{sessionUser?.username || 'admin'}</span>
             </span>
@@ -604,6 +629,16 @@ export default function AdminPage() {
               <Download className="w-3.5 h-3.5 text-accent" />
               <span className="hidden xs:inline">Exportar CSV</span>
             </a>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleAdminLogout}
+              className="h-9 px-3 rounded-xl text-xs text-foreground-muted hover:text-danger hover:bg-danger-subtle cursor-pointer transition-colors"
+              title="Cerrar sesión de administrador en este equipo"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Cerrar sesión</span>
+            </Button>
           </div>
         </div>
       </header>

@@ -30,8 +30,6 @@ interface TaskAdminModalProps {
   initialSubject?: string;
 }
 
-const DEFAULT_ADMIN_PASS = '2026papu';
-
 export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
   isOpen,
   onClose,
@@ -86,19 +84,30 @@ export const TaskAdminModal: React.FC<TaskAdminModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleUnlockPin = (e: React.FormEvent) => {
+  const handleUnlockPin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPin = pinInput.trim().toLowerCase();
-    const expectedPass = (process.env.NEXT_PUBLIC_ADMIN_PIN || DEFAULT_ADMIN_PASS).toLowerCase();
-    if (cleanPin === '2026papu' || cleanPin === expectedPass) {
-      setIsUnlocked(true);
-      setPinError(null);
-      setPinInput('');
-      try {
-        sessionStorage.setItem('smr2_delegado_unlocked', 'true');
-      } catch {}
-    } else {
-      setPinError('Clave incorrecta. Solo administradores con la clave 2026papu pueden gestionar la agenda de clase.');
+    const cleanPin = pinInput.trim();
+    if (!cleanPin) return;
+
+    try {
+      const res = await fetch('/api/admin/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: cleanPin }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsUnlocked(true);
+        setPinError(null);
+        setPinInput('');
+        try {
+          sessionStorage.setItem('smr2_delegado_unlocked', 'true');
+        } catch {}
+      } else {
+        setPinError(data.error || 'Clave de administración incorrecta.');
+      }
+    } catch {
+      setPinError('Error al verificar credenciales con el servidor.');
     }
   };
 

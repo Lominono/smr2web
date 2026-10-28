@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { createAdminClient } from '@/lib/supabase/server';
+import { verifyAdminSession } from '@/lib/adminAuth';
 
 const VAPID_PUBLIC_KEY =
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
@@ -20,6 +21,17 @@ try {
 
 export async function POST(req: NextRequest) {
   try {
+    const authResult = await verifyAdminSession(req);
+    if (!authResult.authorized) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: authResult.error || 'Acceso restringido: Solo los administradores pueden emitir notificaciones push a la clase.',
+        },
+        { status: authResult.status }
+      );
+    }
+
     const body = await req.json();
     const { title, body: messageBody, tag = 'Aviso', url = '/', authorUsername = 'SMR2' } = body;
 
