@@ -18,6 +18,8 @@ export interface UserProfile {
   notifications_enabled?: boolean;
   last_spin_date?: string;
   last_rescue_date?: string;
+  is_banned?: boolean;
+  ban_reason?: string;
 }
 
 export interface OnlineUser {

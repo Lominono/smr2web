@@ -26,7 +26,7 @@ import {
   Users,
   ListTodo,
   BellRing,
-  Lightbulb,
+  AlertCircle,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -325,8 +325,8 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
               >
                 <div className="flex items-center gap-3">
-                  <Lightbulb className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm font-sans">Ideas y reportes</span>
+                  <AlertCircle className="w-4 h-4 text-foreground-subtle" />
+                  <span className="text-sm font-sans">Reportes e incidencias</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-foreground-subtle" />
               </button>

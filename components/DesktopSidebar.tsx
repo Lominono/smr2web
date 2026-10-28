@@ -17,7 +17,7 @@ import {
   Settings,
   Users,
   ShieldCheck,
-  Lightbulb,
+  AlertCircle,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -166,8 +166,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
-                <Lightbulb className="w-4 h-4 text-amber-500" />
-                <span>Ideas y reportes</span>
+                <AlertCircle className="w-4 h-4 text-foreground-subtle" />
+                <span>Reportes e incidencias</span>
               </div>
             </button>
           )}

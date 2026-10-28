@@ -110,64 +110,7 @@ let mockMarketState: MarketState = {
 };
 
 let mockPriceHistory: PriceHistoryPoint[] = generateInitialMockHistory();
-let mockTransactions: InvestmentTransaction[] = [
-  {
-    id: 'tx-init-1',
-    user_id: 'user-lucia',
-    username: 'Lucía',
-    ticker: 'ONION',
-    type: 'buy',
-    coins_amount: 150,
-    shares_amount: 3.32,
-    price_per_share: 45.2,
-    fee_coins: 0,
-    net_coins: 150,
-    price_impact_percent: 0.8,
-    created_at: new Date(Date.now() - 1000 * 60 * 4).toISOString(),
-  },
-  {
-    id: 'tx-init-2',
-    user_id: 'user-marcos',
-    username: 'Marcos',
-    ticker: 'BTLN',
-    type: 'buy',
-    coins_amount: 300,
-    shares_amount: 24.0,
-    price_per_share: 12.5,
-    fee_coins: 0,
-    net_coins: 300,
-    price_impact_percent: 1.2,
-    created_at: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-  },
-  {
-    id: 'tx-init-3',
-    user_id: 'user-dani',
-    username: 'Dani_SMR',
-    ticker: 'ARDI',
-    type: 'sell',
-    coins_amount: 85,
-    shares_amount: 3.0,
-    price_per_share: 28.5,
-    fee_coins: 2,
-    net_coins: 83,
-    price_impact_percent: -0.6,
-    created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
-  },
-  {
-    id: 'tx-init-4',
-    user_id: 'user-pablo',
-    username: 'Pablo',
-    ticker: 'CHERR',
-    type: 'buy',
-    coins_amount: 200,
-    shares_amount: 10.1,
-    price_per_share: 19.8,
-    fee_coins: 0,
-    net_coins: 200,
-    price_impact_percent: 1.1,
-    created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-  },
-];
+let mockTransactions: InvestmentTransaction[] = [];
 let mockPosition: InvestmentPosition = {
   id: 'mock-pos',
   user_id: 'local-user',
@@ -457,36 +400,8 @@ export async function fetchTopInvestors(limit: number = 10): Promise<TopInvestor
     }
   }
 
-  // Mock top investors
-  return [
-    {
-      user_id: 'mock-1',
-      username: 'ElCapoDelParque',
-      avatar_color: 'purple',
-      shares: 180.5,
-      position_value: Number((180.5 * mockMarketState.current_price).toFixed(2)),
-      total_invested: 1800,
-      profit_percent: 24.8,
-    },
-    {
-      user_id: 'mock-2',
-      username: 'JBL_Master',
-      avatar_color: 'amber',
-      shares: 95.0,
-      position_value: Number((95.0 * mockMarketState.current_price).toFixed(2)),
-      total_invested: 1000,
-      profit_percent: 18.2,
-    },
-    {
-      user_id: 'mock-3',
-      username: 'LitronaKing',
-      avatar_color: 'emerald',
-      shares: 55.2,
-      position_value: Number((55.2 * mockMarketState.current_price).toFixed(2)),
-      total_invested: 600,
-      profit_percent: 14.5,
-    },
-  ];
+  // Sin inversores ficticios por defecto
+  return [];
 }
 
 /**

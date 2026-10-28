@@ -29,23 +29,29 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Default mock admin view if offline
+    // Si no hay usuarios en la base de datos o Supabase no está configurado, solo devolvemos el usuario real autenticado si existe, sin inventar usuarios ni estadísticas ficticias
+    const fallbackUsers = authResult.user
+      ? [
+          {
+            id: authResult.user.id,
+            username: authResult.user.username,
+            email: authResult.user.email,
+            full_name: authResult.user.full_name,
+            student_number: authResult.user.student_number,
+            coins: authResult.user.coins ?? 1000,
+            biggest_win: authResult.user.biggest_win ?? 0,
+            games_played: authResult.user.games_played ?? 0,
+            games_won: authResult.user.games_won ?? 0,
+            role: authResult.user.role || 'admin',
+            is_banned: authResult.user.is_banned ?? false,
+            created_at: authResult.user.created_at || new Date().toISOString(),
+          },
+        ]
+      : [];
+
     return NextResponse.json({
       success: true,
-      users: [
-        {
-          id: authResult.user?.id || 'admin_1',
-          username: authResult.user?.username || 'admin',
-          email: authResult.user?.email || 'admin@smr2.edu',
-          coins: authResult.user?.coins || 99999,
-          biggest_win: 50000,
-          games_played: 15,
-          games_won: 12,
-          role: 'admin',
-          is_banned: false,
-          created_at: new Date().toISOString(),
-        },
-      ],
+      users: fallbackUsers,
     });
   } catch (error: any) {
     return NextResponse.json(

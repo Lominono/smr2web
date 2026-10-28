@@ -1,54 +1,10 @@
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { CommunityFeedback, FeedbackType, FeedbackCategory, FeedbackStatus } from '@/lib/types';
 
-// Datos de ejemplo para desarrollo local o fallback sin Supabase
-const INITIAL_MOCK_FEEDBACK: CommunityFeedback[] = [
-  {
-    id: 'mock-1',
-    author_name: 'Marcos',
-    type: 'idea',
-    title: 'Añadir más empresas a la bolsa del recreo',
-    description: 'Estaría bien meter parodias de empresas de comida rápida como Burger King o Telepizza para tener más variedad de acciones.',
-    category: 'inversiones',
-    status: 'planned',
-    upvotes_count: 7,
-    admin_response: 'Buena idea, estamos diseñando un par de empresas de hostelería para la próxima versión.',
-    admin_responder_name: 'Delegado',
-    created_at: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    has_voted: false,
-  },
-  {
-    id: 'mock-2',
-    author_name: 'Lucía',
-    type: 'improvement',
-    title: 'Filtro por asignaturas en el horario',
-    description: 'Poder hacer clic en una asignatura para ver solo las tareas y exámenes pendientes de esa materia.',
-    category: 'horario',
-    status: 'under_review',
-    upvotes_count: 5,
-    created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-    has_voted: false,
-  },
-  {
-    id: 'mock-3',
-    author_name: 'Dani_SMR',
-    type: 'report',
-    title: 'El audio en móviles a veces tarda en sonar',
-    description: 'En Safari iOS los clics de sonido no suenan hasta que tocas varias veces la pantalla por la política de audio del navegador.',
-    category: 'portal',
-    status: 'completed',
-    upvotes_count: 4,
-    admin_response: 'Corregido con desbloqueo táctil anticipado en el primer toque.',
-    admin_responder_name: 'Admin',
-    created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 6).toISOString(),
-    has_voted: true,
-  },
-];
+// Almacenamiento local vacío por defecto para fallback sin Supabase (sin datos ficticios)
+const INITIAL_MOCK_FEEDBACK: CommunityFeedback[] = [];
 
-let localFeedbackStore: CommunityFeedback[] = [...INITIAL_MOCK_FEEDBACK];
+let localFeedbackStore: CommunityFeedback[] = [];
 let localUserVotes: Set<string> = new Set();
 
 /**

@@ -494,18 +494,18 @@ export default function Home() {
               setRealtimeNotification({
                 id: String(Date.now()),
                 type: 'win',
-                title: 'Victoria en el recreo',
-                description: `@${newMsg.username} ha ganado ${Number(newMsg.win_amount || 0).toLocaleString('es-ES')} fichas`,
-                actionLabel: 'Ver feed',
+                title: 'Recreo',
+                description: `@${newMsg.username}: +${Number(newMsg.win_amount || 0).toLocaleString('es-ES')} fichas`,
+                actionLabel: 'Ver',
                 onAction: () => setActiveView('feed'),
               });
             } else {
               setRealtimeNotification({
                 id: String(Date.now()),
                 type: 'chat',
-                title: newMsg.pinned ? `📌 Aviso fijado de @${newMsg.username}` : `Aviso de @${newMsg.username}`,
+                title: newMsg.pinned ? `Aviso fijado: @${newMsg.username}` : `@${newMsg.username}`,
                 description: newMsg.text.replace(/^\[#.*?\]\s*/, ''),
-                actionLabel: 'Ver feed',
+                actionLabel: 'Ver',
                 onAction: () => setActiveView('feed'),
               });
             }

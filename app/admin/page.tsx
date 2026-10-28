@@ -21,8 +21,15 @@ import {
   AlertTriangle,
   Key,
   Lock,
-  Lightbulb,
+  AlertCircle,
   Trash2,
+  Bell,
+  Send,
+  Database,
+  Terminal,
+  ExternalLink,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -51,7 +58,14 @@ interface AdminUser {
 export default function AdminPage() {
   const [sessionUser, setSessionUser] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState<'logs' | 'users' | 'game' | 'feedback'>('logs');
+  const [activeTab, setActiveTab] = useState<'users' | 'broadcast' | 'logs' | 'feedback' | 'setup'>('users');
+
+  // Push Broadcast state
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushBody, setPushBody] = useState('');
+  const [pushTag, setPushTag] = useState<'Aviso' | 'Examen' | 'Urgente' | 'General'>('Aviso');
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushResult, setPushResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Feedback state
   const [feedbackList, setFeedbackList] = useState<CommunityFeedback[]>([]);
@@ -67,26 +81,25 @@ export default function AdminPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchLogQuery, setSearchLogQuery] = useState('');
   const [selectedLog, setSelectedLog] = useState<EventLogEntry | null>(null);
 
   // Users state
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [searchUserQuery, setSearchUserQuery] = useState('');
   const [adjustModalUser, setAdjustModalUser] = useState<AdminUser | null>(null);
   const [adjustAmount, setAdjustAmount] = useState<string>('500');
   const [isResettingDb, setIsResettingDb] = useState(false);
-
-  // Game detail state
-  const [gameIdInput, setGameIdInput] = useState('');
-  const [gameDetail, setGameDetail] = useState<any | null>(null);
-  const [gameDetailLoading, setGameDetailLoading] = useState(false);
 
   // Claim admin state
   const [accessCodeInput, setAccessCodeInput] = useState('');
   const [claimLoading, setClaimLoading] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
+
+  // Copied code snippet feedback
+  const [copiedScript, setCopiedScript] = useState(false);
 
   // Check auth
   useEffect(() => {
@@ -114,7 +127,7 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setClaimSuccess(data.message || '¡Acceso de delegado concedido!');
+        setClaimSuccess(data.message || 'Acceso concedido correctamente.');
         if (data.user) {
           saveUserSession(data.user);
           setSessionUser(data.user);
@@ -140,7 +153,7 @@ export default function AdminPage() {
           limit: '25',
         });
         if (eventTypeFilter) params.set('eventType', eventTypeFilter);
-        if (searchQuery.trim()) params.set('search', searchQuery.trim());
+        if (searchLogQuery.trim()) params.set('search', searchLogQuery.trim());
 
         const res = await fetch(`/api/admin/logs?${params.toString()}`);
         if (res.ok) {
@@ -158,7 +171,7 @@ export default function AdminPage() {
         setLogsLoading(false);
       }
     },
-    [eventTypeFilter, searchQuery]
+    [eventTypeFilter, searchLogQuery]
   );
 
   // Fetch users
@@ -179,12 +192,24 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Fetch feedback
+  const fetchFeedback = useCallback(async () => {
+    setFeedbackLoading(true);
+    try {
+      const data = await fetchFeedbackList();
+      setFeedbackList(data);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isAdmin) {
       if (activeTab === 'logs') fetchLogs(page);
       if (activeTab === 'users') fetchUsers();
+      if (activeTab === 'feedback') fetchFeedback();
     }
-  }, [isAdmin, activeTab, fetchLogs, fetchUsers, page]);
+  }, [isAdmin, activeTab, fetchLogs, fetchUsers, fetchFeedback, page]);
 
   // Adjust coins handler
   const handleAdjustCoins = async () => {
@@ -215,7 +240,9 @@ export default function AdminPage() {
   // Toggle ban handler
   const handleToggleBan = async (u: AdminUser) => {
     const action = u.is_banned ? 'unban' : 'ban';
-    const reason = !u.is_banned ? prompt('Motivo de la suspensión:') || 'Decisión de administrador' : undefined;
+    const reason = !u.is_banned
+      ? prompt('Motivo de la suspensión:') || 'Decisión de administrador'
+      : undefined;
 
     try {
       const res = await fetch('/api/admin/users', {
@@ -284,9 +311,9 @@ export default function AdminPage() {
   const handleResetDatabase = async () => {
     const confirmation = confirm(
       '¿Estás COMPLETAMENTE seguro de reiniciar la base de datos de toda la clase?\n\n' +
-      '• Todos los saldos volverán a 1.000 monedas.\n' +
-      '• Se reiniciarán las victorias y estadísticas.\n' +
-      '• Se vaciará el chat para empezar la nueva temporada.'
+        '• Todos los saldos volverán a 1.000 monedas.\n' +
+        '• Se reiniciarán las victorias y estadísticas.\n' +
+        '• Se vaciará el chat para empezar la nueva temporada.'
     );
     if (!confirmation) return;
 
@@ -308,26 +335,59 @@ export default function AdminPage() {
     }
   };
 
-  // Feedback Handlers
-  const fetchFeedback = useCallback(async () => {
-    setFeedbackLoading(true);
+  // Push broadcast handler
+  const handleSendPushBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pushTitle.trim() || !pushBody.trim()) {
+      alert('Debes indicar un título y un mensaje para la notificación.');
+      return;
+    }
+
+    setPushLoading(true);
+    setPushResult(null);
+
     try {
-      const data = await fetchFeedbackList();
-      setFeedbackList(data);
+      const res = await fetch('/api/notifications/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: pushTitle.trim(),
+          body: pushBody.trim(),
+          tag: pushTag,
+          url: '/',
+          authorUsername: sessionUser?.username || 'Admin',
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPushResult({
+          type: 'success',
+          message: `Aviso enviado correctamente a ${data.sent} dispositivo(s).`,
+        });
+        setPushTitle('');
+        setPushBody('');
+      } else {
+        setPushResult({
+          type: 'error',
+          message: data.error || 'No se pudo enviar la notificación.',
+        });
+      }
+    } catch (err: any) {
+      setPushResult({
+        type: 'error',
+        message: err?.message || 'Error de red al conectar con el servicio de push.',
+      });
     } finally {
-      setFeedbackLoading(false);
+      setPushLoading(false);
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    if (isAdmin) {
-      fetchFeedback();
-    }
-  }, [isAdmin, fetchFeedback]);
-
+  // Feedback Handlers
   const handleUpdateFeedbackStatus = async (item: CommunityFeedback) => {
     const status = adminStatusDraft[item.id] || item.status;
-    const response = adminResponseDraft[item.id] !== undefined ? adminResponseDraft[item.id] : item.admin_response;
+    const response =
+      adminResponseDraft[item.id] !== undefined ? adminResponseDraft[item.id] : item.admin_response;
 
     try {
       const res = await updateFeedbackAdminStatus({
@@ -346,33 +406,12 @@ export default function AdminPage() {
   };
 
   const handleDeleteFeedback = async (id: string) => {
-    if (!confirm('¿Seguro que quieres eliminar esta aportación?')) return;
+    if (!confirm('¿Seguro que quieres eliminar esta incidencia?')) return;
     try {
       await deleteFeedbackItem(id);
       fetchFeedback();
     } catch (err: any) {
       alert(err?.message || 'Error al eliminar');
-    }
-  };
-
-  // Fetch game timeline detail
-  const handleFetchGameDetail = async (idToFetch?: string) => {
-    const id = idToFetch || gameIdInput.trim();
-    if (!id) return;
-    setGameDetailLoading(true);
-    try {
-      const res = await fetch(`/api/admin/game/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setGameDetail(data);
-          setActiveTab('game');
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setGameDetailLoading(false);
     }
   };
 
@@ -385,32 +424,51 @@ export default function AdminPage() {
     return users.filter((u) => u.is_banned).length;
   }, [users]);
 
+  const activeIncidentsCount = useMemo(() => {
+    return feedbackList.filter((f) => f.status !== 'completed' && f.status !== 'dismissed').length;
+  }, [feedbackList]);
+
+  // Filtered users
+  const filteredUsers = useMemo(() => {
+    const q = searchUserQuery.toLowerCase().trim();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.username.toLowerCase().includes(q) ||
+        (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+        (u.student_number && u.student_number.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q))
+    );
+  }, [users, searchUserQuery]);
+
+  // Loading state
   if (isAdmin === null) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-sans text-sm">
-        <div className="flex items-center gap-3">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-sans text-xs">
+        <div className="flex items-center gap-2.5">
           <RefreshCw className="w-4 h-4 text-accent animate-spin" />
-          <span className="text-foreground-muted">Verificando credenciales de administrador...</span>
+          <span className="text-foreground-muted">Verificando credenciales de administración...</span>
         </div>
       </div>
     );
   }
 
+  // Claim Admin Login Form
   if (isAdmin === false) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
         <Card className="max-w-md w-full p-6 sm:p-7 text-center space-y-5 rounded-2xl border-border/80 shadow-xs bg-surface/90">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-2xl bg-surface-raised border border-border/80 text-accent flex items-center justify-center mx-auto">
             <Lock className="w-6 h-6" />
           </div>
 
           <div className="space-y-1.5">
-            <Badge variant="outline" className="text-[11px] font-semibold text-amber-500 border-amber-500/30">
-              Solo Administradores de 2º SMR
+            <Badge variant="outline" className="text-[11px] font-semibold text-accent border-accent/30">
+              Acceso Restringido · 2º SMR
             </Badge>
-            <h1 className="text-lg font-semibold tracking-tight text-foreground">Acceso de Administración</h1>
+            <h1 className="text-lg font-semibold tracking-tight text-foreground">Panel de Control</h1>
             <p className="text-xs text-foreground-muted leading-relaxed">
-              Introduce la clave oficial de administración (<code className="text-accent font-semibold">2026papu</code>) para acceder al panel de control.
+              Introduce la clave oficial de administración (<code className="text-accent font-semibold font-mono">2026papu</code>) para acceder al panel.
             </p>
           </div>
 
@@ -419,16 +477,14 @@ export default function AdminPage() {
               <label className="text-xs font-medium text-foreground-muted">
                 Clave de administrador:
               </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={accessCodeInput}
-                  onChange={(e) => setAccessCodeInput(e.target.value)}
-                  placeholder="Introduce la clave 2026papu..."
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:outline-hidden focus:border-accent focus:ring-1 focus:ring-accent transition-all text-center tracking-wider font-mono"
-                  autoFocus
-                />
-              </div>
+              <input
+                type="password"
+                value={accessCodeInput}
+                onChange={(e) => setAccessCodeInput(e.target.value)}
+                placeholder="Introduce la clave 2026papu..."
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:outline-hidden focus:border-accent focus:ring-1 focus:ring-accent transition-all text-center tracking-wider font-mono"
+                autoFocus
+              />
             </div>
 
             {claimError && (
@@ -456,13 +512,16 @@ export default function AdminPage() {
               ) : (
                 <Key className="w-3.5 h-3.5" />
               )}
-              <span>Acceder al Panel Admin</span>
+              <span>Acceder al Panel</span>
             </Button>
           </form>
 
-          <div className="pt-2 border-t border-border/60 text-left space-y-2">
+          <div className="pt-2 border-t border-border/60 text-left">
             <p className="text-[11px] text-foreground-muted font-mono leading-relaxed">
-              <span className="font-semibold text-foreground">Clave oficial:</span> <code className="bg-surface-active px-1.5 py-0.5 rounded text-[11px] text-accent select-all">2026papu</code>
+              <span className="font-semibold text-foreground">Clave oficial:</span>{' '}
+              <code className="bg-surface-raised px-1.5 py-0.5 rounded text-[11px] text-accent select-all">
+                2026papu
+              </code>
             </p>
           </div>
 
@@ -495,13 +554,15 @@ export default function AdminPage() {
               <span className="p-1.5 rounded-lg bg-surface-raised border border-border/70 text-accent">
                 <ShieldCheck className="w-4 h-4" />
               </span>
-              <span className="font-semibold text-sm tracking-tight text-foreground">Panel de Control SMR2</span>
+              <span className="font-semibold text-sm tracking-tight text-foreground">
+                Panel de Administración
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
             <span className="text-xs text-foreground-muted hidden sm:inline font-mono">
-              Admin: <span className="text-accent font-semibold">@{sessionUser?.username || 'delegado'}</span>
+              Admin: <span className="text-accent font-semibold">@{sessionUser?.username || 'admin'}</span>
             </span>
             <a
               href="/api/admin/logs?format=csv"
@@ -515,106 +576,398 @@ export default function AdminPage() {
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Minimalist Metrics Strip */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="p-4 rounded-xl bg-surface border border-border/70 space-y-1">
-            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">Alumnos Registrados</span>
+            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">
+              Alumnos Registrados
+            </span>
             <div className="text-xl font-bold font-mono text-foreground">{users.length}</div>
             <span className="text-[11px] text-foreground-muted">2º SMR</span>
           </div>
 
           <div className="p-4 rounded-xl bg-surface border border-border/70 space-y-1">
-            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">Fichas en Circulación</span>
+            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">
+              Fichas en Circulación
+            </span>
             <div className="text-xl font-bold font-mono text-amber-500 tabular-nums">
               {totalCoinsInCirculation.toLocaleString('es-ES')}
             </div>
-            <span className="text-[11px] text-foreground-muted">Economía total</span>
+            <span className="text-[11px] text-foreground-muted">Economía global</span>
           </div>
 
           <div className="p-4 rounded-xl bg-surface border border-border/70 space-y-1">
-            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">Registros de Auditoría</span>
+            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">
+              Auditoría
+            </span>
             <div className="text-xl font-bold font-mono text-accent tabular-nums">{totalLogs}</div>
-            <span className="text-[11px] text-foreground-muted">Eventos guardados</span>
+            <span className="text-[11px] text-foreground-muted">Eventos registrados</span>
           </div>
 
           <div className="p-4 rounded-xl bg-surface border border-border/70 space-y-1">
-            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">Cuentas Suspendidas</span>
-            <div className="text-xl font-bold font-mono text-foreground">{bannedUsersCount}</div>
-            <span className="text-[11px] text-foreground-muted">Por infracciones</span>
+            <span className="text-[10px] uppercase font-mono tracking-wider text-foreground-subtle block">
+              Incidencias Activas
+            </span>
+            <div className="text-xl font-bold font-mono text-foreground">{activeIncidentsCount}</div>
+            <span className="text-[11px] text-foreground-muted">Pendientes de resolver</span>
           </div>
         </div>
 
-        {/* Minimalist Navigation Tabs (Apple Segmented Style) */}
-        <div className="flex items-center p-1 rounded-xl bg-surface-raised border border-border/70 max-w-fit gap-1 shadow-2xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('logs')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === 'logs'
-                ? 'bg-foreground text-background font-semibold shadow-xs'
-                : 'text-foreground-muted hover:text-foreground'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Auditoría de Eventos ({totalLogs})</span>
-          </button>
-
+        {/* Navigation Tabs (Apple Segmented Style) */}
+        <div className="flex items-center p-1 rounded-xl bg-surface-raised border border-border/70 max-w-full overflow-x-auto gap-1 shadow-2xs scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab('users')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
               activeTab === 'users'
                 ? 'bg-foreground text-background font-semibold shadow-xs'
                 : 'text-foreground-muted hover:text-foreground'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            <span>Alumnos y Fichas ({users.length})</span>
+            <span>Alumnos ({users.length})</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('game')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === 'game'
+            onClick={() => setActiveTab('broadcast')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
+              activeTab === 'broadcast'
                 ? 'bg-foreground text-background font-semibold shadow-xs'
                 : 'text-foreground-muted hover:text-foreground'
             }`}
           >
-            <Gamepad2 className="w-3.5 h-3.5" />
-            <span>Inspección de Partida</span>
+            <Bell className="w-3.5 h-3.5" />
+            <span>Anuncios Push</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('logs')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
+              activeTab === 'logs'
+                ? 'bg-foreground text-background font-semibold shadow-xs'
+                : 'text-foreground-muted hover:text-foreground'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Auditoría ({totalLogs})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('feedback')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
               activeTab === 'feedback'
                 ? 'bg-foreground text-background font-semibold shadow-xs'
                 : 'text-foreground-muted hover:text-foreground'
             }`}
           >
-            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-            <span>Ideas y Reportes ({feedbackList.length})</span>
+            <AlertCircle className="w-3.5 h-3.5" />
+            <span>Incidencias ({feedbackList.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('setup')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
+              activeTab === 'setup'
+                ? 'bg-foreground text-background font-semibold shadow-xs'
+                : 'text-foreground-muted hover:text-foreground'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5" />
+            <span>Configuración Supabase</span>
           </button>
         </div>
 
         {/* ============================================================== */}
-        {/* TAB 1: AUDIT LOGS TABLE */}
+        {/* TAB 1: USERS & BALANCE */}
+        {/* ============================================================== */}
+        {activeTab === 'users' && (
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-surface border border-border/70 flex flex-wrap items-center justify-between gap-3">
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle" />
+                <input
+                  type="text"
+                  value={searchUserQuery}
+                  onChange={(e) => setSearchUserQuery(e.target.value)}
+                  placeholder="Buscar alumno por @usuario, nombre o NIA..."
+                  className="w-full h-9 pl-9 pr-3 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground placeholder:text-foreground-subtle focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                className="rounded-lg h-9 text-xs"
+                onClick={fetchUsers}
+                disabled={usersLoading}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${usersLoading ? 'animate-spin' : ''}`} />
+                <span>Actualizar listado</span>
+              </Button>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-border/70 bg-surface">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border/70 bg-surface-raised text-foreground-muted font-medium">
+                    <th className="py-2.5 px-3">Usuario</th>
+                    <th className="py-2.5 px-3">Identificación Oficial</th>
+                    <th className="py-2.5 px-3">Rol</th>
+                    <th className="py-2.5 px-3">Saldo Fichas</th>
+                    <th className="py-2.5 px-3">Partidas (G / J)</th>
+                    <th className="py-2.5 px-3">Estado</th>
+                    <th className="py-2.5 px-3 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-foreground-subtle">
+                        {usersLoading
+                          ? 'Cargando listado...'
+                          : searchUserQuery
+                          ? 'No hay alumnos que coincidan con la búsqueda.'
+                          : 'No hay usuarios registrados en la base de datos.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((u) => (
+                      <tr key={u.id} className="hover:bg-surface-raised/60 transition-colors">
+                        <td className="py-2.5 px-3">
+                          <div className="font-semibold text-foreground font-mono">@{u.username}</div>
+                          <div className="text-[10px] text-foreground-subtle font-mono truncate max-w-[160px]">
+                            {u.email || u.id}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          {u.full_name ? (
+                            <div>
+                              <div className="font-medium text-foreground text-xs">{u.full_name}</div>
+                              <div className="text-[10px] text-accent font-mono font-semibold">
+                                NIA {u.student_number || 'S/N'}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-foreground-subtle text-xs italic">Sin registrar</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <Badge variant={u.role === 'admin' ? 'accent' : 'default'} size="sm">
+                            {u.role}
+                          </Badge>
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold font-mono text-amber-500 tabular-nums">
+                          {u.coins.toLocaleString('es-ES')}
+                        </td>
+                        <td className="py-2.5 px-3 text-foreground-muted font-mono">
+                          {u.games_won} / {u.games_played}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          {u.is_banned ? (
+                            <Badge variant="danger" size="sm">
+                              Suspendido
+                            </Badge>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              <span>Activo</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-7 text-xs rounded-lg"
+                            onClick={() => setAdjustModalUser(u)}
+                            title="Sumar o restar monedas"
+                          >
+                            Monedas
+                          </Button>
+                          <Button
+                            variant={u.role === 'admin' ? 'secondary' : 'primary'}
+                            size="sm"
+                            className="h-7 text-xs rounded-lg"
+                            onClick={() => handleToggleRole(u)}
+                            title="Alternar entre rol Administrador y Estudiante"
+                          >
+                            {u.role === 'admin' ? 'Quitar Admin' : 'Hacer Admin'}
+                          </Button>
+                          <Button
+                            variant={u.is_banned ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="h-7 text-xs rounded-lg text-amber-500"
+                            onClick={() => handleToggleBan(u)}
+                          >
+                            {u.is_banned ? 'Reactivar' : 'Suspender'}
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            className="h-7 text-xs rounded-lg"
+                            onClick={() => handleDeleteUser(u)}
+                            title="Eliminar permanentemente este usuario"
+                          >
+                            Borrar
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Zona de Mantenimiento / Reinicio General de Temporada */}
+            <div className="p-4 rounded-xl bg-surface border border-border/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  <span>Reinicio de Temporada</span>
+                </h4>
+                <p className="text-xs text-foreground-muted mt-0.5">
+                  Restablece a 1.000 monedas a todos los alumnos de la clase y limpia el historial de partidas para iniciar una nueva temporada escolar.
+                </p>
+              </div>
+
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={isResettingDb}
+                onClick={handleResetDatabase}
+                className="shrink-0 rounded-xl"
+              >
+                {isResettingDb ? 'Reiniciando...' : 'Reiniciar temporada'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB 2: PUSH BROADCAST ANNOUNCEMENTS */}
+        {/* ============================================================== */}
+        {activeTab === 'broadcast' && (
+          <div className="space-y-4 max-w-2xl">
+            <Card className="p-5 rounded-xl border-border/70 bg-surface space-y-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-accent" />
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Difusión de Notificaciones Web Push
+                  </h3>
+                </div>
+                <p className="text-xs text-foreground-muted mt-1 leading-relaxed">
+                  Envía un anuncio o aviso oficial a todos los dispositivos de la clase suscritos. Los alumnos recibirán la notificación incluso si tienen el navegador cerrado o la pantalla del móvil apagada.
+                </p>
+              </div>
+
+              <form onSubmit={handleSendPushBroadcast} className="space-y-3.5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground-muted">
+                    Categoría del aviso:
+                  </label>
+                  <div className="flex gap-2">
+                    {(['Aviso', 'Examen', 'Urgente', 'General'] as const).map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setPushTag(tag)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                          pushTag === tag
+                            ? 'bg-accent/20 border-accent text-accent font-semibold'
+                            : 'bg-surface-raised border-border/70 text-foreground-muted hover:text-foreground'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground-muted">
+                    Título de la notificación:
+                  </label>
+                  <input
+                    type="text"
+                    value={pushTitle}
+                    onChange={(e) => setPushTitle(e.target.value)}
+                    placeholder="Ej. Cambio de aula para Redes o Examen aplazado"
+                    className="w-full h-9 px-3 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground-muted">
+                    Mensaje / Contenido:
+                  </label>
+                  <textarea
+                    value={pushBody}
+                    onChange={(e) => setPushBody(e.target.value)}
+                    placeholder="Escribe el aviso detallado que aparecerá en la pantalla de bloqueo o barra de estado..."
+                    rows={3}
+                    className="w-full p-3 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+                    required
+                  />
+                </div>
+
+                {pushResult && (
+                  <div
+                    className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                      pushResult.type === 'success'
+                        ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-danger-subtle border-danger/25 text-danger'
+                    }`}
+                  >
+                    {pushResult.type === 'success' ? (
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    )}
+                    <span>{pushResult.message}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-1">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={pushLoading || !pushTitle.trim() || !pushBody.trim()}
+                    className="rounded-xl text-xs h-9 px-4 gap-1.5"
+                  >
+                    {pushLoading ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    <span>Enviar a toda la clase</span>
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB 3: AUDIT LOGS */}
         {/* ============================================================== */}
         {activeTab === 'logs' && (
           <div className="space-y-4">
-            {/* Filters Bar */}
             <div className="p-3 rounded-xl bg-surface border border-border/70 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle" />
                   <input
                     type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={searchLogQuery}
+                    onChange={(e) => setSearchLogQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && fetchLogs(1)}
                     placeholder="Buscar por usuario, IP, motivo..."
                     className="w-full h-9 pl-9 pr-3 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground placeholder:text-foreground-subtle focus:outline-none focus:ring-1 focus:ring-accent"
@@ -662,7 +1015,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Table */}
             <div className="overflow-x-auto rounded-xl border border-border/70 bg-surface">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
@@ -693,61 +1045,36 @@ export default function AdminPage() {
                         second: '2-digit',
                       });
 
-                      const isDischarge = log.event_type === 'player_eliminated';
-                      const isWin = log.event_type === 'game_won';
-                      const isTurn = log.event_type === 'turn_executed';
-
                       return (
                         <tr key={log.id} className="hover:bg-surface-raised/60 transition-colors">
-                          <td className="py-2.5 px-3 text-foreground-muted whitespace-nowrap text-[11px] font-mono">
+                          <td className="py-2.5 px-3 text-foreground-muted font-mono whitespace-nowrap">
                             {dateStr}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            <Badge
-                              variant={
-                                isDischarge
-                                  ? 'danger'
-                                  : isWin
-                                  ? 'accent'
-                                  : isTurn
-                                  ? 'default'
-                                  : 'default'
-                              }
-                              size="sm"
-                            >
+                            <span className="font-mono text-[11px] font-semibold text-accent">
                               {log.event_type}
-                            </Badge>
+                            </span>
                           </td>
-                          <td className="py-2.5 px-3 text-foreground font-semibold font-mono">
-                            {log.username ? `@${log.username}` : '—'}
+                          <td className="py-2.5 px-3 font-mono font-medium text-foreground whitespace-nowrap">
+                            {log.username ? `@${log.username}` : <span className="text-foreground-subtle">Anónimo</span>}
                           </td>
-                          <td className="py-2.5 px-3 text-foreground-muted font-mono text-[11px]">
-                            {log.room_id ? (
-                              <button
-                                onClick={() => log.game_id && handleFetchGameDetail(log.game_id)}
-                                className="hover:text-accent transition-colors text-left cursor-pointer"
-                                title="Ver detalles de partida"
-                              >
-                                {log.room_id.slice(0, 8)}...
-                              </button>
-                            ) : (
-                              '—'
-                            )}
+                          <td className="py-2.5 px-3 font-mono text-[11px] text-foreground-subtle whitespace-nowrap">
+                            {log.room_id || log.game_id || '-'}
                           </td>
-                          <td className="py-2.5 px-3 text-foreground-subtle font-mono text-[11px]">
-                            {log.ip_address || '127.0.0.1'}
+                          <td className="py-2.5 px-3 font-mono text-[11px] text-foreground-subtle whitespace-nowrap">
+                            {log.ip_address}
                           </td>
-                          <td className="py-2.5 px-3 text-foreground-muted max-w-xs truncate text-[11px] font-mono">
+                          <td className="py-2.5 px-3 text-foreground-muted max-w-[200px] truncate">
                             {JSON.stringify(log.details)}
                           </td>
-                          <td className="py-2.5 px-3 text-right">
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 text-xs"
+                              className="h-7 text-xs rounded-lg"
                               onClick={() => setSelectedLog(log)}
                             >
-                              Inspeccionar
+                              Ver JSON
                             </Button>
                           </td>
                         </tr>
@@ -793,255 +1120,15 @@ export default function AdminPage() {
         )}
 
         {/* ============================================================== */}
-        {/* TAB 2: USERS & BALANCE MANAGEMENT */}
-        {/* ============================================================== */}
-        {activeTab === 'users' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">
-                Listado Oficial de Alumnos ({users.length})
-              </h2>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="rounded-lg h-8"
-                onClick={fetchUsers}
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${usersLoading ? 'animate-spin' : ''}`} />
-                <span>Actualizar</span>
-              </Button>
-            </div>
-
-            <div className="overflow-x-auto rounded-xl border border-border/70 bg-surface">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-border/70 bg-surface-raised text-foreground-muted font-medium">
-                    <th className="py-2.5 px-3">Usuario</th>
-                    <th className="py-2.5 px-3">Identificación Oficial</th>
-                    <th className="py-2.5 px-3">Rol</th>
-                    <th className="py-2.5 px-3">Saldo Fichas</th>
-                    <th className="py-2.5 px-3">Partidas (G / J)</th>
-                    <th className="py-2.5 px-3">Estado</th>
-                    <th className="py-2.5 px-3 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-surface-raised/60 transition-colors">
-                      <td className="py-2.5 px-3">
-                        <div className="font-semibold text-foreground font-mono">@{u.username}</div>
-                        <div className="text-[10px] text-foreground-subtle font-mono truncate max-w-[160px]">{u.email || u.id}</div>
-                      </td>
-                      <td className="py-2.5 px-3">
-                        {u.full_name ? (
-                          <div>
-                            <div className="font-medium text-foreground text-xs">{u.full_name}</div>
-                            <div className="text-[10px] text-accent font-mono font-semibold">
-                              NIA {u.student_number || 'S/N'}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-foreground-subtle text-xs italic">Sin registrar</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <Badge variant={u.role === 'admin' ? 'accent' : 'default'} size="sm">
-                          {u.role}
-                        </Badge>
-                      </td>
-                      <td className="py-2.5 px-3 font-semibold font-mono text-amber-500 tabular-nums">
-                        {u.coins.toLocaleString('es-ES')}
-                      </td>
-                      <td className="py-2.5 px-3 text-foreground-muted font-mono">
-                        {u.games_won} / {u.games_played}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        {u.is_banned ? (
-                          <Badge variant="danger" size="sm">Suspendido</Badge>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            <span>Activo</span>
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="h-7 text-xs rounded-lg"
-                          onClick={() => setAdjustModalUser(u)}
-                          title="Sumar o restar monedas"
-                        >
-                          Monedas
-                        </Button>
-                        <Button
-                          variant={u.role === 'admin' ? 'secondary' : 'primary'}
-                          size="sm"
-                          className="h-7 text-xs rounded-lg"
-                          onClick={() => handleToggleRole(u)}
-                          title="Alternar entre rol Administrador y Estudiante"
-                        >
-                          {u.role === 'admin' ? 'Quitar Admin' : 'Hacer Admin'}
-                        </Button>
-                        <Button
-                          variant={u.is_banned ? 'secondary' : 'ghost'}
-                          size="sm"
-                          className="h-7 text-xs rounded-lg text-amber-500"
-                          onClick={() => handleToggleBan(u)}
-                        >
-                          {u.is_banned ? 'Reactivar' : 'Suspender'}
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          className="h-7 text-xs rounded-lg"
-                          onClick={() => handleDeleteUser(u)}
-                          title="Eliminar permanentemente este usuario"
-                        >
-                          Borrar
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Zona de Mantenimiento / Reinicio General de Temporada */}
-            <div className="p-4 rounded-xl bg-surface border border-border/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                  <span>Reinicio Total de Temporada</span>
-                </h4>
-                <p className="text-xs text-foreground-muted mt-0.5">
-                  Restablece a 1.000 monedas a todos los alumnos de la clase, limpia el chat y las partidas para iniciar una nueva temporada.
-                </p>
-              </div>
-
-              <Button
-                variant="danger"
-                size="sm"
-                disabled={isResettingDb}
-                onClick={handleResetDatabase}
-                className="shrink-0 rounded-xl"
-              >
-                {isResettingDb ? 'Reiniciando...' : 'Reiniciar temporada'}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* TAB 3: GAME TIMELINE INSPECTOR */}
-        {/* ============================================================== */}
-        {activeTab === 'game' && (
-          <div className="space-y-4">
-            <div className="p-3 rounded-xl bg-surface border border-border/70 flex items-center gap-3">
-              <input
-                type="text"
-                value={gameIdInput}
-                onChange={(e) => setGameIdInput(e.target.value)}
-                placeholder="Pegar ID de la partida (UUID)..."
-                className="flex-1 h-9 px-3 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground font-mono placeholder:text-foreground-subtle focus:outline-none focus:ring-1 focus:ring-accent"
-              />
-              <Button
-                variant="primary"
-                size="sm"
-                className="h-9 rounded-lg"
-                onClick={() => handleFetchGameDetail()}
-              >
-                {gameDetailLoading ? 'Buscando...' : 'Inspeccionar'}
-              </Button>
-            </div>
-
-            {gameDetail ? (
-              <Card className="space-y-4 p-5 rounded-xl border-border/70">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground font-mono">
-                      Partida: {gameDetail.game?.id}
-                    </h3>
-                    <p className="text-xs text-foreground-muted mt-0.5">
-                      Estado: <span className="text-accent font-semibold">{gameDetail.game?.status}</span> •
-                      Ganador: <span className="text-foreground font-semibold font-mono">@{gameDetail.game?.winner_username || 'N/A'}</span>
-                    </p>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground-muted font-mono">
-                    Recámara con Descarga:{' '}
-                    <span className="text-danger font-bold">#{gameDetail.game?.bullet_chamber}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-semibold text-foreground-muted uppercase tracking-wider font-mono">
-                    Secuencia Cronológica de Turnos
-                  </h4>
-
-                  {gameDetail.turns && gameDetail.turns.length > 0 ? (
-                    <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border/70">
-                      {gameDetail.turns.map((turn: any, i: number) => {
-                        const isDischarge = turn.result === 'discharge' || turn.result === 'timeout';
-                        return (
-                          <div key={turn.id || i} className="relative flex items-start gap-3">
-                            <div
-                              className={`absolute -left-6 top-1 w-3 h-3 rounded-full border-2 ${
-                                isDischarge
-                                  ? 'bg-danger border-danger'
-                                  : 'bg-accent border-accent'
-                              }`}
-                            />
-                            <div className="flex-1 p-3 rounded-lg bg-surface-raised border border-border/70 space-y-1">
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-foreground text-xs font-mono">
-                                  Paso #{i + 1} — @{turn.player_username}
-                                </span>
-                                <span className="text-[10px] text-foreground-subtle font-mono">
-                                  {new Date(turn.created_at).toLocaleTimeString('es-ES')}
-                                </span>
-                              </div>
-                              <p className="text-xs text-foreground-muted">
-                                Recámara{' '}
-                                <span className="font-bold text-accent font-mono">#{turn.chamber_index}</span>:
-                                {isDischarge ? (
-                                  <span className="text-danger font-bold ml-1">
-                                    Descarga (Eliminado)
-                                  </span>
-                                ) : (
-                                  <span className="text-foreground font-bold ml-1">
-                                    En Blanco (Sobrevivió)
-                                  </span>
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-foreground-subtle py-4">No hay turnos registrados para esta partida.</p>
-                  )}
-                </div>
-              </Card>
-            ) : (
-              <div className="p-8 text-center text-foreground-subtle rounded-xl border border-border/70 bg-surface text-xs">
-                Introduce el identificador de una partida o selecciona una fila de logs para inspeccionarla.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* TAB 4: IDEAS Y REPORTES COMUNITARIOS */}
+        {/* TAB 4: INCIDENCIAS Y REPORTES TÉCNICOS */}
         {/* ============================================================== */}
         {activeTab === 'feedback' && (
           <div className="space-y-4">
             <div className="p-3.5 rounded-xl bg-surface border border-border/70 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-amber-500" />
+                <AlertCircle className="w-4 h-4 text-foreground-subtle" />
                 <span className="text-xs font-semibold text-foreground">
-                  Gestión de ideas, sugerencias y fallos reportados
+                  Gestión de incidencias y reportes del aula ({feedbackList.length})
                 </span>
               </div>
 
@@ -1049,13 +1136,13 @@ export default function AdminPage() {
                 <select
                   value={feedbackFilter}
                   onChange={(e) => setFeedbackFilter(e.target.value as any)}
-                  className="h-8 px-2.5 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground"
+                  className="h-8 px-2.5 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground cursor-pointer"
                 >
                   <option value="all">Todos los estados</option>
-                  <option value="pending">Pendientes</option>
+                  <option value="pending">Abiertos</option>
                   <option value="under_review">En revisión</option>
                   <option value="planned">Planificados</option>
-                  <option value="completed">Implementados</option>
+                  <option value="completed">Resueltos</option>
                   <option value="dismissed">Descartados</option>
                 </select>
 
@@ -1074,23 +1161,38 @@ export default function AdminPage() {
 
             {feedbackLoading ? (
               <div className="py-12 text-center text-xs text-foreground-subtle">
-                Cargando ideas y reportes...
+                Cargando incidencias...
               </div>
-            ) : feedbackList.filter(f => feedbackFilter === 'all' || f.status === feedbackFilter).length === 0 ? (
+            ) : feedbackList.filter(
+                (f) => feedbackFilter === 'all' || f.status === feedbackFilter
+              ).length === 0 ? (
               <div className="p-8 text-center text-foreground-subtle rounded-xl border border-border/70 bg-surface text-xs">
-                No hay aportaciones registradas con este filtro.
+                No hay incidencias registradas con este filtro.
               </div>
             ) : (
               <div className="space-y-3">
                 {feedbackList
-                  .filter(f => feedbackFilter === 'all' || f.status === feedbackFilter)
+                  .filter((f) => feedbackFilter === 'all' || f.status === feedbackFilter)
                   .map((item) => (
                     <Card key={item.id} className="p-4 rounded-xl border-border/70 bg-surface space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant={item.type === 'report' ? 'danger' : item.type === 'idea' ? 'accent' : 'default'} size="sm">
-                              {item.type === 'report' ? 'Reporte' : item.type === 'idea' ? 'Idea' : 'Mejora'}
+                            <Badge
+                              variant={
+                                item.type === 'report'
+                                  ? 'danger'
+                                  : item.type === 'idea'
+                                  ? 'default'
+                                  : 'accent'
+                              }
+                              size="sm"
+                            >
+                              {item.type === 'report'
+                                ? 'Incidencia'
+                                : item.type === 'improvement'
+                                ? 'Mejora'
+                                : 'Propuesta'}
                             </Badge>
                             <span className="text-[11px] text-foreground-subtle uppercase font-mono">
                               {item.category}
@@ -1100,9 +1202,12 @@ export default function AdminPage() {
                             </span>
                           </div>
                           <h4 className="text-sm font-bold text-foreground">{item.title}</h4>
-                          <p className="text-xs text-foreground-muted whitespace-pre-wrap">{item.description}</p>
-                          <div className="text-[11px] text-foreground-subtle pt-1">
-                            Enviado por <span className="font-semibold text-foreground">@{item.author_name}</span> el {new Date(item.created_at).toLocaleDateString('es-ES')}
+                          <p className="text-xs text-foreground-muted whitespace-pre-wrap">
+                            {item.description}
+                          </p>
+                          <div className="text-[11px] text-foreground-subtle pt-1 font-mono">
+                            @{item.author_name} ·{' '}
+                            {new Date(item.created_at).toLocaleDateString('es-ES')}
                           </div>
                         </div>
 
@@ -1110,7 +1215,7 @@ export default function AdminPage() {
                           type="button"
                           onClick={() => handleDeleteFeedback(item.id)}
                           className="p-1.5 rounded-lg text-foreground-subtle hover:text-danger hover:bg-danger-subtle transition-colors cursor-pointer"
-                          title="Eliminar reporte"
+                          title="Eliminar incidencia"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1122,13 +1227,18 @@ export default function AdminPage() {
                           <span className="text-foreground-subtle font-medium text-[11px]">Estado:</span>
                           <select
                             value={adminStatusDraft[item.id] || item.status}
-                            onChange={(e) => setAdminStatusDraft(prev => ({ ...prev, [item.id]: e.target.value as FeedbackStatus }))}
-                            className="h-8 px-2 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground"
+                            onChange={(e) =>
+                              setAdminStatusDraft((prev) => ({
+                                ...prev,
+                                [item.id]: e.target.value as FeedbackStatus,
+                              }))
+                            }
+                            className="h-8 px-2 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground cursor-pointer"
                           >
-                            <option value="pending">Pendiente</option>
+                            <option value="pending">Abierto</option>
                             <option value="under_review">En revisión</option>
                             <option value="planned">Planificado</option>
-                            <option value="completed">Implementado</option>
+                            <option value="completed">Resuelto</option>
                             <option value="dismissed">Descartado</option>
                           </select>
                         </div>
@@ -1136,9 +1246,18 @@ export default function AdminPage() {
                         <div className="flex-1 min-w-[200px]">
                           <input
                             type="text"
-                            placeholder="Respuesta oficial pública visible para todos los alumnos..."
-                            value={adminResponseDraft[item.id] !== undefined ? adminResponseDraft[item.id] : item.admin_response || ''}
-                            onChange={(e) => setAdminResponseDraft(prev => ({ ...prev, [item.id]: e.target.value }))}
+                            placeholder="Nota técnica de resolución..."
+                            value={
+                              adminResponseDraft[item.id] !== undefined
+                                ? adminResponseDraft[item.id]
+                                : item.admin_response || ''
+                            }
+                            onChange={(e) =>
+                              setAdminResponseDraft((prev) => ({
+                                ...prev,
+                                [item.id]: e.target.value,
+                              }))
+                            }
                             className="w-full h-8 px-2.5 rounded-lg bg-surface-raised border border-border/70 text-xs text-foreground placeholder:text-foreground-subtle focus:outline-none"
                           />
                         </div>
@@ -1149,13 +1268,92 @@ export default function AdminPage() {
                           onClick={() => handleUpdateFeedbackStatus(item)}
                           className="h-8 text-xs shrink-0"
                         >
-                          Guardar respuesta
+                          Guardar resolución
                         </Button>
                       </div>
                     </Card>
                   ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB 5: GUÍA SUPABASE (QUÉ DEBES HACER) */}
+        {/* ============================================================== */}
+        {activeTab === 'setup' && (
+          <div className="space-y-5 max-w-3xl">
+            <Card className="p-5 rounded-xl border-border/70 bg-surface space-y-4">
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-accent" />
+                <h3 className="text-sm font-semibold text-foreground">
+                  Instrucciones para configurar Supabase
+                </h3>
+              </div>
+              <p className="text-xs text-foreground-muted leading-relaxed">
+                Para que el feed en tiempo real, las notificaciones web push y las actualizaciones automáticas funcionen correctamente para todos los usuarios, debes ejecutar el script SQL de migración en tu proyecto de Supabase.
+              </p>
+
+              <div className="space-y-3 pt-1">
+                <div className="p-3.5 rounded-xl bg-surface-raised border border-border/70 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Terminal className="w-3.5 h-3.5 text-accent" />
+                      <span>1. Ejecutar Migración SQL</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`-- Migración SMR2: Feed Realtime y Notificaciones Web Push
+ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;
+ALTER PUBLICATION supabase_realtime ADD TABLE app_updates;
+ALTER PUBLICATION supabase_realtime ADD TABLE community_feedback;
+
+CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  username TEXT,
+  endpoint TEXT UNIQUE NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE web_push_subscriptions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Permitir suscripciones públicas" ON web_push_subscriptions FOR ALL USING (true);`);
+                        setCopiedScript(true);
+                        setTimeout(() => setCopiedScript(false), 2000);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-background border border-border/80 text-foreground hover:bg-surface transition-colors cursor-pointer"
+                    >
+                      {copiedScript ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedScript ? 'Copiado' : 'Copiar SQL'}</span>
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-foreground-muted">
+                    Entra en tu panel de <span className="text-foreground font-medium">Supabase &gt; SQL Editor</span>, pega el script que se encuentra en <code className="text-accent font-mono">supabase/feed_and_push_migration.sql</code> y haz clic en <span className="font-semibold text-foreground">Run</span>.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-surface-raised border border-border/70 space-y-2">
+                  <span className="text-xs font-semibold text-foreground block">
+                    2. Variables de Entorno en Vercel
+                  </span>
+                  <p className="text-[11px] text-foreground-muted leading-relaxed">
+                    Asegúrate de tener configuradas las siguientes variables en los Settings de Vercel (<span className="text-foreground font-medium">Project Settings &gt; Environment Variables</span>):
+                  </p>
+                  <ul className="text-[11px] font-mono space-y-1 text-foreground-muted">
+                    <li>• <span className="text-accent">NEXT_PUBLIC_SUPABASE_URL</span></li>
+                    <li>• <span className="text-accent">NEXT_PUBLIC_SUPABASE_ANON_KEY</span></li>
+                    <li>• <span className="text-accent">SUPABASE_SERVICE_ROLE_KEY</span></li>
+                    <li>• <span className="text-accent">NEXT_PUBLIC_VAPID_PUBLIC_KEY</span></li>
+                    <li>• <span className="text-accent">VAPID_PRIVATE_KEY</span></li>
+                  </ul>
+                </div>
+              </div>
+            </Card>
           </div>
         )}
       </main>
@@ -1224,8 +1422,10 @@ export default function AdminPage() {
 
             <p className="text-xs text-foreground-muted">
               Saldo actual:{' '}
-              <span className="text-amber-500 font-bold font-mono">{adjustModalUser.coins.toLocaleString('es-ES')}</span> fichas.
-              Introduce un valor positivo para ingresar o negativo para descontar:
+              <span className="text-amber-500 font-bold font-mono">
+                {adjustModalUser.coins.toLocaleString('es-ES')}
+              </span>{' '}
+              fichas. Introduce un valor positivo para ingresar o negativo para descontar:
             </p>
 
             <input

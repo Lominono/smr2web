@@ -3,23 +3,17 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   X,
-  Lightbulb,
-  Bug,
-  Sparkles,
   ChevronUp,
-  MessageSquare,
-  CheckCircle2,
-  Clock,
   ShieldCheck,
   Plus,
   Trash2,
-  Filter,
   AlertCircle,
-  Tag,
-  ArrowRight,
+  CheckCircle2,
+  MessageSquare,
+  Clock,
+  Filter,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { sound } from '@/lib/audio';
 import { createClient } from '@/lib/supabase/client';
 import { UserProfile, CommunityFeedback, FeedbackType, FeedbackCategory, FeedbackStatus } from '@/lib/types';
@@ -50,29 +44,28 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   const [filterStatus, setFilterStatus] = useState<'all' | FeedbackStatus>('all');
   const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
 
-  // Campos de formulario
-  const [newType, setNewType] = useState<FeedbackType>('idea');
-  const [newCategory, setNewCategory] = useState<FeedbackCategory>('general');
+  // Formulario
+  const [newType, setNewType] = useState<FeedbackType>('report');
+  const [newCategory, setNewCategory] = useState<FeedbackCategory>('portal');
   const [newTitle, setNewTitle] = useState<string>('');
   const [newDesc, setNewDesc] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formFeedback, setFormFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Modo edición de delegado / admin
+  // Edición para admin / delegado
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [adminStatusInput, setAdminStatusInput] = useState<FeedbackStatus>('planned');
+  const [adminStatusInput, setAdminStatusInput] = useState<FeedbackStatus>('under_review');
   const [adminResponseInput, setAdminResponseInput] = useState<string>('');
   const [isSavingAdmin, setIsSavingAdmin] = useState<boolean>(false);
 
   const isAdminOrDelegado = currentUser?.role === 'admin' || currentUser?.role === 'delegado';
 
-  // Carga de datos
   const loadData = useCallback(async () => {
     try {
       const data = await fetchFeedbackList(currentUser?.id);
       setItems(data);
     } catch (err) {
-      console.warn('Error cargando feedback:', err);
+      console.warn('Error cargando reportes:', err);
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +77,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
     }
   }, [isOpen, loadData]);
 
-  // Suscripción Realtime mientras el modal esté abierto
+  // Suscripción Realtime en Supabase
   useEffect(() => {
     if (!isOpen) return;
     const supabase = createClient();
@@ -110,7 +103,6 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
     } catch (_) {}
   }, [isOpen, loadData]);
 
-  // Cerrar con tecla Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -119,107 +111,109 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Votar por una idea
-  const handleVote = async (feedbackId: string) => {
+  const handleVote = async (itemId: string) => {
     if (!currentUser) {
-      if (onOpenAuth) onOpenAuth();
+      sound.tap();
+      onOpenAuth?.();
       return;
     }
 
     sound.tap();
 
-    // Actualización optimista inmediata
     setItems((prev) =>
       prev.map((item) => {
-        if (item.id === feedbackId) {
+        if (item.id === itemId) {
           const nextVoted = !item.has_voted;
-          const nextCount = nextVoted ? item.upvotes_count + 1 : Math.max(0, item.upvotes_count - 1);
-          return { ...item, has_voted: nextVoted, upvotes_count: nextCount };
+          const nextCount = item.upvotes_count + (nextVoted ? 1 : -1);
+          return {
+            ...item,
+            has_voted: nextVoted,
+            upvotes_count: Math.max(0, nextCount),
+          };
         }
         return item;
       })
     );
 
-    const res = await toggleVoteFeedback(feedbackId, currentUser.id);
-    if (!res.success) {
-      // Revertir si hubo error
-      loadData();
-    }
+    await toggleVoteFeedback(itemId, currentUser.id);
   };
 
-  // Crear nueva propuesta
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newTitle.trim() || !newDesc.trim()) return;
+
     if (!currentUser) {
-      if (onOpenAuth) onOpenAuth();
+      sound.tap();
+      onOpenAuth?.();
       return;
     }
 
     setIsSubmitting(true);
     setFormFeedback(null);
-    sound.tap();
 
-    try {
-      const res = await submitFeedbackItem({
-        userId: currentUser.id,
-        authorName: currentUser.username,
-        type: newType,
-        title: newTitle,
-        description: newDesc,
-        category: newCategory,
-      });
+    const res = await submitFeedbackItem({
+      userId: currentUser.id,
+      authorName: currentUser.username,
+      type: newType,
+      title: newTitle,
+      description: newDesc,
+      category: newCategory,
+    });
 
-      if (!res.success) {
-        setFormFeedback({ type: 'error', message: res.error || 'No se pudo enviar la propuesta.' });
-        return;
-      }
+    setIsSubmitting(false);
 
-      setFormFeedback({ type: 'success', message: '¡Gracias! Tu propuesta se ha publicado correctamente.' });
+    if (res.success && res.item) {
+      sound.coinWin();
+      setItems((prev) => [res.item!, ...prev]);
       setNewTitle('');
       setNewDesc('');
       setShowCreateForm(false);
-      loadData();
-    } catch (err: any) {
-      setFormFeedback({ type: 'error', message: err?.message || 'Error de conexión.' });
-    } finally {
-      setIsSubmitting(false);
+      setFormFeedback({ type: 'success', message: 'Reporte registrado correctamente.' });
+      setTimeout(() => setFormFeedback(null), 4000);
+    } else {
+      sound.broke();
+      setFormFeedback({ type: 'error', message: res.error || 'Error al enviar reporte.' });
     }
   };
 
-  // Guardar respuesta o estado de admin
-  const handleSaveAdminStatus = async (feedbackId: string) => {
+  const handleSaveAdminResponse = async (itemId: string) => {
     setIsSavingAdmin(true);
-    sound.tap();
+    const res = await updateFeedbackAdminStatus({
+      feedbackId: itemId,
+      status: adminStatusInput,
+      adminResponse: adminResponseInput,
+      adminName: currentUser?.username || 'Admin',
+    });
+    setIsSavingAdmin(false);
 
-    try {
-      const res = await updateFeedbackAdminStatus({
-        feedbackId,
-        status: adminStatusInput,
-        adminResponse: adminResponseInput.trim() || undefined,
-        adminName: currentUser?.username || 'Delegado',
-      });
-
-      if (res.success) {
-        setEditingItemId(null);
-        setAdminResponseInput('');
-        loadData();
-      }
-    } finally {
-      setIsSavingAdmin(false);
+    if (res.success) {
+      sound.tap();
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === itemId
+            ? {
+                ...it,
+                status: adminStatusInput,
+                admin_response: adminResponseInput,
+                admin_responder_name: currentUser?.username || 'Admin',
+              }
+            : it
+        )
+      );
+      setEditingItemId(null);
     }
   };
 
-  // Eliminar elemento
-  const handleDelete = async (feedbackId: string) => {
-    if (!confirm('¿Seguro que quieres eliminar este elemento?')) return;
+  const handleDelete = async (itemId: string) => {
+    if (!window.confirm('¿Eliminar este reporte permanentemente?')) return;
     sound.tap();
 
-    setItems((prev) => prev.filter((i) => i.id !== feedbackId));
-    await deleteFeedbackItem(feedbackId);
-    loadData();
+    const res = await deleteFeedbackItem(itemId);
+    if (res.success) {
+      setItems((prev) => prev.filter((it) => it.id !== itemId));
+    }
   };
 
-  // Elementos filtrados
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       if (filterType !== 'all' && item.type !== filterType) return false;
@@ -238,43 +232,38 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
     >
       <div className="fixed inset-0" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-2xl max-h-[90dvh] flex flex-col rounded-2xl bg-surface border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-        {/* Cabecera del modal */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <Lightbulb className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-foreground">
-                Ideas y sugerencias
-              </h2>
-              <p className="text-xs text-foreground-muted">
-                Propón nuevas funciones o reporta fallos para la clase
-              </p>
-            </div>
+      <div className="relative z-10 w-full max-w-2xl max-h-[90dvh] flex flex-col rounded-xl bg-surface border border-border shadow-xl overflow-hidden animate-in zoom-in-95 duration-150">
+        {/* Cabecera */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface shrink-0">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground tracking-tight">
+              Reportes e incidencias
+            </h2>
+            <p className="text-[11px] text-foreground-subtle">
+              Seguimiento técnico de fallos y propuestas de mejora
+            </p>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl text-foreground-muted hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-colors cursor-pointer"
             aria-label="Cerrar modal"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Barra de acciones y filtros */}
-        <div className="px-5 py-3 border-b border-border/60 bg-surface-raised/40 space-y-2.5 shrink-0">
+        {/* Barra de control y filtros */}
+        <div className="px-4 py-2.5 border-b border-border bg-surface-raised/30 space-y-2 shrink-0">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            {/* Filtros por tipo */}
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
+            {/* Filtros por tipo de entrada */}
+            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
               {[
-                { id: 'all', label: 'Todas' },
-                { id: 'idea', label: '💡 Ideas' },
-                { id: 'improvement', label: '⚡ Mejoras' },
-                { id: 'report', label: '🐛 Reportes' },
+                { id: 'all', label: 'Todos' },
+                { id: 'report', label: 'Incidencias' },
+                { id: 'improvement', label: 'Mejoras' },
+                { id: 'idea', label: 'Propuestas' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -283,9 +272,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     setFilterType(tab.id as any);
                     sound.tap();
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
                     filterType === tab.id
-                      ? 'bg-foreground text-background font-semibold shadow-xs'
+                      ? 'bg-foreground text-background font-semibold'
                       : 'text-foreground-muted hover:text-foreground hover:bg-surface-raised'
                   }`}
                 >
@@ -294,7 +283,6 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
               ))}
             </div>
 
-            {/* Botón para redactar propuesta */}
             <Button
               variant={showCreateForm ? 'secondary' : 'primary'}
               size="sm"
@@ -302,30 +290,22 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                 setShowCreateForm((prev) => !prev);
                 sound.tap();
               }}
-              className="text-xs h-8 gap-1.5"
+              className="text-xs h-7 px-2.5 rounded-md"
             >
-              {showCreateForm ? (
-                <>
-                  <X className="w-3.5 h-3.5" />
-                  <span>Cerrar formulario</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Enviar idea o reporte</span>
-                </>
-              )}
+              {showCreateForm ? 'Cancelar' : 'Nuevo reporte'}
             </Button>
           </div>
 
-          {/* Filtro secundario por estado */}
-          <div className="flex items-center gap-1.5 text-xs text-foreground-subtle overflow-x-auto scrollbar-none">
-            <span className="text-[11px] font-medium shrink-0">Estado:</span>
+          {/* Filtro por estado técnico */}
+          <div className="flex items-center gap-1.5 text-xs text-foreground-subtle overflow-x-auto scrollbar-none pt-0.5">
+            <span className="text-[11px] font-mono shrink-0">Estado:</span>
             {[
               { id: 'all', label: 'Todos' },
-              { id: 'pending', label: 'Pendientes' },
+              { id: 'pending', label: 'Abiertos' },
+              { id: 'under_review', label: 'En revisión' },
               { id: 'planned', label: 'Planificados' },
-              { id: 'completed', label: 'Implementados' },
+              { id: 'completed', label: 'Resueltos' },
+              { id: 'dismissed', label: 'Descartados' },
             ].map((st) => (
               <button
                 key={st.id}
@@ -334,10 +314,10 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                   setFilterStatus(st.id as any);
                   sound.tap();
                 }}
-                className={`px-2 py-0.5 rounded-md text-[11px] transition-colors cursor-pointer ${
+                className={`px-2 py-0.5 rounded text-[11px] transition-colors cursor-pointer ${
                   filterStatus === st.id
-                    ? 'bg-surface-raised text-foreground font-semibold border border-border'
-                    : 'text-foreground-muted hover:text-foreground'
+                    ? 'bg-surface text-foreground font-semibold border border-border'
+                    : 'text-foreground-subtle hover:text-foreground'
                 }`}
               >
                 {st.label}
@@ -346,94 +326,95 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
           </div>
         </div>
 
-        {/* Contenido scrolleable */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {/* Formulario de creación desplegable */}
+        {/* Área de contenido */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {/* Formulario de reporte */}
           {showCreateForm && (
             <form
               onSubmit={handleCreateSubmit}
-              className="p-4 rounded-xl bg-surface-raised border border-border space-y-3 animate-in fade-in duration-150"
+              className="p-3.5 rounded-lg bg-surface-raised border border-border space-y-3 animate-in fade-in duration-100"
             >
-              <div className="flex items-center justify-between pb-1 border-b border-border/50">
-                <span className="text-xs font-semibold text-foreground">
-                  Nueva propuesta para el portal
+              <div className="flex items-center justify-between pb-1 border-b border-border/60 text-xs">
+                <span className="font-semibold text-foreground">
+                  Registrar nueva entrada
                 </span>
-                <span className="text-[11px] text-foreground-subtle">
-                  Publicando como @{currentUser ? currentUser.username : 'Invitado'}
+                <span className="text-foreground-subtle font-mono text-[11px]">
+                  @{currentUser ? currentUser.username : 'Invitado'}
                 </span>
               </div>
 
-              {/* Selector de Tipo */}
+              {/* Selector de tipo */}
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-foreground-muted">Tipo de aportación:</label>
-                <div className="grid grid-cols-3 gap-2">
+                <label className="text-[11px] font-medium text-foreground-muted">Tipo:</label>
+                <div className="grid grid-cols-3 gap-1.5">
                   {[
-                    { id: 'idea', label: '💡 Idea nueva', desc: 'Propuesta de función' },
-                    { id: 'improvement', label: '⚡ Mejora', desc: 'Optimizar algo existente' },
-                    { id: 'report', label: '🐛 Reporte de fallo', desc: 'Notificar un error' },
+                    { id: 'report', label: 'Incidencia', desc: 'Error o fallo' },
+                    { id: 'improvement', label: 'Mejora técnica', desc: 'Ajuste de función' },
+                    { id: 'idea', label: 'Propuesta', desc: 'Nueva característica' },
                   ].map((t) => (
                     <button
                       key={t.id}
                       type="button"
                       onClick={() => setNewType(t.id as FeedbackType)}
-                      className={`p-2 rounded-lg border text-left transition-colors cursor-pointer ${
+                      className={`p-2 rounded border text-left transition-colors cursor-pointer ${
                         newType === t.id
-                          ? 'bg-surface border-foreground/40 text-foreground shadow-2xs font-semibold'
-                          : 'bg-surface/50 border-border/70 text-foreground-muted hover:text-foreground'
+                          ? 'bg-surface border-foreground text-foreground font-semibold'
+                          : 'bg-surface/50 border-border text-foreground-muted hover:text-foreground'
                       }`}
                     >
                       <div className="text-xs">{t.label}</div>
-                      <div className="text-[10px] text-foreground-subtle font-normal truncate mt-0.5">{t.desc}</div>
+                      <div className="text-[10px] text-foreground-subtle truncate">{t.desc}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Selector de Categoría */}
+              {/* Selector de módulo */}
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-foreground-muted">Categoría:</label>
+                <label className="text-[11px] font-medium text-foreground-muted">Módulo afectado:</label>
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value as FeedbackCategory)}
-                  className="w-full px-3 py-1.5 rounded-lg bg-surface border border-border text-xs text-foreground focus:outline-hidden"
+                  className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs text-foreground focus:outline-hidden"
                 >
-                  <option value="general">General / Portal web</option>
-                  <option value="horario">Horario y tareas</option>
-                  <option value="juegos">Recreo y juegos</option>
-                  <option value="inversiones">Bolsa e inversiones</option>
-                  <option value="otros">Otros</option>
+                  <option value="portal">Portal y Feed</option>
+                  <option value="horario">Horario y Tareas</option>
+                  <option value="juegos">Recreo y Fichas</option>
+                  <option value="inversiones">Bolsa</option>
+                  <option value="general">Cuenta / Sistema</option>
+                  <option value="otros">Otro</option>
                 </select>
               </div>
 
               {/* Título */}
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-foreground-muted">Título breve:</label>
+                <label className="text-[11px] font-medium text-foreground-muted">Título:</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ej. Añadir modo oscuro programado según la hora"
+                  placeholder="Descripción resumida del problema o propuesta"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-xs text-foreground placeholder:text-foreground-subtle focus:outline-hidden focus:border-foreground/50 transition-colors"
+                  className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs text-foreground placeholder:text-foreground-subtle focus:outline-hidden focus:border-foreground/50 transition-colors"
                 />
               </div>
 
               {/* Descripción */}
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-foreground-muted">Descripción y detalles:</label>
+                <label className="text-[11px] font-medium text-foreground-muted">Detalles / Pasos para reproducir:</label>
                 <textarea
                   required
                   rows={3}
-                  placeholder="Explica qué te gustaría que tuviera o cómo reproducir el error si es un reporte..."
+                  placeholder="Explica qué ocurre, en qué navegador/dispositivo o qué cambio propones..."
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-xs text-foreground placeholder:text-foreground-subtle focus:outline-hidden focus:border-foreground/50 transition-colors resize-none"
+                  className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs text-foreground placeholder:text-foreground-subtle focus:outline-hidden focus:border-foreground/50 transition-colors resize-none leading-relaxed"
                 />
               </div>
 
               {formFeedback && (
                 <div
-                  className={`p-2.5 rounded-lg text-xs flex items-center gap-1.5 border ${
+                  className={`p-2 rounded text-xs flex items-center gap-1.5 border ${
                     formFeedback.type === 'success'
                       ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                       : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
@@ -454,7 +435,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowCreateForm(false)}
-                  className="text-xs h-8"
+                  className="text-xs h-7"
                 >
                   Cancelar
                 </Button>
@@ -463,29 +444,28 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                   variant="primary"
                   size="sm"
                   disabled={isSubmitting || !newTitle.trim() || !newDesc.trim()}
-                  className="text-xs h-8"
+                  className="text-xs h-7 px-3 rounded-md"
                 >
-                  {isSubmitting ? 'Publicando...' : 'Publicar propuesta'}
+                  {isSubmitting ? 'Guardando...' : 'Registrar'}
                 </Button>
               </div>
             </form>
           )}
 
-          {/* Listado de ideas */}
+          {/* Listado de reportes */}
           {isLoading ? (
-            <div className="py-12 text-center text-xs text-foreground-subtle">
-              Cargando sugerencias de la clase...
+            <div className="py-12 text-center text-xs text-foreground-subtle font-mono">
+              Cargando registros...
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="py-12 text-center space-y-2 border border-dashed border-border rounded-xl">
-              <Lightbulb className="w-6 h-6 text-foreground-subtle mx-auto" />
-              <p className="text-xs font-medium text-foreground">No hay aportaciones en este filtro</p>
+            <div className="py-12 text-center space-y-1 border border-border rounded-lg bg-surface-raised/20">
+              <p className="text-xs font-medium text-foreground">Sin registros</p>
               <p className="text-[11px] text-foreground-subtle">
-                Sé el primero en proponer una idea o reportar un detalle con el botón de arriba.
+                No hay incidencias ni propuestas en este filtro.
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {filteredItems.map((item) => {
                 const isAuthor = currentUser?.id && currentUser.id === item.user_id;
                 const isEditing = editingItemId === item.id;
@@ -493,72 +473,72 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                 return (
                   <div
                     key={item.id}
-                    className="p-3.5 sm:p-4 rounded-xl bg-surface border border-border/80 hover:border-border transition-colors space-y-2.5"
+                    className="p-3.5 rounded-lg bg-surface border border-border hover:border-foreground/30 transition-colors space-y-2"
                   >
-                    <div className="flex items-start gap-3">
-                      {/* Botón de voto (Upvote) */}
+                    <div className="flex items-start gap-2.5">
+                      {/* Voto conciso */}
                       <button
                         type="button"
                         onClick={() => handleVote(item.id)}
-                        className={`flex flex-col items-center justify-center w-11 py-1.5 rounded-lg border transition-all cursor-pointer shrink-0 active:scale-95 ${
+                        className={`flex flex-col items-center justify-center w-8 py-1 rounded border transition-colors cursor-pointer shrink-0 ${
                           item.has_voted
-                            ? 'bg-foreground text-background border-foreground font-bold shadow-2xs'
-                            : 'bg-surface-raised border-border text-foreground-muted hover:text-foreground hover:bg-surface'
+                            ? 'bg-foreground text-background border-foreground font-semibold'
+                            : 'bg-surface-raised border-border text-foreground-muted hover:text-foreground'
                         }`}
-                        title={item.has_voted ? 'Votado (haz clic para quitar voto)' : 'Votar por esta propuesta'}
+                        title={item.has_voted ? 'Quitar voto' : 'Votar'}
                       >
-                        <ChevronUp className="w-4 h-4" />
-                        <span className="font-mono text-xs">{item.upvotes_count}</span>
+                        <ChevronUp className="w-3.5 h-3.5" />
+                        <span className="font-mono text-[11px]">{item.upvotes_count}</span>
                       </button>
 
-                      {/* Contenido principal */}
+                      {/* Cuerpo */}
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {/* Tipo */}
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                              item.type === 'idea'
-                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-mono uppercase font-semibold border ${
+                              item.type === 'report'
+                                ? 'border-danger/30 text-danger bg-danger/5'
                                 : item.type === 'improvement'
-                                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                                ? 'border-blue-500/30 text-blue-500 bg-blue-500/5'
+                                : 'border-border text-foreground-muted bg-surface-raised'
                             }`}
                           >
-                            {item.type === 'idea' ? '💡 Idea' : item.type === 'improvement' ? '⚡ Mejora' : '🐛 Reporte'}
+                            {item.type === 'report' ? 'Incidencia' : item.type === 'improvement' ? 'Mejora' : 'Propuesta'}
                           </span>
 
-                          {/* Categoría */}
-                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-raised text-foreground-subtle capitalize">
+                          {/* Módulo */}
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono text-foreground-subtle bg-surface-raised border border-border/60">
                             {item.category}
                           </span>
 
                           {/* Estado */}
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-mono border ${
                               item.status === 'completed'
-                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5'
                                 : item.status === 'planned'
-                                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                                ? 'border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5'
                                 : item.status === 'under_review'
-                                ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                                ? 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/5'
                                 : item.status === 'dismissed'
-                                ? 'bg-surface-raised text-foreground-subtle line-through'
-                                : 'bg-surface-raised text-foreground-muted'
+                                ? 'border-border text-foreground-subtle line-through'
+                                : 'border-border text-foreground-muted'
                             }`}
                           >
                             {item.status === 'completed'
-                              ? 'Implementado'
+                              ? 'Resuelto'
                               : item.status === 'planned'
                               ? 'Planificado'
                               : item.status === 'under_review'
                               ? 'En revisión'
                               : item.status === 'dismissed'
                               ? 'Descartado'
-                              : 'Pendiente'}
+                              : 'Abierto'}
                           </span>
                         </div>
 
-                        <h3 className="text-sm font-semibold text-foreground tracking-tight">
+                        <h3 className="text-xs sm:text-[13px] font-semibold text-foreground leading-snug">
                           {item.title}
                         </h3>
 
@@ -566,107 +546,86 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                           {item.description}
                         </p>
 
-                        {/* Respuesta oficial de administración si existe */}
-                        {item.admin_response && (
-                          <div className="mt-2 p-2.5 rounded-lg bg-surface-raised border border-border/80 text-xs space-y-1">
-                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-accent">
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                              <span>Respuesta de @{item.admin_responder_name || 'Delegado'}:</span>
-                            </div>
-                            <p className="text-foreground text-xs leading-normal">
-                              {item.admin_response}
-                            </p>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between pt-1 text-[11px] text-foreground-subtle">
+                        <div className="flex items-center justify-between gap-2 pt-1 text-[11px] font-mono text-foreground-subtle">
                           <span>
-                            Por <span className="text-foreground-muted font-medium">@{item.author_name}</span>
+                            @{item.author_name} · {new Date(item.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                           </span>
 
                           <div className="flex items-center gap-2">
-                            {/* Opciones de autor o delegado */}
+                            {isAdminOrDelegado && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingItemId(isEditing ? null : item.id);
+                                  setAdminStatusInput(item.status);
+                                  setAdminResponseInput(item.admin_response || '');
+                                }}
+                                className="hover:text-foreground cursor-pointer underline"
+                              >
+                                {isEditing ? 'Cancelar edición' : 'Moderar'}
+                              </button>
+                            )}
+
                             {(isAuthor || isAdminOrDelegado) && (
                               <button
                                 type="button"
                                 onClick={() => handleDelete(item.id)}
-                                className="text-foreground-subtle hover:text-rose-500 p-0.5 rounded cursor-pointer transition-colors"
-                                title="Eliminar"
+                                title="Eliminar registro"
+                                className="hover:text-danger cursor-pointer p-0.5"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-
-                            {isAdminOrDelegado && !isEditing && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingItemId(item.id);
-                                  setAdminStatusInput(item.status);
-                                  setAdminResponseInput(item.admin_response || '');
-                                }}
-                                className="text-accent hover:underline font-medium cursor-pointer"
-                              >
-                                Gestionar
+                                <Trash2 className="w-3 h-3" />
                               </button>
                             )}
                           </div>
                         </div>
 
-                        {/* Panel de gestión rápida para admin / delegado */}
-                        {isEditing && (
-                          <div className="mt-2 p-3 rounded-xl bg-surface-raised border border-border space-y-2">
-                            <span className="text-xs font-semibold text-foreground block">
-                              Panel de delegado / moderador
+                        {/* Respuesta de administración / delegado */}
+                        {item.admin_response && !isEditing && (
+                          <div className="mt-2 p-2 rounded bg-surface-raised border border-border text-xs space-y-0.5">
+                            <span className="text-[10px] font-mono font-semibold text-foreground">
+                              Resolución (@{item.admin_responder_name || 'Admin'}):
                             </span>
+                            <p className="text-foreground-muted text-[11px] leading-relaxed">
+                              {item.admin_response}
+                            </p>
+                          </div>
+                        )}
 
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div>
-                                <label className="text-[10px] text-foreground-subtle block mb-1">Estado:</label>
-                                <select
-                                  value={adminStatusInput}
-                                  onChange={(e) => setAdminStatusInput(e.target.value as FeedbackStatus)}
-                                  className="w-full px-2 py-1 rounded bg-surface border border-border text-xs"
-                                >
-                                  <option value="pending">Pendiente</option>
-                                  <option value="under_review">En revisión</option>
-                                  <option value="planned">Planificado</option>
-                                  <option value="completed">Implementado</option>
-                                  <option value="dismissed">Descartado</option>
-                                </select>
-                              </div>
-
-                              <div>
-                                <label className="text-[10px] text-foreground-subtle block mb-1">Respuesta oficial:</label>
-                                <input
-                                  type="text"
-                                  placeholder="Escribe una breve respuesta..."
-                                  value={adminResponseInput}
-                                  onChange={(e) => setAdminResponseInput(e.target.value)}
-                                  className="w-full px-2 py-1 rounded bg-surface border border-border text-xs"
-                                />
-                              </div>
+                        {/* Editor de moderación */}
+                        {isEditing && (
+                          <div className="mt-2 p-2.5 rounded bg-surface-raised border border-border space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-mono text-foreground-subtle">Actualizar estado:</span>
+                              <select
+                                value={adminStatusInput}
+                                onChange={(e) => setAdminStatusInput(e.target.value as FeedbackStatus)}
+                                className="px-2 py-1 rounded bg-surface border border-border text-xs text-foreground"
+                              >
+                                <option value="pending">Abierto</option>
+                                <option value="under_review">En revisión</option>
+                                <option value="planned">Planificado</option>
+                                <option value="completed">Resuelto</option>
+                                <option value="dismissed">Descartado</option>
+                              </select>
                             </div>
 
-                            <div className="flex items-center justify-end gap-1.5 pt-1">
+                            <textarea
+                              rows={2}
+                              value={adminResponseInput}
+                              onChange={(e) => setAdminResponseInput(e.target.value)}
+                              placeholder="Nota técnica o explicación de resolución..."
+                              className="w-full px-2 py-1.5 rounded bg-surface border border-border text-xs text-foreground resize-none leading-relaxed"
+                            />
+
+                            <div className="flex justify-end gap-1.5">
                               <Button
-                                type="button"
-                                variant="ghost"
                                 size="sm"
-                                onClick={() => setEditingItemId(null)}
-                                className="text-xs h-7"
-                              >
-                                Cancelar
-                              </Button>
-                              <Button
-                                type="button"
                                 variant="primary"
-                                size="sm"
+                                onClick={() => handleSaveAdminResponse(item.id)}
                                 disabled={isSavingAdmin}
-                                onClick={() => handleSaveAdminStatus(item.id)}
-                                className="text-xs h-7"
+                                className="text-xs h-6 px-2.5 rounded"
                               >
-                                {isSavingAdmin ? 'Guardando...' : 'Actualizar estado'}
+                                {isSavingAdmin ? 'Guardando...' : 'Guardar estado'}
                               </Button>
                             </div>
                           </div>
