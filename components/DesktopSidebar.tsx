@@ -167,7 +167,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             >
               <div className="flex items-center gap-2.5">
                 <AlertCircle className="w-4 h-4 text-foreground-subtle" />
-                <span>Reportes e incidencias</span>
+                <span>Incidencias</span>
               </div>
             </button>
           )}

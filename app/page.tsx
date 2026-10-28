@@ -1180,6 +1180,7 @@ export default function Home() {
                   onTipUser={handleTipUser}
                   onToggleLike={handleToggleLike}
                   onOpenNotifications={() => setIsPushModalOpen(true)}
+                  onOpenFeedback={() => setIsFeedbackOpen(true)}
                   isRealtimeConnected={isRealtimeConnected}
                   composerRef={composerRef}
                 />

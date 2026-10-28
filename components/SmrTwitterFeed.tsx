@@ -16,6 +16,7 @@ import {
   Pin,
   Trash2,
   Bell,
+  AlertCircle,
   Code,
   Copy,
   Terminal,
@@ -35,6 +36,7 @@ interface SmrTwitterFeedProps {
   onTipUser: (targetUsername: string, amount: number) => void;
   onToggleLike?: (messageId: string) => void;
   onOpenNotifications?: () => void;
+  onOpenFeedback?: () => void;
   isRealtimeConnected?: boolean;
   composerRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
@@ -102,6 +104,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   onTipUser,
   onToggleLike,
   onOpenNotifications,
+  onOpenFeedback,
   isRealtimeConnected = true,
   composerRef: externalComposerRef,
 }) => {
@@ -560,6 +563,21 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
           </div>
 
           <div className="flex items-center gap-1">
+            {onOpenFeedback && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.tap();
+                  onOpenFeedback();
+                }}
+                title="Incidencias técnicas"
+                aria-label="Incidencias"
+                className="w-8 h-8 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-foreground-subtle hover:text-foreground hover:bg-surface-raised cursor-pointer transition-colors touch-manipulation active:scale-95"
+              >
+                <AlertCircle className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             {onOpenNotifications && (
               <button
                 type="button"

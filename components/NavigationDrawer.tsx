@@ -326,7 +326,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <AlertCircle className="w-4 h-4 text-foreground-subtle" />
-                  <span className="text-sm font-sans">Reportes e incidencias</span>
+                  <span className="text-sm font-sans">Incidencias</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-foreground-subtle" />
               </button>
