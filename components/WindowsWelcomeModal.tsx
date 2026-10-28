@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '@/lib/types';
 import { sound } from '@/lib/audio';
+import { Sparkles, ArrowRight, ShieldCheck, Coins, Laptop } from 'lucide-react';
 
 interface WindowsWelcomeModalProps {
   isOpen: boolean;
@@ -10,48 +11,91 @@ interface WindowsWelcomeModalProps {
   onClose: () => void;
 }
 
+const PHRASES = [
+  { text: 'Hola :)', subtext: '', duration: 1300 },
+  { text: 'Estamos preparando todo para ti.', subtext: 'Configurando tu entorno personal...', duration: 1500 },
+  { text: 'Esto puede tardar unos minutos...', subtext: 'Por favor, espera.', duration: 1400 },
+  { text: 'No apagues el equipo.', subtext: 'No desconectes los cables de red del aula.', duration: 1500 },
+  { text: 'Acreditando 1.000 monedas...', subtext: 'Bono de bienvenida del Departamento de Informática.', duration: 1500 },
+  { text: 'Conectando a la Bolsa de El Botellón...', subtext: 'Sincronizando cotizaciones en tiempo real.', duration: 1400 },
+  { text: 'Casi hemos terminado.', subtext: 'Últimos retoques en el escritorio.', duration: 1300 },
+];
+
 export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
   isOpen,
   user,
   onClose,
 }) => {
+  const [stepIndex, setStepIndex] = useState(0);
+  const [isFinished, setIsFinished] = useState(false);
+  const [fadeState, setFadeState] = useState<'in' | 'out'>('in');
   const [dontShowAgain, setDontShowAgain] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadingStep, setLoadingStep] = useState('Iniciando 2º SMR OS...');
+  const audioPlayedRef = useRef(false);
+
+  const username = user?.username || 'Alumno';
 
   useEffect(() => {
-    if (isOpen) {
-      setIsLoading(true);
-      setLoadingStep('Iniciando 2º SMR OS...');
-
-      // Reproducir sonido clásico de inicio de Windows
-      try {
-        sound.windowsStartup();
-      } catch {}
-
-      const t1 = setTimeout(() => {
-        setLoadingStep('Cargando sus preferencias personales...');
-      }, 700);
-
-      const t2 = setTimeout(() => {
-        setLoadingStep('Conectando a la red del aula 2º SMR...');
-      }, 1400);
-
-      const t3 = setTimeout(() => {
-        setIsLoading(false);
-      }, 2100);
-
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-      };
+    if (!isOpen) {
+      setStepIndex(0);
+      setIsFinished(false);
+      setFadeState('in');
+      audioPlayedRef.current = false;
+      return;
     }
+
+    let isMounted = true;
+    audioPlayedRef.current = false;
+
+    // Ejecutar la secuencia de frases estilo Windows OOBE
+    let current = 0;
+
+    const playNextPhrase = () => {
+      if (!isMounted) return;
+
+      if (current >= PHRASES.length) {
+        setIsFinished(true);
+        if (!audioPlayedRef.current) {
+          audioPlayedRef.current = true;
+          try {
+            sound.windowsStartup();
+          } catch {}
+        }
+        return;
+      }
+
+      setStepIndex(current);
+      setFadeState('in');
+
+      const currentDuration = PHRASES[current].duration;
+
+      // Tiempo visible antes de empezar a desvanecerse
+      const fadeOutTimer = setTimeout(() => {
+        if (!isMounted) return;
+        setFadeState('out');
+
+        // Tiempo de desvanecimiento hacia la siguiente frase
+        const nextTimer = setTimeout(() => {
+          if (!isMounted) return;
+          current += 1;
+          playNextPhrase();
+        }, 320);
+
+        return () => clearTimeout(nextTimer);
+      }, currentDuration - 320);
+
+      return () => clearTimeout(fadeOutTimer);
+    };
+
+    playNextPhrase();
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleClose = () => {
+  const handleFinish = () => {
     if (dontShowAgain && typeof window !== 'undefined') {
       try {
         localStorage.setItem('smr2_windows_welcome_dismissed', 'true');
@@ -60,176 +104,177 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
     onClose();
   };
 
-  const username = user?.username || 'Alumno';
+  const handleSkip = () => {
+    setIsFinished(true);
+    if (!audioPlayedRef.current) {
+      audioPlayedRef.current = true;
+      try {
+        sound.windowsStartup();
+      } catch {}
+    }
+  };
+
+  const currentPhrase = PHRASES[stepIndex] || PHRASES[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
-      <div 
-        className="w-full max-w-md bg-[#ece9d8] dark:bg-[#1e2430] text-[#111] dark:text-[#f0f3f6] rounded-t-lg rounded-b-md shadow-2xl border-2 border-[#0055ea] dark:border-[#388bfd] overflow-hidden font-sans select-none"
-        style={{
-          boxShadow: '0 20px 50px rgba(0,0,0,0.6), inset 1px 1px 0 rgba(255,255,255,0.8)'
-        }}
-      >
-        {/* Barra de título retro Windows */}
-        <div className="bg-gradient-to-r from-[#0058ee] via-[#2a7ffc] to-[#0058ee] dark:from-[#0d1117] dark:via-[#161b22] dark:to-[#0d1117] text-white px-2.5 py-1.5 flex items-center justify-between shadow-xs border-b border-[#0038a8] dark:border-[#30363d]">
-          <div className="flex items-center gap-2">
-            {/* Logo 4 colores retro Windows */}
-            <div className="grid grid-cols-2 gap-0.5 w-3.5 h-3.5 shrink-0 transform rotate-12">
-              <div className="bg-[#e73d2a] rounded-[1px]" />
-              <div className="bg-[#61b835] rounded-[1px]" />
-              <div className="bg-[#2995db] rounded-[1px]" />
-              <div className="bg-[#ffb900] rounded-[1px]" />
-            </div>
-            <span className="text-xs font-bold tracking-wide drop-shadow-xs truncate">
-              Microsoft Windows SMR 2.0 Professional
-            </span>
-          </div>
+    <div 
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#001026] via-[#00224d] to-[#001433] text-white select-none overflow-hidden animate-in fade-in duration-300 font-sans"
+      style={{
+        backgroundSize: '200% 200%',
+        animation: 'bgPulse 10s ease infinite alternate',
+      }}
+    >
+      <style jsx>{`
+        @keyframes bgPulse {
+          0% { background-position: 0% 0%; }
+          100% { background-position: 100% 100%; }
+        }
+        @keyframes dotSpin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
 
-          {/* Botones ventana: minimizar, maximizar, cerrar */}
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              tabIndex={-1}
-              className="w-5 h-5 bg-[#ece9d8] dark:bg-[#21262d] text-black dark:text-white border border-[#7f9db9] rounded-[2px] text-[10px] font-bold flex items-center justify-center cursor-default shadow-xs opacity-75"
-              aria-label="Minimizar"
-            >
-              _
-            </button>
-            <button
-              type="button"
-              tabIndex={-1}
-              className="w-5 h-5 bg-[#ece9d8] dark:bg-[#21262d] text-black dark:text-white border border-[#7f9db9] rounded-[2px] text-[10px] font-bold flex items-center justify-center cursor-default shadow-xs opacity-75"
-              aria-label="Maximizar"
-            >
-              □
-            </button>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="w-5 h-5 bg-[#e81123] hover:bg-[#f13847] active:bg-[#c40e1d] text-white rounded-[2px] text-[11px] font-bold flex items-center justify-center cursor-pointer shadow-xs transition-colors"
-              aria-label="Cerrar"
-            >
-              ✕
-            </button>
-          </div>
+      {/* Botón sutil para saltar la animación en la esquina superior derecha */}
+      {!isFinished && (
+        <button
+          type="button"
+          onClick={handleSkip}
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 text-xs text-white/40 hover:text-white/90 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full transition-all cursor-pointer backdrop-blur-xs flex items-center gap-1.5 active:scale-95"
+        >
+          <span>Saltar</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {/* Marca de agua sutil de Windows SMR 2.0 */}
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-2 opacity-30 pointer-events-none">
+        <div className="grid grid-cols-2 gap-0.5 w-3.5 h-3.5">
+          <div className="bg-[#00adef] rounded-[0.5px]" />
+          <div className="bg-[#00adef] rounded-[0.5px]" />
+          <div className="bg-[#00adef] rounded-[0.5px]" />
+          <div className="bg-[#00adef] rounded-[0.5px]" />
         </div>
+        <span className="text-[11px] font-mono tracking-widest uppercase">
+          Windows SMR 2.0
+        </span>
+      </div>
 
-        {/* Contenido de la ventana */}
-        <div className="p-4 sm:p-5">
-          {isLoading ? (
-            /* Pantalla de carga estilo Logon Screen */
-            <div className="py-8 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="relative w-16 h-14 bg-gradient-to-b from-[#2563eb] to-[#1d4ed8] rounded-md p-1.5 shadow-md border-2 border-white/50 flex flex-col items-center justify-center text-white">
-                <span className="text-2xl">🖥️</span>
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border border-white animate-pulse" />
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm font-semibold tracking-tight text-[#0038a8] dark:text-[#58a6ff]">
-                  {loadingStep}
-                </p>
-                <p className="text-[11px] text-[#666] dark:text-[#8b949e]">
-                  Por favor, espere un momento...
-                </p>
-              </div>
-
-              {/* Barra de progreso retro marquesina */}
-              <div className="w-56 h-4 bg-[#fff] dark:bg-[#0d1117] border border-[#7f9db9] dark:border-[#30363d] p-0.5 rounded-[2px] overflow-hidden relative">
-                <div 
-                  className="h-full bg-gradient-to-r from-[#22c55e] via-[#3b82f6] to-[#22c55e] w-1/3 rounded-[1px] animate-[progress_1.2s_ease-in-out_infinite]"
-                  style={{
-                    backgroundImage: 'repeating-linear-gradient(90deg, #3b82f6 0px, #3b82f6 8px, #1d4ed8 8px, #1d4ed8 10px)'
-                  }}
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsLoading(false)}
-                className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline pt-2 cursor-pointer"
-              >
-                Saltar espera
-              </button>
-            </div>
-          ) : (
-            /* Pantalla de bienvenida retro auténtica */
-            <div className="space-y-4">
-              <div className="flex items-start gap-3.5">
-                <div className="w-12 h-12 bg-white dark:bg-[#161b22] border-2 border-[#7f9db9] dark:border-[#30363d] rounded-md p-1 flex items-center justify-center shrink-0 shadow-inner text-2xl">
-                  💻
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-[#0038a8] dark:text-[#58a6ff] leading-snug">
-                    ¡Bienvenido a 2º SMR OS!
-                  </h3>
-                  <p className="text-xs text-[#444] dark:text-[#c9d1d9] mt-0.5">
-                    Sesión iniciada con éxito para el usuario <strong className="font-semibold text-foreground">@{username}</strong>.
-                  </p>
-                </div>
-              </div>
-
-              {/* Caja de detalles de sistema retro beveled */}
-              <div 
-                className="p-3 bg-white dark:bg-[#0d1117] rounded-[3px] border border-[#7f9db9] dark:border-[#30363d] text-xs space-y-2"
+      {!isFinished ? (
+        /* Secuencia de arranque OOBE estilo Windows 10/11 */
+        <div className="max-w-xl w-full text-center px-4 flex flex-col items-center justify-center min-h-[320px]">
+          {/* Anillo de carga de Windows: 6 puntos que rotan a velocidad no-lineal */}
+          <div className="relative w-12 h-12 mb-10">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="absolute inset-0 flex items-start justify-center"
                 style={{
-                  boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.1)'
+                  animation: 'dotSpin 2.6s cubic-bezier(0.5, 0.05, 0.45, 0.95) infinite',
+                  animationDelay: `${i * 0.14}s`,
                 }}
               >
-                <div className="flex items-center justify-between pb-1.5 border-b border-[#e5e5e5] dark:border-[#21262d]">
-                  <span className="text-[#666] dark:text-[#8b949e]">Entorno de red:</span>
-                  <span className="font-mono font-semibold text-[#111] dark:text-[#58a6ff]">AULA_2_SMR</span>
-                </div>
-                <div className="flex items-center justify-between pb-1.5 border-b border-[#e5e5e5] dark:border-[#21262d]">
-                  <span className="text-[#666] dark:text-[#8b949e]">Bono de bienvenida:</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    +1.000 monedas virtuales
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pb-1.5 border-b border-[#e5e5e5] dark:border-[#21262d]">
-                  <span className="text-[#666] dark:text-[#8b949e]">Bolsa El Botellón:</span>
-                  <span className="font-medium text-[#111] dark:text-[#c9d1d9]">Tiempo real activo</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[#666] dark:text-[#8b949e]">Protocolo de aula:</span>
-                  <span className="font-medium text-[#111] dark:text-[#c9d1d9]">TCP/IP SMR2 Edition</span>
-                </div>
+                <div className="w-1.5 h-1.5 rounded-full bg-cyan-300/90 shadow-[0_0_8px_rgba(103,232,249,0.8)]" />
               </div>
+            ))}
+          </div>
 
-              {/* Sugerencia / Bromas de informática */}
-              <div className="p-2.5 bg-[#ffffe1] dark:bg-[#1f242c] border border-[#d6d6a0] dark:border-[#3b434f] rounded-[3px] text-[11px] text-[#444] dark:text-[#adbac7] flex items-start gap-2">
-                <span className="text-sm shrink-0">💡</span>
-                <p className="leading-relaxed">
-                  <strong>Sugerencia de administración:</strong> No reinicies el router del aula ni apagues el equipo mientras operas en el Botellón. Los precios fluctúan según las compras de tus compañeros.
-                </p>
-              </div>
+          {/* Texto de la frase con transición suave */}
+          <div 
+            className={`transition-all duration-300 ease-out transform ${
+              fadeState === 'in' 
+                ? 'opacity-100 translate-y-0 scale-100' 
+                : 'opacity-0 -translate-y-2 scale-98'
+            }`}
+          >
+            <h1 className="text-2xl sm:text-4xl font-light tracking-tight text-white drop-shadow-md leading-tight">
+              {currentPhrase.text}
+            </h1>
 
-              {/* Checkbox y botón de acción */}
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-[#d8d4c8] dark:border-[#30363d]">
-                <label className="flex items-center gap-2 text-[11px] text-[#555] dark:text-[#8b949e] cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={dontShowAgain}
-                    onChange={(e) => setDontShowAgain(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded-[2px] border border-[#7f9db9] text-blue-600 accent-blue-600 cursor-pointer"
-                  />
-                  <span>No volver a mostrar al entrar</span>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="w-full sm:w-auto px-5 py-1.5 min-h-[38px] bg-gradient-to-b from-[#f9f9f9] to-[#e3e3e3] dark:from-[#21262d] dark:to-[#161b22] hover:from-[#ffffff] hover:to-[#ebebeb] dark:hover:from-[#30363d] dark:hover:to-[#21262d] active:from-[#d0d0d0] active:to-[#dfdfdf] text-xs font-bold text-[#111] dark:text-white rounded-[3px] border border-[#003c74] dark:border-[#388bfd] shadow-sm cursor-pointer transition-all flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                  style={{
-                    boxShadow: 'inset 1px 1px 0 #fff, 0 1px 2px rgba(0,0,0,0.2)'
-                  }}
-                >
-                  <span>Iniciar escritorio</span>
-                  <span>↵</span>
-                </button>
-              </div>
-            </div>
-          )}
+            {currentPhrase.subtext && (
+              <p className="mt-3 text-xs sm:text-sm text-cyan-200/70 font-normal tracking-wide max-w-md mx-auto">
+                {currentPhrase.subtext}
+              </p>
+            )}
+          </div>
         </div>
+      ) : (
+        /* Pantalla final ¡Listo! estilo bienvenida completada */
+        <div className="max-w-md w-full bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 rounded-2xl p-6 sm:p-7 shadow-2xl text-center space-y-6 animate-in zoom-in-95 duration-300">
+          <div className="w-14 h-14 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-cyan-500/30 border border-white/20">
+            <Sparkles className="w-7 h-7 text-white" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-semibold tracking-tight text-white">
+              ¡Todo está listo, @{username}!
+            </h2>
+            <p className="text-xs text-cyan-100/80 leading-relaxed">
+              Tu cuenta ha sido configurada en el sistema de 2º SMR con éxito.
+            </p>
+          </div>
+
+          {/* Detalles del entorno */}
+          <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 text-left space-y-2.5 text-xs">
+            <div className="flex items-center justify-between text-white/90">
+              <span className="flex items-center gap-2 text-white/60">
+                <Coins className="w-4 h-4 text-amber-400" />
+                Saldo asignado:
+              </span>
+              <span className="font-semibold text-emerald-400 font-mono">
+                +1.000 monedas
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-white/90">
+              <span className="flex items-center gap-2 text-white/60">
+                <Laptop className="w-4 h-4 text-cyan-400" />
+                Entorno:
+              </span>
+              <span className="font-medium text-white/80 font-mono">
+                AULA_2_SMR
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-white/90">
+              <span className="flex items-center gap-2 text-white/60">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                Mercado en vivo:
+              </span>
+              <span className="text-white/80">Conectado (WebSockets)</span>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-white/50 italic leading-relaxed">
+            💡 Consejo del sistema: No apagues el router del aula ni vendas todo en pánico si baja el precio del Kebab.
+          </p>
+
+          <div className="pt-1 space-y-3">
+            <button
+              type="button"
+              onClick={handleFinish}
+              className="w-full min-h-[44px] bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-[0.98] text-white text-sm font-semibold rounded-xl shadow-lg shadow-cyan-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Empezar</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+
+            <label className="flex items-center justify-center gap-2 text-[11px] text-white/50 hover:text-white/80 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={dontShowAgain}
+                onChange={(e) => setDontShowAgain(e.target.checked)}
+                className="w-3.5 h-3.5 rounded-[3px] border-white/30 bg-white/10 text-cyan-500 accent-cyan-500 cursor-pointer"
+              />
+              <span>No volver a mostrar esta bienvenida</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Pie de pantalla */}
+      <div className="absolute bottom-4 text-center text-[11px] text-white/30 font-mono">
+        Microsoft Windows SMR 2.0 • Edición Formación Profesional
       </div>
     </div>
   );
