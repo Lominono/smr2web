@@ -430,10 +430,8 @@ export default function Home() {
       setAuthLoading(false);
 
       if (typeof window !== 'undefined') {
-        const shown = sessionStorage.getItem('smr2_windows_welcome_shown');
         const dismissed = localStorage.getItem('smr2_windows_welcome_dismissed');
-        if (!shown && dismissed !== 'true') {
-          sessionStorage.setItem('smr2_windows_welcome_shown', 'true');
+        if (dismissed !== 'true') {
           setIsWindowsWelcomeOpen(true);
         } else {
           const tourDone = localStorage.getItem('smr2_putoisaac_tour_done');
@@ -1600,6 +1598,7 @@ export default function Home() {
       {/* 7. Student Identification Onboarding Gate (Required: Real Name & Unique Student Number) */}
       <StudentIdentificationModal
         isOpen={Boolean(
+          !isWindowsWelcomeOpen &&
           user &&
           user.role !== 'admin' &&
           user.username !== 'admin' &&
@@ -1636,13 +1635,22 @@ export default function Home() {
       />
 
       {/* 9. Footer */}
-      <footer className="border-t border-border/70 bg-surface/80 py-5 mt-10 mb-16 lg:mb-0 text-center text-xs text-foreground-muted">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <footer className="border-t border-border/70 bg-surface/80 py-6 mt-10 mb-16 lg:mb-0 text-center text-xs text-foreground-muted">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 flex items-center justify-center shrink-0">
               <img src="/logo.png" alt="SMR2" className="w-full h-full object-contain drop-shadow-xs" />
             </div>
             <span className="font-medium text-foreground tracking-tight">SMR2 · 2º Sistemas Microinformáticos y Redes</span>
+          </div>
+
+          <div className="text-center sm:text-right space-y-0.5">
+            <p className="text-xs text-foreground">
+              Desarrollado y creado por <strong className="text-amber-500 font-semibold">JuanFe Ospina</strong> y <strong className="text-amber-500 font-semibold">David</strong>
+            </p>
+            <p className="text-[11px] text-foreground-subtle font-mono">
+              Portal oficial de la clase · Curso lectivo
+            </p>
           </div>
 
           <div className="flex items-center gap-4 text-foreground-subtle text-[11px]">
@@ -1656,7 +1664,7 @@ export default function Home() {
             >
               Normas y Privacidad
             </button>
-            <span>Curso lectivo</span>
+            <span>Aula 204</span>
           </div>
         </div>
       </footer>

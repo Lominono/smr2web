@@ -39,9 +39,14 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthSuccess }) => {
           <AuthForm onSuccess={onAuthSuccess} />
         </div>
 
-        <p className="text-center text-[11px] text-foreground-subtle tracking-tight font-mono">
-          2º Sistemas Microinformáticos y Redes
-        </p>
+        <div className="text-center space-y-1">
+          <p className="text-[11px] text-foreground-subtle tracking-tight font-mono">
+            2º Sistemas Microinformáticos y Redes
+          </p>
+          <p className="text-[11px] text-foreground-muted">
+            Creado y desarrollado por <strong className="text-foreground font-semibold">JuanFe Ospina</strong> y <strong className="text-foreground font-semibold">David</strong>
+          </p>
+        </div>
       </div>
     </div>
   );

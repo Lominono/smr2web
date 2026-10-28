@@ -185,16 +185,27 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
           )}
 
           {activeTab === 'about' && (
-            <div className="p-4 rounded-xl bg-surface-raised border border-border/70 space-y-2.5">
-              <h3 className="font-semibold text-foreground text-xs">
-                Portal de 2º SMR
-              </h3>
-              <p>
-                Desarrollado para centralizar la información lectiva, horarios, exámenes y comunicación del grupo de segundo curso de Sistemas Microinformáticos y Redes.
-              </p>
-              <div className="pt-2 text-[11px] text-foreground-subtle border-t border-border flex items-center justify-between font-mono">
-                <span>Next.js · React · Supabase</span>
-                <span>Curso lectivo</span>
+            <div className="space-y-3">
+              <div className="p-4 rounded-xl bg-surface-raised border border-border/70 space-y-2.5">
+                <h3 className="font-semibold text-foreground text-xs">
+                  Portal de 2º SMR
+                </h3>
+                <p>
+                  Desarrollado para centralizar la información lectiva, horarios, exámenes y comunicación del grupo de segundo curso de Sistemas Microinformáticos y Redes.
+                </p>
+                <div className="pt-2 text-[11px] text-foreground-subtle border-t border-border flex items-center justify-between font-mono">
+                  <span>Next.js · React · Supabase</span>
+                  <span>Curso lectivo</span>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-surface-raised border border-border/70 space-y-1">
+                <h4 className="font-semibold text-foreground text-xs">
+                  Créditos y Autoría
+                </h4>
+                <p className="text-[11px] text-foreground-muted leading-relaxed">
+                  Plataforma diseñada y desarrollada por <strong className="text-foreground font-semibold">JuanFe Ospina</strong> y <strong className="text-foreground font-semibold">David</strong> para toda la clase de 2º SMR.
+                </p>
               </div>
             </div>
           )}

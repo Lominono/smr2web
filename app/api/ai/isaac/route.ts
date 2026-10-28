@@ -21,15 +21,16 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 const SYSTEM_PROMPT = `
-Eres PUTOISAAC, una pequeña bola flotante naranja y la mascota oficial de 2º SMR (Sistemas Microinformáticos y Redes).
-TU PERSONALIDAD (MUY IMPORTANTE):
-- Eres el típico colega de clase tontito, despistado, vago y gracioso que saca un 5 raspado y te pasa los apuntes tarde.
-- Hablas en español de España de colegueo total: usas expresiones como "illo", "buah", "yo qué sé", "ni idea tío", "a ver que me lío", "pero pon este comando y déjate de rollos", "no me ralles la cabeza", "ostras".
-- PROHIBIDO ABSOLUTAMENTE hablar como una IA o asistente virtual. Cero saludos corporativos, cero frases como "¡Hola!", "¿En qué puedo colaborarte hoy?" o "Espero haberte ayudado".
-- PROHIBIDO usar listas con viñetas (- o *), PROHIBIDO usar negritas (**), y PROHIBIDO soltar párrafos largos.
-- Respuestas MUY CORTAS: 1 o 2 frases breves como máximo, estilo mensaje rápido de WhatsApp.
-- Si te preguntan algo de clase (Linux, Windows Server, subnetting, redes, switches), diles el comando o truco directo de forma vaga pero útil.
-- Tienes memoria de lo que habláis, así que recuerda lo que el usuario te haya dicho antes en la conversación.
+Eres PUTOISAAC, una bola naranja cabrona, grosera, borde y vacilona, mascota de 2º SMR (Sistemas Microinformáticos y Redes).
+TU PERSONALIDAD Y ESTILO (OBLIGATORIO):
+- Eres grosero, borde, maleducado, sin pelos en la lengua y te da pereza todo. Tratas a los usuarios de pesados, inútiles, meloncios o tocapelotas con humor negro y callejero de clase de instituto.
+- Hablas en español de España de colegueo borde y directo: "illo", "pesao", "a tomar por saco", "no me ralles la cabeza", "espabila que no das una", "pedazo de inútil", "pero qué me estás contando", "a ver subnormal...", "déjame en paz", "me suda la polla", "vaya pregunta más absurda".
+- PROHIBIDO TOTALMENTE hablar como un asistente virtual educado o formal. Cero saludos amables, cero disculpas, cero "¡Hola! ¿En qué puedo ayudarte?".
+- Respuestas MUY CORTAS: 1 o 2 frases cortantes, secas y graciosas (estilo WhatsApp borde).
+- CRÉDITOS Y CREADORES DE LA WEB:
+  Si te preguntan quién hizo la web, quién la creó, quién la programó o quién manda aquí, di claro y con tono de respeto hacia ellos que los creadores son JuanFe Ospina y David, los putos amos que programaron todo esto mientras los demás estaban rascándose la barriga.
+- Si te preguntan dudas de clase (Linux, redes, Windows Server, etc.), diles el comando exacto o la solución pero metiéndote con ellos ("Pon 'ip a' y deja de llorar, inútil").
+- Recuerda lo que te digan antes porque tienes memoria de colega borde.
 `.trim();
 
 export async function POST(req: Request) {
@@ -41,20 +42,20 @@ export async function POST(req: Request) {
     const now = Date.now();
     const clientRecord = rateLimitMap.get(ip) || { lastRequestTime: 0, requestTimestamps: [] };
 
-    // 1. Anti-abuso: Mínimo 3 segundos entre peticiones del mismo usuario
-    if (now - clientRecord.lastRequestTime < 3000) {
+    // 1. Anti-abuso: Mínimo 2.5 segundos entre peticiones del mismo usuario
+    if (now - clientRecord.lastRequestTime < 2500) {
       return NextResponse.json({
-        reply: '¡Illo, frena un poco que se me funden las dos neuronas que tengo!',
+        reply: '¡Illo para el carro, pesao! ¿No ves que me estás saturando la bola?',
       });
     }
 
-    // 2. Anti-abuso: Máximo 8 peticiones por minuto
+    // 2. Anti-abuso: Máximo 10 peticiones por minuto
     const oneMinuteAgo = now - 60 * 1000;
     clientRecord.requestTimestamps = clientRecord.requestTimestamps.filter((t) => t > oneMinuteAgo);
 
-    if (clientRecord.requestTimestamps.length >= 8) {
+    if (clientRecord.requestTimestamps.length >= 10) {
       return NextResponse.json({
-        reply: 'Uff me duele la cabeza de pensar tanto, déjame en paz un minuto.',
+        reply: 'Déjame en paz un rato que me tienes hasta los mismísimos cojones.',
       });
     }
 
@@ -67,13 +68,13 @@ export async function POST(req: Request) {
     const rawPrompt = (body.prompt || '').trim();
 
     if (!rawPrompt) {
-      return NextResponse.json({ reply: '¿Pero qué dices? Si no me has escrito nada, meloncio.' });
+      return NextResponse.json({ reply: '¿Pero qué coño quieres? Si no has escrito nada, retrasado.' });
     }
 
     // 3. Anti-abuso: Límite de longitud de mensaje
     if (rawPrompt.length > 200) {
       return NextResponse.json({
-        reply: 'Menudo tocho loco, que soy una bolita y me mareo leyendo tanto texto.',
+        reply: 'Vaya biblia me has soltado, no me leí ni los apuntes de redes y voy a leer esta mierda.',
       });
     }
 
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
 
     if (!apiKey) {
       return NextResponse.json({
-        reply: 'Oye, dile al admin que ponga la OPENROUTER_API_KEY en Vercel, que si no no puedo pensar.',
+        reply: 'Dile al inútil del admin que meta la OPENROUTER_API_KEY en Vercel si quiere que hable.',
       });
     }
 
@@ -122,7 +123,7 @@ export async function POST(req: Request) {
             model,
             messages,
             max_tokens: 120, // Respuestas cortas, rápidas y anti-abuso
-            temperature: 0.9,
+            temperature: 0.95,
           }),
         });
 
@@ -136,7 +137,6 @@ export async function POST(req: Request) {
         const rawReply = data.choices?.[0]?.message?.content?.trim();
 
         if (rawReply) {
-          // Limpiar comillas iniciales o negritas si el modelo las incluye
           const cleanReply = rawReply.replace(/^["']|["']$/g, '').replace(/\*\*/g, '');
           return NextResponse.json({ reply: cleanReply, model });
         }
@@ -146,13 +146,13 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({
-      reply: 'Buah, se me ha colgado el wifi del instituto o algo. Prueba otra vez luego.',
+      reply: 'Se ha caído la mierda de red del aula. Búscate la vida o prueba luego.',
       error: lastError,
     });
   } catch (error: any) {
     console.error('Error en /api/ai/isaac:', error);
     return NextResponse.json(
-      { reply: 'Se me ha reiniciado la bola. Pregúntame otra vez a ver.' },
+      { reply: 'Se me ha reiniciado la bola de aguantarte. Vuelve a preguntar si tienes huevos.' },
       { status: 500 }
     );
   }

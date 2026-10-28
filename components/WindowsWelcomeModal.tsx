@@ -126,7 +126,7 @@ export const WindowsWelcomeModal: React.FC<WindowsWelcomeModalProps> = ({
   const currentPhrase = PHRASES[stepIndex] || PHRASES[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black text-white select-none overflow-hidden font-sans">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-4 bg-black text-white select-none overflow-hidden font-sans">
       <style jsx>{`
         @keyframes winDotSpin {
           0% { transform: rotate(0deg); }

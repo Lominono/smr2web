@@ -1169,6 +1169,11 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                   Borrar local
                 </Button>
               </div>
+
+              {/* Créditos oficiales */}
+              <div className="pt-2 text-center text-[10px] text-foreground-muted font-mono">
+                Desarrollado por <span className="text-foreground font-semibold">JuanFe Ospina</span> y <span className="text-foreground font-semibold">David</span> · 2º SMR
+              </div>
             </div>
           )}
 
