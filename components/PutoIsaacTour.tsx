@@ -313,7 +313,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
   return (
     <>
-      {/* Botón flotante ultra-minimalista: sin muñecos de IA, diseño de herramienta técnica */}
+      {/* Botón flotante ultra-minimalista: adaptado al modo claro y oscuro */}
       <div
         className="fixed z-40 bottom-[calc(4.8rem+env(safe-area-inset-bottom,0px))] left-4 sm:left-6 sm:bottom-6 select-none font-mono"
         style={{ pointerEvents: 'auto' }}
@@ -322,34 +322,34 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
           type="button"
           onClick={handleOpen}
           aria-label="Abrir asistente técnico ISAAC"
-          className="group flex items-center gap-2.5 px-3 py-2 rounded-xl bg-neutral-950/90 text-neutral-200 border border-neutral-800 shadow-xl hover:border-neutral-700 hover:text-white transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+          className="group flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface/95 text-foreground border border-border shadow-xl hover:bg-surface-raised transition-all active:scale-95 cursor-pointer backdrop-blur-md"
         >
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-semibold tracking-wider">ISAAC</span>
-          <span className="hidden sm:inline-block text-[10px] text-neutral-400 font-mono px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800">
+          <span className="text-xs font-semibold tracking-wider font-mono">ISAAC</span>
+          <span className="hidden sm:inline-block text-[10px] text-foreground-muted font-mono px-1.5 py-0.5 rounded bg-surface-raised border border-border/80">
             ⌘K
           </span>
         </button>
       </div>
 
-      {/* Panel Asistente / Command Palette */}
+      {/* Panel Asistente / Command Palette Adaptativo a Modo Claro y Oscuro */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs font-sans">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 dark:bg-black/70 backdrop-blur-xs font-sans">
           <div
-            className="w-full sm:max-w-xl h-[85vh] sm:h-[620px] max-h-[92vh] bg-neutral-950 border border-neutral-800 rounded-t-2xl sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            className="w-full sm:max-w-xl h-[85vh] sm:h-[620px] max-h-[92vh] bg-surface text-foreground border border-border rounded-t-2xl sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
             style={{
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.75)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45)',
             }}
           >
             {/* Header Técnico y Minimalista */}
-            <header className="px-4 py-3.5 border-b border-neutral-800/80 flex items-center justify-between gap-3 bg-neutral-900/40 select-none">
+            <header className="px-4 py-3.5 border-b border-border/80 flex items-center justify-between gap-3 bg-surface-raised/50 select-none">
               <div className="flex items-center gap-2.5">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <div>
-                  <h3 className="text-xs font-bold text-white tracking-wider font-mono">
+                  <h3 className="text-xs font-bold text-foreground tracking-wider font-mono">
                     ISAAC // ASISTENTE 2º SMR
                   </h3>
-                  <p className="text-[10px] text-neutral-400 font-mono">
+                  <p className="text-[10px] text-foreground-muted font-mono">
                     Aula 204 · Control web y resolución de red
                   </p>
                 </div>
@@ -359,7 +359,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                 <button
                   type="button"
                   onClick={handleClearChat}
-                  className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/60 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
                   title="Limpiar conversación"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -367,7 +367,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
                   title="Cerrar (Esc)"
                 >
                   <X className="w-4 h-4" />
@@ -376,16 +376,16 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
             </header>
 
             {/* Quick Action Chips (Funciones reales de control dentro de la web) */}
-            <div className="px-3.5 py-2 border-b border-neutral-900 bg-neutral-950/60 flex items-center gap-1.5 overflow-x-auto scrollbar-none select-none text-[11px] font-mono">
+            <div className="px-3.5 py-2 border-b border-border/70 bg-surface flex items-center gap-1.5 overflow-x-auto scrollbar-none select-none text-[11px] font-mono">
               <button
                 type="button"
                 onClick={() => {
                   executeAction('schedule');
                   handleSendMessage('¿Qué horario o clase toca hoy?');
                 }}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface-raised border border-border/80 text-foreground-muted hover:text-foreground hover:border-border transition-colors shrink-0 cursor-pointer"
               >
-                <Calendar className="w-3 h-3 text-sky-400" />
+                <Calendar className="w-3 h-3 text-sky-500 dark:text-sky-400" />
                 <span>Horario</span>
               </button>
 
@@ -395,9 +395,9 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                   executeAction('investments');
                   handleSendMessage('Muéstrame la bolsa de El Botellón');
                 }}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface-raised border border-border/80 text-foreground-muted hover:text-foreground hover:border-border transition-colors shrink-0 cursor-pointer"
               >
-                <TrendingUp className="w-3 h-3 text-amber-400" />
+                <TrendingUp className="w-3 h-3 text-amber-500 dark:text-amber-400" />
                 <span>Bolsa</span>
               </button>
 
@@ -407,32 +407,32 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                   executeAction('chat');
                   handleSendMessage('Ir al tablón en vivo');
                 }}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface-raised border border-border/80 text-foreground-muted hover:text-foreground hover:border-border transition-colors shrink-0 cursor-pointer"
               >
-                <MessageSquare className="w-3 h-3 text-emerald-400" />
+                <MessageSquare className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
                 <span>Tablón</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleSendMessage('¿Qué clase toca ahora mismo?')}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface-raised border border-border/80 text-foreground-muted hover:text-foreground hover:border-border transition-colors shrink-0 cursor-pointer"
               >
-                <Compass className="w-3 h-3 text-purple-400" />
+                <Compass className="w-3 h-3 text-purple-500 dark:text-purple-400" />
                 <span>¿Qué toca?</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleSendMessage('Comandos de red y Linux para 2º SMR')}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface-raised border border-border/80 text-foreground-muted hover:text-foreground hover:border-border transition-colors shrink-0 cursor-pointer"
               >
                 <Terminal className="w-3 h-3 text-amber-500" />
                 <span>Comandos SMR</span>
               </button>
             </div>
 
-            {/* Lista de Mensajes */}
+            {/* Lista de Mensajes Adaptables */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-xs">
               {messages.map((msg, idx) => (
                 <div
@@ -442,18 +442,28 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                   <div
                     className={`max-w-[85%] rounded-xl px-3.5 py-2.5 leading-relaxed ${
                       msg.role === 'user'
-                        ? 'bg-neutral-800 text-neutral-100 border border-neutral-700'
-                        : 'bg-neutral-900/90 text-neutral-300 border border-neutral-800/90'
+                        ? 'bg-foreground text-background font-medium shadow-xs'
+                        : 'bg-surface-raised text-foreground border border-border/80 shadow-2xs'
                     }`}
                   >
-                    <div className="text-[10px] text-neutral-400 mb-1 select-none font-semibold">
+                    <div
+                      className={`text-[10px] mb-1 select-none font-semibold ${
+                        msg.role === 'user' ? 'text-background/80' : 'text-foreground-muted'
+                      }`}
+                    >
                       {msg.role === 'user' ? 'TÚ' : 'ISAAC'}
                     </div>
                     <div className="whitespace-pre-wrap">{msg.content}</div>
 
                     {msg.actionExecuted && (
-                      <div className="mt-2 pt-1.5 border-t border-neutral-800 flex items-center gap-1 text-[10px] text-emerald-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <div
+                        className={`mt-2 pt-1.5 border-t flex items-center gap-1 text-[10px] ${
+                          msg.role === 'user'
+                            ? 'border-background/20 text-background'
+                            : 'border-border text-emerald-600 dark:text-emerald-400'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         <span>Acción web ejecutada: {msg.actionExecuted}</span>
                       </div>
                     )}
@@ -462,16 +472,16 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
               ))}
 
               {isLoading && (
-                <div className="flex items-center gap-2 text-neutral-500 text-xs font-mono py-1">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-400" />
+                <div className="flex items-center gap-2 text-foreground-muted text-xs font-mono py-1">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
                   <span>Consultando módulo...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Bar */}
-            <div className="p-3 border-t border-neutral-800/80 bg-neutral-900/30">
+            {/* Input Bar Adaptativo */}
+            <div className="p-3 border-t border-border/80 bg-surface-raised/40">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -480,7 +490,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                 className="flex items-center gap-2"
               >
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-mono text-xs select-none">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle font-mono text-xs select-none">
                     &gt;
                   </span>
                   <input
@@ -494,19 +504,19 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                         : 'Escribe a Isaac o pide navegar a una sección...'
                     }
                     disabled={isLoading || cooldown > 0}
-                    className="w-full h-9 pl-7 pr-3 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-200 placeholder:text-neutral-500 font-mono focus:outline-none focus:border-neutral-600 transition-colors disabled:opacity-50"
+                    className="w-full h-9 pl-7 pr-3 bg-surface border border-border rounded-xl text-xs text-foreground placeholder:text-foreground-subtle font-mono focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading || !inputValue.trim() || cooldown > 0}
-                  className="h-9 px-3.5 rounded-xl bg-white hover:bg-neutral-200 active:scale-95 text-black text-xs font-mono font-semibold transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                  className="h-9 px-3.5 rounded-xl bg-foreground hover:opacity-90 active:scale-95 text-background text-xs font-mono font-semibold transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center gap-1 shadow-xs"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>
               </form>
-              <div className="flex items-center justify-between text-[10px] text-neutral-400 font-mono mt-1.5 px-1">
+              <div className="flex items-center justify-between text-[10px] text-foreground-muted font-mono mt-1.5 px-1">
                 <span>Desarrollado para 2º SMR</span>
                 <span>Enter para enviar</span>
               </div>
