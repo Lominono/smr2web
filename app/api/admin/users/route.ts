@@ -29,29 +29,10 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Si no hay usuarios en la base de datos o Supabase no está configurado, solo devolvemos el usuario real autenticado si existe, sin inventar usuarios ni estadísticas ficticias
-    const fallbackUsers = authResult.user
-      ? [
-          {
-            id: authResult.user.id,
-            username: authResult.user.username,
-            email: authResult.user.email,
-            full_name: authResult.user.full_name,
-            student_number: authResult.user.student_number,
-            coins: authResult.user.coins ?? 1000,
-            biggest_win: authResult.user.biggest_win ?? 0,
-            games_played: authResult.user.games_played ?? 0,
-            games_won: authResult.user.games_won ?? 0,
-            role: authResult.user.role || 'admin',
-            is_banned: authResult.user.is_banned ?? false,
-            created_at: authResult.user.created_at || new Date().toISOString(),
-          },
-        ]
-      : [];
-
+    // Si no hay usuarios en la base de datos, devolvemos estrictamente lista vacía (0 registros)
     return NextResponse.json({
       success: true,
-      users: fallbackUsers,
+      users: [],
     });
   } catch (error: any) {
     return NextResponse.json(

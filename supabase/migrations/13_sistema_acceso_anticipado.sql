@@ -69,34 +69,27 @@ $$;
 -- Permitir ejecutar la función a las conexiones autorizadas y al backend
 GRANT EXECUTE ON FUNCTION public.verify_early_access_key(TEXT) TO anon, authenticated, service_role;
 
--- 4. INSERTAR CLAVES MAESTRAS INICIALES (Almacenadas únicamente en hash SHA-256)
--- Clave 1: 'smr2-dev-2026-master' -> 4ba8141fe33e8ffe257915e00ef2aa04da22a86ce149de94ca95c83a31416bca
-INSERT INTO public.early_access_keys (key_name, key_hash, allowed_role, description)
-VALUES (
-  'Dev Master Key (JuanFe & David)',
-  '4ba8141fe33e8ffe257915e00ef2aa04da22a86ce149de94ca95c83a31416bca',
-  'developer',
-  'Clave principal de desarrollo para pruebas antes del 9 de noviembre'
-)
-ON CONFLICT (key_hash) DO NOTHING;
+-- 4. INSERTAR CLAVES MAESTRAS DE ACCESO ANTICIPADO (Almacenadas únicamente en hash SHA-256)
+-- Eliminar claves legacy antiguas si existen
+DELETE FROM public.early_access_keys WHERE key_hash = 'f824b64452c25275ab37f8ac2e8f2bba9dfdfca9d7dc548288d94ce1f0cbd65c';
 
--- Clave 2: 'juanfe-david-acceso-2026' -> 992a3799ff64a426d41b91eb3913a818b991c22632d1ad7f94209efd200059e4
+-- Clave 1: 'Smr2_Admin#2026_MasterKey!' -> d8b18586f887260d0cf27c430c157f320826ec6a0742e2e92fc374642185b522
 INSERT INTO public.early_access_keys (key_name, key_hash, allowed_role, description)
 VALUES (
-  'Clave Personal JuanFe & David',
-  '992a3799ff64a426d41b91eb3913a818b991c22632d1ad7f94209efd200059e4',
-  'developer',
-  'Acceso secundario para los creadores'
-)
-ON CONFLICT (key_hash) DO NOTHING;
-
--- Clave 3: '2026papu' -> f824b64452c25275ab37f8ac2e8f2bba9dfdfca9d7dc548288d94ce1f0cbd65c
-INSERT INTO public.early_access_keys (key_name, key_hash, allowed_role, description)
-VALUES (
-  'Legacy Admin Key',
-  'f824b64452c25275ab37f8ac2e8f2bba9dfdfca9d7dc548288d94ce1f0cbd65c',
+  'Admin Master Key (Oficial)',
+  'd8b18586f887260d0cf27c430c157f320826ec6a0742e2e92fc374642185b522',
   'admin',
-  'Clave de administración histórica de aula'
+  'Clave maestra oficial de administración del portal SMR2'
+)
+ON CONFLICT (key_hash) DO NOTHING;
+
+-- Clave 2: 'Smr2_EarlyAccess#2026_JuanFeDavid!' -> 7f38360ddbb362bd389ab272f79010817babdf1b89eae09fab51d16491ddb996
+INSERT INTO public.early_access_keys (key_name, key_hash, allowed_role, description)
+VALUES (
+  'Clave Acceso Anticipado JuanFe & David',
+  '7f38360ddbb362bd389ab272f79010817babdf1b89eae09fab51d16491ddb996',
+  'developer',
+  'Acceso anticipado seguro para los creadores'
 )
 ON CONFLICT (key_hash) DO NOTHING;
 
