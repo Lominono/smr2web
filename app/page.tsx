@@ -1648,6 +1648,9 @@ export default function Home() {
         isOpenControlled={isIsaacTourOpen}
         onCloseControlled={() => setIsIsaacTourOpen(false)}
         onSelectTab={handleIsaacSelectTab}
+        onToggleSound={handleToggleSound}
+        onOpenFeedback={() => setIsFeedbackOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* 9. Footer */}
