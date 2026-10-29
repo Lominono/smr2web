@@ -10,17 +10,18 @@ const COMMIT_SHA =
   process.env.VERCEL_GIT_COMMIT_SHA ||
   process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
   process.env.VERCEL_DEPLOYMENT_ID ||
-  `v2.6.0-${SERVER_BOOT_TIME}`;
+  `v0.0.1-beta-${SERVER_BOOT_TIME}`;
 
 const DEFAULT_CHANGELOG = {
-  version: '2.6.0',
-  title: 'SMR2 v2.6.0 en Directo',
-  description: 'Feed de publicaciones en tiempo real y mercado de cotizaciones interactivo',
+  version: '0.0.1-beta',
+  title: 'Portal 2º SMR · Versión 0.0.1 Beta',
+  description: 'Despliegue inicial de la plataforma del Aula 204 con arquitectura minimalista y herramientas de clase.',
   changes: [
-    'Feed en tiempo real: los mensajes que publicas se ven al instante para todos los compañeros.',
-    'Gráfica de cotizaciones en directo: cotización real por oferta y demanda de la clase.',
-    'Acceso unificado al panel de administración para delegados y profesores.',
-    'Eliminación de datos ficticios y optimización móvil ligera sin diseños innecesarios.',
+    'Asistente ISAAC: Rediseño minimalista sin diseño de IA, atajo de teclado ⌘K, horario lectivo en vivo y efectos de teletipo sonoro.',
+    'Conteo de salida oficial ultra-minimalista: Pantalla de espera sin botones con acceso seguro por secuencia (Shift+Esc / smr).',
+    'Seguridad y auditoría (/admin): Terminal de hacking ético con telemetría de red, pistas criptográficas y payload clasificado.',
+    'Bolsa de El Botellón: Sistema bursátil interactivo con cotizaciones y libro de órdenes en tiempo real.',
+    'Tablón en vivo y horario: Avisos instantáneos sin recarga y calendario lectivo de asignaturas del curso.',
   ],
   created_at: new Date(SERVER_BOOT_TIME).toISOString(),
 };

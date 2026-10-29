@@ -480,6 +480,33 @@ class SoundFX {
       } catch {}
     });
   }
+
+  // Soft, crisp typing click for ISAAC (subtle mechanical tactile feedback)
+  typing() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      // Discrete random acoustic variance (1050Hz - 1350Hz)
+      const freq = 1050 + Math.random() * 300;
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(320, this.ctx.currentTime + 0.02);
+
+      gain.gain.setValueAtTime(0.02, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.02);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.02);
+    } catch {}
+  }
 }
 
 export const sound = new SoundFX();

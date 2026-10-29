@@ -460,7 +460,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 <Sparkles className="w-4 h-4 text-emerald-500" />
                 <span className="text-sm font-sans">Novedades y versiones</span>
               </div>
-              <span className="text-[11px] font-mono text-foreground-subtle">v2.6.0</span>
+              <span className="text-[11px] font-mono text-emerald-400 font-medium">v0.0.1 Beta</span>
             </button>
 
             <button

@@ -2,666 +2,518 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '@/lib/audio';
-import { X, ArrowRight, RotateCcw, Send, Sparkles, Loader2, Trash2 } from 'lucide-react';
-
-interface TourStep {
-  title: string;
-  text: string;
-  tabTarget?: 'chat' | 'investments' | 'schedule';
-}
-
-const TOUR_STEPS: TourStep[] = [
-  {
-    title: '¡Epa socio!',
-    text: 'Soy PUTOISAAC, la bola tonta de 2º SMR. Te enseño esto en dos patadas pa que no te pierdas el primer día.',
-  },
-  {
-    title: 'El Tablón en Vivo',
-    text: 'Aquí la peña escribe avisos, quejas del examen o tonterías. Lo que pongas le llega a toda la clase al instante sin recargar nada.',
-    tabTarget: 'chat',
-  },
-  {
-    title: 'La Bolsa del Botellón',
-    text: 'Aquí te dan 1.000 monedas por la cara. Puedes comprar acciones de coña como Mercadona o Kebab Amigo para hacerte rico.',
-    tabTarget: 'investments',
-  },
-  {
-    title: 'Cotizaciones Reales',
-    text: 'Ojo que esto se mueve de verdad: si los compas compran a lo loco, la gráfica sube. Si todos venden, se va a la mierda.',
-    tabTarget: 'investments',
-  },
-  {
-    title: 'Horario y Juegos',
-    text: 'Arriba ves qué clase toca hoy para no llegar tarde, y hay juegos como la Ruleta Rusa. ¡Ale, ponte las pilas y no suspendas redes!',
-    tabTarget: 'schedule',
-  },
-];
-
-const RANDOM_TIPS = [
-  'Illo, no metas todas tus monedas en Mercadona que luego te quedas a dos velas.',
-  'Ponte a estudiar subnetting que luego vienen los lloros en el examen de redes.',
-  'Si tus colegas compran Kebab Amigo a saco, el precio sube en directo para todos.',
-  'Guarda siempre con Ctrl+S en los PCs del aula, que luego se va la luz y a llorar.',
-  '¿Te has liado? Si quieres, te repito el tour de la web en un segundo.',
-];
+import {
+  X,
+  Send,
+  Loader2,
+  Terminal,
+  Calendar,
+  TrendingUp,
+  MessageSquare,
+  Sparkles,
+  Command,
+  RotateCcw,
+  Compass,
+  Volume2,
+} from 'lucide-react';
+import { SMR2_SUBJECTS } from '@/lib/scheduleData';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  actionExecuted?: string;
 }
 
 interface PutoIsaacTourProps {
   onSelectTab?: (tab: 'chat' | 'investments' | 'schedule') => void;
   isOpenControlled?: boolean;
   onCloseControlled?: () => void;
+  onToggleSound?: () => void;
+  onOpenFeedback?: () => void;
+  onOpenSettings?: () => void;
+}
+
+// Cálculo en vivo de la clase actual según horario lectivo oficial de 2º SMR
+function getLiveClassStatus(): string {
+  const now = new Date();
+  const day = now.getDay(); // 0: Dom, 1: Lun, ..., 6: Sab
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const currentTimeVal = hours * 60 + minutes;
+
+  if (day === 0 || day === 6) {
+    return 'Fin de semana sin actividad lectiva en Aula 204. La próxima sesión es el lunes a las 08:30.';
+  }
+
+  // Horario lectivo de 08:30 a 14:20
+  if (currentTimeVal < 8 * 60 + 30) {
+    return 'Antes de inicio de clases. La primera sesión arranca a las 08:30 en Aula 204.';
+  }
+
+  if (currentTimeVal >= 14 * 60 + 20) {
+    return 'Jornada escolar concluida. Las clases se reanudan a las 08:30 en Aula 204.';
+  }
+
+  // Recreo (11:05 - 11:35)
+  if (currentTimeVal >= 11 * 60 + 5 && currentTimeVal < 11 * 60 + 35) {
+    return 'Periodo de recreo (11:05 - 11:35). Descanso de media mañana en el instituto.';
+  }
+
+  // Determinación aproximada por bloques del día
+  if (currentTimeVal >= 8 * 60 + 30 && currentTimeVal < 10 * 60 + 20) {
+    return 'Bloque matinal 1: Servicios en Red (SR) / Sistemas Operativos en Red (SOR) en Aula 204.';
+  }
+
+  if (currentTimeVal >= 10 * 60 + 20 && currentTimeVal < 11 * 60 + 5) {
+    return 'Bloque previo al recreo: Seguridad Informática (SI) con análisis de redes en Aula 204.';
+  }
+
+  if (currentTimeVal >= 11 * 60 + 35 && currentTimeVal < 13 * 60 + 25) {
+    return 'Bloque del mediodía: Aplicaciones Web (AW) y despliegue de servidores en Aula 204.';
+  }
+
+  return 'Última sesión de la jornada: Módulo Profesional / Empresa (MEP) e Inglés Técnico (IP2).';
 }
 
 export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
   onSelectTab,
   isOpenControlled,
   onCloseControlled,
+  onToggleSound,
+  onOpenFeedback,
+  onOpenSettings,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [displayedText, setDisplayedText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [isBlinking, setIsBlinking] = useState(false);
-  const [isTalking, setIsTalking] = useState(false);
-
-  // Estado del tour completado (solo se mueve fluidamente por la pantalla AL PRINCIPIO)
-  const [isTourCompleted, setIsTourCompleted] = useState(true);
-
-  // Modo libre o IA
-  const [isIdleChat, setIsIdleChat] = useState(false);
-  const [idleMessage, setIdleMessage] = useState('');
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
-
-  // Memoria volátil de la conversación durante la sesión activa
-  const [volatileHistory, setVolatileHistory] = useState<ChatMessage[]>([]);
-
-  // Sistema anti-abuso del frontend (cooldown entre mensajes)
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: 'assistant',
+      content:
+        'ISAAC operativo. Asistente técnico de 2º SMR (Aula 204). Consulta horario, bolsa, accesos o comandos de red.',
+    },
+  ]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  // Control estricto de textos fijos sin reinicios
-  const currentTextKeyRef = useRef<string>('');
-  const typewriterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const onSelectTabRef = useRef(onSelectTab);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  // Sincronizar apertura controlada externamente
   useEffect(() => {
-    onSelectTabRef.current = onSelectTab;
-  }, [onSelectTab]);
+    if (isOpenControlled !== undefined) {
+      setIsOpen(isOpenControlled);
+    }
+  }, [isOpenControlled]);
 
-  // Comprobar al montar si el usuario ya vio el tour
+  // Atajo de teclado global: Ctrl + K o Cmd + K para invocar a ISAAC
   useEffect(() => {
-    try {
-      const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
-      setIsTourCompleted(tourDone);
-      if (!tourDone && isOpenControlled === undefined) {
-        const timer = setTimeout(() => {
-          setIsOpen(true);
-        }, 1200);
-        return () => clearTimeout(timer);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsOpen((prev) => !prev);
       }
-    } catch {}
-  }, [isOpenControlled]);
-
-  // Apertura controlada externa (ej: desde bienvenida o ajustes)
-  useEffect(() => {
-    if (isOpenControlled) {
-      setCurrentStep(0);
-      setIsIdleChat(false);
-      setIsTourCompleted(false);
-      setIsOpen(true);
-    }
-  }, [isOpenControlled]);
-
-  // Temporizador para el cooldown anti-abuso
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setInterval(() => {
-      setCooldown((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [cooldown]);
-
-  // Parpadeo natural de los ojos
-  useEffect(() => {
-    const blinkInterval = setInterval(() => {
-      setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 180);
-    }, 3400 + Math.random() * 2600);
-
-    return () => clearInterval(blinkInterval);
-  }, []);
-
-  // Máquina de escribir: escribe una vez y se queda fija
-  const startTypewriter = useCallback((targetText: string, messageKey: string) => {
-    if (typewriterTimeoutRef.current) {
-      clearTimeout(typewriterTimeoutRef.current);
-    }
-
-    currentTextKeyRef.current = messageKey;
-    setDisplayedText('');
-    setIsTyping(true);
-    setIsTalking(true);
-
-    let charIndex = 0;
-
-    const typeNext = () => {
-      if (currentTextKeyRef.current !== messageKey) return;
-
-      if (charIndex <= targetText.length) {
-        setDisplayedText(targetText.slice(0, charIndex));
-        charIndex += 1;
-
-        const char = targetText[charIndex - 1];
-        const delay = char === '.' || char === '!' || char === '?' ? 55 : 18;
-
-        typewriterTimeoutRef.current = setTimeout(typeNext, delay);
-      } else {
-        setDisplayedText(targetText);
-        setIsTyping(false);
-        setIsTalking(false);
+      if (e.key === 'Escape' && isOpen) {
+        handleClose();
       }
     };
 
-    typewriterTimeoutRef.current = setTimeout(typeNext, 50);
-  }, []);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
-  // Disparar texto correspondiente según el estado
+  // Scroll al final al recibir mensajes
   useEffect(() => {
-    if (!isOpen) {
-      setIsTalking(false);
-      return;
-    }
-
-    if (isIdleChat) {
-      const key = `idle_${idleMessage}`;
-      if (currentTextKeyRef.current !== key) {
-        startTypewriter(idleMessage, key);
-      }
-      return;
-    }
-
-    const step = TOUR_STEPS[currentStep];
-    if (!step) return;
-
-    if (onSelectTabRef.current && step.tabTarget) {
-      onSelectTabRef.current(step.tabTarget);
-    }
-
-    const key = `tour_step_${currentStep}`;
-    if (currentTextKeyRef.current !== key) {
-      startTypewriter(step.text, key);
-    }
-  }, [isOpen, currentStep, isIdleChat, idleMessage, startTypewriter]);
-
-  // Completar el texto al hacer clic en el bocadillo
-  const handleBubbleClick = () => {
-    if (isTyping) {
-      if (typewriterTimeoutRef.current) {
-        clearTimeout(typewriterTimeoutRef.current);
-      }
-      const targetText = isIdleChat ? idleMessage : TOUR_STEPS[currentStep]?.text || '';
-      setDisplayedText(targetText);
-      setIsTyping(false);
-      setIsTalking(false);
-      try { sound.tap(); } catch {}
-    }
-  };
-
-  const handleNext = () => {
-    try { sound.tap(); } catch {}
-
-    if (currentStep < TOUR_STEPS.length - 1) {
-      setCurrentStep((prev) => prev + 1);
-    } else {
-      // Fin del tour: guardar marca, estacionarse en el lugar seguro y no volver a moverse por la pantalla
-      try {
-        localStorage.setItem('smr2_putoisaac_tour_done', 'true');
-      } catch {}
-      setIsTourCompleted(true);
-      setIsOpen(false);
-      setIsIdleChat(true);
-      if (onCloseControlled) {
-        onCloseControlled();
-      }
-    }
-  };
-
-  const handleClose = (markDone: boolean = true) => {
-    try { sound.tap(); } catch {}
-    if (markDone) {
-      try {
-        localStorage.setItem('smr2_putoisaac_tour_done', 'true');
-      } catch {}
-      setIsTourCompleted(true);
-    }
-    setIsOpen(false);
-    if (onCloseControlled) {
-      onCloseControlled();
-    }
-  };
-
-  const handleMascotClick = () => {
-    try { sound.tap(); } catch {}
-
     if (isOpen) {
-      handleClose(false);
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isOpen]);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
+
+  const handleClose = () => {
+    setIsOpen(false);
+    if (onCloseControlled) onCloseControlled();
+  };
+
+  const handleOpen = () => {
+    setIsOpen(true);
+    try {
+      sound.tap();
+    } catch {}
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  // Ejecución de acciones dentro de la web
+  const executeAction = useCallback(
+    (actionStr: string) => {
+      if (actionStr.includes('NAV:schedule') || actionStr === 'schedule') {
+        onSelectTab?.('schedule');
+        return 'Navegación: Horario';
+      }
+      if (actionStr.includes('NAV:investments') || actionStr === 'investments') {
+        onSelectTab?.('investments');
+        return 'Navegación: Bolsa';
+      }
+      if (actionStr.includes('NAV:chat') || actionStr === 'chat') {
+        onSelectTab?.('chat');
+        return 'Navegación: Tablón';
+      }
+      if (actionStr.includes('ACT:toggle_sound')) {
+        onToggleSound?.();
+        return 'Audio alternado';
+      }
+      if (actionStr.includes('ACT:open_feedback')) {
+        onOpenFeedback?.();
+        return 'Incidencias abiertas';
+      }
+      if (actionStr.includes('ACT:open_settings')) {
+        onOpenSettings?.();
+        return 'Ajustes abiertos';
+      }
+      return undefined;
+    },
+    [onSelectTab, onToggleSound, onOpenFeedback, onOpenSettings]
+  );
+
+  // Efecto de teletipo sonoro suave para cuando ISAAC escribe respuestas
+  const appendAssistantWithTyping = useCallback(
+    (fullText: string, actionExecuted?: string) => {
+      let currentIdx = 0;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: '',
+          actionExecuted,
+        },
+      ]);
+
+      const timer = setInterval(() => {
+        currentIdx += 2;
+        const slice = fullText.slice(0, currentIdx);
+
+        // Disparo sonoro sutil cada 4 caracteres para sensación táctil mecánica
+        if (currentIdx % 4 === 0) {
+          try {
+            sound.typing();
+          } catch {}
+        }
+
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last && last.role === 'assistant') {
+            updated[updated.length - 1] = {
+              ...last,
+              content: slice,
+            };
+          }
+          return updated;
+        });
+
+        if (currentIdx >= fullText.length) {
+          clearInterval(timer);
+          setMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last && last.role === 'assistant') {
+              updated[updated.length - 1] = {
+                ...last,
+                content: fullText,
+              };
+            }
+            return updated;
+          });
+        }
+      }, 14);
+    },
+    []
+  );
+
+  const handleSendMessage = async (customPrompt?: string) => {
+    const textToSend = (customPrompt || inputValue).trim();
+    if (!textToSend || isLoading || cooldown > 0) return;
+
+    try {
+      sound.tap();
+    } catch {}
+
+    setInputValue('');
+    setCooldown(2);
+
+    const userMsg: ChatMessage = { role: 'user', content: textToSend };
+    setMessages((prev) => [...prev, userMsg]);
+    setIsLoading(true);
+
+    // Consultas locales instantáneas para zero-latency
+    const lower = textToSend.toLowerCase();
+    if (lower.includes('que toca') || lower.includes('qué toca') || lower.includes('clase ahora')) {
+      const statusText = getLiveClassStatus();
+      appendAssistantWithTyping(statusText, 'Horario Lectivo');
+      setIsLoading(false);
       return;
     }
 
-    if (isTourCompleted) {
-      const randomMsg = RANDOM_TIPS[Math.floor(Math.random() * RANDOM_TIPS.length)];
-      setIdleMessage(randomMsg);
-      setIsIdleChat(true);
-      setIsOpen(true);
-    } else {
-      setCurrentStep(0);
-      setIsIdleChat(false);
-      setIsOpen(true);
-    }
-  };
-
-  const handleRestartTour = () => {
-    try { sound.tap(); } catch {}
-    setCurrentStep(0);
-    setIsIdleChat(false);
-    setIsTourCompleted(false);
-    setIsOpen(true);
-  };
-
-  // Enviar pregunta a la IA de PUTOISAAC con memoria volátil y protección anti-abuso
-  const handleSendAiPrompt = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const prompt = aiPrompt.trim();
-    if (!prompt || isAiLoading || cooldown > 0) return;
-
-    if (prompt.length > 180) {
-      setIdleMessage('Menudo tocho loco, que soy una bola y me mareo leyendo tanto.');
-      startTypewriter('Menudo tocho loco, que soy una bola y me mareo leyendo tanto.', `warn_${Date.now()}`);
+    if (lower.includes('comandos') || lower.includes('red') || lower.includes('linux')) {
+      const commandsText =
+        'Comandos útiles Aula 204: ip a (ver IPs), ss -tuln (puertos), traceroute/tracert (rutas), sudo systemctl status isc-dhcp-server, Test-NetConnection -Port 80.';
+      appendAssistantWithTyping(commandsText, 'Comandos SMR');
+      setIsLoading(false);
       return;
     }
 
     try {
-      sound.tap();
-      setIsAiLoading(true);
-      setAiPrompt('');
-      setCooldown(4); // 4 segundos de cooldown anti-abuso
-
-      // Guardar en memoria volátil
-      const updatedHistory: ChatMessage[] = [
-        ...volatileHistory.slice(-6),
-        { role: 'user', content: prompt },
-      ];
-      setVolatileHistory(updatedHistory);
-
       const res = await fetch('/api/ai/isaac', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt,
-          history: updatedHistory,
+          prompt: textToSend,
+          history: messages.slice(-4),
         }),
       });
 
       const data = await res.json();
-      const reply = data.reply || 'Buah me he liado yo solo, pregúntame otra vez.';
+      let rawReply = data.reply || 'Sin respuesta del sistema.';
 
-      // Actualizar memoria volátil con la respuesta del colega
-      setVolatileHistory((prev) => [...prev.slice(-6), { role: 'assistant', content: reply }]);
+      // Procesar etiquetas de control de la web
+      let executedLabel: string | undefined;
+      const navMatch = rawReply.match(/\[(NAV:[a-z]+|ACT:[a-z_]+)\]/);
+      if (navMatch) {
+        executedLabel = executeAction(navMatch[1]);
+        rawReply = rawReply.replace(navMatch[0], '').trim();
+      }
 
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `ai_${Date.now()}`);
+      appendAssistantWithTyping(rawReply, executedLabel);
     } catch {
-      const errorMsg = 'Se me ha cortado la conexión de la bola. Dale otra vez.';
-      setIdleMessage(errorMsg);
-      startTypewriter(errorMsg, `ai_err_${Date.now()}`);
+      appendAssistantWithTyping('Fallo de enlace con el servicio central de ISAAC.');
     } finally {
-      setIsAiLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleClearMemory = () => {
-    setVolatileHistory([]);
-    setIdleMessage('Memoria borrada fiera. ¿De qué hablábamos? Ya no me acuerdo de nada jajaja.');
-    startTypewriter('Memoria borrada fiera. ¿De qué hablábamos? Ya no me acuerdo de nada jajaja.', `clear_${Date.now()}`);
-    try { sound.tap(); } catch {}
+  const handleClearChat = () => {
+    try {
+      sound.tap();
+    } catch {}
+    setMessages([
+      {
+        role: 'assistant',
+        content: 'Historial del asistente restablecido.',
+      },
+    ]);
   };
-
-  // REGLA CRUCIAL DE POSICIONAMIENTO:
-  // 1. "Deberá moverse fluidamente y SOLO AL PRINCIPIO":
-  //    Solo durante el primer tour activo (!isTourCompleted && isOpen && !isIdleChat) se mueve por la pantalla con animación fluida.
-  // 2. "Debe SIEMPRE posicionarse el asistente en un lugar donde no estorbe":
-  //    En cualquier otro momento (y permanentemente tras el tour), está SIEMPRE en su aparcamiento seguro:
-  //    Esquina inferior izquierda (bottom-left) justo encima de la barra móvil de pestañas, con un avatar compacto que no tapa contenido.
-  const isIntroTourActive = !isTourCompleted && isOpen && !isIdleChat;
-
-  let positionClasses = 'bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-3.5 sm:left-5 sm:bottom-5';
-  let mascotScale = 'scale-100';
-  let bubbleAlignment = 'items-start';
-
-  if (isIntroTourActive) {
-    if (currentStep === 0) {
-      // Paso 0: Bienvenida en el centro, se acerca en grande (scale-125)
-      positionClasses = 'bottom-28 sm:bottom-36 left-1/2 -translate-x-1/2';
-      mascotScale = 'scale-125 sm:scale-130';
-      bubbleAlignment = 'items-center';
-    } else if (currentStep === 1) {
-      // Paso 1: Glissando suave a la izquierda señalando el tablón
-      positionClasses = 'bottom-28 sm:bottom-32 left-4 sm:left-12 translate-x-0';
-      mascotScale = 'scale-110 rotate-3';
-      bubbleAlignment = 'items-start';
-    } else if (currentStep === 2) {
-      // Paso 2: Flota hacia la derecha arriba cerca de la bolsa
-      positionClasses = 'bottom-36 sm:bottom-44 right-4 sm:right-12 translate-x-0';
-      mascotScale = 'scale-115 -rotate-3';
-      bubbleAlignment = 'items-end';
-    } else if (currentStep === 3) {
-      // Paso 3: Regresa al centro en primer plano ("Ojo con el mercado")
-      positionClasses = 'bottom-28 sm:bottom-36 left-1/2 -translate-x-1/2';
-      mascotScale = 'scale-125';
-      bubbleAlignment = 'items-center';
-    } else if (currentStep === 4) {
-      // Paso 4: Sube flotando señalando el menú superior
-      positionClasses = 'top-24 sm:top-28 left-6 sm:left-14 translate-x-0';
-      mascotScale = 'scale-110';
-      bubbleAlignment = 'items-start';
-    }
-  }
 
   return (
     <>
-      {/* Fondo transparente para cerrar el bocadillo con un toque fuera (si está abierto fuera del tour) */}
-      {isOpen && isTourCompleted && (
-        <div
-          onClick={() => handleClose(false)}
-          className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[0.5px] cursor-default pointer-events-auto"
-          aria-hidden="true"
-        />
-      )}
-
-      <aside
-        aria-label="Asistente interactivo PUTOISAAC"
-        className={`fixed z-45 pointer-events-none select-none font-sans transition-all duration-800 cubic-bezier(0.34, 1.56, 0.64, 1) ${positionClasses}`}
+      {/* Botón flotante ultra-minimalista: sin muñecos de IA, diseño de herramienta técnica */}
+      <div
+        className="fixed z-40 bottom-[calc(4.8rem+env(safe-area-inset-bottom,0px))] left-4 sm:left-6 sm:bottom-6 select-none font-mono"
+        style={{ pointerEvents: 'auto' }}
       >
-        <style jsx>{`
-          @keyframes putoFloat {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-6px); }
-          }
-        `}</style>
+        <button
+          type="button"
+          onClick={handleOpen}
+          aria-label="Abrir asistente técnico ISAAC"
+          className="group flex items-center gap-2.5 px-3 py-2 rounded-xl bg-neutral-950/90 text-neutral-200 border border-neutral-800 shadow-xl hover:border-neutral-700 hover:text-white transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+        >
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-semibold tracking-wider">ISAAC</span>
+          <span className="hidden sm:inline-block text-[10px] text-neutral-400 font-mono px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800">
+            ⌘K
+          </span>
+        </button>
+      </div>
 
-        <div className={`relative flex flex-col pointer-events-auto ${bubbleAlignment}`}>
-          {/* Bocadillo de diálogo estilo cómic que NUNCA se reinicia al leer */}
-          {isOpen && (
-            <div
-              onClick={handleBubbleClick}
-              className="mb-2.5 w-[calc(100vw-28px)] max-w-[310px] sm:max-w-[340px] bg-neutral-950 text-white border-2 border-neutral-800 rounded-2xl p-4 shadow-2xl cursor-pointer relative animate-in fade-in zoom-in-95 duration-200"
-              style={{
-                boxShadow: '0 16px 36px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.1)',
-              }}
-            >
-              {/* Cabecera del bocadillo */}
-              <div className="flex items-center justify-between pb-2 border-b border-neutral-800/80 mb-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[11px] font-bold tracking-wider text-white uppercase font-mono">
-                    PUTOISAAC
-                  </span>
-                  {!isTourCompleted && !isIdleChat && (
-                    <span className="text-[10px] text-neutral-400 font-mono ml-1">
-                      {currentStep + 1}/{TOUR_STEPS.length}
-                    </span>
-                  )}
-                  {isIdleChat && (
-                    <span className="text-[10px] text-amber-400 flex items-center gap-0.5 ml-1 font-mono">
-                      <Sparkles className="w-2.5 h-2.5" />
-                      <span>Colega</span>
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1">
-                  {/* Botón para vaciar memoria volátil */}
-                  {isIdleChat && volatileHistory.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClearMemory();
-                      }}
-                      className="w-5 h-5 rounded text-neutral-500 hover:text-amber-400 flex items-center justify-center transition-colors cursor-pointer"
-                      title="Olvidar conversación previa"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleClose(true);
-                    }}
-                    className="w-5 h-5 rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
-                    title="Cerrar"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Título */}
-              <h4 className="text-xs font-bold text-amber-400 mb-1">
-                {isIdleChat ? 'Tu colega de SMR' : TOUR_STEPS[currentStep]?.title}
-              </h4>
-
-              {/* Texto mecanografiado que permanece fijo */}
-              <p className="text-xs text-neutral-200 leading-relaxed min-h-[44px]">
-                {displayedText}
-                {isTyping && (
-                  <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-amber-400 animate-pulse align-middle" />
-                )}
-              </p>
-
-              {/* Modo chat con IA tontita (con memoria y anti-abuso) */}
-              {isIdleChat && (
-                <form onSubmit={handleSendAiPrompt} className="mt-3 pt-2 border-t border-neutral-800/80">
-                  <div className="relative flex items-center">
-                    <input
-                      type="text"
-                      maxLength={180}
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                      placeholder={
-                        cooldown > 0
-                          ? `Espera ${cooldown}s...`
-                          : 'Dile algo a PUTOISAAC...'
-                      }
-                      disabled={isAiLoading || cooldown > 0}
-                      className="w-full text-[11px] bg-neutral-900 border border-neutral-700/80 rounded-lg px-2.5 py-1.5 pr-8 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400/80 transition-colors disabled:opacity-50"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isAiLoading || !aiPrompt.trim() || cooldown > 0}
-                      className="absolute right-1 w-6 h-6 rounded flex items-center justify-center text-neutral-400 hover:text-amber-400 disabled:opacity-30 cursor-pointer"
-                      title="Enviar"
-                    >
-                      {isAiLoading ? (
-                        <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
-                      ) : (
-                        <Send className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Contador sutil y aviso de memoria volátil */}
-                  <div className="flex items-center justify-between text-[9px] text-neutral-500 mt-1 px-0.5 font-mono">
-                    <span>
-                      {volatileHistory.length > 0
-                        ? `Memoria: ${volatileHistory.length} mensajes`
-                        : 'Memoria activa'}
-                    </span>
-                    <span>{aiPrompt.length}/180</span>
-                  </div>
-                </form>
-              )}
-
-              {/* Botones y navegación */}
-              <div className="mt-2 pt-2 border-t border-neutral-800/80 flex items-center justify-between gap-2">
-                {!isTourCompleted && !isIdleChat ? (
-                  <>
-                    <div className="flex items-center gap-1">
-                      {TOUR_STEPS.map((_, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCurrentStep(idx);
-                          }}
-                          className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                            idx === currentStep ? 'w-4 bg-amber-400' : 'w-1.5 bg-neutral-700 hover:bg-neutral-500'
-                          }`}
-                          aria-label={`Paso ${idx + 1}`}
-                        />
-                      ))}
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      {currentStep > 0 && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCurrentStep((p) => p - 1);
-                          }}
-                          className="px-2 py-1 text-[11px] font-medium text-neutral-400 hover:text-white cursor-pointer"
-                        >
-                          Atrás
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNext();
-                        }}
-                        className="px-3 py-1.5 bg-white hover:bg-neutral-200 active:scale-95 text-black text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-sm"
-                      >
-                        <span>{currentStep === TOUR_STEPS.length - 1 ? '¡Listo!' : 'Siguiente'}</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="w-full flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRestartTour();
-                      }}
-                      className="text-[11px] text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Ver tour otra vez</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClose(false);
-                      }}
-                      className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-medium rounded-lg cursor-pointer"
-                    >
-                      Cerrar
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Puntero triangular del bocadillo */}
-              <div
-                className={`absolute -bottom-2 w-3.5 h-3.5 bg-neutral-950 border-r-2 border-b-2 border-neutral-800 transform rotate-45 ${
-                  bubbleAlignment === 'items-end'
-                    ? 'right-6'
-                    : bubbleAlignment === 'items-center'
-                    ? 'left-1/2 -translate-x-1/2'
-                    : 'left-6'
-                }`}
-              />
-            </div>
-          )}
-
-          {/* Mascota esférica interactiva PUTOISAAC (pequeña y discreta donde no estorba) */}
+      {/* Panel Asistente / Command Palette */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs font-sans">
           <div
-            onClick={handleMascotClick}
-            className={`group relative flex flex-col items-center cursor-pointer transition-all duration-700 active:scale-90 ${mascotScale}`}
+            className="w-full sm:max-w-xl h-[85vh] sm:h-[620px] max-h-[92vh] bg-neutral-950 border border-neutral-800 rounded-t-2xl sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
             style={{
-              animation: 'putoFloat 3.8s ease-in-out infinite',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.75)',
             }}
-            title="Toca para hablar con PUTOISAAC"
           >
-            {/* Cartelito con el nombre */}
-            <div className="mb-1 px-2 py-0.5 rounded-full bg-neutral-950/90 text-white border border-neutral-700 text-[9px] font-bold tracking-tight shadow-md transition-all group-hover:scale-105 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-              <span className="font-mono">PUTOISAAC</span>
+            {/* Header Técnico y Minimalista */}
+            <header className="px-4 py-3.5 border-b border-neutral-800/80 flex items-center justify-between gap-3 bg-neutral-900/40 select-none">
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <div>
+                  <h3 className="text-xs font-bold text-white tracking-wider font-mono">
+                    ISAAC // ASISTENTE 2º SMR
+                  </h3>
+                  <p className="text-[10px] text-neutral-400 font-mono">
+                    Aula 204 · Control web y resolución de red
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleClearChat}
+                  className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/60 transition-colors cursor-pointer"
+                  title="Limpiar conversación"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                  title="Cerrar (Esc)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </header>
+
+            {/* Quick Action Chips (Funciones reales de control dentro de la web) */}
+            <div className="px-3.5 py-2 border-b border-neutral-900 bg-neutral-950/60 flex items-center gap-1.5 overflow-x-auto scrollbar-none select-none text-[11px] font-mono">
+              <button
+                type="button"
+                onClick={() => {
+                  executeAction('schedule');
+                  handleSendMessage('¿Qué horario o clase toca hoy?');
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors shrink-0 cursor-pointer"
+              >
+                <Calendar className="w-3 h-3 text-sky-400" />
+                <span>Horario</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  executeAction('investments');
+                  handleSendMessage('Muéstrame la bolsa de El Botellón');
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors shrink-0 cursor-pointer"
+              >
+                <TrendingUp className="w-3 h-3 text-amber-400" />
+                <span>Bolsa</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  executeAction('chat');
+                  handleSendMessage('Ir al tablón en vivo');
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors shrink-0 cursor-pointer"
+              >
+                <MessageSquare className="w-3 h-3 text-emerald-400" />
+                <span>Tablón</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSendMessage('¿Qué clase toca ahora mismo?')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors shrink-0 cursor-pointer"
+              >
+                <Compass className="w-3 h-3 text-purple-400" />
+                <span>¿Qué toca?</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSendMessage('Comandos de red y Linux para 2º SMR')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors shrink-0 cursor-pointer"
+              >
+                <Terminal className="w-3 h-3 text-amber-500" />
+                <span>Comandos SMR</span>
+              </button>
             </div>
 
-            {/* Esfera 3D lustrosa */}
-            <div
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-amber-600 via-orange-500 to-yellow-400 border-2 border-white/80 shadow-xl flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:shadow-amber-500/50 group-hover:scale-105"
-              style={{
-                boxShadow: '0 6px 20px rgba(245, 158, 11, 0.4), inset 0 2px 5px rgba(255,255,255,0.7)',
-              }}
-            >
-              {/* Brillo especular superior */}
-              <div className="absolute top-1 left-1.5 w-3.5 h-2 rounded-full bg-white/70 blur-[0.3px] transform -rotate-12 pointer-events-none" />
-
-              {/* Cara cómica de PUTOISAAC */}
-              <div className="flex flex-col items-center justify-center relative z-10 space-y-1 mt-0.5">
-                {/* Ojos expresivos con parpadeo */}
-                <div className="flex items-center gap-1.5">
+            {/* Lista de Mensajes */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-xs">
+              {messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                >
                   <div
-                    className={`w-2 h-2.5 rounded-full bg-neutral-950 transition-all duration-150 flex items-center justify-center relative ${
-                      isBlinking ? 'h-0.5 mt-2 bg-neutral-900' : ''
+                    className={`max-w-[85%] rounded-xl px-3.5 py-2.5 leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-neutral-800 text-neutral-100 border border-neutral-700'
+                        : 'bg-neutral-900/90 text-neutral-300 border border-neutral-800/90'
                     }`}
                   >
-                    {!isBlinking && (
-                      <div className="w-0.5 h-0.5 rounded-full bg-white absolute top-0.5 left-0.5" />
-                    )}
-                  </div>
+                    <div className="text-[10px] text-neutral-400 mb-1 select-none font-semibold">
+                      {msg.role === 'user' ? 'TÚ' : 'ISAAC'}
+                    </div>
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
 
-                  <div
-                    className={`w-2 h-2.5 rounded-full bg-neutral-950 transition-all duration-150 flex items-center justify-center relative ${
-                      isBlinking ? 'h-0.5 mt-2 bg-neutral-900' : ''
-                    }`}
-                  >
-                    {!isBlinking && (
-                      <div className="w-0.5 h-0.5 rounded-full bg-white absolute top-0.5 left-0.5" />
+                    {msg.actionExecuted && (
+                      <div className="mt-2 pt-1.5 border-t border-neutral-800 flex items-center gap-1 text-[10px] text-emerald-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span>Acción web ejecutada: {msg.actionExecuted}</span>
+                      </div>
                     )}
                   </div>
                 </div>
+              ))}
 
-                {/* Boca que habla */}
-                <div
-                  className={`transition-all duration-100 ${
-                    isTalking
-                      ? 'w-2 h-2 bg-neutral-950 rounded-full animate-bounce'
-                      : 'w-2 h-1 border-b-2 border-neutral-950 rounded-full'
-                  }`}
-                />
+              {isLoading && (
+                <div className="flex items-center gap-2 text-neutral-500 text-xs font-mono py-1">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-400" />
+                  <span>Consultando módulo...</span>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Bar */}
+            <div className="p-3 border-t border-neutral-800/80 bg-neutral-900/30">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                className="flex items-center gap-2"
+              >
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-mono text-xs select-none">
+                    &gt;
+                  </span>
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder={
+                      cooldown > 0
+                        ? `Espera ${cooldown}s...`
+                        : 'Escribe a Isaac o pide navegar a una sección...'
+                    }
+                    disabled={isLoading || cooldown > 0}
+                    className="w-full h-9 pl-7 pr-3 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-200 placeholder:text-neutral-500 font-mono focus:outline-none focus:border-neutral-600 transition-colors disabled:opacity-50"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading || !inputValue.trim() || cooldown > 0}
+                  className="h-9 px-3.5 rounded-xl bg-white hover:bg-neutral-200 active:scale-95 text-black text-xs font-mono font-semibold transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </form>
+              <div className="flex items-center justify-between text-[10px] text-neutral-400 font-mono mt-1.5 px-1">
+                <span>Desarrollado para 2º SMR</span>
+                <span>Enter para enviar</span>
               </div>
             </div>
           </div>
         </div>
-      </aside>
+      )}
     </>
   );
 };
