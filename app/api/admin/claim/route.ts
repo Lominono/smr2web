@@ -22,7 +22,7 @@ const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutos de bloqueo
 const MASTER_ADMIN_PASS = (
   process.env.ADMIN_PASSWORD ||
   process.env.ADMIN_ACCESS_CODE ||
-  '2026papu'
+  'davidgay'
 ).trim();
 
 export async function POST(req: NextRequest) {

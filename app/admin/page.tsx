@@ -71,7 +71,7 @@ export default function AdminPage() {
   const VALID_HACK_TOKENS = new Set([
     '192.168.10.31_smr2_kern3l_r00t',
     'smr2_kern3l_r00t',
-    '2026papu',
+    'davidgay',
     'admin2026',
     'smr2admin',
     'root@smr2',
@@ -404,7 +404,7 @@ export default function AdminPage() {
       const enteredPass = args.join(' ');
       if (
         enteredPass === 'smr2' ||
-        enteredPass === '2026papu' ||
+        enteredPass === 'davidgay' ||
         enteredPass === 'admin2026' ||
         enteredPass.includes('kern3l')
       ) {

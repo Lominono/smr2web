@@ -5,69 +5,92 @@ import { sound } from '@/lib/audio';
 import {
   X,
   ArrowRight,
-  ArrowLeft,
-  RotateCcw,
   Send,
   Loader2,
-  Calendar,
   TrendingUp,
   MessageSquare,
   Terminal,
   Compass,
-  Sparkles,
-  Zap,
   Flame,
-  ShieldAlert,
 } from 'lucide-react';
 import {
   getCurrentScheduleStatus,
   SCHEDULE_GRID,
   SMR2_SUBJECTS,
   DayKey,
-  DAYS,
 } from '@/lib/scheduleData';
 
 interface TourStep {
   title: string;
   text: string;
   tabTarget?: 'chat' | 'investments' | 'schedule' | 'russian_roulette';
-  targetPosClass: string;
+  xFormula: string;
+  yFormula: string;
+  bubblePlacement: 'top' | 'bottom';
+  bubbleAlign: 'center' | 'left' | 'right';
+  mascotScale: string;
 }
 
 const TOUR_STEPS: TourStep[] = [
   {
     title: '¡Epa tú, pedazo de vago!',
-    text: 'Soy PUTOISAAC, la bola naranja más borde y macarra de 2º SMR. Te voy a enseñar este antro en un periquete y voy a hacer los clics por ti porque sé que tienes los dedos flojos.',
-    targetPosClass: 'bottom-28 sm:bottom-36 left-1/2 -translate-x-1/2',
+    text: 'Soy PUTOISAAC, la bola naranja más borde y macarra de 2º SMR. Mira la pantalla y estate atento, que te voy a guiar por este antro.',
+    tabTarget: undefined,
+    xFormula: 'calc(50vw - 28px)',
+    yFormula: '-36vh',
+    bubblePlacement: 'top',
+    bubbleAlign: 'center',
+    mascotScale: 'scale-120 sm:scale-130',
   },
   {
-    title: '¡Clic al Tablón!',
-    text: '¡Toma clic al Tablón! Aquí la peña de clase suelta sus lloros, avisos de exámenes y gilipolleces en directo sin recargar la puta página. No seas fantasma y no pongas spam de mierda.',
+    title: 'El Tablón en Vivo',
+    text: 'Aquí la peña de clase suelta sus quejas de exámenes, marujeos y avisos en directo sin recargar la página. No seas fantasma y no pongas tonterías.',
     tabTarget: 'chat',
-    targetPosClass: 'bottom-24 sm:bottom-28 left-4 sm:left-16 translate-x-0',
+    xFormula: 'clamp(20px, 8vw, 64px)',
+    yFormula: '-24vh',
+    bubblePlacement: 'top',
+    bubbleAlign: 'left',
+    mascotScale: 'scale-110',
   },
   {
-    title: '¡Clic a La Bolsa!',
-    text: '¡Catapúm, clic a la Bolsa de El Botellón! Te regalan 1.000 monedas virtuales por la patilla. Compra acciones de Mercadona o Kebab Amigo para forrarte o arruinarte como un desgraciado.',
+    title: 'La Bolsa de El Botellón',
+    text: 'Te regalan 1.000 monedas virtuales por la patilla. Compra acciones de Mercadona o Kebab Amigo para forrarte o arruinarte como un desgraciado.',
     tabTarget: 'investments',
-    targetPosClass: 'bottom-32 sm:bottom-40 right-4 sm:right-16 translate-x-0',
+    xFormula: 'calc(100vw - clamp(68px, 12vw, 100px))',
+    yFormula: '-26vh',
+    bubblePlacement: 'top',
+    bubbleAlign: 'right',
+    mascotScale: 'scale-110',
   },
   {
-    title: '¡Clic al Horario!',
-    text: '¡Le casco clic al Horario lectivo! Aquí ves qué coño de clase toca en el Aula 204 en tiempo real para no entrar con cara de sobado y saber qué profesor te va a amargar la mañana.',
+    title: 'Horario Lectivo (Aula 204)',
+    text: 'Aquí ves qué coño de clase toca en tiempo real para no entrar con cara de sobado y saber qué profesor te va a amargar la mañana.',
     tabTarget: 'schedule',
-    targetPosClass: 'top-20 sm:top-24 left-6 sm:left-16 translate-x-0',
+    xFormula: 'clamp(24px, 10vw, 84px)',
+    yFormula: '-72vh',
+    bubblePlacement: 'bottom', // Abajo del mascot para no salirse de la pantalla por arriba
+    bubbleAlign: 'left',
+    mascotScale: 'scale-110',
   },
   {
-    title: '¡Clic a la Ruleta Rusa!',
-    text: '¡Y toma clic a la Ruleta Rusa! Un duelo a tiros táctico 1v1 donde usas sierras, birras y esposas para reventar a tus compas de clase y apostar tus monedas sin piedad.',
+    title: 'Ruleta Rusa Táctica',
+    text: 'Un duelo a tiros 1v1 donde usas sierras, birras y esposas para reventar a tus compas de clase y apostar tus monedas sin piedad.',
     tabTarget: 'russian_roulette',
-    targetPosClass: 'bottom-28 sm:bottom-32 left-1/2 -translate-x-1/2',
+    xFormula: 'calc(50vw - 28px)',
+    yFormula: '-30vh',
+    bubblePlacement: 'top',
+    bubbleAlign: 'center',
+    mascotScale: 'scale-115',
   },
   {
     title: '¡Y a tomar por culo!',
-    text: '¡Hala, ya te he hecho todo el tour y he hecho los clics por ti! Si me necesitas, pulsa en mi cabezón naranja y pregúntame lo que te salga del nabo, que como asistente te saco las castañas del fuego.',
-    targetPosClass: 'bottom-[calc(4.8rem+env(safe-area-inset-bottom,0px))] left-4 sm:left-6 sm:bottom-6 translate-x-0',
+    text: '¡Hala, ya te he enseñado todo esto! Si me necesitas, pulsa en mi cabezón naranja y pregúntame lo que te salga del nabo, que como asistente te resuelvo la vida.',
+    tabTarget: undefined,
+    xFormula: 'clamp(16px, 3.5vw, 24px)',
+    yFormula: 'calc(-4.8rem - env(safe-area-inset-bottom, 0px))',
+    bubblePlacement: 'top',
+    bubbleAlign: 'left',
+    mascotScale: 'scale-100',
   },
 ];
 
@@ -98,7 +121,7 @@ interface PutoIsaacTourProps {
   user?: { username?: string; coins?: number } | null;
 }
 
-// Generador de respuesta local del horario en vivo con vocabulario borde y exacto
+// Generador de respuesta local del horario en vivo sin tokens
 function getLiveScheduleKnowledge(username?: string): string {
   const nameTag = username ? `, ${username}` : '';
   const status = getCurrentScheduleStatus();
@@ -160,7 +183,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
   const [isPoking, setIsPoking] = useState(false);
   const [eyeDirection, setEyeDirection] = useState<'center' | 'left' | 'right' | 'up'>('center');
 
-  // Estados de aburrimiento y movimiento autónomo
+  // Estados de aburrimiento y movimiento autónomo fluido
   const [isBoredWandering, setIsBoredWandering] = useState(false);
   const [boredThought, setBoredThought] = useState<string | null>(null);
   const [isSleeping, setIsSleeping] = useState(false);
@@ -176,8 +199,6 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-
-  // Memoria del usuario y conteo de pesadez
   const [interactionCount, setInteractionCount] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -189,10 +210,9 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     onSelectTabRef.current = onSelectTab;
   }, [onSelectTab]);
 
-  // Nombre del usuario con fallback
   const username = user?.username || 'tú';
 
-  // Inicializar mensajes de bienvenida personalizados con memoria
+  // Inicializar mensajes con memoria del usuario
   useEffect(() => {
     try {
       const storedCount = parseInt(localStorage.getItem('smr2_isaac_interact_count') || '0', 10);
@@ -209,7 +229,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     } catch {}
   }, [user?.username]);
 
-  // Verificar al montar si el tour ya fue completado
+  // Verificar si el tour ya fue completado
   useEffect(() => {
     try {
       const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
@@ -286,7 +306,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     window.addEventListener('touchstart', handleUserActivity, { passive: true });
 
     const idleChecker = setInterval(() => {
-      if (isOpen) return; // Si el menú está abierto no se aburre
+      if (isOpen) return;
       const elapsed = Date.now() - lastActivityTimeRef.current;
 
       // Dormirse tras 45s de inactividad total
@@ -295,7 +315,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
         return;
       }
 
-      // Si lleva entre 18s y 35s inactivo: se aburre y se mueve por la pantalla
+      // Si lleva entre 18s y 35s inactivo: se aburre y se mueve suavemente por la pantalla
       if (elapsed > 18000 && elapsed < 42000 && !isBoredWandering && !isSleeping) {
         setIsBoredWandering(true);
         const randomThought = BORED_THOUGHTS[Math.floor(Math.random() * BORED_THOUGHTS.length)];
@@ -375,7 +395,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     [onToggleSound, onOpenFeedback, onOpenSettings]
   );
 
-  // Máquina de escribir para el Tour con efecto sonoro
+  // Máquina de escribir para el Tour con efecto sonoro mecánico
   const runTourTypewriter = useCallback((fullText: string) => {
     if (typewriterTimeoutRef.current) {
       clearTimeout(typewriterTimeoutRef.current);
@@ -411,15 +431,15 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     typewriterTimeoutRef.current = setTimeout(stepType, speed);
   }, []);
 
-  // ANIMACIÓN DE CLIC INTERACTIVO DURANTE EL TOUR:
-  // PUTOISAAC viaja al sitio, hace el "poke" físico con sonido y cambia la pestaña
+  // ANIMACIÓN FLUIDA DE VUELO Y POKE FÍSICO AL LLEGAR:
+  // PUTOISAAC viaja con transición continua por GPU y al llegar hace el "poke" elástico
   useEffect(() => {
     if (isOpen && mode === 'tour') {
       const step = TOUR_STEPS[currentStep];
       if (step) {
         const targetTab = step.tabTarget;
         if (targetTab) {
-          // Breve delay para que la bola viaje y luego haga el clic físico
+          // Esperar 700ms mientras viaja suavemente por la pantalla, luego hacer el poke
           const pokeTimer = setTimeout(() => {
             setIsPoking(true);
             try {
@@ -429,13 +449,23 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
             setTimeout(() => {
               setIsPoking(false);
-            }, 450);
-          }, 350);
+            }, 480);
+          }, 700);
 
-          runTourTypewriter(step.text);
-          return () => clearTimeout(pokeTimer);
+          // Escribir el texto con typewriter tras llegar
+          const textTimer = setTimeout(() => {
+            runTourTypewriter(step.text);
+          }, 850);
+
+          return () => {
+            clearTimeout(pokeTimer);
+            clearTimeout(textTimer);
+          };
         } else {
-          runTourTypewriter(step.text);
+          const textTimer = setTimeout(() => {
+            runTourTypewriter(step.text);
+          }, 400);
+          return () => clearTimeout(textTimer);
         }
       }
     }
@@ -577,7 +607,6 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
-    // Incrementar memoria de interacciones
     const newCount = interactionCount + 1;
     setInteractionCount(newCount);
     try {
@@ -586,7 +615,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
     const lower = textToSend.toLowerCase();
 
-    // 1. RESTRICCIÓN DE ABUSO LOCAL: Cero tokens consumidos para el horario
+    // 1. Horario en vivo con 0 tokens
     if (lower.includes('que toca') || lower.includes('qué toca') || lower.includes('clase ahora') || lower.includes('horario')) {
       const statusText = getLiveScheduleKnowledge(user?.username);
       appendAssistantWithTyping(statusText, 'Horario Lectivo');
@@ -611,7 +640,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       return;
     }
 
-    // 4. Preguntas sobre la ruleta rusa e ítems tácticos
+    // 4. Ruleta rusa e ítems tácticos
     if (lower.includes('ruleta') || lower.includes('items') || lower.includes('ítem') || lower.includes('sierra') || lower.includes('birra') || lower.includes('lupa')) {
       const rouletteText =
         'En la Ruleta Rusa usa la LUPA pa espiar si la bala es real. Si es real, métele la SIERRA pa reventarle 2 de daño. Si es fogueo, tírate el tiro a ti mismo para no perder el turno. ¡La birra expulsa la bala!';
@@ -620,7 +649,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       return;
     }
 
-    // 5. Preguntas sobre La Bolsa de El Botellón
+    // 5. La Bolsa de El Botellón
     if (lower.includes('bolsa') || lower.includes('acciones') || lower.includes('mercadona') || lower.includes('kebab') || lower.includes('dinero') || lower.includes('invertir')) {
       const stockText =
         'En la Bolsa tienes Mercadona, Kebab Amigo, Monster Energy y Tabaco. Si compras en verde eres tonto, compra cuando caiga y vende cuando suba, pedazo de economista de pacotilla.';
@@ -629,7 +658,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       return;
     }
 
-    // 6. Preguntas sobre los creadores
+    // 6. Creadores de la web
     if (lower.includes('quien creo') || lower.includes('quién creó') || lower.includes('creadores') || lower.includes('juanfe') || lower.includes('david')) {
       const creatorsText =
         'Toda esta web la programaron JuanFe Ospina y David, los putos amos de 2º SMR. Tú mientras rascándote los huevos.';
@@ -638,7 +667,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       return;
     }
 
-    // 7. CUOTA LOCAL ANTI-ABUSO DE TOKENS (Máximo 6 peticiones a la IA por hora para no fundir tokens)
+    // 7. Cuota anti-abuso de tokens
     try {
       const now = Date.now();
       const quotaRaw = localStorage.getItem('smr2_isaac_token_quota');
@@ -691,42 +720,29 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     }
   };
 
-  // Determinar clases de posición de la mascota
+  // SISTEMA UNIFICADO DE COORDENADAS 2D PARA VUELO CONTINUO Y FLUIDO (CERO TELETRANSPORTE):
+  // Se ancla el contenedor fijo en bottom: 0; left: 0; y se traslada con translate3d continuo
   const isIntroTourActive = isOpen && mode === 'tour';
 
-  let positionClasses =
-    'bottom-[calc(4.8rem+env(safe-area-inset-bottom,0px))] left-4 sm:left-6 sm:bottom-6';
+  let currentTargetX = 'clamp(16px, 3.5vw, 24px)';
+  let currentTargetY = 'calc(-4.8rem - env(safe-area-inset-bottom, 0px))';
   let mascotScale = 'scale-100';
-  let bubbleAlignment = 'items-start';
+  let bubblePlacement: 'top' | 'bottom' = 'top';
+  let bubbleAlign: 'center' | 'left' | 'right' = 'left';
 
   if (isIntroTourActive) {
     const currentStepConfig = TOUR_STEPS[currentStep];
     if (currentStepConfig) {
-      positionClasses = currentStepConfig.targetPosClass;
-      if (currentStep === 0) {
-        mascotScale = 'scale-115 sm:scale-125';
-        bubbleAlignment = 'items-center';
-      } else if (currentStep === 1) {
-        mascotScale = 'scale-110 rotate-2';
-        bubbleAlignment = 'items-start';
-      } else if (currentStep === 2) {
-        mascotScale = 'scale-110 -rotate-2';
-        bubbleAlignment = 'items-end';
-      } else if (currentStep === 3) {
-        mascotScale = 'scale-110';
-        bubbleAlignment = 'items-start';
-      } else if (currentStep === 4) {
-        mascotScale = 'scale-115';
-        bubbleAlignment = 'items-center';
-      } else {
-        mascotScale = 'scale-105';
-        bubbleAlignment = 'items-start';
-      }
+      currentTargetX = currentStepConfig.xFormula;
+      currentTargetY = currentStepConfig.yFormula;
+      mascotScale = currentStepConfig.mascotScale;
+      bubblePlacement = currentStepConfig.bubblePlacement;
+      bubbleAlign = currentStepConfig.bubbleAlign;
     }
   } else if (isBoredWandering) {
-    // Si se aburre, flota hacia la derecha y arriba unos píxeles
-    positionClasses =
-      'bottom-[calc(6.8rem+env(safe-area-inset-bottom,0px))] left-16 sm:left-24 sm:bottom-12 translate-x-4';
+    // Si se aburre, sale de la esquina y viaja en una curva hacia la derecha y arriba
+    currentTargetX = 'clamp(70px, 16vw, 140px)';
+    currentTargetY = 'calc(-8.5rem - env(safe-area-inset-bottom, 0px))';
     mascotScale = 'scale-110 rotate-6';
   } else if (isSleeping) {
     mascotScale = 'scale-95 opacity-90';
@@ -749,14 +765,29 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
           0% {
             transform: scale(1) translateY(0);
           }
-          40% {
-            transform: scale(1.3, 0.7) translateY(12px);
+          25% {
+            transform: scale(0.92, 1.08) translateY(-8px);
           }
-          70% {
-            transform: scale(0.9, 1.1) translateY(-6px);
+          50% {
+            transform: scale(1.36, 0.64) translateY(16px);
+          }
+          75% {
+            transform: scale(0.88, 1.14) translateY(-6px);
           }
           100% {
             transform: scale(1) translateY(0);
+          }
+        }
+        @keyframes shockwavePulse {
+          0% {
+            transform: scale(0.3);
+            opacity: 0.95;
+            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.9), 0 0 16px rgba(249, 115, 22, 0.6);
+          }
+          100% {
+            transform: scale(2.8);
+            opacity: 0;
+            box-shadow: 0 0 0 0px rgba(249, 115, 22, 0), 0 0 28px rgba(249, 115, 22, 0);
           }
         }
         @keyframes zzzFloat {
@@ -775,12 +806,27 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
         }
       `}</style>
 
-      {/* Contenedor flotante interactivo */}
+      {/* Contenedor flotante: Anclado en bottom: 0, left: 0 con VUELO CONTINUO por GPU */}
       <aside
         aria-label="Asistente interactivo PUTOISAAC"
-        className={`fixed z-45 pointer-events-none select-none font-sans transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1) ${positionClasses}`}
+        className="fixed bottom-0 left-0 z-45 pointer-events-none select-none font-sans"
+        style={{
+          transform: `translate3d(${currentTargetX}, ${currentTargetY}, 0)`,
+          transition: 'transform 850ms cubic-bezier(0.22, 1, 0.36, 1)',
+          willChange: 'transform',
+        }}
       >
-        <div className={`relative flex flex-col pointer-events-auto ${bubbleAlignment}`}>
+        <div
+          className={`relative flex pointer-events-auto ${
+            bubblePlacement === 'bottom' ? 'flex-col-reverse' : 'flex-col'
+          } ${
+            bubbleAlign === 'center'
+              ? 'items-center'
+              : bubbleAlign === 'right'
+              ? 'items-end'
+              : 'items-start'
+          }`}
+        >
           {/* Pensamiento de aburrimiento si la mascota se mueve sola por la pantalla */}
           {!isOpen && boredThought && (
             <div className="mb-2 px-3 py-1.5 rounded-xl bg-neutral-900/90 text-neutral-100 border border-orange-500/40 text-[11px] font-mono shadow-xl backdrop-blur-md max-w-[220px] animate-in fade-in slide-in-from-bottom-2 duration-200 flex items-center gap-1.5">
@@ -802,9 +848,17 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
           {/* Cuadro de diálogo compacto (NO ocupa toda la pantalla, adaptable a modo oscuro y claro) */}
           {isOpen && (
             <div
-              className="mb-2.5 w-[calc(100vw-32px)] max-w-[340px] sm:max-w-[360px] bg-white/95 dark:bg-neutral-900/95 text-neutral-900 dark:text-neutral-100 border-2 border-neutral-300 dark:border-neutral-800 rounded-2xl p-3.5 shadow-2xl relative backdrop-blur-md animate-in fade-in zoom-in-95 duration-200"
+              className={`${
+                bubblePlacement === 'bottom' ? 'mt-3' : 'mb-3'
+              } w-[calc(100vw-32px)] max-w-[340px] sm:max-w-[360px] bg-white/95 dark:bg-neutral-900/95 text-neutral-900 dark:text-neutral-100 border-2 border-neutral-300 dark:border-neutral-800 rounded-2xl p-3.5 shadow-2xl relative backdrop-blur-md animate-in fade-in zoom-in-95 duration-200`}
               style={{
                 boxShadow: '0 20px 40px -10px rgba(0,0,0,0.4)',
+                transform:
+                  bubbleAlign === 'center'
+                    ? 'translateX(0)'
+                    : bubbleAlign === 'right'
+                    ? 'translateX(0)'
+                    : 'translateX(0)',
               }}
             >
               {/* Header compacto con selector de modo */}
@@ -847,19 +901,12 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                 </div>
               </div>
 
-              {/* MODO TOUR GUIADO CON CLICS EN TIEMPO REAL */}
+              {/* MODO TOUR GUIADO */}
               {mode === 'tour' && (
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="text-xs font-bold text-orange-600 dark:text-orange-400">
-                      {TOUR_STEPS[currentStep]?.title}
-                    </h4>
-                    {isPoking && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-orange-500 text-white font-mono animate-bounce">
-                        ¡HACIENDO CLIC!
-                      </span>
-                    )}
-                  </div>
+                  <h4 className="text-xs font-bold text-orange-600 dark:text-orange-400 mb-1">
+                    {TOUR_STEPS[currentStep]?.title}
+                  </h4>
 
                   <div
                     onClick={handleSkipTyping}
@@ -931,7 +978,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                 </div>
               )}
 
-              {/* MODO CHAT / ASISTENTE CON MEMORIA Y PROTECCIÓN DE TOKENS */}
+              {/* MODO CHAT / ASISTENTE */}
               {mode === 'chat' && (
                 <div>
                   {/* Chips de acciones rápidas */}
@@ -1061,12 +1108,16 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                 </div>
               )}
 
-              {/* Flecha indicadora del bocadillo adaptada al tema */}
+              {/* Flecha indicadora del bocadillo adaptada a placement arriba o abajo */}
               <div
-                className={`absolute -bottom-2 w-3.5 h-3.5 bg-white dark:bg-neutral-900 border-r-2 border-b-2 border-neutral-300 dark:border-neutral-800 transform rotate-45 ${
-                  bubbleAlignment === 'items-end'
+                className={`absolute w-3.5 h-3.5 bg-white dark:bg-neutral-900 ${
+                  bubblePlacement === 'bottom'
+                    ? '-top-2 border-l-2 border-t-2 border-neutral-300 dark:border-neutral-800'
+                    : '-bottom-2 border-r-2 border-b-2 border-neutral-300 dark:border-neutral-800'
+                } transform rotate-45 ${
+                  bubbleAlign === 'right'
                     ? 'right-6'
-                    : bubbleAlignment === 'items-center'
+                    : bubbleAlign === 'center'
                     ? 'left-1/2 -translate-x-1/2'
                     : 'left-6'
                 }`}
@@ -1080,16 +1131,30 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
             className={`group relative flex flex-col items-center cursor-pointer transition-all duration-700 active:scale-90 ${mascotScale}`}
             style={{
               animation: isPoking
-                ? 'putoPoke 0.45s ease-out'
+                ? 'putoPoke 0.48s cubic-bezier(0.2, 0.9, 0.3, 1.2)'
                 : isSleeping
                 ? 'none'
                 : 'putoFloat 3.8s ease-in-out infinite',
             }}
             title="Toca para interactuar con PUTOISAAC"
           >
-            {/* Ondulación de clic expansivo cuando hace poke en el tour */}
+            {/* Onda expansiva de impacto de clic físico */}
             {isPoking && (
-              <div className="absolute -inset-3 rounded-full border-2 border-orange-500 animate-ping pointer-events-none opacity-80" />
+              <div
+                className="absolute -inset-2 rounded-full pointer-events-none"
+                style={{
+                  animation: 'shockwavePulse 0.48s ease-out forwards',
+                }}
+              />
+            )}
+
+            {/* Chispas sutiles que saltan al dar el clic físico */}
+            {isPoking && (
+              <div className="absolute inset-0 pointer-events-none">
+                <span className="absolute -top-1 left-0 w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                <span className="absolute -top-2 right-1 w-1.5 h-1.5 rounded-full bg-orange-400 animate-ping" />
+                <span className="absolute -bottom-1 left-2 w-1.5 h-1.5 rounded-full bg-yellow-300 animate-ping" />
+              </div>
             )}
 
             {/* Cartelito con el nombre */}
@@ -1111,7 +1176,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
               {/* Cara cómica de PUTOISAAC */}
               <div className="flex flex-col items-center justify-center relative z-10 space-y-1 mt-0.5">
-                {/* Ojos expresivos con parpadeo y dirección */}
+                {/* Ojos expresivos con parpadeo y dirección de mirada */}
                 <div className="flex items-center gap-1.5">
                   <div
                     className={`w-2.5 h-3 rounded-full bg-neutral-950 transition-all duration-150 flex items-center justify-center relative ${

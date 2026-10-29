@@ -38,7 +38,7 @@ COMMIT;
 -- DESPUÉS DE EJECUTAR ESTO:
 -- ==============================================================
 -- 1. Entra a tu web y crea/inicia sesión con tu nuevo usuario.
--- 2. Ve a /admin e introduce la clave: 2026papu
+-- 2. Ve a /admin e introduce la clave: davidgay
 --    ¡Tu cuenta pasará a ser Administrador automáticamente!
 --
 -- O si prefieres hacerlo directamente por SQL tras registrarte:

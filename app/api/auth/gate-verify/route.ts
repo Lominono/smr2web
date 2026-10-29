@@ -13,7 +13,7 @@ const attemptsMap = new Map<string, GateAttempt>();
 
 // Claves maestras autorizadas para JuanFe Ospina y David
 const VALID_PASSKEYS = new Set([
-  '2026papu',
+  'davidgay',
   'admin2026',
   'smr2admin',
   'smr2-master-key',
