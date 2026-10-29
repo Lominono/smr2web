@@ -452,6 +452,12 @@ export default function Home() {
     } else {
       setUser(null);
       setAuthLoading(false);
+      if (typeof window !== 'undefined') {
+        const dismissed = localStorage.getItem('smr2_windows_welcome_dismissed');
+        if (dismissed !== 'true') {
+          setIsWindowsWelcomeOpen(true);
+        }
+      }
     }
 
     const isConfigured = isSupabaseConfigured();
@@ -1581,6 +1587,10 @@ export default function Home() {
       <WindowsWelcomeModal
         isOpen={isWindowsWelcomeOpen}
         user={user}
+        onSuccessIdentification={(updated) => {
+          setUser(updated);
+          fetchLeaderboard();
+        }}
         onClose={() => {
           setIsWindowsWelcomeOpen(false);
           setTimeout(() => setIsIsaacTourOpen(true), 400);

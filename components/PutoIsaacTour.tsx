@@ -20,71 +20,70 @@ import {
   DayKey,
 } from '@/lib/scheduleData';
 
-interface TourStep {
+interface StepConfig {
   title: string;
   text: string;
   tabTarget?: 'chat' | 'investments' | 'schedule' | 'russian_roulette';
-  // Coordenadas seguras relativas para la mascota en la pantalla (0% a 100%)
-  mascotX: string;
-  mascotY: string;
-  tilt: string;
-  scale: string;
+  xPercent: number; // Porcentaje de ancho de pantalla (0 a 100)
+  yPercent: number; // Porcentaje de alto de pantalla (0 a 100)
+  tiltDeg: number;  // Inclinación aerodinámica al volar
+  scale: number;
 }
 
-const TOUR_STEPS: TourStep[] = [
+const TOUR_STEPS: StepConfig[] = [
   {
     title: '¡Epa tú, pedazo de vago!',
-    text: 'Soy PUTOISAAC, la bola naranja más borde y macarra de 2º SMR. Mira la pantalla y estate atento, que te voy a guiar por este antro.',
-    tabTarget: undefined,
-    mascotX: '50%',
-    mascotY: '36%',
-    tilt: 'rotate(0deg)',
-    scale: 'scale(1.25)',
+    text: 'Soy PUTOISAAC, la bola naranja más borde y macarra de 2º SMR. Mira la pantalla y estate atento, que te voy a enseñar cada página de esta web sin que tengas que mover un dedo.',
+    tabTarget: 'chat',
+    xPercent: 50,
+    yPercent: 24,
+    tiltDeg: 0,
+    scale: 1.25,
   },
   {
     title: 'El Tablón en Vivo',
-    text: 'Aquí la peña de clase suelta sus quejas de exámenes, marujeos y avisos en directo sin recargar la página. No seas fantasma y no pongas tonterías.',
+    text: 'Esta es la página del Tablón. Aquí la peña de clase suelta sus quejas de exámenes, marujeos y avisos en directo sin recargar la página. No seas fantasma y no pongas tonterías.',
     tabTarget: 'chat',
-    mascotX: '20%',
-    mascotY: '66%',
-    tilt: 'rotate(-8deg)', // Se inclina hacia la izquierda
-    scale: 'scale(1.1)',
+    xPercent: 22,
+    yPercent: 30,
+    tiltDeg: -8, // Se inclina hacia la izquierda al volar
+    scale: 1.1,
   },
   {
     title: 'La Bolsa de El Botellón',
-    text: 'Te regalan 1.000 monedas virtuales por la patilla. Compra acciones de Mercadona o Kebab Amigo para forrarte o arruinarte como un desgraciado.',
+    text: '¡Mira la pantalla, te he cambiado a La Bolsa! Te regalan 1.000 monedas por la patilla. Compra acciones de Mercadona o Kebab Amigo para forrarte o arruinarte como un desgraciado.',
     tabTarget: 'investments',
-    mascotX: '80%',
-    mascotY: '60%',
-    tilt: 'rotate(8deg)', // Se inclina hacia la derecha
-    scale: 'scale(1.1)',
+    xPercent: 78,
+    yPercent: 30,
+    tiltDeg: 8, // Se inclina hacia la derecha al volar
+    scale: 1.1,
   },
   {
     title: 'Horario Lectivo (Aula 204)',
-    text: 'Aquí ves qué coño de clase toca en tiempo real para no entrar con cara de sobado y saber qué profesor te va a amargar la mañana.',
+    text: 'Ahora estamos en el Horario. Aquí ves qué coño de clase toca en tiempo real según el horario oficial de 2º SMR para no entrar con cara de sobado y saber qué profesor te espera.',
     tabTarget: 'schedule',
-    mascotX: '22%',
-    mascotY: '18%',
-    tilt: 'rotate(-5deg)',
-    scale: 'scale(1.1)',
+    xPercent: 26,
+    yPercent: 20,
+    tiltDeg: -6,
+    scale: 1.1,
   },
   {
     title: 'Ruleta Rusa Táctica',
-    text: 'Un duelo a tiros 1v1 donde usas sierras, birras y esposas para reventar a tus compas de clase y apostar tus monedas sin piedad.',
+    text: 'Y esta es la Ruleta Rusa. Un duelo a tiros 1v1 con escopeta donde usas sierras, birras y esposas para reventar a tus compas de clase y apostar tus monedas sin piedad.',
     tabTarget: 'russian_roulette',
-    mascotX: '50%',
-    mascotY: '48%',
-    tilt: 'rotate(0deg)',
-    scale: 'scale(1.15)',
+    xPercent: 50,
+    yPercent: 28,
+    tiltDeg: 0,
+    scale: 1.15,
   },
   {
     title: '¡Y a tomar por culo!',
-    text: '¡Hala, ya te he enseñado todo esto! Si me necesitas, pulsa en mi cabezón naranja y pregúntame lo que te salga del nabo, que como asistente te resuelvo la vida.',
+    text: '¡Hala, ya te he enseñado todas las páginas! Si me necesitas, pulsa en mi cabezón naranja y pregúntame lo que te salga del nabo, que como asistente te resuelvo la vida.',
     tabTarget: undefined,
-    mascotX: '46px',
-    mascotY: 'calc(100vh - 5.5rem - env(safe-area-inset-bottom, 0px))',
-    tilt: 'rotate(0deg)',
-    scale: 'scale(1.0)',
+    xPercent: 10,
+    yPercent: 86,
+    tiltDeg: 0,
+    scale: 1.0,
   },
 ];
 
@@ -177,7 +176,19 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
   const [isPoking, setIsPoking] = useState(false);
   const [eyeDirection, setEyeDirection] = useState<'center' | 'left' | 'right' | 'up'>('center');
 
-  // Estados de aburrimiento y movimiento autónomo
+  // Dimensiones en tiempo real para cálculo de trayectoria continua por píxeles
+  const [screenSize, setScreenSize] = useState({ w: 1000, h: 800 });
+
+  useEffect(() => {
+    const updateSize = () => {
+      setScreenSize({ w: window.innerWidth, h: window.innerHeight });
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
+  // Estados de aburrimiento y movimiento autónomo fluido
   const [isBoredWandering, setIsBoredWandering] = useState(false);
   const [boredThought, setBoredThought] = useState<string | null>(null);
   const [isSleeping, setIsSleeping] = useState(false);
@@ -222,21 +233,6 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       setMessages([{ role: 'assistant', content: initialGreeting }]);
     } catch {}
   }, [user?.username]);
-
-  // Verificar si el tour ya fue completado
-  useEffect(() => {
-    try {
-      const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
-      if (!tourDone && isOpenControlled === undefined) {
-        const timer = setTimeout(() => {
-          setMode('tour');
-          setCurrentStep(0);
-          setIsOpen(true);
-        }, 1100);
-        return () => clearTimeout(timer);
-      }
-    } catch {}
-  }, [isOpenControlled]);
 
   // Apertura controlada externamente
   useEffect(() => {
@@ -425,40 +421,43 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     typewriterTimeoutRef.current = setTimeout(stepType, speed);
   }, []);
 
-  // Vuelo continuo y poke elástico al llegar a cada objetivo del tour
+  // VUELO FLUIDO ENTRE PÁGINAS:
+  // Cambia la pestaña de la web durante el vuelo y al llegar hace el "poke" elástico
   useEffect(() => {
     if (isOpen && mode === 'tour') {
       const step = TOUR_STEPS[currentStep];
       if (step) {
         const targetTab = step.tabTarget;
-        if (targetTab) {
-          // La bola viaja 700ms por el aire. Al llegar, hace el poke físico elástico
-          const pokeTimer = setTimeout(() => {
-            setIsPoking(true);
-            try {
-              sound.tap();
-            } catch {}
+
+        // 1. A mitad de vuelo (320ms) cambiamos la página de la web para que se vea la transición en directo
+        const navTimer = setTimeout(() => {
+          if (targetTab) {
             onSelectTabRef.current?.(targetTab);
+          }
+        }, 320);
 
-            setTimeout(() => {
-              setIsPoking(false);
-            }, 460);
-          }, 700);
+        // 2. Al llegar (750ms), hace el poke físico elástico en la sección
+        const pokeTimer = setTimeout(() => {
+          setIsPoking(true);
+          try {
+            sound.tap();
+          } catch {}
 
-          const textTimer = setTimeout(() => {
-            runTourTypewriter(step.text);
-          }, 820);
+          setTimeout(() => {
+            setIsPoking(false);
+          }, 450);
+        }, 750);
 
-          return () => {
-            clearTimeout(pokeTimer);
-            clearTimeout(textTimer);
-          };
-        } else {
-          const textTimer = setTimeout(() => {
-            runTourTypewriter(step.text);
-          }, 400);
-          return () => clearTimeout(textTimer);
-        }
+        // 3. Empieza a hablar con typewriter a los 850ms
+        const textTimer = setTimeout(() => {
+          runTourTypewriter(step.text);
+        }, 850);
+
+        return () => {
+          clearTimeout(navTimer);
+          clearTimeout(pokeTimer);
+          clearTimeout(textTimer);
+        };
       }
     }
   }, [currentStep, isOpen, mode, runTourTypewriter]);
@@ -712,33 +711,30 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     }
   };
 
-  // CÁLCULO DE POSICIÓN FLUIDA CONTINUA PARA LA MASCOTA
+  // CÁLCULO DE COORDENADAS CONTINUAS POR PÍXEL (CERO TELETRANSPORTE)
   const isIntroTourActive = isOpen && mode === 'tour';
 
-  let mascotX = '46px';
-  let mascotY = 'calc(100vh - 5.5rem - env(safe-area-inset-bottom, 0px))';
-  let mascotScale = 'scale(1)';
-  let mascotTilt = 'rotate(0deg)';
+  let currentTargetX = Math.max(38, Math.min(screenSize.w * 0.1, 48));
+  let currentTargetY = screenSize.h - 78;
+  let currentScale = 1.0;
+  let currentTilt = 0;
 
   if (isIntroTourActive) {
-    const currentStepConfig = TOUR_STEPS[currentStep];
-    if (currentStepConfig) {
-      mascotX = currentStepConfig.mascotX;
-      mascotY = currentStepConfig.mascotY;
-      mascotScale = currentStepConfig.scale;
-      mascotTilt = currentStepConfig.tilt;
-    }
+    const step = TOUR_STEPS[currentStep] || TOUR_STEPS[0];
+    currentTargetX = (screenSize.w * step.xPercent) / 100;
+    currentTargetY = (screenSize.h * step.yPercent) / 100;
+    currentScale = step.scale;
+    currentTilt = step.tiltDeg;
   } else if (isBoredWandering) {
-    // Si se aburre, sale de la esquina y viaja en una curva hacia la derecha
-    mascotX = '110px';
-    mascotY = 'calc(100vh - 8.5rem - env(safe-area-inset-bottom, 0px))';
-    mascotScale = 'scale(1.1)';
-    mascotTilt = 'rotate(8deg)';
+    currentTargetX = Math.min(130, screenSize.w * 0.3);
+    currentTargetY = screenSize.h - 130;
+    currentScale = 1.1;
+    currentTilt = 8;
   } else if (isSleeping) {
-    mascotScale = 'scale(0.92)';
+    currentScale = 0.92;
   } else if (isStartled) {
-    mascotScale = 'scale(1.25)';
-    mascotTilt = 'rotate(-4deg)';
+    currentScale = 1.25;
+    currentTilt = -4;
   }
 
   return (
@@ -797,18 +793,15 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
         }
       `}</style>
 
-      {/* 1. LA MASCOTA: NAVEGANTE AUTÓNOMO POR LA PANTALLA (SIN TELETRANSPORTE) */}
+      {/* 1. LA MASCOTA: MOVIMIENTO 2D CONTINUO POR GPU (CERO TELETRANSPORTE) */}
       <div
         onClick={handleMascotClick}
         aria-label="PUTOISAAC mascota"
-        className="fixed z-50 pointer-events-auto cursor-pointer select-none"
+        className="fixed top-0 left-0 z-50 pointer-events-auto cursor-pointer select-none"
         style={{
-          left: mascotX,
-          top: mascotY,
-          transform: `translate(-50%, -50%) ${mascotScale} ${mascotTilt}`,
-          transition:
-            'left 850ms cubic-bezier(0.22, 1, 0.36, 1), top 850ms cubic-bezier(0.22, 1, 0.36, 1), transform 850ms cubic-bezier(0.22, 1, 0.36, 1)',
-          willChange: 'left, top, transform',
+          transform: `translate3d(${currentTargetX - 26}px, ${currentTargetY - 26}px, 0) scale(${currentScale}) rotate(${currentTilt}deg)`,
+          transition: 'transform 850ms cubic-bezier(0.22, 1, 0.36, 1)',
+          willChange: 'transform',
         }}
         title="Toca para interactuar con PUTOISAAC"
       >
@@ -937,21 +930,26 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
         </div>
       </div>
 
-      {/* 2. CUADRO DE DIÁLOGO: SIEMPRE VISIBLE EN PANTALLA (NUNCA SE SALE) */}
+      {/* 2. CUADRO DE DIÁLOGO: POSICIONADO SIN SOLAPAMIENTO CON LA MASCOTA NI CON LA INTERFAZ */}
       {isOpen && (
         <div
-          className={`fixed z-50 pointer-events-auto transition-all duration-300 ${
+          className={`fixed z-40 pointer-events-auto transition-all duration-300 ${
             mode === 'tour'
-              ? 'bottom-[calc(4.8rem+env(safe-area-inset-bottom,0px))] sm:bottom-16 left-1/2 -translate-x-1/2 w-[calc(100vw-32px)] max-w-[360px]'
-              : 'bottom-[calc(5.2rem+env(safe-area-inset-bottom,0px))] left-4 sm:left-6 w-[calc(100vw-32px)] max-w-[340px]'
+              ? 'bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:bottom-20 left-1/2 -translate-x-1/2 w-[calc(100vw-32px)] max-w-[360px]'
+              : 'bottom-[calc(8.8rem+env(safe-area-inset-bottom,0px))] left-4 sm:left-6 w-[calc(100vw-32px)] max-w-[340px]'
           }`}
         >
           <div
-            className="w-full bg-white/95 dark:bg-neutral-900/95 text-neutral-900 dark:text-neutral-100 border-2 border-neutral-300 dark:border-neutral-800 rounded-2xl p-3.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200"
+            className="w-full bg-white/95 dark:bg-neutral-900/95 text-neutral-900 dark:text-neutral-100 border-2 border-neutral-300 dark:border-neutral-800 rounded-2xl p-3.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 relative"
             style={{
               boxShadow: '0 20px 40px -10px rgba(0,0,0,0.4)',
             }}
           >
+            {/* Flecha indicadora solo en modo chat docked (apuntando hacia la bola abajo) */}
+            {mode === 'chat' && (
+              <div className="absolute -bottom-2 left-6 w-3.5 h-3.5 bg-white dark:bg-neutral-900 border-r-2 border-b-2 border-neutral-300 dark:border-neutral-800 transform rotate-45" />
+            )}
+
             {/* Header compacto con selector de modo */}
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-200 dark:border-neutral-800 text-[11px] font-mono">
               <div className="flex items-center gap-1.5">
@@ -992,7 +990,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
               </div>
             </div>
 
-            {/* MODO TOUR GUIADO */}
+            {/* MODO TOUR GUIADO ENTRE PÁGINAS */}
             {mode === 'tour' && (
               <div>
                 <h4 className="text-xs font-bold text-orange-600 dark:text-orange-400 mb-1">
