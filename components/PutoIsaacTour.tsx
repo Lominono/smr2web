@@ -174,6 +174,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
   const [isBlinking, setIsBlinking] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
   const [isPoking, setIsPoking] = useState(false);
+  const [isFlying, setIsFlying] = useState(false);
   const [eyeDirection, setEyeDirection] = useState<'center' | 'left' | 'right' | 'up'>('center');
 
   // Dimensiones en tiempo real para cálculo de trayectoria continua por píxeles
@@ -421,37 +422,50 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     typewriterTimeoutRef.current = setTimeout(stepType, speed);
   }, []);
 
-  // VUELO FLUIDO ENTRE PÁGINAS:
-  // Cambia la pestaña de la web durante el vuelo y al llegar hace el "poke" elástico
+  // VUELO FLUIDO ENTRE PÁGINAS (CERO TELETRANSPORTE, CERO BRUSQUEDAD):
+  // El vuelo se realiza en 1100ms con una curva orgánica de desaceleración natural.
+  // El cambio de pestaña se realiza con React.startTransition cuando la mascota ya está
+  // en la fase final de aproximación (920ms), evitando congelar el hilo de renderizado.
   useEffect(() => {
     if (isOpen && mode === 'tour') {
       const step = TOUR_STEPS[currentStep];
       if (step) {
         const targetTab = step.tabTarget;
 
-        // 1. A mitad de vuelo (320ms) cambiamos la página de la web para que se vea la transición en directo
+        setIsFlying(true);
+        setIsTalking(false);
+
+        // Orientación ocular hacia el rumbo
+        const targetX = (screenSize.w * step.xPercent) / 100;
+        setEyeDirection(targetX >= screenSize.w * 0.5 ? 'right' : 'left');
+
+        // 1. Al aproximarse a destino (920ms), cambiamos la pestaña con baja prioridad sin tirones
         const navTimer = setTimeout(() => {
           if (targetTab) {
-            onSelectTabRef.current?.(targetTab);
+            React.startTransition(() => {
+              onSelectTabRef.current?.(targetTab);
+            });
           }
-        }, 320);
+        }, 920);
 
-        // 2. Al llegar (750ms), hace el poke físico elástico en la sección
+        // 2. Aterrizaje elástico en la sección (1100ms): toque suave
         const pokeTimer = setTimeout(() => {
+          setIsFlying(false);
           setIsPoking(true);
+          setEyeDirection('center');
           try {
             sound.tap();
           } catch {}
 
           setTimeout(() => {
             setIsPoking(false);
-          }, 450);
-        }, 750);
+          }, 360);
+        }, 1100);
 
-        // 3. Empieza a hablar con typewriter a los 850ms
+        // 3. Empieza a hablar con efecto teletipo a los 1240ms
         const textTimer = setTimeout(() => {
           runTourTypewriter(step.text);
-        }, 850);
+        }, 1240);
 
         return () => {
           clearTimeout(navTimer);
@@ -459,8 +473,10 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
           clearTimeout(textTimer);
         };
       }
+    } else {
+      setIsFlying(false);
     }
-  }, [currentStep, isOpen, mode, runTourTypewriter]);
+  }, [currentStep, isOpen, mode, runTourTypewriter, screenSize.w]);
 
   // Completar texto inmediatamente al tocar el bocadillo
   const handleSkipTyping = () => {
@@ -750,31 +766,39 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
         }
         @keyframes putoPoke {
           0% {
-            transform: scale(1) translateY(0);
+            transform: scale(1);
           }
-          25% {
-            transform: scale(0.92, 1.08) translateY(-8px);
+          30% {
+            transform: scale(1.12, 0.90) translateY(4px);
           }
-          50% {
-            transform: scale(1.36, 0.64) translateY(16px);
+          60% {
+            transform: scale(0.96, 1.05) translateY(-3px);
           }
-          75% {
-            transform: scale(0.88, 1.14) translateY(-6px);
+          85% {
+            transform: scale(1.02, 0.98) translateY(1px);
           }
           100% {
             transform: scale(1) translateY(0);
           }
         }
+        @keyframes putoTalk {
+          0%, 100% {
+            transform: scaleY(0.7) scaleX(1);
+          }
+          50% {
+            transform: scaleY(1.3) scaleX(0.92);
+          }
+        }
         @keyframes shockwavePulse {
           0% {
-            transform: scale(0.3);
-            opacity: 0.95;
-            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.9), 0 0 16px rgba(249, 115, 22, 0.6);
+            transform: scale(0.4);
+            opacity: 0.9;
+            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.8), 0 0 12px rgba(249, 115, 22, 0.5);
           }
           100% {
-            transform: scale(2.8);
+            transform: scale(2.2);
             opacity: 0;
-            box-shadow: 0 0 0 0px rgba(249, 115, 22, 0), 0 0 28px rgba(249, 115, 22, 0);
+            box-shadow: 0 0 0 0px rgba(249, 115, 22, 0), 0 0 20px rgba(249, 115, 22, 0);
           }
         }
         @keyframes zzzFloat {
@@ -793,14 +817,18 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
         }
       `}</style>
 
-      {/* 1. LA MASCOTA: MOVIMIENTO 2D CONTINUO POR GPU (CERO TELETRANSPORTE) */}
+      {/* 1. LA MASCOTA: MOVIMIENTO 2D CONTINUO POR GPU (CERO TELETRANSPORTE, GLIDE ULTRA-FLUIDO) */}
       <div
         onClick={handleMascotClick}
         aria-label="PUTOISAAC mascota"
         className="fixed top-0 left-0 z-50 pointer-events-auto cursor-pointer select-none"
         style={{
-          transform: `translate3d(${currentTargetX - 26}px, ${currentTargetY - 26}px, 0) scale(${currentScale}) rotate(${currentTilt}deg)`,
-          transition: 'transform 850ms cubic-bezier(0.22, 1, 0.36, 1)',
+          transform: `translate3d(${currentTargetX - 26}px, ${currentTargetY - 26}px, 0) scale(${currentScale}) rotate(${isFlying ? currentTilt : 0}deg)`,
+          transition: isFlying
+            ? 'transform 1100ms cubic-bezier(0.16, 1, 0.3, 1)'
+            : isBoredWandering
+            ? 'transform 2400ms cubic-bezier(0.25, 1, 0.5, 1)'
+            : 'transform 750ms cubic-bezier(0.16, 1, 0.3, 1)',
           willChange: 'transform',
         }}
         title="Toca para interactuar con PUTOISAAC"
@@ -828,18 +856,26 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
           className="group relative flex flex-col items-center"
           style={{
             animation: isPoking
-              ? 'putoPoke 0.46s cubic-bezier(0.2, 0.9, 0.3, 1.2)'
-              : isSleeping
+              ? 'putoPoke 0.36s cubic-bezier(0.2, 0.9, 0.3, 1.2)'
+              : isFlying || isSleeping
               ? 'none'
               : 'putoFloat 3.8s ease-in-out infinite',
           }}
         >
+          {/* Estelas de viento sutiles mientras vuela fluidamente */}
+          {isFlying && (
+            <div className="absolute inset-0 pointer-events-none -z-10">
+              <span className="absolute top-1/2 -left-3 w-4 h-0.5 bg-orange-400/50 rounded-full blur-[0.4px] -translate-y-1/2 animate-pulse" />
+              <span className="absolute top-1/3 -right-2.5 w-3 h-0.5 bg-amber-400/40 rounded-full blur-[0.4px] animate-pulse" />
+            </div>
+          )}
+
           {/* Onda expansiva de impacto de clic físico */}
           {isPoking && (
             <div
               className="absolute -inset-2 rounded-full pointer-events-none"
               style={{
-                animation: 'shockwavePulse 0.46s ease-out forwards',
+                animation: 'shockwavePulse 0.36s ease-out forwards',
               }}
             />
           )}
@@ -915,15 +951,18 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                 </div>
               </div>
 
-              {/* Boca expresiva que habla o bosteza */}
+              {/* Boca expresiva que habla con scale suave o bosteza */}
               <div
                 className={`transition-all duration-100 ${
                   isBoredWandering
                     ? 'w-3 h-3 bg-neutral-950 rounded-full'
                     : isTalking
-                    ? 'w-2.5 h-2 bg-neutral-950 rounded-full animate-bounce'
+                    ? 'w-2.5 h-2 bg-neutral-950 rounded-full'
                     : 'w-2.5 h-1 border-b-2 border-neutral-950 rounded-full'
                 }`}
+                style={{
+                  animation: isTalking ? 'putoTalk 0.18s ease-in-out infinite' : undefined,
+                }}
               />
             </div>
           </div>

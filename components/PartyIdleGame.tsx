@@ -463,6 +463,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [isClaimingVault, setIsClaimingVault] = useState<boolean>(false);
   const isClaimingRef = useRef<boolean>(false);
   const lastCloudSyncRef = useRef<number>(0);
+  const hasCloudColumnRef = useRef<boolean>(true);
   const [buyMultiplier, setBuyMultiplier] = useState<1 | 5 | 10 | 'max'>(1);
   const [currentNewsIndex, setCurrentNewsIndex] = useState<number>(0);
   const [cycleTick, setCycleTick] = useState<number>(Date.now());
@@ -653,7 +654,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               .eq('id', userId)
               .maybeSingle();
 
-            if (!error && data?.party_farm_data && typeof data.party_farm_data === 'object' && Object.keys(data.party_farm_data).length > 0) {
+            if (error) {
+              // La columna party_farm_data aún no existe en la base de datos de Supabase
+              hasCloudColumnRef.current = false;
+              return;
+            }
+
+            if (data?.party_farm_data && typeof data.party_farm_data === 'object' && Object.keys(data.party_farm_data).length > 0) {
               const cloudState = data.party_farm_data as BotellonState;
               const localProd = saved?.totalLifetimeProduced || 0;
               const cloudProd = cloudState.totalLifetimeProduced || 0;
@@ -673,7 +680,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               }
             }
           } catch (err) {
-            console.warn('Sincronización en la nube de El Botellón no disponible:', err);
+            hasCloudColumnRef.current = false;
           }
         })();
       }
@@ -695,7 +702,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       } catch {}
 
       // Sincronizar en Supabase si está autenticado (control de frecuencia: máx 1 cada 4s salvo que sea urgente)
-      if (userId) {
+      if (userId && hasCloudColumnRef.current) {
         const now = Date.now();
         if (isUrgent || now - lastCloudSyncRef.current >= 4000) {
           lastCloudSyncRef.current = now;
@@ -703,11 +710,17 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           if (supabase) {
             (async () => {
               try {
-                await supabase
+                const { error } = await supabase
                   .from('profiles')
                   .update({ party_farm_data: fullState })
                   .eq('id', userId);
-              } catch {}
+
+                if (error) {
+                  hasCloudColumnRef.current = false;
+                }
+              } catch {
+                hasCloudColumnRef.current = false;
+              }
             })();
           }
         }

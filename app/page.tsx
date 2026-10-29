@@ -160,13 +160,13 @@ export default function Home() {
     if (!supabase) return;
 
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
-      if (data) {
+      if (!error && data) {
         const profile: UserProfile = {
           id: data.id,
           username: data.username,
@@ -231,9 +231,7 @@ export default function Home() {
         setUser(newProfile);
         saveUserSession(newProfile, true);
       }
-    } catch (err) {
-      console.warn('Error al cargar perfil:', err);
-    }
+    } catch {}
   };
 
   const fetchMessages = async () => {
@@ -241,11 +239,16 @@ export default function Home() {
     if (!supabase) return;
 
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(80);
+
+      if (error) {
+        // La tabla aún no existe en Supabase; evitamos lanzar excepciones o bloquear
+        return;
+      }
 
       if (data) {
         // Consultar los likes del usuario activo para persistir is_liked_by_me
@@ -254,12 +257,12 @@ export default function Home() {
 
         if (activeUserId) {
           try {
-            const { data: likesData } = await supabase
+            const { data: likesData, error: likesError } = await supabase
               .from('chat_message_likes')
               .select('message_id')
               .eq('user_id', activeUserId);
 
-            if (likesData) {
+            if (!likesError && likesData) {
               likesData.forEach((row: any) => myLikedMessageIds.add(row.message_id));
             }
           } catch {}
@@ -274,9 +277,7 @@ export default function Home() {
           }))
         );
       }
-    } catch (err) {
-      console.warn('Error fetching messages:', err);
-    }
+    } catch {}
   };
 
   const fetchCalendarEvents = async () => {
@@ -284,18 +285,21 @@ export default function Home() {
     if (!supabase) return;
 
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('calendar_events')
         .select('*')
         .order('event_date', { ascending: true })
         .limit(6);
 
+      if (error) {
+        // La tabla aún no existe en Supabase
+        return;
+      }
+
       if (data) {
         setCalendarEvents(data);
       }
-    } catch (err) {
-      console.warn('Error fetching calendar events:', err);
-    }
+    } catch {}
   };
 
   const fetchLeaderboard = useCallback(async () => {
@@ -311,7 +315,29 @@ export default function Home() {
           .select('id, username, full_name, coins, biggest_win, streak_count, avatar_color, role')
           .order('coins', { ascending: false });
 
-        if (!error && data && data.length > 0) {
+        if (error) {
+          // Si columnas nuevas aún no existen en el esquema remoto, intentamos select básico de compatibilidad
+          try {
+            const { data: fallbackProfiles, error: fallbackErr } = await supabase
+              .from('profiles')
+              .select('id, username, coins, biggest_win, streak_count, role')
+              .order('coins', { ascending: false });
+
+            if (!fallbackErr && fallbackProfiles && fallbackProfiles.length > 0) {
+              fallbackProfiles.forEach((p: any) => {
+                entriesMap.set(p.username.toLowerCase(), {
+                  id: p.id,
+                  username: p.username,
+                  coins: Number(p.coins ?? 0),
+                  biggest_win: Number(p.biggest_win ?? 0),
+                  streak_count: p.streak_count ? Number(p.streak_count) : 1,
+                  role: p.role || undefined,
+                  is_current_user: activeUser ? (p.id === activeUser.id || p.username.toLowerCase() === activeUser.username.toLowerCase()) : false,
+                });
+              });
+            }
+          } catch {}
+        } else if (data && data.length > 0) {
           data.forEach((p: any) => {
             entriesMap.set(p.username.toLowerCase(), {
               id: p.id,
@@ -326,9 +352,7 @@ export default function Home() {
             });
           });
         }
-      } catch (err) {
-        console.warn('Error fetching leaderboard from Supabase:', err);
-      }
+      } catch {}
     }
 
     // 2. Si la consulta directa devolvió solo al usuario actual o falló por políticas RLS en Supabase,
