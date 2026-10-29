@@ -99,10 +99,11 @@ export default function Home() {
   const [realtimeNotification, setRealtimeNotification] = useState<RealtimeNotification | null>(null);
   const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
 
-  const handleIsaacSelectTab = useCallback((tab: 'chat' | 'investments' | 'schedule') => {
+  const handleIsaacSelectTab = useCallback((tab: 'chat' | 'investments' | 'schedule' | 'russian_roulette') => {
     if (tab === 'investments') setActiveView('party_idle');
     else if (tab === 'chat') setActiveView('feed');
     else if (tab === 'schedule') setActiveView('calendar');
+    else if (tab === 'russian_roulette') setActiveView('russian_roulette');
   }, []);
 
   // Real-time presence hook (tracks active user view and aggregates online classmates)
@@ -1651,6 +1652,7 @@ export default function Home() {
         onToggleSound={handleToggleSound}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        user={user}
       />
 
       {/* 9. Footer */}
