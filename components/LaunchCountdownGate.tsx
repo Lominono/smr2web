@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Rocket, Lock, KeyRound, Sparkles, X, ArrowRight } from 'lucide-react';
+import { Rocket, Lock, KeyRound, Sparkles, X, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
 import { sound } from '@/lib/audio';
+import { TARGET_LAUNCH_TIMESTAMP } from '@/lib/launchConfig';
 
-// Fecha oficial de salida: 9 de noviembre de 2026 a las 8:35 AM (CET)
-export const TARGET_LAUNCH_TIMESTAMP = new Date('2026-11-09T08:35:00+01:00').getTime();
+export { TARGET_LAUNCH_TIMESTAMP };
 
 interface LaunchCountdownGateProps {
   onUnlock: () => void;
@@ -39,13 +39,34 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTime);
   const [mounted, setMounted] = useState(false);
 
-  // Modal para que JuanFe Ospina y David puedan entrar con su clave de admin si lo necesitan
+  // Modal para JuanFe Ospina y David con autenticación segura en el servidor
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [bypassCode, setBypassCode] = useState('');
-  const [bypassError, setBypassError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+
+    // Detección de parámetro de acceso seguro en URL (?dev=1 o ?access=1)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('dev') || params.has('access') || params.has('early')) {
+        setShowBypassModal(true);
+      }
+    }
+
+    // Atajo seguro de teclado: Ctrl + Shift + D o Alt + D para abrir la terminal de acceso
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') ||
+        (e.altKey && e.key.toLowerCase() === 'd')
+      ) {
+        e.preventDefault();
+        setShowBypassModal((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
 
     const timer = setInterval(() => {
       const current = calculateTime();
@@ -63,29 +84,56 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
       }
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [onUnlock]);
 
   if (!mounted) {
     return <div className="fixed inset-0 bg-black z-[9999]" />;
   }
 
-  const handleBypassSubmit = (e: React.FormEvent) => {
+  const handleBypassSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = bypassCode.trim();
 
-    // Claves maestras de JuanFe Ospina y David
-    if (clean === '2026papu' || clean === 'admin2026' || clean === 'smr2admin') {
-      try {
-        localStorage.setItem('smr2_prelaunch_bypass', 'true');
-        sound.toastClink();
-      } catch {}
-      onUnlock();
-    } else {
-      setBypassError(true);
+    if (!clean || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      // Verificación segura en el servidor: sin claves en el frontend, con rate-limit y firma criptográfica
+      const res = await fetch('/api/access/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: clean }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success) {
+        try {
+          sound.toastClink();
+        } catch {}
+        setShowBypassModal(false);
+        setBypassCode('');
+        // Desbloquear directamente para el desarrollador (sin solapar con el Easter Egg)
+        onUnlock();
+      } else {
+        setErrorMessage(data.error || 'Clave de acceso anticipado no autorizada.');
+        try {
+          sound.impact(0.5);
+        } catch {}
+      }
+    } catch {
+      setErrorMessage('Error de red al contactar con el servidor de autenticación.');
       try {
         sound.impact(0.5);
       } catch {}
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -117,18 +165,18 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
           </div>
         </div>
 
-        {/* Botón discreto de acceso anticipado para administradores */}
+        {/* Botón discreto de acceso seguro para desarrolladores */}
         <button
           type="button"
           onClick={() => {
             sound.tap();
             setShowBypassModal(true);
           }}
-          className="text-xs text-neutral-500 hover:text-white px-3 py-1.5 rounded-lg border border-neutral-800 hover:border-neutral-700 bg-neutral-900/60 transition-colors flex items-center gap-1.5 cursor-pointer"
-          title="Acceso para administradores"
+          className="text-xs text-neutral-500 hover:text-white px-3 py-1.5 rounded-lg border border-neutral-800/80 hover:border-neutral-700 bg-neutral-950/70 transition-colors flex items-center gap-1.5 cursor-pointer"
+          title="Terminal de desarrollo (Atajo: Ctrl + Shift + D)"
         >
           <Lock className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Acceso con clave</span>
+          <span className="hidden sm:inline">Desarrollo</span>
         </button>
       </header>
 
@@ -220,23 +268,28 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
           <strong className="text-neutral-300 font-semibold">David</strong>
         </div>
 
-        <div className="font-mono text-[11px] text-neutral-600">
-          2º Sistemas Microinformáticos y Redes · Curso lectivo
+        <div className="font-mono text-[11px] text-neutral-600 flex items-center gap-2">
+          <span>2º Sistemas Microinformáticos y Redes</span>
+          <span className="opacity-40">·</span>
+          <span className="text-[10px] text-neutral-700">Ctrl+Shift+D</span>
         </div>
       </footer>
 
-      {/* Modal de Acceso de Administración (para JuanFe y David) */}
+      {/* Modal de Acceso Seguro de Desarrollo (Verificación Server-Side Criptográfica) */}
       {showBypassModal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="max-w-sm w-full bg-neutral-950 border border-neutral-800 rounded-2xl p-6 text-left space-y-4 shadow-2xl relative">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center text-amber-400">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">Acceso Anticipado</h3>
-                  <p className="text-[11px] text-neutral-400 font-mono">Solo administradores</p>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>Acceso Anticipado</span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                  </h3>
+                  <p className="text-[11px] text-neutral-400 font-mono">Entorno de Desarrollo</p>
                 </div>
               </div>
 
@@ -244,7 +297,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
                 type="button"
                 onClick={() => {
                   setShowBypassModal(false);
-                  setBypassError(false);
+                  setErrorMessage('');
                   setBypassCode('');
                 }}
                 className="w-7 h-7 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-900 flex items-center justify-center cursor-pointer"
@@ -254,7 +307,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
             </div>
 
             <p className="text-xs text-neutral-400 leading-relaxed">
-              Introduce la clave maestra de desarrollador para acceder a la plataforma antes de la salida oficial:
+              Introduce la clave maestra de desarrollo para acceder al portal antes de la salida oficial. La verificación se realiza de forma criptográfica en el servidor:
             </p>
 
             <form onSubmit={handleBypassSubmit} className="space-y-3">
@@ -263,34 +316,55 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
                 value={bypassCode}
                 onChange={(e) => {
                   setBypassCode(e.target.value);
-                  setBypassError(false);
+                  setErrorMessage('');
                 }}
-                placeholder="Clave maestra..."
+                disabled={isSubmitting}
+                placeholder="Clave maestra de desarrollo..."
                 autoFocus
-                className="w-full text-xs bg-neutral-900 border border-neutral-700 rounded-xl px-3.5 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400 transition-colors font-mono"
+                className="w-full text-xs bg-neutral-900 border border-neutral-700 rounded-xl px-3.5 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400 transition-colors font-mono disabled:opacity-50"
               />
 
-              {bypassError && (
-                <p className="text-[11px] text-red-400 font-medium">
-                  Clave incorrecta. Solo autorizados con la clave oficial.
-                </p>
+              {errorMessage && (
+                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-[11px] text-red-400 leading-tight font-medium">
+                  {errorMessage}
+                </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowBypassModal(false)}
-                  className="px-3.5 py-2 text-xs font-medium text-neutral-400 hover:text-white cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-white hover:bg-neutral-200 active:scale-95 text-black text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span>Entrar</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[10px] text-neutral-600 font-mono">
+                  Protección anti-fuerza bruta
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBypassModal(false);
+                      setErrorMessage('');
+                    }}
+                    disabled={isSubmitting}
+                    className="px-3 py-2 text-xs font-medium text-neutral-400 hover:text-white cursor-pointer disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !bypassCode.trim()}
+                    className="px-4 py-2 bg-white hover:bg-neutral-200 active:scale-95 text-black text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verificando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Acceder</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

@@ -419,8 +419,26 @@ export default function Home() {
   useEffect(() => {
     // Comprobar estado de salida oficial (9 de noviembre a las 8:35 AM)
     const isLaunched = Date.now() >= TARGET_LAUNCH_TIMESTAMP;
-    const hasBypass = typeof window !== 'undefined' && localStorage.getItem('smr2_prelaunch_bypass') === 'true';
-    setIsSiteUnlocked(isLaunched || hasBypass);
+    if (isLaunched) {
+      setIsSiteUnlocked(true);
+    } else {
+      // Verificación segura en el servidor del token de acceso anticipado (sin claves en el cliente)
+      fetch('/api/access/status')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.unlocked) {
+            setIsSiteUnlocked(true);
+          } else {
+            setIsSiteUnlocked(false);
+            try {
+              localStorage.removeItem('smr2_prelaunch_bypass');
+            } catch {}
+          }
+        })
+        .catch(() => {
+          setIsSiteUnlocked(false);
+        });
+    }
 
     // 0. Forzar reseteo absoluto de datos locales si la época de reinicio no se ha aplicado
     const wasWiped = checkAndEnforceSystemWipe();

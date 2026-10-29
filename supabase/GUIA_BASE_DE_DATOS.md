@@ -25,6 +25,45 @@ Hemos unificado todo en un único archivo maestro: **`supabase/SCHEMA_COMPLETO_S
 | **02** | `02_tareas_y_examenes.sql` | Crea la tabla `calendar_events` para los exámenes de módulos (SR, SOR, SI, etc.), enlaces directos a Moodle y prioridades. |
 | **03** | `03_chat_y_avisos.sql` | Crea la tabla `chat_messages` con soporte para mensajes en vivo, avisos automáticos de tareas y propinas entre compañeros. |
 | **04** | `04_seguridad_rls_y_realtime.sql` | Activa la seguridad RLS para que nadie borre lo que no debe y habilita **Supabase Realtime** para ver mensajes y tareas al instante sin recargar la web. |
+| **13** | `13_sistema_acceso_anticipado.sql` | Crea la tabla `early_access_keys` y la función RPC `verify_early_access_key` con hashes SHA-256 para el acceso anticipado de desarrollo ultra-seguro antes del 9 de noviembre. |
+
+---
+
+## 🛡️ Sistema de Acceso Anticipado Seguro (Pre-Lanzamiento)
+
+Para evitar que ningún alumno pueda saltarse la cuenta atrás mediante la consola de desarrollo (F12) o inspeccionando el código JavaScript:
+
+1. **Tabla en Base de Datos:** `public.early_access_keys`
+   - **Columnas:**
+     - `id`: UUID identificador único.
+     - `key_name`: Nombre legible de la clave (ej: 'Dev Master Key (JuanFe & David)').
+     - `key_hash`: Hash SHA-256 hexadecimal de la clave en minúsculas (la clave en texto plano NUNCA se almacena en la base de datos).
+     - `is_active`: Booleano para activar o revocar la clave al instante.
+     - `allowed_role`: Rol asignado ('developer', 'admin', 'tester').
+     - `last_used_at`: Marca de tiempo de cuándo se usó por última vez.
+     - `description`: Notas sobre la clave.
+   - **Seguridad (RLS):** Totalmente bloqueada a usuarios anónimos (`anon`). Solo el backend con rol `service_role` puede leerla directamente.
+
+2. **Función Criptográfica:** `public.verify_early_access_key(p_key_hash TEXT)`
+   - Valida el hash SHA-256 sin filtrar ni exponer la lista de claves activas.
+   - Si coincide, actualiza `last_used_at` y devuelve `{ is_valid: true, key_name, allowed_role }`.
+
+3. **Cómo agregar una nueva clave secreta en Supabase:**
+   Ejecuta en el SQL Editor de Supabase:
+   ```sql
+   INSERT INTO public.early_access_keys (key_name, key_hash, allowed_role, description)
+   VALUES (
+     'Clave Nueva Personal',
+     encode(sha256('tu_clave_secreta_aqui'::bytea), 'hex'),
+     'developer',
+     'Acceso temporal para pruebas'
+   );
+   ```
+
+4. **Cómo revocar una clave:**
+   ```sql
+   UPDATE public.early_access_keys SET is_active = false WHERE key_name = 'Clave Nueva Personal';
+   ```
 
 ---
 

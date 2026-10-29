@@ -18,11 +18,11 @@ const failedAttemptsMap = new Map<string, RateLimitState>();
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutos de bloqueo
 
-// Clave maestra configurada (variable de entorno prioritaria, o fallback seguro del servidor)
+// Clave maestra configurada (variable de entorno prioritaria, o clave segura del servidor)
 const MASTER_ADMIN_PASS = (
   process.env.ADMIN_PASSWORD ||
   process.env.ADMIN_ACCESS_CODE ||
-  '2026papu'
+  'Smr2_Admin#2026_MasterKey!'
 ).trim();
 
 export async function POST(req: NextRequest) {
@@ -46,8 +46,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const rawCode = String(body?.code || '').trim();
 
-    // 2. Validación estricta de la clave
-    const isValid = rawCode.length > 0 && rawCode === MASTER_ADMIN_PASS;
+    // 2. Validación estricta de la clave maestra de administrador
+    const isValid =
+      rawCode.length > 0 &&
+      (rawCode === MASTER_ADMIN_PASS ||
+        (process.env.ADMIN_PASSWORD && rawCode === process.env.ADMIN_PASSWORD.trim()) ||
+        (process.env.ADMIN_ACCESS_CODE && rawCode === process.env.ADMIN_ACCESS_CODE.trim()));
 
     if (!isValid) {
       // Registrar intento fallido

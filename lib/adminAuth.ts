@@ -5,12 +5,134 @@ import { COOKIE_SESSION } from '@/lib/authSession';
 import { UserProfile } from '@/lib/types';
 
 export const COOKIE_ADMIN_TOKEN = 'smr2_admin_token';
+export const COOKIE_EARLY_ACCESS_TOKEN = 'smr2_early_access_token';
 
-// Clave secreta del servidor para firmar tokens de administración
+// Clave secreta del servidor para firmar tokens de administración y acceso anticipado
 const ADMIN_SECRET =
   process.env.ADMIN_SECRET_KEY ||
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   'smr2_secure_admin_signing_pepper_v2_2026';
+
+export interface EarlyAccessTokenPayload {
+  authorized: boolean;
+  role: 'developer' | 'admin' | 'tester';
+  keyName?: string;
+  grantedAt: number;
+  exp: number; // Timestamp en segundos
+}
+
+/**
+ * Genera un token HMAC-SHA256 firmado por el servidor para acceso anticipado (Early Access / Desarrollo)
+ */
+export function signEarlyAccessToken(
+  payload: Omit<EarlyAccessTokenPayload, 'exp'>,
+  validDays: number = 30
+): string {
+  const fullPayload: EarlyAccessTokenPayload = {
+    ...payload,
+    exp: Math.floor(Date.now() / 1000) + validDays * 24 * 60 * 60,
+  };
+  const data = Buffer.from(JSON.stringify(fullPayload)).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', ADMIN_SECRET)
+    .update(data)
+    .digest('base64url');
+  return `${data}.${signature}`;
+}
+
+/**
+ * Verifica la firma criptográfica del token de acceso anticipado
+ */
+export function verifyEarlyAccessToken(token?: string | null): EarlyAccessTokenPayload | null {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+
+  const [data, signature] = parts;
+  try {
+    const expectedSig = crypto
+      .createHmac('sha256', ADMIN_SECRET)
+      .update(data)
+      .digest('base64url');
+
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expectedSig);
+
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return null;
+    }
+
+    const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8')) as EarlyAccessTokenPayload;
+    if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) {
+      return null; // Expirado
+    }
+
+    if (!payload.authorized) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Comprueba de forma estricta en el servidor si la sesión cuenta con acceso anticipado legítimo
+ */
+export async function verifyEarlyAccessSession(req?: Request): Promise<{
+  authorized: boolean;
+  role?: string;
+  keyName?: string;
+}> {
+  const cookieStore = await cookies();
+
+  // 1. Verificar token específico de acceso anticipado
+  const earlyTokenCookie = cookieStore.get(COOKIE_EARLY_ACCESS_TOKEN);
+  if (earlyTokenCookie?.value) {
+    const payload = verifyEarlyAccessToken(earlyTokenCookie.value);
+    if (payload && payload.authorized) {
+      return { authorized: true, role: payload.role, keyName: payload.keyName };
+    }
+  }
+
+  // 2. Un token de administración firmado otorga automáticamente acceso anticipado
+  const adminTokenCookie = cookieStore.get(COOKIE_ADMIN_TOKEN);
+  if (adminTokenCookie?.value) {
+    const adminPayload = verifyAdminToken(adminTokenCookie.value);
+    if (adminPayload) {
+      return { authorized: true, role: 'admin', keyName: 'admin_session' };
+    }
+  }
+
+  // 3. Comprobar sesión de Supabase Auth si el usuario tiene rol admin o delegado
+  if (isServerSupabaseConfigured()) {
+    try {
+      const supabase = await createClient();
+      if (supabase) {
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        if (authUser) {
+          const adminClient = createAdminClient();
+          const client = adminClient || supabase;
+          const { data: profile } = await client
+            .from('profiles')
+            .select('role, is_banned')
+            .eq('id', authUser.id)
+            .maybeSingle();
+
+          if (profile && !profile.is_banned && (profile.role === 'admin' || profile.role === 'delegado')) {
+            return { authorized: true, role: profile.role, keyName: 'supabase_role' };
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return { authorized: false };
+}
 
 export interface AdminTokenPayload {
   userId: string;

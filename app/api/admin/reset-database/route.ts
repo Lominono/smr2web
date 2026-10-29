@@ -16,16 +16,17 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const wipeUsers = body?.wipeUsers === true;
+    // Por defecto, purgar completamente todos los usuarios y registros a 0
+    const wipeUsers = body?.wipeUsers !== false;
 
     if (isServerSupabaseConfigured()) {
       const client = createAdminClient();
       if (client) {
-        // 1. Si se solicita borrado de usuarios o cuentas
+        // 1. Borrar todas las cuentas de usuario de Supabase Auth
         if (wipeUsers) {
           try {
             if (client.auth && client.auth.admin) {
-              const { data: usersData } = await client.auth.admin.listUsers();
+              const { data: usersData } = await client.auth.admin.listUsers({ perPage: 1000 });
               if (usersData?.users) {
                 for (const u of usersData.users) {
                   await client.auth.admin.deleteUser(u.id).catch(() => {});
@@ -37,26 +38,18 @@ export async function POST(req: NextRequest) {
           }
 
           try { await client.from('profiles').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
-        } else {
-          // Reiniciar todos los perfiles de alumnos a 1.000 monedas y 0 victorias
-          const { error: profilesError } = await client
-            .from('profiles')
-            .update({
-              coins: 1000,
-              biggest_win: 0,
-              streak_count: 1,
-              games_played: 0,
-              games_won: 0,
-              last_claim_date: null,
-            })
-            .neq('id', '00000000-0000-0000-0000-000000000000');
-
-          if (profilesError) {
-            console.warn('Error resetting profiles:', profilesError);
-          }
         }
 
-        // 2. Limpiar registros de partidas, inversiones y transacciones
+        // 2. Limpiar todas las tablas a 0 registros
+        try { await client.from('chat_message_likes').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('chat_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('push_subscriptions').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('announcements').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('community_feedback').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('event_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('audit_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+
+        // Tablas de juegos y economía
         try { await client.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('investments').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('price_history').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
@@ -64,13 +57,8 @@ export async function POST(req: NextRequest) {
         try { await client.from('rr_turns').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('rr_games').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('rr_rooms').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
-        try { await client.from('audit_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
-        try { await client.from('community_feedback').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
 
-        // 3. Limpiar chat
-        try { await client.from('chat_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
-
-        // 4. Reiniciar mercado a valores limpios
+        // 3. Reiniciar mercado a valores limpios iniciales
         try {
           await client.from('market_state').upsert({
             id: 1,
@@ -78,6 +66,7 @@ export async function POST(req: NextRequest) {
             pool_balance: 0,
             total_shares: 0,
             total_volume: 0,
+            total_investors: 0,
             updated_at: new Date().toISOString(),
           });
         } catch {}
@@ -88,7 +77,7 @@ export async function POST(req: NextRequest) {
           username: authResult.user.username,
           req,
           details: {
-            action: 'database_full_reset',
+            action: 'database_zero_wipe',
             performedBy: authResult.user.username,
             timestamp: new Date().toISOString(),
           },
@@ -96,7 +85,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          message: 'Base de datos reiniciada con éxito en Supabase. Todos los alumnos tienen 1.000 monedas.',
+          message: 'Purga total completada en Supabase: todos los usuarios, mensajes, partidas y registros han sido eliminados a 0.',
         });
       }
     }
