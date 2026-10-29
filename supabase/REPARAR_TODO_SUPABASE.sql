@@ -1,7 +1,8 @@
 -- ==============================================================
--- 🚀 SMR2 WEB · SCRIPT DEFINITIVO Y TOTAL PARA SUPABASE
+-- 🚀 SMR2 WEB · SCRIPT DEFINITIVO Y TOTAL PARA SUPABASE (V2 REPARADA)
 -- ==============================================================
 -- Este script soluciona los errores 404 y 400 de tu consola:
+--   - Error 42703: column "changes" of relation "app_updates" does not exist (SOLUCIONADO).
 --   - Error 404 en chat_messages y calendar_events (crea las tablas que faltan).
 --   - Error 400 en profiles y party_farm_data (añade todas las columnas necesarias).
 --   - Fallo de WebSocket de Supabase Realtime (agrega las tablas a la publicación).
@@ -80,9 +81,16 @@ CREATE TABLE IF NOT EXISTS public.calendar_events (
 );
 
 ALTER TABLE public.calendar_events
+  ADD COLUMN IF NOT EXISTS title TEXT,
+  ADD COLUMN IF NOT EXISTS subject TEXT,
+  ADD COLUMN IF NOT EXISTS event_type TEXT DEFAULT 'homework',
+  ADD COLUMN IF NOT EXISTS event_date DATE,
+  ADD COLUMN IF NOT EXISTS start_time TEXT,
+  ADD COLUMN IF NOT EXISTS description TEXT,
   ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'normal',
   ADD COLUMN IF NOT EXISTS delivery_url TEXT,
   ADD COLUMN IF NOT EXISTS is_completed BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS created_by_name TEXT DEFAULT 'Delegado SMR2';
 
 CREATE INDEX IF NOT EXISTS idx_calendar_events_date ON public.calendar_events(event_date);
@@ -104,6 +112,13 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
 );
 
 ALTER TABLE public.chat_messages
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS username TEXT,
+  ADD COLUMN IF NOT EXISTS text TEXT,
+  ADD COLUMN IF NOT EXISTS is_system_win BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS win_amount BIGINT,
+  ADD COLUMN IF NOT EXISTS multiplier NUMERIC(8, 2),
+  ADD COLUMN IF NOT EXISTS game TEXT,
   ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT false,
   ADD COLUMN IF NOT EXISTS reply_to_username TEXT;
 
@@ -118,6 +133,11 @@ CREATE TABLE IF NOT EXISTS public.chat_message_likes (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   UNIQUE(message_id, user_id)
 );
+
+ALTER TABLE public.chat_message_likes
+  ADD COLUMN IF NOT EXISTS message_id UUID REFERENCES public.chat_messages(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
 
 CREATE INDEX IF NOT EXISTS idx_chat_message_likes_msg ON public.chat_message_likes (message_id);
 
@@ -134,6 +154,16 @@ CREATE TABLE IF NOT EXISTS public.announcements (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE public.announcements
+  ADD COLUMN IF NOT EXISTS title TEXT,
+  ADD COLUMN IF NOT EXISTS body TEXT,
+  ADD COLUMN IF NOT EXISTS tag TEXT DEFAULT 'Aviso',
+  ADD COLUMN IF NOT EXISTS url TEXT DEFAULT '/',
+  ADD COLUMN IF NOT EXISTS author_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS author_username TEXT DEFAULT 'SMR2',
+  ADD COLUMN IF NOT EXISTS sent_to_push BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
+
 CREATE INDEX IF NOT EXISTS idx_announcements_created ON public.announcements (created_at DESC);
 
 -- 6. TABLA: APP_UPDATES (Sistema de Actualizaciones de la Web)
@@ -146,10 +176,29 @@ CREATE TABLE IF NOT EXISTS public.app_updates (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Insertar la versión inicial 0.0.1 Beta si la tabla está vacía
-INSERT INTO public.app_updates (version, title, description, changes)
-SELECT '0.0.1-beta', 'Lanzamiento Inicial SMR2 Portal', 'Portal de 2º SMR con Tablón en vivo, Horario Aula 204 y La Bolsa.', '["Sistema de chat en vivo", "Economía virtual y minijuegos", "Mascota asistente PUTOISAAC"]'::jsonb
-WHERE NOT EXISTS (SELECT 1 FROM public.app_updates);
+-- Asegurar que la columna 'changes' y demás columnas existan SIEMPRE antes de insertar datos
+ALTER TABLE public.app_updates
+  ADD COLUMN IF NOT EXISTS version TEXT,
+  ADD COLUMN IF NOT EXISTS title TEXT,
+  ADD COLUMN IF NOT EXISTS description TEXT,
+  ADD COLUMN IF NOT EXISTS changes JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
+
+-- Insertar la versión inicial 0.0.1 Beta de forma 100% segura
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.app_updates WHERE version = '0.0.1-beta') THEN
+    INSERT INTO public.app_updates (version, title, description, changes)
+    VALUES (
+      '0.0.1-beta',
+      'Lanzamiento Inicial SMR2 Portal',
+      'Portal de 2º SMR con Tablón en vivo, Horario Aula 204 y La Bolsa.',
+      '["Sistema de chat en vivo", "Economía virtual y minijuegos", "Mascota asistente PUTOISAAC"]'::jsonb
+    );
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
 
 -- 7. TABLA: PUSH_SUBSCRIPTIONS (Notificaciones Web Push)
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (
@@ -164,6 +213,16 @@ CREATE TABLE IF NOT EXISTS public.push_subscriptions (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE public.push_subscriptions
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS username TEXT,
+  ADD COLUMN IF NOT EXISTS endpoint TEXT,
+  ADD COLUMN IF NOT EXISTS p256dh TEXT,
+  ADD COLUMN IF NOT EXISTS auth TEXT,
+  ADD COLUMN IF NOT EXISTS user_agent TEXT,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
+
 -- 8. TABLAS RULETA RUSA Y SALDO
 CREATE TABLE IF NOT EXISTS public.balance_transactions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -176,6 +235,16 @@ CREATE TABLE IF NOT EXISTS public.balance_transactions (
   description TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE public.balance_transactions
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS amount BIGINT,
+  ADD COLUMN IF NOT EXISTS balance_before BIGINT,
+  ADD COLUMN IF NOT EXISTS balance_after BIGINT,
+  ADD COLUMN IF NOT EXISTS type TEXT,
+  ADD COLUMN IF NOT EXISTS reference_id TEXT,
+  ADD COLUMN IF NOT EXISTS description TEXT,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
 
 CREATE TABLE IF NOT EXISTS public.rr_rooms (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -191,6 +260,18 @@ CREATE TABLE IF NOT EXISTS public.rr_rooms (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE public.rr_rooms
+  ADD COLUMN IF NOT EXISTS code VARCHAR(6),
+  ADD COLUMN IF NOT EXISTS name TEXT,
+  ADD COLUMN IF NOT EXISTS host_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS host_username TEXT,
+  ADD COLUMN IF NOT EXISTS bet_amount BIGINT DEFAULT 50,
+  ADD COLUMN IF NOT EXISTS max_players INT DEFAULT 6,
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'waiting',
+  ADD COLUMN IF NOT EXISTS pot BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
+
 CREATE TABLE IF NOT EXISTS public.rr_room_players (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   room_id UUID REFERENCES public.rr_rooms(id) ON DELETE CASCADE,
@@ -203,6 +284,15 @@ CREATE TABLE IF NOT EXISTS public.rr_room_players (
   CONSTRAINT uq_room_player UNIQUE (room_id, user_id),
   CONSTRAINT uq_room_seat UNIQUE (room_id, seat_order)
 );
+
+ALTER TABLE public.rr_room_players
+  ADD COLUMN IF NOT EXISTS room_id UUID REFERENCES public.rr_rooms(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS username TEXT,
+  ADD COLUMN IF NOT EXISTS seat_order INT,
+  ADD COLUMN IF NOT EXISTS is_alive BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS is_connected BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
 
 CREATE TABLE IF NOT EXISTS public.rr_games (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -220,6 +310,20 @@ CREATE TABLE IF NOT EXISTS public.rr_games (
   finished_at TIMESTAMP WITH TIME ZONE
 );
 
+ALTER TABLE public.rr_games
+  ADD COLUMN IF NOT EXISTS room_id UUID REFERENCES public.rr_rooms(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS bullet_chamber INT,
+  ADD COLUMN IF NOT EXISTS current_chamber INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS active_player_id UUID REFERENCES public.profiles(id),
+  ADD COLUMN IF NOT EXISTS active_player_username TEXT,
+  ADD COLUMN IF NOT EXISTS turn_deadline TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active',
+  ADD COLUMN IF NOT EXISTS winner_id UUID REFERENCES public.profiles(id),
+  ADD COLUMN IF NOT EXISTS winner_username TEXT,
+  ADD COLUMN IF NOT EXISTS round_number INT DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS finished_at TIMESTAMP WITH TIME ZONE;
+
 CREATE TABLE IF NOT EXISTS public.rr_turns (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   game_id UUID REFERENCES public.rr_games(id) ON DELETE CASCADE,
@@ -231,6 +335,16 @@ CREATE TABLE IF NOT EXISTS public.rr_turns (
   details JSONB DEFAULT '{}'::jsonb NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE public.rr_turns
+  ADD COLUMN IF NOT EXISTS game_id UUID REFERENCES public.rr_games(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS room_id UUID REFERENCES public.rr_rooms(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS player_id UUID REFERENCES public.profiles(id),
+  ADD COLUMN IF NOT EXISTS player_username TEXT,
+  ADD COLUMN IF NOT EXISTS chamber_index INT,
+  ADD COLUMN IF NOT EXISTS result TEXT,
+  ADD COLUMN IF NOT EXISTS details JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
 
 CREATE TABLE IF NOT EXISTS public.event_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -245,7 +359,82 @@ CREATE TABLE IF NOT EXISTS public.event_logs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 9. TRIGGER AUTOMÁTICO AL REGISTRAR UN NUEVO USUARIO
+ALTER TABLE public.event_logs
+  ADD COLUMN IF NOT EXISTS event_type TEXT,
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS username TEXT,
+  ADD COLUMN IF NOT EXISTS room_id UUID REFERENCES public.rr_rooms(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS game_id UUID REFERENCES public.rr_games(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS ip_address TEXT,
+  ADD COLUMN IF NOT EXISTS user_agent TEXT,
+  ADD COLUMN IF NOT EXISTS details JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
+
+-- 9. TABLAS DE LA BOLSA (MARKET STATE, INVESTMENTS, PRICE HISTORY)
+CREATE TABLE IF NOT EXISTS public.market_state (
+  id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  current_price NUMERIC(12, 4) DEFAULT 10.0000 NOT NULL,
+  total_shares NUMERIC(18, 4) DEFAULT 0.0000 NOT NULL,
+  pool_balance NUMERIC(18, 4) DEFAULT 10000.0000 NOT NULL,
+  reserve_balance NUMERIC(18, 4) DEFAULT 25000.0000 NOT NULL,
+  total_volume BIGINT DEFAULT 0 NOT NULL,
+  total_investors INT DEFAULT 0 NOT NULL,
+  fee_rate NUMERIC(6, 4) DEFAULT 0.0200 NOT NULL,
+  cooldown_seconds INT DEFAULT 60 NOT NULL,
+  min_investment BIGINT DEFAULT 10 NOT NULL,
+  max_investment BIGINT DEFAULT 25000 NOT NULL,
+  last_event TEXT DEFAULT 'Apertura de mercado' NOT NULL,
+  last_event_type TEXT DEFAULT 'neutral' NOT NULL,
+  last_event_impact NUMERIC(6, 4) DEFAULT 0.0000 NOT NULL,
+  last_tick_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.market_state WHERE id = 1) THEN
+    INSERT INTO public.market_state (id, current_price, total_shares, pool_balance, reserve_balance, total_volume, total_investors, fee_rate, cooldown_seconds, min_investment, max_investment, last_event, last_event_type, last_event_impact)
+    VALUES (1, 10.0000, 0.0000, 10000.0000, 25000.0000, 0, 0, 0.0200, 60, 10, 25000, 'Apertura de mercado', 'neutral', 0.0000);
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.investments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  shares NUMERIC(18, 4) DEFAULT 0.0000 NOT NULL,
+  total_invested BIGINT DEFAULT 0 NOT NULL,
+  average_buy_price NUMERIC(12, 4) DEFAULT 0.0000 NOT NULL,
+  realized_pnl BIGINT DEFAULT 0 NOT NULL,
+  last_trade_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  CONSTRAINT uq_user_investment UNIQUE (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.transactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('buy', 'sell')),
+  shares NUMERIC(18, 4) NOT NULL,
+  price_per_share NUMERIC(12, 4) NOT NULL,
+  gross_amount BIGINT NOT NULL,
+  fee_amount BIGINT NOT NULL,
+  net_amount BIGINT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.price_history (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  price NUMERIC(12, 4) NOT NULL,
+  event TEXT,
+  event_type TEXT DEFAULT 'neutral',
+  volume BIGINT DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 10. TRIGGER AUTOMÁTICO AL REGISTRAR UN NUEVO USUARIO
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -271,7 +460,7 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 10. SEGURIDAD Y PERMISOS (ROW LEVEL SECURITY - RLS)
+-- 11. SEGURIDAD Y PERMISOS (ROW LEVEL SECURITY - RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
@@ -285,44 +474,30 @@ ALTER TABLE public.rr_room_players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rr_games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rr_turns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.market_state ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.price_history ENABLE ROW LEVEL SECURITY;
 
--- Limpieza de políticas previas
-DROP POLICY IF EXISTS "Lectura pública de perfiles" ON public.profiles;
-DROP POLICY IF EXISTS "Creación de perfiles" ON public.profiles;
-DROP POLICY IF EXISTS "Actualizar perfil de usuario" ON public.profiles;
-DROP POLICY IF EXISTS "Actualizar saldo de usuario" ON public.profiles;
-
-DROP POLICY IF EXISTS "Lectura pública de eventos" ON public.calendar_events;
-DROP POLICY IF EXISTS "Creación de eventos" ON public.calendar_events;
-DROP POLICY IF EXISTS "Modificación de eventos" ON public.calendar_events;
-DROP POLICY IF EXISTS "Borrado de eventos" ON public.calendar_events;
-
-DROP POLICY IF EXISTS "Lectura pública de chat" ON public.chat_messages;
-DROP POLICY IF EXISTS "Creación de mensajes" ON public.chat_messages;
-
-DROP POLICY IF EXISTS "Lectura pública de likes" ON public.chat_message_likes;
-DROP POLICY IF EXISTS "Insertar likes" ON public.chat_message_likes;
-DROP POLICY IF EXISTS "Borrar likes" ON public.chat_message_likes;
-
-DROP POLICY IF EXISTS "Lectura de anuncios" ON public.announcements;
-DROP POLICY IF EXISTS "Inserción de anuncios" ON public.announcements;
-DROP POLICY IF EXISTS "Lectura de actualizaciones" ON public.app_updates;
-DROP POLICY IF EXISTS "Inserción de actualizaciones" ON public.app_updates;
-DROP POLICY IF EXISTS "Lectura push" ON public.push_subscriptions;
-DROP POLICY IF EXISTS "Gestión push" ON public.push_subscriptions;
-
-DROP POLICY IF EXISTS "Lectura pública de salas" ON public.rr_rooms;
-DROP POLICY IF EXISTS "Inserción de salas" ON public.rr_rooms;
-DROP POLICY IF EXISTS "Actualización de salas" ON public.rr_rooms;
-DROP POLICY IF EXISTS "Lectura pública de jugadores en salas" ON public.rr_room_players;
-DROP POLICY IF EXISTS "Inserción de jugadores en salas" ON public.rr_room_players;
-DROP POLICY IF EXISTS "Actualización de jugadores en salas" ON public.rr_room_players;
-DROP POLICY IF EXISTS "Salida de jugadores de salas" ON public.rr_room_players;
-DROP POLICY IF EXISTS "Lectura de partidas de ruleta rusa" ON public.rr_games;
-DROP POLICY IF EXISTS "Lectura de turnos de ruleta rusa" ON public.rr_turns;
-DROP POLICY IF EXISTS "Lectura de transacciones de saldo" ON public.balance_transactions;
-DROP POLICY IF EXISTS "Inserción de logs" ON public.event_logs;
-DROP POLICY IF EXISTS "Lectura de logs solo administradores" ON public.event_logs;
+-- Limpieza preventiva de políticas
+DO $$
+DECLARE
+  pol RECORD;
+BEGIN
+  FOR pol IN 
+    SELECT policyname, tablename 
+    FROM pg_policies 
+    WHERE schemaname = 'public' 
+      AND tablename IN (
+        'profiles', 'chat_messages', 'calendar_events', 'app_updates', 
+        'balance_transactions', 'event_logs', 'rr_rooms', 'rr_room_players', 
+        'rr_games', 'rr_turns', 'chat_message_likes', 'push_subscriptions', 
+        'announcements', 'market_state', 'investments', 'transactions', 'price_history'
+      )
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, pol.tablename);
+  END LOOP;
+END $$;
 
 -- Políticas permisivas para la clase
 CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
@@ -365,10 +540,21 @@ CREATE POLICY "Lectura de transacciones de saldo" ON public.balance_transactions
 CREATE POLICY "Inserción de logs" ON public.event_logs FOR INSERT WITH CHECK (true);
 CREATE POLICY "Lectura de logs solo administradores" ON public.event_logs FOR SELECT USING (true);
 
--- 11. HABILITAR REPLICACIÓN EN TIEMPO REAL (SUPABASE REALTIME)
+CREATE POLICY "Lectura de market_state" ON public.market_state FOR SELECT USING (true);
+CREATE POLICY "Actualizar market_state" ON public.market_state FOR ALL USING (true);
+CREATE POLICY "Lectura de investments" ON public.investments FOR SELECT USING (true);
+CREATE POLICY "Gestión investments" ON public.investments FOR ALL USING (true);
+CREATE POLICY "Lectura transactions" ON public.transactions FOR SELECT USING (true);
+CREATE POLICY "Inserción transactions" ON public.transactions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Lectura price_history" ON public.price_history FOR SELECT USING (true);
+CREATE POLICY "Inserción price_history" ON public.price_history FOR INSERT WITH CHECK (true);
+
+-- 12. HABILITAR REPLICACIÓN EN TIEMPO REAL (SUPABASE REALTIME)
 ALTER TABLE public.profiles REPLICA IDENTITY FULL;
 ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
 ALTER TABLE public.calendar_events REPLICA IDENTITY FULL;
+ALTER TABLE public.app_updates REPLICA IDENTITY FULL;
+ALTER TABLE public.market_state REPLICA IDENTITY FULL;
 
 DO $$
 BEGIN
@@ -377,6 +563,7 @@ BEGIN
   BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles; EXCEPTION WHEN duplicate_object THEN END;
   BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.announcements; EXCEPTION WHEN duplicate_object THEN END;
   BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.app_updates; EXCEPTION WHEN duplicate_object THEN END;
+  BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.market_state; EXCEPTION WHEN duplicate_object THEN END;
   BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.rr_rooms; EXCEPTION WHEN duplicate_object THEN END;
   BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.rr_room_players; EXCEPTION WHEN duplicate_object THEN END;
   BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.rr_games; EXCEPTION WHEN duplicate_object THEN END;
