@@ -1,697 +1,762 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import NavMenu from './NavMenu';
+import CinematicIntro from './CinematicIntro';
 import { ScrollReveal, Stagger } from './ScrollReveal';
+import { Language, translations } from './translations';
 
-// ─── Datos de competencias ──────────────────────────────────────
-const HARD_SKILLS = [
-  { name: 'Sistemas operativos Windows', level: 'En aprendizaje', variant: 'learning' as const },
-  { name: 'Sistemas operativos Linux', level: 'En aprendizaje', variant: 'learning' as const },
-  { name: 'Administración básica de sistemas', level: 'En aprendizaje', variant: 'learning' as const },
-  { name: 'Redes informáticas', level: 'En aprendizaje', variant: 'learning' as const },
-  { name: 'Protocolos TCP/IP', level: 'En aprendizaje', variant: 'learning' as const },
-  { name: 'Direccionamiento IPv4', level: 'En aprendizaje', variant: 'learning' as const },
-  { name: 'Subnetting', level: 'En aprendizaje', variant: 'learning' as const },
-  { name: 'VLAN', level: 'En aprendizaje', variant: 'learning' as const },
-  { name: 'Virtualización', level: 'En aprendizaje', variant: 'learning' as const },
-  { name: 'Hardware y mantenimiento', level: 'En aprendizaje', variant: 'learning' as const },
-  { name: 'HTML / CSS', level: 'Editable ✎', variant: 'neutral' as const },
-  { name: 'JavaScript', level: 'Editable ✎', variant: 'neutral' as const },
-];
-
-const SOFT_SKILLS = [
-  'Trabajo en equipo',
-  'Resolución de problemas',
-  'Aprendizaje autónomo',
-  'Organización',
-  'Adaptabilidad',
-  'Gestión del tiempo',
-];
-
-// ─── Datos de proyectos ─────────────────────────────────────────
-// Nota: sin acceso a la API de GitHub en tiempo de compilación,
-// estas fichas están basadas en información públicamente verificable.
-// Actualiza las descripciones cuando revises los repositorios.
-const PROJECTS = [
-  {
-    index: '01',
-    title: 'Portal SMR2',
-    desc:
-      'Plataforma web colaborativa desarrollada para la clase de 2.º de SMR del IES Augusto González de Linares. Incluye horario lectivo interactivo, sistema de usuarios, tabla de clasificación y paneles de administración. Construida con Next.js y Supabase.',
-    tech: ['Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'Supabase'],
-    problem:
-      'Centralizar la gestión de información y actividades de la clase en un único portal accesible desde cualquier dispositivo.',
-    href: 'https://github.com/lominono',
-    demo: null,
-    placeholder: false,
-  },
-  {
-    index: '02',
-    title: 'Repositorio pendiente de revisar',
-    desc:
-      'Ficha pendiente de completar. Visita mi perfil de GitHub para ver todos los repositorios públicos disponibles y añadir aquí los detalles correctos.',
-    tech: [],
-    problem: '',
-    href: 'https://github.com/lominono',
-    demo: null,
-    placeholder: true,
-  },
-];
-
-// ─── Datos de formación ─────────────────────────────────────────
-const COURSES = [
-  {
-    platform: 'Cisco',
-    name: 'Introduction to Networks (ITN)',
-    meta: 'CCNA 1 · Networking Academy',
-    status: 'planned' as const,
-    statusLabel: 'Previsto',
-    href: 'https://www.netacad.com/courses/networking/ccna-introduction-networks',
-  },
-  {
-    platform: 'freeCodeCamp',
-    name: 'Responsive Web Design',
-    meta: 'Desarrollo web · Certificación gratuita',
-    status: 'planned' as const,
-    statusLabel: 'Previsto',
-    href: 'https://www.freecodecamp.org/learn/2022/responsive-web-design/',
-  },
-  {
-    platform: 'Microsoft Learn',
-    name: 'Fundamentos de Azure (AZ-900)',
-    meta: 'Cloud computing · Itinerario de aprendizaje',
-    status: 'planned' as const,
-    statusLabel: 'Previsto',
-    href: 'https://learn.microsoft.com/es-es/training/paths/az-900-describe-cloud-concepts/',
-  },
-  {
-    platform: 'Google Cloud',
-    name: 'Cloud Computing Fundamentals',
-    meta: 'Google Cloud Skills Boost · Inglés',
-    status: 'planned' as const,
-    statusLabel: 'Previsto',
-    href: 'https://www.cloudskillsboost.google/paths/36',
-  },
-  {
-    platform: 'Coursera',
-    name: 'Google IT Support Certificate',
-    meta: 'Google · 6 meses · Inglés',
-    status: 'planned' as const,
-    statusLabel: 'Previsto',
-    href: 'https://www.coursera.org/professional-certificates/google-it-support',
-  },
-];
-
-const SUBJECTS = [
-  'Redes locales',
-  'Implantación de SO',
-  'Fundamentos de hardware',
-  'Aplicaciones web',
-  'Servicios en red',
-  'Seguridad informática',
-];
-
-// ─── Iconos SVG inline ──────────────────────────────────────────
+// ─── Inline Clean SVGs ───────────────────────────────────────────
 function IconGitHub() {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" aria-hidden="true">
       <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-    </svg>
-  );
-}
-
-function IconMail() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <rect x="2" y="4" width="20" height="16" rx="2" />
-      <path d="M2 7l10 7 10-7" />
     </svg>
   );
 }
 
 function IconLinkedIn() {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" aria-hidden="true">
       <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+    </svg>
+  );
+}
+
+function IconMail() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18" aria-hidden="true">
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M2 7l10 7 10-7" />
+    </svg>
+  );
+}
+
+function IconCopy() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16" aria-hidden="true">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function IconCheck() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="16" height="16" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }
 
 function IconDoc() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20" aria-hidden="true">
       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
       <polyline points="14 2 14 8 20 8" />
       <line x1="16" y1="13" x2="8" y2="13" />
       <line x1="16" y1="17" x2="8" y2="17" />
-      <polyline points="10 9 9 9 8 9" />
     </svg>
   );
 }
 
-function IconArrow() {
+function IconExternal() {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" style={{ width: 14, height: 14 }}>
-      <path d="M3 8h10M9 4l4 4-4 4" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" aria-hidden="true">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
     </svg>
   );
 }
 
-function IconUser() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-    </svg>
-  );
-}
+export default function PortfolioApp() {
+  const [lang, setLang] = useState<Language>('es');
+  const [showIntro, setShowIntro] = useState<boolean>(false);
+  const [copiedEmail, setCopiedEmail] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
 
-// ─── Componente principal ───────────────────────────────────────
-export default function PortafolioPage() {
+  useEffect(() => {
+    setMounted(true);
+    // Read saved language or default
+    try {
+      const savedLang = localStorage.getItem('jfo_lang') as Language | null;
+      if (savedLang === 'es' || savedLang === 'en') {
+        setLang(savedLang);
+      }
+      const introSeen = sessionStorage.getItem('jfo_intro_seen');
+      if (!introSeen) {
+        setShowIntro(true);
+      }
+    } catch {
+      // localStorage fallback
+    }
+  }, []);
+
+  const handleSelectLanguage = useCallback((selected: Language) => {
+    setLang(selected);
+    try {
+      localStorage.setItem('jfo_lang', selected);
+      sessionStorage.setItem('jfo_intro_seen', 'true');
+    } catch {}
+  }, []);
+
+  const handleToggleLang = useCallback(() => {
+    setLang((prev) => {
+      const next = prev === 'es' ? 'en' : 'es';
+      try {
+        localStorage.setItem('jfo_lang', next);
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const handleReplayIntro = useCallback(() => {
+    setShowIntro(true);
+  }, []);
+
+  const handleCloseIntro = useCallback(() => {
+    setShowIntro(false);
+    try {
+      sessionStorage.setItem('jfo_intro_seen', 'true');
+    } catch {}
+  }, []);
+
+  const handleCopyEmail = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText('juanfernandoospina005@gmail.com');
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2400);
+    } catch {
+      // fallback
+    }
+  }, []);
+
+  const t = translations[lang];
+
   return (
     <>
-      {/* NAVEGACIÓN */}
-      <NavMenu />
+      {/* ─── 00 INTRO CINEMATOGRÁFICA ─────────────────────────── */}
+      {mounted && (
+        <CinematicIntro
+          currentLang={lang}
+          onSelectLanguage={handleSelectLanguage}
+          isOpen={showIntro}
+          onClose={handleCloseIntro}
+        />
+      )}
 
-      <main id="main-content">
-        {/* ─────────────────────────────────────────
-            01 HERO / PRESENTACIÓN
-        ───────────────────────────────────────── */}
+      {/* ─── NAVEGACIÓN STICKY EDITORIAL ──────────────────────── */}
+      <NavMenu
+        currentLang={lang}
+        onToggleLang={handleToggleLang}
+        onReplayIntro={handleReplayIntro}
+      />
+
+      <main id="main-content" className="main-content">
+        {/* ──────────────────────────────────────────────────────────
+            01 — IDENTIDAD PROFESIONAL / PRESENTACIÓN
+        ────────────────────────────────────────────────────────── */}
         <section
           id="presentacion"
-          className="hero container"
-          aria-label="Presentación personal"
+          className="hero-section"
+          aria-label="Presentación e identidad profesional"
         >
-          <div className="hero__grid">
-            {/* Texto */}
-            <div>
-              <ScrollReveal delay={0}>
-              <p className="hero__meta">
-                Estudiante SMR · Santander, España
-              </p>
-              </ScrollReveal>
+          <div className="container hero-container">
+            <div className="hero-grid">
+              {/* Left Column: Typographic composition */}
+              <div className="hero-content">
+                <ScrollReveal delay={0}>
+                  <div className="hero-meta-badge">
+                    <span className="hero-meta-dot" aria-hidden="true" />
+                    <span>{t.hero.meta}</span>
+                  </div>
+                </ScrollReveal>
 
-              <ScrollReveal delay={80}>
-              <h1 className="hero__name">
-                Juan Fernando<br />
-                <em>Ospina</em> Tigreros
-              </h1>
-              </ScrollReveal>
+                <ScrollReveal delay={100}>
+                  <h1 className="hero-title">
+                    <span className="hero-title__first">{t.hero.nameFirst}</span>
+                    <span className="hero-title__last">
+                      <em>{t.hero.nameLast}</em>
+                    </span>
+                  </h1>
+                </ScrollReveal>
 
-              <ScrollReveal delay={160}>
-              <p className="hero__tagline">
-                Tengo 18 años y estoy estudiando Sistemas Microinformáticos y Redes
-                en el IES Augusto González de Linares. Me interesan las redes, los
-                sistemas operativos y el desarrollo web, y me gusta resolver problemas
-                técnicos aprendiendo por mi cuenta.
-              </p>
-              </ScrollReveal>
+                <ScrollReveal delay={200}>
+                  <p className="hero-tagline">{t.hero.tagline}</p>
+                </ScrollReveal>
 
-              <ScrollReveal delay={220}>
-              <p className="hero__identity">
-                Aprender haciendo — esa es mi forma de trabajar.
-              </p>
-              </ScrollReveal>
+                <ScrollReveal delay={280}>
+                  <blockquote className="hero-quote">
+                    <p>«{t.hero.statement}»</p>
+                  </blockquote>
+                </ScrollReveal>
 
-              <ScrollReveal delay={280}>
-              <div className="hero__links">
-                <a
-                  href="https://github.com/lominono"
-                  className="hero__link hero__link--primary"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Ver perfil de GitHub @lominono"
-                >
-                  <IconGitHub />
-                  @lominono
-                </a>
-                <a
-                  href="#contacto"
-                  className="hero__link hero__link--secondary"
-                  aria-label="Ir a la sección de contacto"
-                >
-                  Contacto
-                </a>
+                <ScrollReveal delay={340}>
+                  <div className="hero-availability" role="status">
+                    <span className="availability-pulse" aria-hidden="true" />
+                    <span>{t.hero.availability}</span>
+                  </div>
+                </ScrollReveal>
+
+                <ScrollReveal delay={400}>
+                  <div className="hero-actions">
+                    <a href="#proyectos" className="btn btn--primary">
+                      {t.hero.ctaProjects}
+                      <span className="btn-arrow" aria-hidden="true">↓</span>
+                    </a>
+
+                    <a href="#contacto" className="btn btn--secondary">
+                      {t.hero.ctaContact}
+                    </a>
+
+                    <a
+                      href="https://github.com/lominono"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn--ghost"
+                      aria-label="GitHub @lominono"
+                    >
+                      <IconGitHub />
+                      <span>@lominono</span>
+                    </a>
+                  </div>
+                </ScrollReveal>
               </div>
-              </ScrollReveal>
 
-              {/* Indicador de disponibilidad — edita el texto según tu situación */}
-              <ScrollReveal delay={340}>
-              <div className="availability" role="status" aria-label="Estado de disponibilidad">
-                <span className="availability__dot" aria-hidden="true" />
-                Disponible para prácticas · 2025
-                {/* ✏️ Edita este texto cuando cambie tu disponibilidad */}
-              </div>
-              </ScrollReveal>
-            </div>
+              {/* Right Column: Architectural portrait frame */}
+              <div className="hero-aside">
+                <ScrollReveal delay={220} direction="right">
+                  <div className="portrait-frame">
+                    <div className="portrait-box">
+                      {/* Placeholder for professional portrait */}
+                      <div className="portrait-placeholder">
+                        <div className="portrait-icon-wrap" aria-hidden="true">
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            width="48"
+                            height="48"
+                          >
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                          </svg>
+                        </div>
+                        <span className="portrait-label">{t.hero.photoPlaceholder}</span>
+                        <span className="portrait-hint">{t.hero.photoNote}</span>
+                      </div>
+                    </div>
 
-            {/* Foto */}
-            <div className="hero__photo-wrap" aria-hidden="true">
-              <div className="hero__photo">
-                {/* 📷 Para añadir tu foto:
-                    1. Guarda la imagen en /public/foto-perfil.jpg
-                    2. Reemplaza el bloque de abajo por:
-                    <Image src="/foto-perfil.jpg" alt="Juan Fernando Ospina Tigreros" fill style={{ objectFit: 'cover' }} />
-                    y añade: import Image from 'next/image'; al principio del archivo
-                */}
-                <div className="hero__photo-placeholder">
-                  <IconUser />
-                  <span>Añadir foto<br />profesional</span>
-                </div>
+                    <div className="portrait-caption">
+                      <span className="portrait-caption__num">01 / ID</span>
+                      <span className="portrait-caption__text">
+                        Juan Fernando Ospina Tigreros · 18 años
+                      </span>
+                    </div>
+                  </div>
+                </ScrollReveal>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ─────────────────────────────────────────
-            02 COMPETENCIAS
-        ───────────────────────────────────────── */}
+        {/* ──────────────────────────────────────────────────────────
+            02 — MATRIZ DE COMPETENCIAS
+        ────────────────────────────────────────────────────────── */}
         <section
           id="competencias"
-          className="section section--alt"
-          aria-label="Matriz de competencias"
+          className="section section--light"
+          aria-label="Matriz de competencias técnicas y personales"
         >
           <div className="container">
             <ScrollReveal>
-            <div className="section-label">
-              <span className="section-label__num">02</span>
-              <span className="section-label__line" aria-hidden="true" />
-              <span className="section-label__title">Competencias</span>
-            </div>
-
-            <h2 className="section-heading">Qué sé hacer</h2>
-            <p className="section-sub">
-              Materias del ciclo de SMR que estoy trabajando actualmente.
-              Los niveles se actualizarán conforme avance el curso.
-            </p>
+              <div className="section-header">
+                <span className="section-num">{t.skills.sectionNum} // 06</span>
+                <span className="section-tag">{t.skills.sectionTitle}</span>
+              </div>
+              <h2 className="section-title">{t.skills.heading}</h2>
+              <p className="section-desc">{t.skills.subheading}</p>
             </ScrollReveal>
 
             <div className="skills-grid">
-              {/* Hard skills */}
-              <ScrollReveal delay={60} direction="left">
-              <div>
-                <h3 className="skills-col__heading">Hard skills — Técnicas</h3>
-                <Stagger staggerMs={50} threshold={0.05}>
-                <ul role="list" aria-label="Competencias técnicas">
-                  {HARD_SKILLS.map(({ name, level, variant }) => (
-                    <li key={name} className="skill-item">
-                      <span className="skill-item__name">{name}</span>
-                      <span
-                        className={`skill-item__level${variant === 'learning' ? ' skill-item__level--learning' : ''}`}
-                      >
-                        {level}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                </Stagger>
+              {/* Hard Skills Column */}
+              <ScrollReveal direction="left" delay={80}>
+                <div className="skills-card">
+                  <div className="skills-card__head">
+                    <h3 className="skills-card__title">{t.skills.hardHeading}</h3>
+                    <span className="skills-card__tag">SMR + Web</span>
+                  </div>
 
-                <div className="skills-note" role="note">
-                  <p>
-                    Los niveles mostrados reflejan mi situación actual como estudiante de primer/segundo
-                    curso de SMR. Las competencias marcadas como <strong>Editable ✎</strong> deben
-                    confirmarse según el dominio real adquirido.
-                  </p>
+                  <ul className="hard-skills-list" role="list">
+                    {t.skills.items.map((skill, idx) => (
+                      <li key={idx} className="hard-skill-item">
+                        <span className="hard-skill-name">{skill.name}</span>
+                        <span
+                          className={`skill-badge skill-badge--${skill.variant}`}
+                        >
+                          {skill.level}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="skills-disclaimer">
+                    <span className="disclaimer-icon" aria-hidden="true">ℹ</span>
+                    <p>{t.skills.note}</p>
+                  </div>
                 </div>
-              </div>
               </ScrollReveal>
 
-              {/* Soft skills */}
-              <ScrollReveal delay={120} direction="right">
-              <div>
-                <h3 className="skills-col__heading">Soft skills — Transversales</h3>
-                <Stagger staggerMs={60} direction="up" threshold={0.05}>
-                <ul className="soft-skills" role="list" aria-label="Competencias transversales">
-                  {SOFT_SKILLS.map((s) => (
-                    <li key={s} className="soft-chip">{s}</li>
-                  ))}
-                </ul>
-                </Stagger>
-              </div>
+              {/* Soft Skills Column */}
+              <ScrollReveal direction="right" delay={140}>
+                <div className="skills-card skills-card--secondary">
+                  <div className="skills-card__head">
+                    <h3 className="skills-card__title">{t.skills.softHeading}</h3>
+                    <span className="skills-card__tag">Metodología</span>
+                  </div>
+
+                  <div className="soft-skills-cluster">
+                    {t.skills.softSkills.map((soft, idx) => (
+                      <div key={idx} className="soft-skill-chip">
+                        <span className="soft-skill-index" aria-hidden="true">
+                          0{idx + 1}
+                        </span>
+                        <span className="soft-skill-name">{soft}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Vocational Context Callout */}
+                  <div className="vocational-callout">
+                    <h4 className="vocational-title">IES Augusto González de Linares</h4>
+                    <p className="vocational-body">
+                      {lang === 'es'
+                        ? 'Formación práctica intensiva en talleres de montaje, aulas de telecomunicaciones y laboratorios de sistemas bajo entorno Windows Server y distribuciones Linux.'
+                        : 'Intensive hands-on training in hardware assembly labs, telecommunication facilities, and systems laboratories working with Windows Server and Linux environments.'}
+                    </p>
+                  </div>
+                </div>
               </ScrollReveal>
             </div>
           </div>
         </section>
 
-        {/* ─────────────────────────────────────────
-            03 PROYECTOS
-        ───────────────────────────────────────── */}
+        {/* ──────────────────────────────────────────────────────────
+            03 — PROYECTOS / ESCAPARATE TÉCNICO
+        ────────────────────────────────────────────────────────── */}
         <section
           id="proyectos"
-          className="projects"
-          aria-label="Proyectos y escaparate técnico"
+          className="section section--dark"
+          aria-label="Escaparate de proyectos técnicos"
         >
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">
-                <span className="section-label__num">03</span>
-                <span className="section-label__line" aria-hidden="true" />
-                <span className="section-label__title">Proyectos</span>
+              <div className="section-header section-header--dark">
+                <span className="section-num">{t.projects.sectionNum} // 06</span>
+                <span className="section-tag">{t.projects.sectionTitle}</span>
               </div>
-
-              <h2 className="section-heading">Lo que he construido</h2>
-              <p className="section-sub">
-                Repositorios públicos de mi perfil de GitHub. Visita{' '}
-                <a
-                  href="https://github.com/lominono"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}
-                >
-                  github.com/lominono
-                </a>{' '}
-                para ver el trabajo completo.
+              <h2 className="section-title section-title--dark">
+                {t.projects.heading}
+              </h2>
+              <p className="section-desc section-desc--dark">
+                {t.projects.subheading}
               </p>
             </ScrollReveal>
 
-            <Stagger staggerMs={120} threshold={0.08}>
-              <ul className="projects-list" role="list" aria-label="Lista de proyectos">
-                {PROJECTS.map((p) => (
-                  <li
-                    key={p.index}
-                    className={`project-card${p.placeholder ? ' project-card--placeholder' : ''}`}
+            <div className="projects-grid">
+              {t.projects.items.map((proj, idx) => (
+                <ScrollReveal key={proj.id} delay={idx * 80}>
+                  <article
+                    className={`project-panel ${
+                      proj.featured ? 'project-panel--featured' : ''
+                    }`}
                   >
-                    <span className="project-card__index" aria-hidden="true">{p.index}</span>
+                    <div className="project-panel__top">
+                      <span className="project-panel__index">{proj.index}</span>
+                      <span className="project-panel__repo-badge">
+                        GitHub Open Source
+                      </span>
+                    </div>
 
-                    <h3 className="project-card__title">{p.title}</h3>
+                    <h3 className="project-panel__title">{proj.title}</h3>
+                    <p className="project-panel__tagline">{proj.tagline}</p>
+                    <p className="project-panel__desc">{proj.desc}</p>
 
-                    <p className="project-card__desc">{p.desc}</p>
+                    <div className="project-details">
+                      <div className="project-detail-row">
+                        <strong className="detail-label">
+                          {t.projects.problemLabel}:
+                        </strong>
+                        <span className="detail-value">{proj.problem}</span>
+                      </div>
 
-                    {p.tech.length > 0 && (
-                      <ul className="project-card__tech" role="list" aria-label="Tecnologías">
-                        {p.tech.map((t) => (
-                          <li key={t} className="tech-tag">{t}</li>
-                        ))}
-                      </ul>
-                    )}
+                      <div className="project-detail-row">
+                        <strong className="detail-label">
+                          {t.projects.roleLabel}:
+                        </strong>
+                        <span className="detail-value">{proj.role}</span>
+                      </div>
+                    </div>
 
-                    <div className="project-card__links">
+                    <div className="project-tech-tags" aria-label="Tecnologías">
+                      {proj.tech.map((tech, tIdx) => (
+                        <span key={tIdx} className="tech-chip">
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="project-panel__footer">
                       <a
-                        href={p.href}
+                        href={proj.github}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="project-link project-link--accent"
-                        aria-label={`Ver repositorio de ${p.title} en GitHub`}
+                        className="project-action-link"
+                        aria-label={`Ver código de ${proj.title} en GitHub`}
                       >
-                        GitHub →
+                        <IconGitHub />
+                        <span>{t.projects.visitGithub}</span>
+                        <IconExternal />
                       </a>
-                      {p.demo && (
-                        <a
-                          href={p.demo}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="project-link"
-                          aria-label={`Ver demo de ${p.title}`}
-                        >
-                          Demo →
-                        </a>
-                      )}
-                      {p.placeholder && (
-                        <span className="project-link" style={{ opacity: 0.4, cursor: 'default' }}>
-                          Ficha por completar
-                        </span>
-                      )}
                     </div>
-                  </li>
-                ))}
-              </ul>
-            </Stagger>
+                  </article>
+                </ScrollReveal>
+              ))}
+            </div>
 
-            <ScrollReveal delay={150}>
-              <p className="projects-github-note">
-                Todos los proyectos están disponibles en{' '}
-                <a href="https://github.com/lominono" target="_blank" rel="noopener noreferrer">
-                  github.com/lominono
-                </a>
-              </p>
+            <ScrollReveal delay={200}>
+              <div className="projects-all-callout">
+                <p>
+                  {t.projects.allReposNote}{' '}
+                  <a
+                    href="https://github.com/lominono"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="link-inline"
+                  >
+                    github.com/lominono
+                  </a>
+                </p>
+              </div>
             </ScrollReveal>
           </div>
         </section>
 
-        {/* ─────────────────────────────────────────
-            04 FORMACIÓN
-        ───────────────────────────────────────── */}
+        {/* ──────────────────────────────────────────────────────────
+            04 — FORMACIÓN Y APRENDIZAJE FUTURO
+        ────────────────────────────────────────────────────────── */}
         <section
           id="formacion"
-          className="section"
-          aria-label="Formación y aprendizaje"
+          className="section section--light"
+          aria-label="Formación reglada y aprendizaje futuro"
         >
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">
-                <span className="section-label__num">04</span>
-                <span className="section-label__line" aria-hidden="true" />
-                <span className="section-label__title">Formación</span>
+              <div className="section-header">
+                <span className="section-num">{t.training.sectionNum} // 06</span>
+                <span className="section-tag">{t.training.sectionTitle}</span>
               </div>
-
-              <h2 className="section-heading">Dónde estoy aprendiendo</h2>
-              <p className="section-sub">
-                Formación reglada actual y cursos que tengo previstos para seguir
-                creciendo. Los cursos marcados como «Previsto» aún no han sido realizados.
-              </p>
+              <h2 className="section-title">{t.training.heading}</h2>
+              <p className="section-desc">{t.training.subheading}</p>
             </ScrollReveal>
 
-            <div className="training-grid">
-              {/* Formación actual */}
-              <ScrollReveal direction="left" delay={50}>
-                <div>
-                  <div className="training-current">
-                    <span className="training-current__badge">
-                      <span aria-hidden="true">◉</span>
-                      En curso
-                    </span>
-                    <h3 className="training-current__title">
-                      Técnico en Sistemas Microinformáticos y Redes
-                    </h3>
-                    <p className="training-current__center">
-                      IES Augusto González de Linares · Santander, Cantabria
-                    </p>
-                    <p className="training-current__desc">
-                      Ciclo Formativo de Grado Medio orientado a la instalación,
-                      configuración y mantenimiento de sistemas informáticos y
-                      redes de datos. Incluye módulos de hardware, sistemas
-                      operativos, redes, seguridad y aplicaciones web.
-                    </p>
-                    <ul className="training-current__subjects" role="list" aria-label="Módulos del ciclo">
-                      {SUBJECTS.map((s) => (
-                        <li key={s} className="subject-tag">{s}</li>
+            <div className="training-layout">
+              {/* Left Column: Official Vocational Degree */}
+              <ScrollReveal direction="left" delay={60}>
+                <div className="training-primary-card">
+                  <div className="training-status-tag">
+                    <span className="status-indicator-dot" aria-hidden="true" />
+                    {t.training.currentBadge}
+                  </div>
+
+                  <h3 className="training-primary-title">
+                    {t.training.currentTitle}
+                  </h3>
+                  <p className="training-primary-center">
+                    {t.training.currentCenter}
+                  </p>
+                  <p className="training-primary-body">
+                    {t.training.currentDesc}
+                  </p>
+
+                  <div className="training-subjects-block">
+                    <h4 className="subjects-heading">
+                      {t.training.subjectsTitle}
+                    </h4>
+                    <ul className="subjects-list" role="list">
+                      {t.training.subjects.map((sub, sIdx) => (
+                        <li key={sIdx} className="subject-item">
+                          <span className="subject-bullet" aria-hidden="true">
+                            ▪
+                          </span>
+                          <span>{sub}</span>
+                        </li>
                       ))}
                     </ul>
                   </div>
                 </div>
               </ScrollReveal>
 
-              {/* Itinerario de cursos */}
-              <ScrollReveal direction="right" delay={100}>
-                <div>
-                  <h3 className="courses-col__title">
-                    Itinerario de formación complementaria
+              {/* Right Column: Planned MOOC Itinerary */}
+              <ScrollReveal direction="right" delay={120}>
+                <div className="training-secondary-card">
+                  <h3 className="training-itinerary-title">
+                    {t.training.itineraryHeading}
                   </h3>
-                  <Stagger staggerMs={60} threshold={0.05}>
-                    <ul role="list" aria-label="Cursos previstos y en progreso">
-                      {COURSES.map((c) => (
-                        <li key={c.name} className="course-card">
-                          <span className="course-card__platform">{c.platform}</span>
-                          <div className="course-card__content">
-                            <p className="course-card__name">{c.name}</p>
-                            <p className="course-card__meta">{c.meta}</p>
+
+                  <div className="courses-list" role="list">
+                    {t.training.courses.map((c, cIdx) => (
+                      <div key={cIdx} className="course-row">
+                        <div className="course-platform-badge">{c.platform}</div>
+                        <div className="course-content">
+                          <h4 className="course-name">{c.name}</h4>
+                          <p className="course-meta">{c.meta}</p>
+                          <div className="course-footer">
+                            <span className="course-status-pill">
+                              {c.statusLabel}
+                            </span>
                             <a
                               href={c.href}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={`course-card__status course-card__status--${c.status}`}
-                              aria-label={`${c.name} — Estado: ${c.statusLabel}. Ver curso`}
+                              className="course-info-link"
+                              aria-label={`Información del curso ${c.name}`}
                             >
-                              {c.statusLabel}
+                              {lang === 'es' ? 'Ver temario' : 'View syllabus'} →
                             </a>
                           </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </Stagger>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </ScrollReveal>
             </div>
           </div>
         </section>
 
-        {/* ─────────────────────────────────────────
-            05 DOCUMENTACIÓN
-        ───────────────────────────────────────── */}
+        {/* ──────────────────────────────────────────────────────────
+            05 — DOCUMENTACIÓN PROFESIONAL
+        ────────────────────────────────────────────────────────── */}
         <section
           id="documentos"
           className="section section--alt"
-          aria-label="Documentación profesional"
+          aria-label="Documentación profesional de empleabilidad"
         >
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">
-                <span className="section-label__num">05</span>
-                <span className="section-label__line" aria-hidden="true" />
-                <span className="section-label__title">Documentación</span>
+              <div className="section-header">
+                <span className="section-num">{t.documents.sectionNum} // 06</span>
+                <span className="section-tag">{t.documents.sectionTitle}</span>
               </div>
-
-              <h2 className="section-heading">Documentos profesionales</h2>
-              <p className="section-sub">
-                Currículos disponibles para descarga. Los documentos se incorporarán
-                cuando estén listos. Las rutas están configuradas para añadir los PDF
-                en la carpeta <code style={{ fontSize: '0.85em', background: '#eee', padding: '1px 5px', borderRadius: 3 }}>/public/docs/</code>.
-              </p>
+              <h2 className="section-title">{t.documents.heading}</h2>
+              <p className="section-desc">{t.documents.subheading}</p>
             </ScrollReveal>
 
-            <Stagger staggerMs={120} threshold={0.08}>
-              <div className="docs-grid">
-                {/* CV Habilidades */}
-                <article className="doc-card" aria-label="Currículum Vitae de Habilidades">
-                  <div className="doc-card__icon" aria-hidden="true">
+            <div className="docs-dual-grid">
+              {/* Card 1: CV Habilidades */}
+              <ScrollReveal delay={80}>
+                <article className="document-card">
+                  <div className="document-card__icon" aria-hidden="true">
                     <IconDoc />
                   </div>
-                  <p className="doc-card__type">Currículum</p>
-                  <h3 className="doc-card__title">CV de Habilidades</h3>
-                  <p className="doc-card__desc">
-                    Currículum funcional centrado en competencias técnicas y transversales.
-                    Diseñado para destacar lo que sé hacer por encima de la experiencia
-                    laboral formal, adecuado para búsqueda de prácticas.
+                  <span className="document-card__type">
+                    {t.documents.skillsCv.type}
+                  </span>
+                  <h3 className="document-card__title">
+                    {t.documents.skillsCv.title}
+                  </h3>
+                  <p className="document-card__desc">
+                    {t.documents.skillsCv.desc}
                   </p>
-                  <p className="doc-card__status">
-                    Documento pendiente de añadir
-                  </p>
-                  <div className="doc-card__actions">
-                    <span className="doc-btn doc-btn--view" aria-disabled="true" role="button">
-                      Ver documento
-                    </span>
-                    <span className="doc-btn doc-btn--download" aria-disabled="true" role="button">
-                      Descargar PDF
-                    </span>
-                  </div>
-                </article>
 
-                {/* CV Europass */}
-                <article className="doc-card" aria-label="Currículum Vitae Europass">
-                  <div className="doc-card__icon" aria-hidden="true">
-                    <IconDoc />
+                  <div className="document-card__status">
+                    <span className="status-dot-pending" aria-hidden="true" />
+                    <span>{t.documents.pendingNote}</span>
                   </div>
-                  <p className="doc-card__type">Europass</p>
-                  <h3 className="doc-card__title">Currículum Europass</h3>
-                  <p className="doc-card__desc">
-                    Formato estándar europeo de currículum. Compatible con plataformas
-                    de empleo europeas y portales de prácticas. Generado a través del
-                    portal oficial de Europass de la Unión Europea.
-                  </p>
-                  <p className="doc-card__status">
-                    Documento pendiente de añadir
-                  </p>
-                  <div className="doc-card__actions">
-                    <span className="doc-btn doc-btn--view" aria-disabled="true" role="button">
-                      Ver documento
-                    </span>
-                    <span className="doc-btn doc-btn--download" aria-disabled="true" role="button">
-                      Descargar PDF
-                    </span>
+
+                  <div className="document-card__actions">
+                    <a
+                      href="/docs/cv-habilidades.pdf"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-doc btn-doc--view"
+                      aria-label="Visualizar CV de Habilidades en PDF"
+                    >
+                      {t.documents.viewBtn}
+                    </a>
+                    <a
+                      href="/docs/cv-habilidades.pdf"
+                      download="CV-Juan-Fernando-Ospina.pdf"
+                      className="btn-doc btn-doc--download"
+                      aria-label="Descargar archivo PDF del CV de Habilidades"
+                    >
+                      {t.documents.downloadBtn}
+                    </a>
                   </div>
                 </article>
-              </div>
-            </Stagger>
+              </ScrollReveal>
+
+              {/* Card 2: CV Europass */}
+              <ScrollReveal delay={160}>
+                <article className="document-card">
+                  <div className="document-card__icon" aria-hidden="true">
+                    <IconDoc />
+                  </div>
+                  <span className="document-card__type">
+                    {t.documents.europassCv.type}
+                  </span>
+                  <h3 className="document-card__title">
+                    {t.documents.europassCv.title}
+                  </h3>
+                  <p className="document-card__desc">
+                    {t.documents.europassCv.desc}
+                  </p>
+
+                  <div className="document-card__status">
+                    <span className="status-dot-pending" aria-hidden="true" />
+                    <span>{t.documents.pendingNote}</span>
+                  </div>
+
+                  <div className="document-card__actions">
+                    <a
+                      href="/docs/cv-europass.pdf"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-doc btn-doc--view"
+                      aria-label="Visualizar CV Europass en PDF"
+                    >
+                      {t.documents.viewBtn}
+                    </a>
+                    <a
+                      href="/docs/cv-europass.pdf"
+                      download="Europass-Juan-Fernando-Ospina.pdf"
+                      className="btn-doc btn-doc--download"
+                      aria-label="Descargar archivo PDF del CV Europass"
+                    >
+                      {t.documents.downloadBtn}
+                    </a>
+                  </div>
+                </article>
+              </ScrollReveal>
+            </div>
           </div>
         </section>
 
-        {/* ─────────────────────────────────────────
-            06 CONTACTO
-        ───────────────────────────────────────── */}
+        {/* ──────────────────────────────────────────────────────────
+            06 — CONTACTO Y REDES PROFESIONALES
+        ────────────────────────────────────────────────────────── */}
         <section
           id="contacto"
-          className="section contact"
-          aria-label="Contacto y redes profesionales"
+          className="section section--contact"
+          aria-label="Contacto directo y redes profesionales"
         >
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">
-                <span className="section-label__num">06</span>
-                <span className="section-label__line" aria-hidden="true" />
-                <span className="section-label__title">Contacto</span>
+              <div className="section-header">
+                <span className="section-num">{t.contact.sectionNum} // 06</span>
+                <span className="section-tag">{t.contact.sectionTitle}</span>
               </div>
-
-              <h2 className="section-heading">Hablemos</h2>
+              <h2 className="section-title">{t.contact.heading}</h2>
             </ScrollReveal>
 
             <div className="contact-grid">
-              <ScrollReveal direction="left" delay={50}>
-                <div>
-                  <p className="contact-left__text">
-                    Si tienes alguna pregunta sobre mis proyectos, quieres revisar
-                    mi trabajo o te interesa contactar para prácticas o colaboraciones,
-                    puedes escribirme por cualquiera de estos canales.
-                  </p>
+              {/* Left Column: Personal Message */}
+              <ScrollReveal direction="left" delay={60}>
+                <div className="contact-message-panel">
+                  <p className="contact-intro">{t.contact.intro}</p>
+
+                  <div className="contact-meta-box">
+                    <div className="meta-row">
+                      <span className="meta-label">
+                        {t.contact.locationLabel}:
+                      </span>
+                      <strong className="meta-value">
+                        {t.contact.locationValue}
+                      </strong>
+                    </div>
+                    <p className="contact-avail-note">
+                      {t.contact.availabilityNotice}
+                    </p>
+                  </div>
                 </div>
               </ScrollReveal>
 
-              <ScrollReveal direction="right" delay={100}>
-                <div>
-                  <Stagger staggerMs={70} threshold={0.05}>
-                    <ul className="contact-links" role="list" aria-label="Canales de contacto">
-                      {/* GitHub */}
-                      <li>
-                        <a
-                          href="https://github.com/lominono"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="contact-link"
-                          aria-label="GitHub: @lominono"
-                        >
-                          <div className="contact-link__left">
-                            <div className="contact-link__icon" aria-hidden="true">
-                              <IconGitHub />
-                            </div>
-                            <div>
-                              <p className="contact-link__platform">GitHub</p>
-                              <p className="contact-link__value">@lominono</p>
-                            </div>
-                          </div>
-                          <span className="contact-link__arrow" aria-hidden="true">→</span>
-                        </a>
-                      </li>
-
-                      {/* Email */}
-                      <li>
-                        <span
-                          className="contact-link contact-link--disabled"
-                          aria-label="Correo electrónico: pendiente de añadir"
-                          role="group"
-                        >
-                          <div className="contact-link__left">
-                            <div className="contact-link__icon" aria-hidden="true">
-                              <IconMail />
-                            </div>
-                            <div>
-                              <p className="contact-link__platform">Correo electrónico</p>
-                              <p className="contact-link__value" style={{ fontStyle: 'italic', opacity: 0.6 }}>
-                                Añadir dirección de email ✏️
-                              </p>
-                            </div>
-                          </div>
+              {/* Right Column: Direct Channels */}
+              <ScrollReveal direction="right" delay={120}>
+                <div className="contact-channels" role="list">
+                  {/* Channel: Email with Quick Copy */}
+                  <div className="contact-channel-card">
+                    <div className="channel-icon-wrap" aria-hidden="true">
+                      <IconMail />
+                    </div>
+                    <div className="channel-body">
+                      <span className="channel-type">
+                        {lang === 'es' ? 'Correo Electrónico Directo' : 'Direct Email Address'}
+                      </span>
+                      <a
+                        href="mailto:juanfernandoospina005@gmail.com"
+                        className="channel-value channel-value--link"
+                      >
+                        juanfernandoospina005@gmail.com
+                      </a>
+                    </div>
+                    <div className="channel-actions">
+                      <button
+                        type="button"
+                        onClick={handleCopyEmail}
+                        className={`btn-copy ${copiedEmail ? 'is-copied' : ''}`}
+                        aria-label="Copiar correo electrónico al portapapeles"
+                      >
+                        {copiedEmail ? <IconCheck /> : <IconCopy />}
+                        <span>
+                          {copiedEmail
+                            ? t.contact.copiedEmail
+                            : t.contact.copyEmail}
                         </span>
-                      </li>
+                      </button>
+                    </div>
+                  </div>
 
-                      {/* LinkedIn */}
-                      <li>
-                        <span
-                          className="contact-link contact-link--disabled"
-                          aria-label="LinkedIn: perfil pendiente de añadir"
-                          role="group"
-                        >
-                          <div className="contact-link__left">
-                            <div className="contact-link__icon" aria-hidden="true">
-                              <IconLinkedIn />
-                            </div>
-                            <div>
-                              <p className="contact-link__platform">LinkedIn</p>
-                              <p className="contact-link__value" style={{ fontStyle: 'italic', opacity: 0.6 }}>
-                                Añadir perfil de LinkedIn ✏️
-                              </p>
-                            </div>
-                          </div>
-                        </span>
-                      </li>
-                    </ul>
-                  </Stagger>
+                  {/* Channel: LinkedIn */}
+                  <a
+                    href="https://www.linkedin.com/in/juan-fernando-ospina-tigreros-74185b443/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="contact-channel-card contact-channel-card--interactive"
+                    aria-label="Perfil de LinkedIn de Juan Fernando Ospina Tigreros"
+                  >
+                    <div className="channel-icon-wrap" aria-hidden="true">
+                      <IconLinkedIn />
+                    </div>
+                    <div className="channel-body">
+                      <span className="channel-type">LinkedIn</span>
+                      <span className="channel-value">
+                        linkedin.com/in/juan-fernando-ospina-tigreros-74185b443
+                      </span>
+                    </div>
+                    <span className="channel-arrow" aria-hidden="true">→</span>
+                  </a>
+
+                  {/* Channel: GitHub */}
+                  <a
+                    href="https://github.com/lominono"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="contact-channel-card contact-channel-card--interactive"
+                    aria-label="Perfil de GitHub @lominono"
+                  >
+                    <div className="channel-icon-wrap" aria-hidden="true">
+                      <IconGitHub />
+                    </div>
+                    <div className="channel-body">
+                      <span className="channel-type">GitHub</span>
+                      <span className="channel-value">github.com/lominono</span>
+                    </div>
+                    <span className="channel-arrow" aria-hidden="true">→</span>
+                  </a>
                 </div>
               </ScrollReveal>
             </div>
@@ -699,22 +764,18 @@ export default function PortafolioPage() {
         </section>
       </main>
 
-      {/* FOOTER */}
-      <footer className="footer" role="contentinfo">
-        <ScrollReveal>
-          <div className="container footer__inner">
-            <span className="footer__name">
-              Juan Fernando Ospina Tigreros
-            </span>
-            <span className="footer__year" aria-label="Año 2026">
-              © 2026
-            </span>
-            <div className="footer__right">
-              <p>SMR2 · IES Augusto González de Linares</p>
-              <p>Santander, Cantabria, España</p>
-            </div>
+      {/* ─── FOOTER EDITORIAL ─────────────────────────────────── */}
+      <footer className="footer-bar" role="contentinfo">
+        <div className="container footer-container">
+          <div className="footer-left">
+            <span className="footer-brand">JUAN FERNANDO OSPINA TIGREROS</span>
+            <p className="footer-academic">{t.footer.academicNote}</p>
           </div>
-        </ScrollReveal>
+          <div className="footer-right">
+            <p className="footer-meta">Santander, Cantabria, España · 2026</p>
+            <p className="footer-rights">{t.footer.rights}</p>
+          </div>
+        </div>
       </footer>
     </>
   );

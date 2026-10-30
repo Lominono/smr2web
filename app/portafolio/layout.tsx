@@ -11,38 +11,44 @@ const inter = Inter({
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#F7F7F5',
+  themeColor: '#0C0C0E',
 };
 
 export const metadata: Metadata = {
-  title: 'Juan Fernando Ospina Tigreros — Portafolio',
+  title: 'Juan Fernando Ospina Tigreros — Portfolio Profesional',
   description:
-    'Estudiante de Sistemas Microinformáticos y Redes en el IES Augusto González de Linares, Santander. Interesado en redes, administración de sistemas y desarrollo web.',
+    'Portafolio digital de Juan Fernando Ospina Tigreros. Estudiante de Sistemas Microinformáticos y Redes (SMR) en Santander, España. Proyectos personales, redes, sistemas y desarrollo web.',
   keywords: [
+    'Juan Fernando Ospina Tigreros',
     'Juan Fernando Ospina',
+    'lominono',
     'SMR',
     'Sistemas Microinformáticos y Redes',
+    'IES Augusto González de Linares',
     'Santander',
     'Cantabria',
-    'portfolio',
-    'portafolio',
-    'informática',
-    'redes',
-    'GitHub',
+    'Portfolio',
+    'Portafolio',
+    'Desarrollador Web',
+    'Redes',
+    'Linux',
+    'Next.js',
   ],
-  authors: [{ name: 'Juan Fernando Ospina Tigreros' }],
+  authors: [{ name: 'Juan Fernando Ospina Tigreros', url: 'https://github.com/lominono' }],
+  creator: 'Juan Fernando Ospina Tigreros',
   openGraph: {
     type: 'website',
     locale: 'es_ES',
-    title: 'Juan Fernando Ospina Tigreros — Portafolio',
+    alternateLocale: ['en_US'],
+    title: 'Juan Fernando Ospina Tigreros — Portfolio Profesional',
     description:
-      'Estudiante de SMR en el IES Augusto González de Linares, Santander. Redes, sistemas y desarrollo web.',
-    siteName: 'Juan Fernando Ospina — Portafolio',
+      'Estudiante de Sistemas Microinformáticos y Redes (SMR) en Santander. Redes, sistemas y desarrollo web autónomo.',
+    siteName: 'Juan Fernando Ospina — Portfolio',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Juan Fernando Ospina Tigreros — Portafolio',
-    description: 'Estudiante de SMR. Redes, sistemas y desarrollo web.',
+    title: 'Juan Fernando Ospina Tigreros — Portfolio',
+    description: 'Estudiante de SMR en Santander. Redes, sistemas y desarrollo web autónomo.',
   },
   robots: {
     index: true,
@@ -50,13 +56,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function PortafolioLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={inter.variable}>
+    <html lang="es" className={inter.variable} suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );
