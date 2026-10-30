@@ -9,22 +9,26 @@ export interface ProjectItem {
   problem: string;
   role: string;
   tech: string[];
+  image: string;
   github: string;
   demo: string | null;
-  featured: boolean;
+  layoutVariant: 'featured-horizontal' | 'split-vertical' | 'editorial-dense';
 }
 
-export interface SkillItem {
-  name: string;
-  level: string;
-  variant: 'learning' | 'neutral' | 'active';
+export interface SkillCategory {
+  title: string;
+  description: string;
+  skills: {
+    name: string;
+    application: string;
+    status: 'learning' | 'applied' | 'lab';
+  }[];
 }
 
 export interface CourseItem {
   platform: string;
   name: string;
   meta: string;
-  status: 'planned' | 'inprogress' | 'completed';
   statusLabel: string;
   href: string;
 }
@@ -51,53 +55,58 @@ export interface Translations {
     replayIntro: string;
   };
   hero: {
-    meta: string;
+    eyebrow: string;
     nameFirst: string;
     nameLast: string;
-    tagline: string;
-    statement: string;
+    ageLocation: string;
+    bio: string;
+    quote: string;
     availability: string;
-    photoPlaceholder: string;
-    photoNote: string;
     ctaProjects: string;
     ctaContact: string;
+    photoCaption: string;
   };
   skills: {
     sectionNum: string;
     sectionTitle: string;
     heading: string;
     subheading: string;
-    hardHeading: string;
-    softHeading: string;
-    note: string;
-    items: SkillItem[];
-    softSkills: string[];
+    transparencyNote: string;
+    categories: SkillCategory[];
+    softTitle: string;
+    softDesc: string;
+    softItems: {
+      title: string;
+      desc: string;
+    }[];
   };
   projects: {
     sectionNum: string;
     sectionTitle: string;
     heading: string;
     subheading: string;
-    repoLabel: string;
+    viewCode: string;
+    viewDemo: string;
     problemLabel: string;
+    solutionLabel: string;
     roleLabel: string;
     techLabel: string;
-    visitGithub: string;
     items: ProjectItem[];
-    allReposNote: string;
+    githubArchive: string;
   };
   training: {
     sectionNum: string;
     sectionTitle: string;
     heading: string;
     subheading: string;
-    currentBadge: string;
-    currentTitle: string;
-    currentCenter: string;
-    currentDesc: string;
-    subjectsTitle: string;
-    subjects: string[];
+    officialBadge: string;
+    officialTitle: string;
+    officialCenter: string;
+    officialDesc: string;
+    officialModulesTitle: string;
+    officialModules: string[];
     itineraryHeading: string;
+    itineraryDesc: string;
     courses: CourseItem[];
   };
   documents: {
@@ -105,18 +114,16 @@ export interface Translations {
     sectionTitle: string;
     heading: string;
     subheading: string;
-    viewBtn: string;
-    downloadBtn: string;
-    pendingNote: string;
+    pendingBadge: string;
     skillsCv: {
-      type: string;
       title: string;
       desc: string;
+      status: string;
     };
     europassCv: {
-      type: string;
       title: string;
       desc: string;
+      status: string;
     };
   };
   contact: {
@@ -124,16 +131,17 @@ export interface Translations {
     sectionTitle: string;
     heading: string;
     intro: string;
-    availabilityNotice: string;
-    copyEmail: string;
-    copiedEmail: string;
-    sendEmail: string;
-    openProfile: string;
+    emailLabel: string;
+    copyBtn: string;
+    copiedBtn: string;
+    directSend: string;
+    channelsTitle: string;
     locationLabel: string;
     locationValue: string;
   };
   footer: {
-    academicNote: string;
+    academic: string;
+    standards: string;
     rights: string;
   };
 }
@@ -146,205 +154,231 @@ export const translations: Record<Language, Translations> = {
       titleLine3: 'TIGREROS',
       tagline: 'Sistemas Microinformáticos y Redes · Santander, España',
       chooseLanguage: 'SELECCIONA TU IDIOMA',
-      langEs: 'ESPAÑOL',
-      langEn: 'ENGLISH',
+      langEs: 'Español',
+      langEn: 'English',
       skip: 'Omitir intro →',
       enter: 'Entrar al portfolio →',
     },
     nav: {
-      presentation: '01 Identidad',
-      skills: '02 Competencias',
-      projects: '03 Proyectos',
-      training: '04 Formación',
-      documents: '05 Documentación',
-      contact: '06 Contacto',
+      presentation: 'Identidad',
+      skills: 'Competencias',
+      projects: 'Proyectos',
+      training: 'Formación',
+      documents: 'Documentos',
+      contact: 'Contacto',
       replayIntro: 'Ver intro',
     },
     hero: {
-      meta: 'SMR · IES Augusto González de Linares · Santander',
+      eyebrow: 'Estudiante de Sistemas Microinformáticos y Redes · Santander',
       nameFirst: 'Juan Fernando',
       nameLast: 'Ospina Tigreros',
-      tagline:
-        'Tengo 18 años y me formo en Sistemas Microinformáticos y Redes. Desarrollador curioso, autodidacta y enfocado en construir herramientas reales: desde redes locales y sistemas operativos hasta plataformas web interactivas.',
-      statement: 'Aprender construyendo. Cada proyecto nace de una necesidad real y de la inquietud por entender cómo funciona la tecnología por dentro.',
-      availability: 'Disponible para prácticas formativas FCT · 2025–2026',
-      photoPlaceholder: 'Espacio para Fotografía Profesional',
-      photoNote: 'Guarda tu imagen en /public/foto-perfil.jpg',
-      ctaProjects: 'Explorar proyectos',
-      ctaContact: 'Contacto directo',
+      ageLocation: '18 años · Santander, Cantabria, España',
+      bio: 'Me formo en Sistemas Microinformáticos y Redes (SMR) en el IES Augusto González de Linares. Tengo un interés genuino por la tecnología, las redes y el desarrollo de software. Aprendo de manera autónoma y me motiva construir proyectos reales desde cero, abordando desde la infraestructura y sistemas hasta aplicaciones web completas.',
+      quote: 'Aprender construyendo. Cada proyecto nace de una necesidad práctica y del interés por comprender cómo funciona la informática por dentro.',
+      availability: 'Disponible para prácticas formativas FCT · Periodo 2025–2026',
+      ctaProjects: 'Ver proyectos',
+      ctaContact: 'Contactar',
+      photoCaption: 'Fotografía profesional · Santander, 2026',
     },
     skills: {
       sectionNum: '02',
-      sectionTitle: 'Competencias Técnicas y Personales',
-      heading: 'Matriz de competencias',
+      sectionTitle: 'Competencias',
+      heading: 'Conocimientos y herramientas',
       subheading:
-        'Habilidades técnicas adquiridas en el ciclo de SMR y mediante proyectos personales autónomos. Los niveles se muestran con honestidad académica y sin autoevaluaciones arbitrarias.',
-      hardHeading: 'Hard Skills — Sistemas, Redes y Software',
-      softHeading: 'Soft Skills — Enfoque de trabajo',
-      note:
-        'Transparencia profesional: Ningún nivel se presenta como "experto" ni con porcentajes inventados. Las competencias reflejan la formación reglada en curso en SMR y el aprendizaje práctico mediante desarrollo de proyectos individuales.',
-      items: [
-        { name: 'Sistemas operativos Windows (Client & Server)', level: 'En formación reglada', variant: 'learning' },
-        { name: 'Sistemas operativos Linux (Ubuntu, Debian, CLI)', level: 'En formación reglada', variant: 'learning' },
-        { name: 'Administración básica de sistemas y usuarios', level: 'En formación reglada', variant: 'learning' },
-        { name: 'Redes locales y arquitectura TCP/IP', level: 'En formación reglada', variant: 'learning' },
-        { name: 'Direccionamiento IPv4 y Subnetting (VLSM)', level: 'En práctica activa', variant: 'learning' },
-        { name: 'Configuración de VLANs y conmutación básica', level: 'En aprendizaje práctico', variant: 'learning' },
-        { name: 'Virtualización (VirtualBox, VMware)', level: 'Uso habitual en laboratorio', variant: 'learning' },
-        { name: 'Hardware, montaje y mantenimiento de equipos', level: 'En formación reglada', variant: 'learning' },
-        { name: 'HTML5 semántico y CSS3 estructurado', level: 'Aplicado en proyectos', variant: 'active' },
-        { name: 'JavaScript moderno (ES6+)', level: 'Aplicado en proyectos', variant: 'active' },
-        { name: 'Control de versiones con Git y GitHub', level: 'Flujo de trabajo diario', variant: 'active' },
-        { name: 'Bases de datos relacionales (Postgres / Supabase)', level: 'Básico en proyectos', variant: 'neutral' },
+        'Habilidades técnicas adquiridas a través del ciclo oficial de SMR y reforzadas mediante proyectos personales individuales. Sin porcentajes arbitrarios ni autoevaluaciones infladas.',
+      transparencyNote:
+        'Transparencia profesional: Ningún nivel se presenta como "experto". Todos los conocimientos reflejan la formación reglada en curso y la resolución de problemas técnicos reales en proyectos propios.',
+      categories: [
+        {
+          title: 'Sistemas Operativos',
+          description: 'Administración, configuración y mantenimiento en clientes y servidores.',
+          skills: [
+            { name: 'Linux (Ubuntu, Debian)', application: 'Uso de terminal CLI, gestión de paquetes, permisos y servicios.', status: 'lab' },
+            { name: 'Windows Server', application: 'Configuración básica de usuarios, directivas y roles de servidor.', status: 'learning' },
+            { name: 'Windows 10/11 Pro', application: 'Instalación, soporte técnico, particionado y optimización.', status: 'applied' },
+            { name: 'Virtualización', application: 'Creación y gestión de entornos aislados con VirtualBox y VMware.', status: 'lab' },
+          ],
+        },
+        {
+          title: 'Redes y Comunicaciones',
+          description: 'Topologías físicas y lógicas, direccionamiento y protocolos esenciales.',
+          skills: [
+            { name: 'Arquitectura TCP/IP', application: 'Modelos OSI y TCP/IP, análisis de tráfico y resolución de problemas.', status: 'learning' },
+            { name: 'Direccionamiento IPv4 y Subnetting', application: 'Cálculo de máscaras, división en subredes fijas y variables (VLSM).', status: 'applied' },
+            { name: 'Conmutación y VLANs', application: 'Segmentación de redes locales y configuración básica en switches.', status: 'learning' },
+            { name: 'Cableado y Hardware de Red', application: 'Crimpadora RJ-45, comprobación de latiguillos y paneles de parcheo.', status: 'lab' },
+          ],
+        },
+        {
+          title: 'Desarrollo de Software y Web',
+          description: 'Construcción autónoma de interfaces web interactivas y lógica de servidor.',
+          skills: [
+            { name: 'JavaScript moderno (ES6+)', application: 'Lógica asíncrona, manipulación de DOM y gestión de estado.', status: 'applied' },
+            { name: 'HTML5 y CSS3 semántico', application: 'Maquetación responsive con Flexbox, CSS Grid y accesibilidad básica.', status: 'applied' },
+            { name: 'React y Next.js', application: 'Desarrollo de aplicaciones completas con Server y Client Components.', status: 'applied' },
+            { name: 'Bases de Datos Relacionales', application: 'Esquemas SQL, consultas y sincronización en tiempo real con Supabase.', status: 'applied' },
+          ],
+        },
+        {
+          title: 'Hardware y Entorno de Trabajo',
+          description: 'Montaje físico, diagnóstico de componentes y herramientas de desarrollo.',
+          skills: [
+            { name: 'Montaje y Mantenimiento PC', application: 'Ensamblaje de componentes, diagnosis de fallos de hardware y sustitución.', status: 'lab' },
+            { name: 'Control de Versiones (Git/GitHub)', application: 'Flujo diario con commits atómicos, ramas y repositorios remotos.', status: 'applied' },
+            { name: 'Seguridad Informática básica', application: 'Políticas de contraseñas, cortafuegos y copias de seguridad.', status: 'learning' },
+          ],
+        },
       ],
-      softSkills: [
-        'Iniciativa y aprendizaje autónomo',
-        'Resolución analítica de problemas',
-        'Organización y meticulosidad técnica',
-        'Trabajo en equipo y comunicación',
-        'Adaptabilidad a nuevas herramientas',
-        'Gestión del tiempo y entregas',
+      softTitle: 'Enfoque personal de trabajo',
+      softDesc: 'Forma de afrontar los desafíos técnicos y la colaboración.',
+      softItems: [
+        {
+          title: 'Iniciativa y aprendizaje autónomo',
+          desc: 'Capacidad demostrada para investigar documentación técnica oficial y aprender tecnologías nuevas por cuenta propia.',
+        },
+        {
+          title: 'Resolución metódica de problemas',
+          desc: 'Hábito de descomponer averías o errores de software paso a paso para identificar la causa raíz sin precipitarse.',
+        },
+        {
+          title: 'Cuidado por el detalle',
+          desc: 'Interés por entregar trabajos bien acabados, con interfaces limpias, código legible y sin añadidos innecesarios.',
+        },
+        {
+          title: 'Comunicación y compañerismo',
+          desc: 'Disposición constructiva para colaborar en el taller, compartir conocimientos y escuchar aportaciones.',
+        },
       ],
     },
     projects: {
       sectionNum: '03',
-      sectionTitle: 'Escaparate Técnico',
-      heading: 'Proyectos destacados',
+      sectionTitle: 'Proyectos',
+      heading: 'Trabajos seleccionados',
       subheading:
-        'Proyectos reales desarrollados de forma personal. Cada uno responde a un desafío concreto, con código público inspeccionable en GitHub.',
-      repoLabel: 'Repositorio',
-      problemLabel: 'Desafío / Problema resuelto',
-      roleLabel: 'Trabajo realizado',
-      techLabel: 'Stack tecnológico',
-      visitGithub: 'Ver código en GitHub →',
+        'Cuatro proyectos reales desarrollados de forma personal. Cada uno con código público disponible en GitHub, sin trabajos ficticios ni colaboraciones inventadas.',
+      viewCode: 'Ver repositorio en GitHub',
+      viewDemo: 'Ver demostración',
+      problemLabel: 'Qué resuelve',
+      solutionLabel: 'Enfoque técnico',
+      roleLabel: 'Desarrollo personal',
+      techLabel: 'Tecnologías utilizadas',
       items: [
         {
           id: 'salitre',
           index: '01',
-          title: 'SALITRE (STDR_UNDERGROUND)',
-          tagline: 'Plataforma social clandestina con economía interna y estética neo-brutalista portuaria',
-          desc:
-            'Plataforma social web inspirada en la cultura costera y portuaria de Santander. Incorpora el feed dinámico "La Marea", sistema de rangos (Polizón a Soberano), reputación comunitaria y una economía lúdica cerrada basada en "Anchoas". Rechaza las interfaces genéricas mediante un diseño con identidad gráfica propia.',
-          problem:
-            'Crear un espacio digital con identidad visual radicalmente opuesta a los clones de redes sociales comerciales, conectando con el humor local y mecánicas interactivas.',
-          role:
-            'Desarrollo 100% individual: arquitectura integral, maquetación gráfica editorial, integración de backend y animaciones de interfaz.',
+          title: 'SALITRE',
+          tagline: 'Plataforma social clandestina con economía lúdica y estética neo-brutalista portuaria',
+          desc: 'Plataforma web con identidad gráfica basada en el puerto y la noche de Santander. Dispone del feed dinámico "La Marea", progresión de rangos (Polizón a Soberano), reputación comunitaria y una economía cerrada de 30.000 "Anchoas". Rompe deliberadamente con los patrones clónicos de redes comerciales.',
+          problem: 'Crear un espacio digital que conecte con el humor local y la cultura cántabra a través de mecánicas de interacción lúdica y un diseño con fuerte personalidad visual.',
+          role: 'Proyecto concebido y desarrollado 100% individualmente: arquitectura integral, diseño visual editorial, base de datos Postgres en Supabase y animaciones con GSAP.',
           tech: ['Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'Supabase (PostgreSQL)', 'GSAP'],
+          image: '/projects/salitre.png',
           github: 'https://github.com/Lominono/STDR_UNDERGROUND',
           demo: null,
-          featured: true,
+          layoutVariant: 'featured-horizontal',
         },
         {
           id: 'smr2web',
           index: '02',
           title: 'Portal de Clase SMR2',
-          tagline: 'Portal colaborativo y de horario lectivo en tiempo real para el aula de 2.º SMR',
-          desc:
-            'Herramienta web interactiva para los alumnos del ciclo de Sistemas Microinformáticos y Redes del IES Augusto González de Linares. Incluye calendario de sesiones, sistema de asistencia, avisos en tiempo real, tabla de posiciones académica y paneles de gestión interna del aula.',
-          problem:
-            'Eliminar la dispersión de información del aula facilitando una plataforma centralizada accesible desde dispositivos móviles y puestos del taller.',
-          role:
-            'Desarrollo frontend principal y arquitectura web, integrando la sincronización en tiempo real y la experiencia visual responsive.',
+          tagline: 'Herramienta colaborativa y horario lectivo interactivo para el aula de 2.º SMR',
+          desc: 'Portal web diseñado para el alumnado de Sistemas Microinformáticos y Redes del IES Augusto González de Linares. Centraliza el horario de sesiones de clase, avisos de exámenes, asistencias y herramientas internas accesibles tanto desde móviles como desde los puestos del taller.',
+          problem: 'Evitar la dispersión de información del curso y proporcionar un punto de acceso unificado al ritmo de la clase.',
+          role: 'Desarrollo frontend principal y diseño de la experiencia de usuario, integrando sincronización en tiempo real y notificaciones Push.',
           tech: ['Next.js', 'React 19', 'TypeScript', 'Tailwind CSS', 'Supabase Realtime', 'Web Push'],
+          image: '/projects/smr2.png',
           github: 'https://github.com/Lominono/smr2web',
           demo: null,
-          featured: true,
+          layoutVariant: 'split-vertical',
         },
         {
           id: 'muudel',
           index: '03',
           title: 'muudel',
-          tagline: 'Aplicación de asistencia, rachas de clase y recompensas inspirada en Apple HIG',
-          desc:
-            'Sistema web orientado a dinamizar la rutina del aula: registro de asistencia puntual, cálculo automático de rachas consecutivas, canje de recompensas y chat entre compañeros bajo una estética sobria y minimalista.',
-          problem:
-            'Fomentar la puntualidad y el compromiso de los compañeros de forma lúdica y con una interfaz limpia que no distraiga.',
-          role:
-            'Proyecto concebido y programado individualmente desde el diseño del esquema de base de datos SQL (`database.sql`) hasta los componentes cliente en React.',
+          tagline: 'Aplicación de asistencia de clase y canje de recompensas inspirada en Apple HIG',
+          desc: 'Aplicación orientada a dinamizar la rutina del aula con registro de asistencia con control horario, cálculo automático de rachas consecutivas, canje de recompensas simbólicas y chat entre compañeros bajo una estética sobria y minimalista.',
+          problem: 'Promover la puntualidad y el compromiso de los compañeros mediante dinámicas positivas en una interfaz sin elementos de distracción.',
+          role: 'Diseñado e implementado individualmente desde el esquema relacional (`database.sql`) hasta la API en Express y la interfaz de usuario en React.',
           tech: ['Vite', 'React', 'Tailwind CSS', 'Express', 'Supabase (PostgreSQL)'],
+          image: '/projects/muudel.png',
           github: 'https://github.com/lominono/muudel',
           demo: null,
-          featured: false,
+          layoutVariant: 'split-vertical',
         },
         {
           id: 'jfdelegado',
           index: '04',
           title: 'JUANFE DELEGADO',
-          tagline: 'Web de campaña para la delegación de clase con estética fanzine y base de datos en tiempo real',
-          desc:
-            'Aplicación web interactiva creada para la campaña de elección a delegado de clase. Diseño visual fanzine / Neo-Brutalista con adhesivos rotados, votaciones interactivas y comunicación en vivo con Firebase.',
-          problem:
-            'Presentar propuestas académicas y de aula de una forma cercana, original y transparente que captase la atención de toda la clase.',
-          role:
-            'Desarrollo íntegro individual de diseño visual, lógica en Vanilla JavaScript y sincronización con Firebase Realtime Database.',
-          tech: ['HTML5 Semántico', 'CSS3 Neo-Brutalist', 'JavaScript Vanilla', 'Firebase Realtime'],
+          tagline: 'Web interactiva de campaña electoral escolar con diseño fanzine y votaciones en vivo',
+          desc: 'Aplicación web creada para presentar la candidatura a delegado de clase de forma transparente, directa y participativa, con sistema de votaciones interactivas y comunicación en tiempo real respaldada por Firebase.',
+          problem: 'Acercar las propuestas de la candidatura a todos los compañeros mediante un formato cercano y participativo.',
+          role: 'Desarrollo íntegro individual: diseño gráfico tipo fanzine / Neo-Brutalista, programación en Vanilla JavaScript y sincronización con Firebase Realtime Database.',
+          tech: ['HTML5 Semántico', 'CSS3 Neo-Brutalist', 'Vanilla JavaScript', 'Firebase Realtime'],
+          image: '/projects/jfdelegado.jpg',
           github: 'https://github.com/Lominono/JFDELEGADO',
           demo: null,
-          featured: false,
+          layoutVariant: 'editorial-dense',
         },
       ],
-      allReposNote: 'Puedes consultar todos mis repositorios y commits públicos directamente en',
+      githubArchive: 'Ver todos los repositorios y código fuente en',
     },
     training: {
       sectionNum: '04',
-      sectionTitle: 'Formación y Crecimiento',
-      heading: 'Trayectoria y aprendizaje futuro',
+      sectionTitle: 'Formación',
+      heading: 'Itinerario de formación técnica',
       subheading:
-        'Mi base formal en informática se construye en el IES Augusto González de Linares, complementada con un itinerario autodidacta de cursos MOOC y plataformas especializadas.',
-      currentBadge: 'Formación Oficial · En curso',
-      currentTitle: 'Técnico en Sistemas Microinformáticos y Redes (SMR)',
-      currentCenter: 'IES Augusto González de Linares · Santander, Cantabria',
-      currentDesc:
-        'Ciclo Formativo de Grado Medio centrado en el montaje, reparación y mantenimiento de sistemas microinformáticos, despliegue de redes locales, configuración de servidores Windows y Linux, seguridad informática básica y aplicaciones web.',
-      subjectsTitle: 'Módulos troncales trabajados:',
-      subjects: [
-        'Redes Locales (cableado, conmutación, direccionamiento)',
-        'Sistemas Operativos Monopuesto (Windows y Linux CLI/GUI)',
-        'Sistemas Operativos en Red (administración de dominios y servicios)',
-        'Montaje y Mantenimiento de Equipos (hardware y diagnósticos)',
-        'Aplicaciones Web (despliegue de gestores de contenidos y servidores web)',
-        'Seguridad Informática (políticas, copias de seguridad y cortafuegos)',
-        'IPE II (Itinerario Personal para la Empleabilidad)',
+        'Base oficial en el IES Augusto González de Linares complementada con un itinerario autodidacta planificado para seguir ampliando competencias.',
+      officialBadge: 'Formación Oficial Reglada · En curso',
+      officialTitle: 'Técnico en Sistemas Microinformáticos y Redes (SMR)',
+      officialCenter: 'IES Augusto González de Linares · Santander, Cantabria',
+      officialDesc:
+        'Ciclo Formativo de Grado Medio orientado a la instalación, configuración y mantenimiento de sistemas informáticos aislados o en red, canalizaciones y cableado de datos, servidores Windows y Linux, y aplicaciones web.',
+      officialModulesTitle: 'Módulos troncales en estudio:',
+      officialModules: [
+        'Redes Locales (Montaje físico, direccionamiento IP y conmutación)',
+        'Sistemas Operativos Monopuesto (Windows y Linux)',
+        'Sistemas Operativos en Red (Servidores, dominios y servicios de red)',
+        'Montaje y Mantenimiento de Equipos (Hardware, componentes y diagnóstico)',
+        'Aplicaciones Web (Servidores web, CMS y gestores de contenidos)',
+        'Seguridad Informática (Copias de seguridad, antivirus y cortafuegos)',
+        'Itinerario Personal para la Empleabilidad (IPE II)',
       ],
       itineraryHeading: 'Itinerario de formación complementaria previsto (MOOCs)',
+      itineraryDesc:
+        'Cursos técnicos planificados para complementar la formación reglada. Ninguno de ellos se presenta como certificado completado.',
       courses: [
         {
           platform: 'Cisco Networking Academy',
           name: 'CCNA: Introduction to Networks (ITN)',
-          meta: 'Protocolos de red, modelos OSI/TCP-IP, IPv4/IPv6, switches y routers',
-          status: 'planned',
+          meta: 'Protocolos de red, modelos OSI/TCP-IP, IPv4/IPv6, switches y routers.',
           statusLabel: 'Previsto en itinerario',
           href: 'https://www.netacad.com/courses/networking/ccna-introduction-networks',
         },
         {
           platform: 'freeCodeCamp',
           name: 'Responsive Web Design Certification',
-          meta: 'HTML5 semántico, CSS Flexbox, Grid, accesibilidad web y diseño adaptable',
-          status: 'planned',
+          meta: 'HTML5 semántico, CSS Flexbox, CSS Grid y accesibilidad web.',
           statusLabel: 'Previsto en itinerario',
           href: 'https://www.freecodecamp.org/learn/2022/responsive-web-design/',
         },
         {
           platform: 'Microsoft Learn',
           name: 'Microsoft Azure Fundamentals (AZ-900)',
-          meta: 'Conceptos de nube, servicios principales de Azure, seguridad y gobernanza',
-          status: 'planned',
+          meta: 'Conceptos de nube, servicios principales de Azure, seguridad y gobernanza.',
           statusLabel: 'Previsto en itinerario',
           href: 'https://learn.microsoft.com/es-es/training/paths/az-900-describe-cloud-concepts/',
         },
         {
           platform: 'Google Cloud Skills Boost',
           name: 'Cloud Computing Fundamentals',
-          meta: 'Infraestructura en la nube, máquinas virtuales, almacenamiento y redes',
-          status: 'planned',
+          meta: 'Infraestructura cloud, máquinas virtuales, almacenamiento y redes virtuales.',
           statusLabel: 'Previsto en itinerario',
           href: 'https://www.cloudskillsboost.google/paths/36',
         },
         {
           platform: 'Coursera / Google',
           name: 'Google IT Support Professional Certificate',
-          meta: 'Soporte técnico, administración de sistemas Linux, seguridad y redes',
-          status: 'planned',
+          meta: 'Soporte técnico integral, sistemas Linux, ciberseguridad básica y atención a usuarios.',
           statusLabel: 'Previsto en itinerario',
           href: 'https://www.coursera.org/professional-certificates/google-it-support',
         },
@@ -352,43 +386,40 @@ export const translations: Record<Language, Translations> = {
     },
     documents: {
       sectionNum: '05',
-      sectionTitle: 'Documentación Profesional',
-      heading: 'Documentos de empleabilidad',
+      sectionTitle: 'Documentos',
+      heading: 'Documentación profesional',
       subheading:
-        'Archivos curriculares preparados para su visualización y descarga directa en formato PDF. Desarrollados para procesos de selección y plazas de Formación en Centros de Trabajo (FCT).',
-      viewBtn: 'Ver en navegador',
-      downloadBtn: 'Descargar PDF',
-      pendingNote: 'Ruta configurada en /public/docs/ — documento en fase de incorporación.',
+        'Currículos orientados a procesos de selección y plazas de Formación en Centros de Trabajo (FCT). Actualmente en preparación para su incorporación en formato PDF.',
+      pendingBadge: 'En preparación',
       skillsCv: {
-        type: 'Currículum Funcional',
-        title: 'CV de Habilidades y Competencias',
-        desc:
-          'Documento adaptado que pone en primer plano las competencias prácticas de soporte informático, redes, montaje de hardware y desarrollo web, ideal para valorar potencial técnico e iniciativa.',
+        title: 'Currículum Vitae de Habilidades',
+        desc: 'Formato funcional que destaca las competencias prácticas en administración de sistemas, redes locales, hardware y desarrollo web.',
+        status: 'Documento en fase de redacción final. Estará disponible para descarga en PDF.',
       },
       europassCv: {
-        type: 'Estándar Europeo',
         title: 'Currículum Vitae Europass',
-        desc:
-          'Estructura curricular estandarizada para el marco laboral europeo, que detalla la formación oficial en SMR, idiomas y competencias personales según las directrices de la Unión Europea.',
+        desc: 'Estructura curricular oficial según el estándar de la Unión Europea, detallando la formación reglada en SMR y competencias transversales.',
+        status: 'Documento en preparación en el portal oficial Europass. Estará disponible en PDF.',
       },
     },
     contact: {
       sectionNum: '06',
-      sectionTitle: 'Contacto y Redes',
-      heading: 'Iniciemos una conversación',
+      sectionTitle: 'Contacto',
+      heading: 'Hablemos',
       intro:
-        'Si estás interesado en mi perfil para prácticas formativas de SMR, quieres consultar detalles sobre mis proyectos personales o te gustaría conversar sobre tecnología, estaré encantado de responderte.',
-      availabilityNotice: 'Resido en Santander, Cantabria, con disponibilidad para incorporación a prácticas formativas.',
-      copyEmail: 'Copiar dirección de correo',
-      copiedEmail: '¡Copiado en el portapapeles!',
-      sendEmail: 'Enviar correo electrónico',
-      openProfile: 'Abrir perfil externo',
+        'Si tienes una propuesta de prácticas formativas de SMR, quieres consultar detalles sobre mis proyectos o conversar sobre tecnología, puedes escribirme directamente.',
+      emailLabel: 'Correo electrónico profesional',
+      copyBtn: 'Copiar dirección',
+      copiedBtn: '¡Copiado!',
+      directSend: 'Abrir en tu cliente de correo →',
+      channelsTitle: 'Perfiles profesionales',
       locationLabel: 'Ubicación',
       locationValue: 'Santander, Cantabria, España',
     },
     footer: {
-      academicNote: 'Portafolio académico y profesional · Módulo IPE II · Ciclo SMR · IES Augusto González de Linares',
-      rights: 'Diseño editorial y desarrollo autónomo. Código abierto en GitHub.',
+      academic: 'Portafolio académico y profesional · Módulo IPE II · Ciclo SMR · IES Augusto González de Linares',
+      standards: 'Diseñado bajo principios de claridad, jerarquía y accesibilidad.',
+      rights: '© 2026 Juan Fernando Ospina Tigreros · Todos los derechos reservados.',
     },
   },
   en: {
@@ -396,251 +427,274 @@ export const translations: Record<Language, Translations> = {
       titleLine1: 'JUAN FERNANDO',
       titleLine2: 'OSPINA',
       titleLine3: 'TIGREROS',
-      tagline: 'Microcomputer Systems and Networks · Santander, Spain',
+      tagline: 'Computer Systems and Networks · Santander, Spain',
       chooseLanguage: 'SELECT YOUR LANGUAGE',
-      langEs: 'ESPAÑOL',
-      langEn: 'ENGLISH',
+      langEs: 'Español',
+      langEn: 'English',
       skip: 'Skip intro →',
       enter: 'Enter portfolio →',
     },
     nav: {
-      presentation: '01 Identity',
-      skills: '02 Competencies',
-      projects: '03 Projects',
-      training: '04 Education',
-      documents: '05 Documents',
-      contact: '06 Contact',
+      presentation: 'Identity',
+      skills: 'Competencies',
+      projects: 'Projects',
+      training: 'Education',
+      documents: 'Documents',
+      contact: 'Contact',
       replayIntro: 'Watch intro',
     },
     hero: {
-      meta: 'SMR · IES Augusto González de Linares · Santander, Spain',
+      eyebrow: 'Computer Systems and Networks Student · Santander, Spain',
       nameFirst: 'Juan Fernando',
       nameLast: 'Ospina Tigreros',
-      tagline:
-        'I am 18 years old studying Microcomputer Systems and Networks. A curious, self-driven developer passionate about building tangible tools: from local networks and OS configuration to full-stack interactive web apps.',
-      statement: 'Learn by building. Every project originates from a genuine problem and the curiosity to master how technology works under the hood.',
-      availability: 'Available for internship placement (FCT) · 2025–2026',
-      photoPlaceholder: 'Professional Portrait Slot',
-      photoNote: 'Save your photo in /public/foto-perfil.jpg',
+      ageLocation: '18 years old · Santander, Cantabria, Spain',
+      bio: 'I study Microcomputer Systems and Networks (SMR) at IES Augusto González de Linares. I have a genuine interest in computer hardware, networking infrastructure, and software development. I am an independent self-learner who enjoys building real projects from the ground up, spanning systems administration, network protocols, and complete web applications.',
+      quote: 'Learn by building. Every project originates from a practical challenge and the curiosity to understand how computer systems operate under the surface.',
+      availability: 'Available for internship placement (FCT) · Period 2025–2026',
       ctaProjects: 'View projects',
       ctaContact: 'Get in touch',
+      photoCaption: 'Professional portrait · Santander, 2026',
     },
     skills: {
       sectionNum: '02',
-      sectionTitle: 'Technical & Interpersonal Competencies',
-      heading: 'Skills matrix',
+      sectionTitle: 'Competencies',
+      heading: 'Technical capabilities & tools',
       subheading:
-        'Technical capabilities acquired through formal vocational training in SMR and autonomous personal project development. Levels are presented with academic honesty and zero inflated ratings.',
-      hardHeading: 'Hard Skills — Systems, Networking & Software',
-      softHeading: 'Soft Skills — Working Approach',
-      note:
-        'Professional integrity note: No competency is presented as "expert" nor measured with arbitrary percentages. These skills represent current vocational coursework in SMR and hands-on learning through individual coding projects.',
-      items: [
-        { name: 'Windows Operating Systems (Client & Server)', level: 'In formal training', variant: 'learning' },
-        { name: 'Linux Operating Systems (Ubuntu, Debian, CLI)', level: 'In formal training', variant: 'learning' },
-        { name: 'Basic System & User Administration', level: 'In formal training', variant: 'learning' },
-        { name: 'Local Area Networks & TCP/IP Architecture', level: 'In formal training', variant: 'learning' },
-        { name: 'IPv4 Addressing & Subnetting (VLSM)', level: 'Active laboratory practice', variant: 'learning' },
-        { name: 'VLAN Configuration & Basic Switching', level: 'In practical learning', variant: 'learning' },
-        { name: 'Virtualization (VirtualBox, VMware Workstation)', level: 'Regular laboratory usage', variant: 'learning' },
-        { name: 'Computer Hardware, Assembly & Maintenance', level: 'In formal training', variant: 'learning' },
-        { name: 'Semantic HTML5 & Structured CSS3', level: 'Applied across projects', variant: 'active' },
-        { name: 'Modern JavaScript (ES6+)', level: 'Applied across projects', variant: 'active' },
-        { name: 'Version Control with Git & GitHub', level: 'Daily workflow standard', variant: 'active' },
-        { name: 'Relational Databases (Postgres / Supabase)', level: 'Basic usage in projects', variant: 'neutral' },
+        'Practical capabilities developed through formal vocational training in SMR and autonomous personal software projects. Zero inflated metrics or arbitrary percentage bars.',
+      transparencyNote:
+        'Professional transparency: No skill is rated as "expert". All proficiencies reflect active vocational coursework and hands-on technical problem solving in individual projects.',
+      categories: [
+        {
+          title: 'Operating Systems',
+          description: 'Administration, configuration, and troubleshooting on client and server systems.',
+          skills: [
+            { name: 'Linux (Ubuntu, Debian)', application: 'CLI navigation, package management, user permissions, and daemons.', status: 'lab' },
+            { name: 'Windows Server', application: 'Basic domain user administration, Group Policy (GPO), and server roles.', status: 'learning' },
+            { name: 'Windows 10/11 Pro', application: 'Installation, technical diagnostics, storage partitioning, and system tuning.', status: 'applied' },
+            { name: 'Virtualization', application: 'Configuration and isolation of virtual machines with VirtualBox and VMware.', status: 'lab' },
+          ],
+        },
+        {
+          title: 'Networking & Protocols',
+          description: 'Physical cabling, logical topologies, addressing schemes, and core protocols.',
+          skills: [
+            { name: 'TCP/IP Architecture', application: 'OSI and TCP/IP models, packet inspection, and connectivity diagnostics.', status: 'learning' },
+            { name: 'IPv4 Addressing & Subnetting', application: 'Subnet calculations, fixed and variable length subnet masking (VLSM).', status: 'applied' },
+            { name: 'Switching & VLANs', application: 'Local network segmentation and basic managed switch configuration.', status: 'learning' },
+            { name: 'Cabling & Network Hardware', application: 'RJ-45 crimping, patch panel wiring, and continuity testing.', status: 'lab' },
+          ],
+        },
+        {
+          title: 'Software & Web Development',
+          description: 'Autonomous construction of responsive client interfaces and backend logic.',
+          skills: [
+            { name: 'Modern JavaScript (ES6+)', application: 'Asynchronous control flow, DOM manipulation, and state management.', status: 'applied' },
+            { name: 'Semantic HTML5 & Modern CSS3', application: 'Accessible, responsive layouts with CSS Flexbox and Grid.', status: 'applied' },
+            { name: 'React & Next.js', application: 'Full-stack application architecture with Server and Client Components.', status: 'applied' },
+            { name: 'Relational Databases', application: 'SQL table modeling, queries, and real-time synchronization with Supabase.', status: 'applied' },
+          ],
+        },
+        {
+          title: 'Hardware & Development Environment',
+          description: 'Physical computer assembly, component diagnostic checks, and developer tooling.',
+          skills: [
+            { name: 'PC Assembly & Maintenance', application: 'Component selection, bench diagnostics, thermal upkeep, and replacements.', status: 'lab' },
+            { name: 'Version Control (Git/GitHub)', application: 'Daily development flow with clean commits, branching, and remote pushes.', status: 'applied' },
+            { name: 'Basic Cyber Security', application: 'Password guidelines, host firewall setup, and scheduled backup routines.', status: 'learning' },
+          ],
+        },
       ],
-      softSkills: [
-        'Proactive self-guided learning',
-        'Analytical problem solving',
-        'Technical organization & precision',
-        'Collaborative teamwork & communication',
-        'Adaptability to emerging toolchains',
-        'Reliable time management & delivery',
+      softTitle: 'Working Approach',
+      softDesc: 'Mindset toward technical challenges and team collaboration.',
+      softItems: [
+        {
+          title: 'Initiative & autonomous learning',
+          desc: 'Demonstrated habit of studying official technical documentation and learning new toolchains independently.',
+        },
+        {
+          title: 'Methodical problem solving',
+          desc: 'Disciplined approach to isolating hardware faults or software bugs systematically to trace root causes.',
+        },
+        {
+          title: 'Attention to craftsmanship',
+          desc: 'Commitment to delivering well-finished work with clean visual hierarchy, readable code, and no superficial extras.',
+        },
+        {
+          title: 'Constructive teamwork',
+          desc: 'Collaborative attitude in the laboratory, sharing practical findings and listening carefully to peer feedback.',
+        },
       ],
     },
     projects: {
       sectionNum: '03',
-      sectionTitle: 'Technical Showcase',
-      heading: 'Featured projects',
+      sectionTitle: 'Projects',
+      heading: 'Selected works',
       subheading:
-        'Real software applications built entirely by myself. Each responds to a practical challenge, with open source code available on GitHub.',
-      repoLabel: 'Repository',
-      problemLabel: 'Challenge / Problem solved',
+        'Four real-world projects developed independently. Each backed by inspectable open source repositories on GitHub, with zero fabricated clients or claims.',
+      viewCode: 'View source code on GitHub',
+      viewDemo: 'View live demo',
+      problemLabel: 'Problem solved',
+      solutionLabel: 'Technical approach',
       roleLabel: 'Individual contribution',
-      techLabel: 'Technology stack',
-      visitGithub: 'View source on GitHub →',
+      techLabel: 'Technologies used',
       items: [
         {
           id: 'salitre',
           index: '01',
-          title: 'SALITRE (STDR_UNDERGROUND)',
-          tagline: 'Underground social platform featuring an internal economy and coastal neo-brutalist aesthetics',
-          desc:
-            'A social web application inspired by the maritime culture of Santander port. Features the live feed "La Marea", a gamified progression hierarchy (Stowaway to Sovereign), community standing, and a closed internal economy based on "Anchovies". Deliberately breaks free from corporate SaaS cliches with a bespoke editorial visual identity.',
-          problem:
-            'Crafting an authentic digital space diametrically opposed to generic social media clones, pairing local satire with real-time interactive game mechanics.',
-          role:
-            '100% individual project: full-stack architecture, neo-brutalist graphic design, database integration, and UI micro-interactions.',
+          title: 'SALITRE',
+          tagline: 'Underground maritime social network featuring an internal economy and neo-brutalist identity',
+          desc: 'A social web platform inspired by the maritime culture of Santander port. Features the dynamic feed "La Marea", a gamified progression hierarchy (Stowaway to Sovereign), community standing, and a closed internal economy of 30,000 "Anchovies". Deliberately rejects generic commercial design patterns.',
+          problem: 'Creating a digital community space connected to local humor through game mechanics and distinct graphic character.',
+          role: 'Individually conceived and built from scratch: full architecture, bespoke editorial graphics, PostgreSQL schema in Supabase, and GSAP micro-animations.',
           tech: ['Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'Supabase (PostgreSQL)', 'GSAP'],
+          image: '/projects/salitre.png',
           github: 'https://github.com/Lominono/STDR_UNDERGROUND',
           demo: null,
-          featured: true,
+          layoutVariant: 'featured-horizontal',
         },
         {
           id: 'smr2web',
           index: '02',
           title: 'SMR2 Class Portal',
           tagline: 'Collaborative real-time timetable and classroom hub for 2nd-year SMR students',
-          desc:
-            'An interactive web platform built for students of the Microcomputer Systems and Networks program at IES Augusto González de Linares. Features interactive weekly class schedules, attendance tracking, live classroom announcements, academic leaderboards, and administrative tools.',
-          problem:
-            'Eliminating fragmented classroom communications by delivering a unified, mobile-optimized hub accessible directly from laboratory workstations.',
-          role:
-            'Lead frontend developer and co-architect, implementing real-time data synchronization and an accessible responsive experience.',
+          desc: 'An interactive web portal built for students in the Computer Systems and Networks program at IES Augusto González de Linares. Centralizes daily session schedules, exam notices, attendance records, and internal workshop tools accessible on desktop and mobile devices.',
+          problem: 'Preventing fragmented class announcements by providing a single real-time reference point for the classroom.',
+          role: 'Lead frontend architect and UI designer, implementing real-time data sync with Supabase and web push notifications.',
           tech: ['Next.js', 'React 19', 'TypeScript', 'Tailwind CSS', 'Supabase Realtime', 'Web Push'],
+          image: '/projects/smr2.png',
           github: 'https://github.com/Lominono/smr2web',
           demo: null,
-          featured: true,
+          layoutVariant: 'split-vertical',
         },
         {
           id: 'muudel',
           index: '03',
           title: 'muudel',
-          tagline: 'Classroom attendance, streak tracking, and rewards application with Apple HIG design',
-          desc:
-            'A focused web app engineered to gamify daily attendance: timestamped check-in, consecutive day streak computations, reward redemption, and classmate messaging under a clean, sober design language.',
-          problem:
-            'Encouraging punctuality and classroom engagement through subtle gamification wrapped in an unobtrusive, distraction-free interface.',
-          role:
-            'Individually conceived and programmed from the PostgreSQL database schema (`database.sql`) to Express APIs and client React components.',
+          tagline: 'Classroom attendance, streak tracking, and rewards app designed with Apple HIG clarity',
+          desc: 'A focused application engineered to improve classroom attendance: timestamped check-in, automated daily streak calculation, symbolic reward redemption, and peer communication within a sober, distraction-free interface.',
+          problem: 'Encouraging punctuality and classroom engagement through positive reinforcement without visual noise.',
+          role: 'Designed and built single-handedly from the relational database model (`database.sql`) to the Express API and client React components.',
           tech: ['Vite', 'React', 'Tailwind CSS', 'Express', 'Supabase (PostgreSQL)'],
+          image: '/projects/muudel.png',
           github: 'https://github.com/lominono/muudel',
           demo: null,
-          featured: false,
+          layoutVariant: 'split-vertical',
         },
         {
           id: 'jfdelegado',
           index: '04',
           title: 'JUANFE DELEGADO',
-          tagline: 'Class delegate election campaign web app featuring fanzine visuals and real-time polling',
-          desc:
-            'An interactive single-page app built for my student representative campaign. Features a physical fanzine / Neo-Brutalist graphic identity, sticker interactions, live polling, and instant feedback powered by Firebase.',
-          problem:
-            'Presenting student union proposals in an engaging, honest, and high-impact format that earned the direct attention of classmates.',
-          role:
-            'Full personal execution: graphic layout, tactile animations, Vanilla JavaScript state handling, and Firebase Realtime Database setup.',
+          tagline: 'Interactive student delegate campaign web application with fanzine graphics and live polling',
+          desc: 'A dynamic single-page web app built to present student union proposals transparently and directly. Features tactile fanzine / Neo-Brutalist graphic identity, interactive polls, and real-time sync with Firebase.',
+          problem: 'Communicating academic proposals in an accessible, engaging format that caught the direct attention of classmates.',
+          role: 'Entirely built by myself: visual layout, Vanilla JavaScript state handling, and Firebase Realtime Database integration.',
           tech: ['Semantic HTML5', 'Neo-Brutalist CSS3', 'Vanilla JavaScript', 'Firebase Realtime'],
+          image: '/projects/jfdelegado.jpg',
           github: 'https://github.com/Lominono/JFDELEGADO',
           demo: null,
-          featured: false,
+          layoutVariant: 'editorial-dense',
         },
       ],
-      allReposNote: 'You can inspect all my public repositories, branches and commits at',
+      githubArchive: 'Inspect all open source repositories and commits on',
     },
     training: {
       sectionNum: '04',
-      sectionTitle: 'Education & Growth',
-      heading: 'Academic journey and upcoming roadmap',
+      sectionTitle: 'Education',
+      heading: 'Technical education roadmap',
       subheading:
-        'My foundational IT background is grounded in the SMR vocational program at IES Augusto González de Linares, augmented by a self-directed curriculum of MOOCs and specialized platforms.',
-      currentBadge: 'Official Vocational Degree · In Progress',
-      currentTitle: 'Technician in Microcomputer Systems and Networks (SMR)',
-      currentCenter: 'IES Augusto González de Linares · Santander, Cantabria, Spain',
-      currentDesc:
-        'Official Spanish intermediate vocational degree (EQF Level 4) focused on computer assembly, hardware troubleshooting, local network design and cabling, Windows and Linux server administration, network security practices, and web services.',
-      subjectsTitle: 'Core curriculum modules completed / in progress:',
-      subjects: [
-        'Local Area Networks (Cabling, Switching, Subnetting, Routing)',
-        'Standalone Operating Systems (Windows & Linux CLI/GUI)',
-        'Networked Operating Systems (Active Directory, Domains & Services)',
-        'Hardware Assembly and Maintenance (Diagnostics, Components, Repair)',
-        'Web Applications (CMS deployment, LAMP stack, Web servers)',
-        'Computer Security (Firewalls, Antivirus policies, Backup strategies)',
+        'Official vocational foundation at IES Augusto González de Linares augmented by a planned self-directed learning curriculum.',
+      officialBadge: 'Official Vocational Degree · In Progress',
+      officialTitle: 'Technician in Microcomputer Systems and Networks (SMR)',
+      officialCenter: 'IES Augusto González de Linares · Santander, Cantabria, Spain',
+      officialDesc:
+        'Intermediate Spanish vocational degree (EQF Level 4) focused on computer assembly and hardware maintenance, network infrastructure cabling, Windows and Linux server management, and web services deployment.',
+      officialModulesTitle: 'Core curriculum modules completed / in progress:',
+      officialModules: [
+        'Local Area Networks (Cabling, Subnetting, and Switching)',
+        'Standalone Operating Systems (Windows & Linux CLI)',
+        'Network Operating Systems (Windows Server, Active Directory, Domains)',
+        'Hardware Assembly & Maintenance (Diagnostics, Components, Repair)',
+        'Web Applications (Web servers, CMS platforms, and databases)',
+        'Computer Security (Firewalls, Backup policies, Antivirus)',
         'Personal Itinerary for Employability (IPE II)',
       ],
-      itineraryHeading: 'Planned complementary MOOC training roadmap',
+      itineraryHeading: 'Planned MOOC curriculum roadmap',
+      itineraryDesc:
+        'Specialized technical coursework planned to complement official studies. None are claimed as completed certifications.',
       courses: [
         {
           platform: 'Cisco Networking Academy',
           name: 'CCNA: Introduction to Networks (ITN)',
-          meta: 'Network protocols, OSI/TCP-IP models, IPv4/IPv6, switches and routers',
-          status: 'planned',
-          statusLabel: 'Planned in itinerary',
+          meta: 'Network protocols, OSI/TCP-IP models, IPv4/IPv6, switches and routers.',
+          statusLabel: 'Planned in roadmap',
           href: 'https://www.netacad.com/courses/networking/ccna-introduction-networks',
         },
         {
           platform: 'freeCodeCamp',
           name: 'Responsive Web Design Certification',
-          meta: 'Semantic HTML5, CSS Flexbox, CSS Grid, web accessibility, and fluid layouts',
-          status: 'planned',
-          statusLabel: 'Planned in itinerary',
+          meta: 'Semantic HTML5, CSS Flexbox, CSS Grid, and web accessibility standards.',
+          statusLabel: 'Planned in roadmap',
           href: 'https://www.freecodecamp.org/learn/2022/responsive-web-design/',
         },
         {
           platform: 'Microsoft Learn',
           name: 'Microsoft Azure Fundamentals (AZ-900)',
-          meta: 'Cloud computing models, core Azure architectural services, security, and governance',
-          status: 'planned',
-          statusLabel: 'Planned in itinerary',
+          meta: 'Cloud computing concepts, core Azure architectural services, security, and governance.',
+          statusLabel: 'Planned in roadmap',
           href: 'https://learn.microsoft.com/es-es/training/paths/az-900-describe-cloud-concepts/',
         },
         {
           platform: 'Google Cloud Skills Boost',
           name: 'Cloud Computing Fundamentals',
-          meta: 'Cloud infrastructure, virtual machine orchestration, storage, and VPC networks',
-          status: 'planned',
-          statusLabel: 'Planned in itinerary',
+          meta: 'Cloud infrastructure, virtual machines, cloud storage, and virtual private clouds.',
+          statusLabel: 'Planned in roadmap',
           href: 'https://www.cloudskillsboost.google/paths/36',
         },
         {
           platform: 'Coursera / Google',
           name: 'Google IT Support Professional Certificate',
-          meta: 'Hardware troubleshooting, Linux system administration, customer support, and networking',
-          status: 'planned',
-          statusLabel: 'Planned in itinerary',
+          meta: 'Comprehensive IT support, Linux systems administration, security basics, and troubleshooting.',
+          statusLabel: 'Planned in roadmap',
           href: 'https://www.coursera.org/professional-certificates/google-it-support',
         },
       ],
     },
     documents: {
       sectionNum: '05',
-      sectionTitle: 'Professional Documents',
-      heading: 'Employability documents',
+      sectionTitle: 'Documents',
+      heading: 'Professional documents',
       subheading:
-        'Curricular documents prepared for online viewing and instant PDF download. Designed specifically for technical internship opportunities and job applications.',
-      viewBtn: 'Open in browser',
-      downloadBtn: 'Download PDF',
-      pendingNote: 'Configured at /public/docs/ — document awaiting final upload.',
+        'Curricular documents structured for workplace internship opportunities (FCT) and job applications. Currently in final preparation for PDF download.',
+      pendingBadge: 'In preparation',
       skillsCv: {
-        type: 'Functional Resume',
         title: 'Skills & Competencies Resume',
-        desc:
-          'A competency-focused resume accentuating hands-on technical skills in IT support, network configuration, hardware assembly, and web development, ideal for evaluating practical capability and initiative.',
+        desc: 'Functional resume format emphasizing hands-on capabilities in systems administration, local networks, hardware troubleshooting, and web coding.',
+        status: 'Document undergoing final draft. Will be available for direct PDF viewing and download.',
       },
       europassCv: {
-        type: 'European Standard',
         title: 'Europass Curriculum Vitae',
-        desc:
-          'Standardized European CV template detailing official vocational education in SMR, language proficiencies, and organizational competences aligned with European Union employment portals.',
+        desc: 'Official European Union standardized format detailing formal vocational credentials in SMR, language proficiencies, and organizational skills.',
+        status: 'Document in preparation via the official Europass portal. Will be available as a downloadable PDF.',
       },
     },
     contact: {
       sectionNum: '06',
-      sectionTitle: 'Contact & Network',
+      sectionTitle: 'Contact',
       heading: "Let's connect",
       intro:
-        'Whether you are considering my profile for an internship in IT systems or networking, want to discuss my personal software projects, or share technical thoughts, I look forward to hearing from you.',
-      availabilityNotice: 'Based in Santander, Cantabria, Spain — with full availability for vocational internship placement.',
-      copyEmail: 'Copy email address',
-      copiedEmail: 'Copied to clipboard!',
-      sendEmail: 'Send an email',
-      openProfile: 'Open external profile',
+        'If you are considering my profile for an internship placement in SMR, would like to inquire about my projects, or discuss technology, feel free to reach out directly.',
+      emailLabel: 'Professional email address',
+      copyBtn: 'Copy address',
+      copiedBtn: 'Copied!',
+      directSend: 'Open in your email client →',
+      channelsTitle: 'Professional profiles',
       locationLabel: 'Location',
       locationValue: 'Santander, Cantabria, Spain',
     },
     footer: {
-      academicNote: 'Academic & Professional Portfolio · IPE II Module · SMR Vocational Program · IES Augusto González de Linares',
-      rights: 'Editorial design & autonomous code. Open source on GitHub.',
+      academic: 'Academic and professional portfolio · IPE II Module · SMR Vocational Program · IES Augusto González de Linares',
+      standards: 'Designed following principles of clarity, hierarchy, and accessibility.',
+      rights: '© 2026 Juan Fernando Ospina Tigreros · All rights reserved.',
     },
   },
 };
