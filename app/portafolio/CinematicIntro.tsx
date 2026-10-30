@@ -21,42 +21,6 @@ export default function CinematicIntro({
   const [nameStep, setNameStep] = useState<number>(0);
   const [isReducedMotion, setIsReducedMotion] = useState<boolean>(false);
 
-  useEffect(() => {
-    // Check prefers-reduced-motion
-    if (typeof window !== 'undefined') {
-      const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-      setIsReducedMotion(media.matches);
-      if (media.matches) {
-        // If reduced motion, jump straight to language selection
-        setPhase('lang');
-        return;
-      }
-    }
-
-    // Sequence timing for the typographic reveal:
-    // Step 0: Initial mount (curtain up)
-    // Step 1: JUAN FERNANDO reveals (200ms)
-    // Step 2: OSPINA reveals (700ms)
-    // Step 3: TIGREROS reveals (1200ms)
-    // Step 4: Subtitles & line reveal (1700ms)
-    // Step 5: Transition to Language Selection (2900ms)
-    const timers: NodeJS.Timeout[] = [];
-
-    timers.push(setTimeout(() => setNameStep(1), 150));
-    timers.push(setTimeout(() => setNameStep(2), 650));
-    timers.push(setTimeout(() => setNameStep(3), 1150));
-    timers.push(setTimeout(() => setNameStep(4), 1650));
-    timers.push(
-      setTimeout(() => {
-        setPhase('lang');
-      }, 2900)
-    );
-
-    return () => {
-      timers.forEach(clearTimeout);
-    };
-  }, []);
-
   const handleChooseLang = useCallback(
     (lang: Language) => {
       onSelectLanguage(lang);
@@ -75,6 +39,43 @@ export default function CinematicIntro({
       onClose();
     }, 350);
   }, [currentLang, onSelectLanguage, onClose]);
+
+  useEffect(() => {
+    // Check prefers-reduced-motion
+    if (typeof window !== 'undefined') {
+      const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+      setIsReducedMotion(media.matches);
+      if (media.matches) {
+        // If reduced motion, jump straight to language selection
+        setPhase('lang');
+        return;
+      }
+    }
+
+    const timers: NodeJS.Timeout[] = [];
+
+    timers.push(setTimeout(() => setNameStep(1), 150));
+    timers.push(setTimeout(() => setNameStep(2), 650));
+    timers.push(setTimeout(() => setNameStep(3), 1150));
+    timers.push(setTimeout(() => setNameStep(4), 1650));
+    timers.push(
+      setTimeout(() => {
+        setPhase('lang');
+      }, 2900)
+    );
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleSkip();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      timers.forEach(clearTimeout);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleSkip]);
 
   if (!isOpen) return null;
 
