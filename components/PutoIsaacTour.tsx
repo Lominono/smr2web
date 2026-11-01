@@ -286,14 +286,88 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  // Parpadeo natural de los ojos
-  useEffect(() => {
-    const blinkInterval = setInterval(() => {
-      setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 180);
-    }, 3400 + Math.random() * 2600);
+  // Animaciones físicas y reactivas de PUTOISAAC
+  const [pupilOffset, setPupilOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isSquishing, setIsSquishing] = useState<boolean>(false);
+  const [talkPhoneme, setTalkPhoneme] = useState<number>(0);
+  const mascotRef = useRef<HTMLDivElement | null>(null);
 
-    return () => clearInterval(blinkInterval);
+  // Seguimiento ocular interactivo del cursor
+  useEffect(() => {
+    let animFrame: number;
+    const handlePointerMove = (e: MouseEvent) => {
+      if (!mascotRef.current) return;
+      cancelAnimationFrame(animFrame);
+      animFrame = requestAnimationFrame(() => {
+        if (!mascotRef.current) return;
+        const rect = mascotRef.current.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const dx = e.clientX - centerX;
+        const dy = e.clientY - centerY;
+        const angle = Math.atan2(dy, dx);
+        const dist = Math.min(Math.hypot(dx, dy) / 100, 1);
+
+        // Desplazamiento máximo de la pupila de 2.2px para mantener proporciones cómicas
+        const maxDist = 2.2;
+        setPupilOffset({
+          x: Math.cos(angle) * dist * maxDist,
+          y: Math.sin(angle) * dist * maxDist,
+        });
+      });
+    };
+
+    window.addEventListener('mousemove', handlePointerMove, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', handlePointerMove);
+      cancelAnimationFrame(animFrame);
+    };
+  }, []);
+
+  // Animación expresiva de fonemas de la boca mientras habla
+  useEffect(() => {
+    if (!isTalking) {
+      setTalkPhoneme(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setTalkPhoneme((p) => (p + 1) % 4);
+    }, 95);
+    return () => clearInterval(timer);
+  }, [isTalking]);
+
+  const triggerSquish = useCallback(() => {
+    setIsSquishing(true);
+    setTimeout(() => setIsSquishing(false), 450);
+  }, []);
+
+  // Parpadeo natural de los ojos con micro-pausas orgánicas
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    const scheduleNextBlink = () => {
+      timeout = setTimeout(() => {
+        setIsBlinking(true);
+        setTimeout(() => {
+          setIsBlinking(false);
+          // 25% de probabilidad de doble parpadeo curioso
+          if (Math.random() < 0.25) {
+            setTimeout(() => {
+              setIsBlinking(true);
+              setTimeout(() => {
+                setIsBlinking(false);
+                scheduleNextBlink();
+              }, 120);
+            }, 140);
+          } else {
+            scheduleNextBlink();
+          }
+        }, 160);
+      }, 3000 + Math.random() * 3200);
+    };
+
+    scheduleNextBlink();
+    return () => clearTimeout(timeout);
   }, []);
 
   // Máquina de escribir: reproduce el sonido melódico rítmico mientras habla y extrae acciones
@@ -1048,8 +1122,53 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       >
         <style jsx>{`
           @keyframes putoFloat {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
+            0%, 100% {
+              transform: translateY(0px) rotate(0deg);
+            }
+            25% {
+              transform: translateY(-4px) rotate(1.2deg);
+            }
+            50% {
+              transform: translateY(-8px) rotate(-1deg);
+            }
+            75% {
+              transform: translateY(-3px) rotate(0.8deg);
+            }
+          }
+          @keyframes putoSquish {
+            0% {
+              transform: scale(1, 1);
+            }
+            25% {
+              transform: scale(1.28, 0.74);
+            }
+            50% {
+              transform: scale(0.88, 1.16);
+            }
+            75% {
+              transform: scale(1.06, 0.96);
+            }
+            100% {
+              transform: scale(1, 1);
+            }
+          }
+          @keyframes shadowPulse {
+            0%, 100% {
+              transform: scale(1);
+              opacity: 0.35;
+            }
+            50% {
+              transform: scale(0.68);
+              opacity: 0.16;
+            }
+          }
+          @keyframes thinkPulse {
+            0%, 100% {
+              box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4), inset 0 2px 6px rgba(255, 255, 255, 0.8);
+            }
+            50% {
+              box-shadow: 0 0 16px 4px rgba(245, 158, 11, 0.65), inset 0 2px 6px rgba(255, 255, 255, 0.95);
+            }
           }
         `}</style>
 
@@ -1452,66 +1571,138 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
             </div>
           )}
 
-          {/* Mascota esférica interactiva PUTOISAAC */}
+          {/* Mascota esférica interactiva PUTOISAAC con animaciones fluidas y físicas */}
           <div
-            onClick={handleMascotClick}
-            className={`group relative flex flex-col items-center cursor-pointer transition-all duration-500 active:scale-90 ${mascotScale}`}
+            ref={mascotRef}
+            onClick={() => {
+              triggerSquish();
+              handleMascotClick();
+            }}
+            className={`group relative flex flex-col items-center cursor-pointer select-none transition-all duration-300 active:scale-95 ${mascotScale}`}
             style={{
-              animation: 'putoFloat 3.8s ease-in-out infinite',
+              animation: isSquishing
+                ? 'putoSquish 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                : 'putoFloat 4s ease-in-out infinite',
             }}
             title="Toca para hablar con PUTOISAAC"
           >
             {/* Cartelito con el nombre */}
             <div className="mb-1 px-2 py-0.5 rounded-full bg-neutral-950/90 text-white border border-neutral-800 text-[9px] font-bold tracking-tight shadow-md transition-all group-hover:scale-105 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+              <span className={`w-1.5 h-1.5 rounded-full ${isAiLoading ? 'bg-amber-300 animate-ping' : 'bg-amber-400'}`} />
               <span className="font-mono">PUTOISAAC</span>
+              {isAiLoading && <span className="text-[8px] font-mono text-amber-300 animate-pulse">pensando...</span>}
             </div>
 
-            {/* Esfera 3D lustrosa */}
+            {/* Esfera física táctil */}
             <div
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-amber-600 via-orange-500 to-yellow-400 border-2 border-white/80 shadow-xl flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:shadow-amber-500/50 group-hover:scale-105"
+              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-amber-600 via-orange-500 to-yellow-400 border-2 border-white/85 shadow-xl flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:scale-105 ${
+                isAiLoading ? 'ring-2 ring-amber-400/60 ring-offset-2 ring-offset-neutral-950' : ''
+              }`}
               style={{
-                boxShadow: '0 6px 20px rgba(245, 158, 11, 0.4), inset 0 2px 5px rgba(255,255,255,0.7)',
+                boxShadow: isAiLoading
+                  ? '0 0 20px rgba(245, 158, 11, 0.6), inset 0 2px 5px rgba(255,255,255,0.8)'
+                  : '0 8px 24px rgba(245, 158, 11, 0.42), inset 0 2px 5px rgba(255,255,255,0.7)',
+                animation: isAiLoading ? 'thinkPulse 2s ease-in-out infinite' : undefined,
               }}
             >
-              {/* Brillo especular superior */}
-              <div className="absolute top-1 left-1.5 w-3.5 h-2 rounded-full bg-white/70 blur-[0.3px] transform -rotate-12 pointer-events-none" />
+              {/* Brillo especular superior de vidrio */}
+              <div className="absolute top-1 left-1.5 w-3.5 h-2 rounded-full bg-white/75 blur-[0.3px] transform -rotate-12 pointer-events-none" />
 
-              {/* Cara cómica de PUTOISAAC */}
-              <div className="flex flex-col items-center justify-center relative z-10 space-y-1 mt-0.5">
-                {/* Ojos expresivos con parpadeo */}
-                <div className="flex items-center gap-1.5">
+              {/* Cara expresiva de PUTOISAAC */}
+              <div className="flex flex-col items-center justify-center relative z-10 space-y-0.5 mt-0.5">
+                {/* Cejas expresivas reactivas al estado */}
+                <div className="flex items-center gap-2 mb-0.5">
                   <div
-                    className={`w-2 h-2.5 rounded-full bg-neutral-950 transition-all duration-150 flex items-center justify-center relative ${
-                      isBlinking ? 'h-0.5 mt-2 bg-neutral-900' : ''
+                    className="w-1.5 h-[1.5px] bg-neutral-950/80 rounded-full transition-transform duration-150"
+                    style={{
+                      transform: isAiLoading
+                        ? 'translateY(-2px) rotate(-10deg)'
+                        : isTalking && talkPhoneme % 2 === 1
+                        ? 'translateY(-1.5px) rotate(4deg)'
+                        : 'translateY(0px)',
+                    }}
+                  />
+                  <div
+                    className="w-1.5 h-[1.5px] bg-neutral-950/80 rounded-full transition-transform duration-150"
+                    style={{
+                      transform: isAiLoading
+                        ? 'translateY(-3.5px) rotate(14deg)'
+                        : isTalking && talkPhoneme % 2 === 1
+                        ? 'translateY(-1.5px) rotate(-4deg)'
+                        : 'translateY(0px)',
+                    }}
+                  />
+                </div>
+
+                {/* Ojos expresivos con seguimiento ocular de cursor y parpadeo orgánico */}
+                <div className="flex items-center gap-1.5">
+                  {/* Ojo Izquierdo */}
+                  <div
+                    className={`w-2.5 h-3 rounded-full bg-neutral-950 transition-all duration-100 flex items-center justify-center relative overflow-hidden ${
+                      isBlinking ? '!h-[1px] !w-2.5 my-1.5 !bg-neutral-900' : ''
                     }`}
                   >
                     {!isBlinking && (
-                      <div className="w-0.5 h-0.5 rounded-full bg-white absolute top-0.5 left-0.5" />
+                      <div
+                        className="w-1 h-1 rounded-full bg-white absolute transition-transform duration-75"
+                        style={{
+                          transform: isAiLoading
+                            ? 'translate(0.6px, -0.9px)'
+                            : `translate(${pupilOffset.x * 0.45}px, ${pupilOffset.y * 0.45}px)`,
+                        }}
+                      />
                     )}
                   </div>
 
+                  {/* Ojo Derecho */}
                   <div
-                    className={`w-2 h-2.5 rounded-full bg-neutral-950 transition-all duration-150 flex items-center justify-center relative ${
-                      isBlinking ? 'h-0.5 mt-2 bg-neutral-900' : ''
+                    className={`w-2.5 h-3 rounded-full bg-neutral-950 transition-all duration-100 flex items-center justify-center relative overflow-hidden ${
+                      isBlinking ? '!h-[1px] !w-2.5 my-1.5 !bg-neutral-900' : ''
                     }`}
                   >
                     {!isBlinking && (
-                      <div className="w-0.5 h-0.5 rounded-full bg-white absolute top-0.5 left-0.5" />
+                      <div
+                        className="w-1 h-1 rounded-full bg-white absolute transition-transform duration-75"
+                        style={{
+                          transform: isAiLoading
+                            ? 'translate(0.6px, -0.9px)'
+                            : `translate(${pupilOffset.x * 0.45}px, ${pupilOffset.y * 0.45}px)`,
+                        }}
+                      />
                     )}
                   </div>
                 </div>
 
-                {/* Boca que habla */}
-                <div
-                  className={`transition-all duration-100 ${
-                    isTalking
-                      ? 'w-2 h-2 bg-neutral-950 rounded-full animate-bounce'
-                      : 'w-2 h-1 border-b-2 border-neutral-950 rounded-full'
-                  }`}
-                />
+                {/* Boca expresiva sincronizada por fonemas */}
+                <div className="h-2 flex items-center justify-center pt-0.5">
+                  {isTalking ? (
+                    <div
+                      className={`transition-all duration-75 bg-neutral-950 ${
+                        talkPhoneme === 0
+                          ? 'w-2.5 h-1.5 rounded-full'
+                          : talkPhoneme === 1
+                          ? 'w-1.5 h-2 rounded-full'
+                          : talkPhoneme === 2
+                          ? 'w-2.5 h-1 rounded-b-full'
+                          : 'w-2 h-1.5 rounded-full'
+                      }`}
+                    />
+                  ) : isAiLoading ? (
+                    <div className="w-1.5 h-1.5 rounded-full border border-neutral-950 animate-pulse" />
+                  ) : (
+                    <div className="w-2 h-1 border-b-[1.5px] border-neutral-950 rounded-full translate-x-0.5" />
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Sombra de suelo dinámica */}
+            <div
+              className="w-7 h-1.5 rounded-full bg-black/45 blur-[1.5px] mt-1 transition-all pointer-events-none"
+              style={{
+                animation: 'shadowPulse 4s ease-in-out infinite',
+              }}
+            />
           </div>
         </div>
       </aside>

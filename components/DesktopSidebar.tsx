@@ -18,6 +18,7 @@ import {
   Users,
   ShieldCheck,
   AlertCircle,
+  Terminal,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -148,10 +149,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
           <Link
             href="/admin"
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-mono font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
+            title="Easter Egg Secreto del Aula 204"
           >
-            <ShieldCheck className="w-4 h-4 text-accent" />
-            <span className="font-semibold">Panel Admin</span>
+            <Terminal className="w-4 h-4 text-emerald-400" />
+            <span>Easter Egg</span>
           </Link>
 
           {onOpenFeedback && (

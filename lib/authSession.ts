@@ -1,5 +1,6 @@
 import { UserProfile } from '@/lib/types';
 import { setCookie, getCookie, deleteCookie, deleteAllCookies, setJsonCookie, getJsonCookie } from '@/lib/cookies';
+import { isUUID, ensureUUID, generateUUID } from '@/lib/uuid';
 
 export const COOKIE_SESSION = 'smr2_user_session';
 export const COOKIE_REMEMBER = 'smr2_remember_me';
@@ -79,20 +80,24 @@ async function legacyUnsaltedHash(password: string): Promise<string> {
  */
 export function saveUserSession(user: UserProfile, remember: boolean = true): void {
   const days = remember ? 365 : 30;
+  const safeUser: UserProfile = {
+    ...user,
+    id: ensureUUID(user.id),
+  };
 
   // 1. Save in cookie (accessible to client and sent in headers)
-  setJsonCookie<UserProfile>(COOKIE_SESSION, user, { days });
+  setJsonCookie<UserProfile>(COOKIE_SESSION, safeUser, { days });
   setCookie(COOKIE_REMEMBER, remember ? 'true' : 'false', { days });
 
   // 2. Remember last username/email identifier for convenience
-  if (user.username || user.email) {
-    setCookie(COOKIE_LAST_USER, user.email || user.username, { days: 365 });
+  if (safeUser.username || safeUser.email) {
+    setCookie(COOKIE_LAST_USER, safeUser.email || safeUser.username, { days: 365 });
   }
 
   // 3. LocalStorage backup
   try {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_USER_BACKUP, JSON.stringify(user));
+      localStorage.setItem(STORAGE_USER_BACKUP, JSON.stringify(safeUser));
       localStorage.setItem(COOKIE_REMEMBER, remember ? 'true' : 'false');
     }
   } catch (err) {
@@ -103,11 +108,16 @@ export function saveUserSession(user: UserProfile, remember: boolean = true): vo
 /**
  * Retrieves the active user session.
  * Checks cookie first; if missing, falls back to localStorage and re-syncs to cookie.
+ * Automatically migrates any legacy non-UUID format to RFC 4122 v4 UUIDs.
  */
 export function getUserSession(): UserProfile | null {
   // 1. Try reading from cookie
   const cookieUser = getJsonCookie<UserProfile>(COOKIE_SESSION);
   if (cookieUser && cookieUser.id && cookieUser.username) {
+    if (!isUUID(cookieUser.id)) {
+      cookieUser.id = ensureUUID(cookieUser.id);
+      saveUserSession(cookieUser);
+    }
     if (cookieUser.coins === undefined || cookieUser.coins === null) {
       cookieUser.coins = 1000;
     }
@@ -121,6 +131,9 @@ export function getUserSession(): UserProfile | null {
       if (stored) {
         const parsed = JSON.parse(stored) as UserProfile;
         if (parsed && parsed.id && parsed.username) {
+          if (!isUUID(parsed.id)) {
+            parsed.id = ensureUUID(parsed.id);
+          }
           if (parsed.coins === undefined || parsed.coins === null) {
             parsed.coins = 1000;
           }
@@ -392,7 +405,7 @@ export async function registerLocalUser(
   const role: 'admin' | 'delegado' | 'student' = cleanUsername === 'admin' ? 'admin' : 'student';
 
   const newAccount: StoredLocalAccount = {
-    id: 'local_' + Math.random().toString(36).substring(2, 9),
+    id: generateUUID(),
     username: cleanUsername,
     email: cleanEmail,
     passwordHash,

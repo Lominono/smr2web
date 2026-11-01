@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Settings,
   Wine,
+  Terminal,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
@@ -270,16 +271,14 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                 </button>
               )}
 
-              {/* Admin Panel Link */}
-              {(user.role === 'admin' || user.role === 'delegado') && (
-                <Link
-                  href="/admin"
-                  title="Panel de administración"
-                  className="hidden sm:flex w-8 h-8 rounded-lg bg-accent/10 hover:bg-accent/20 text-accent border border-accent/25 items-center justify-center transition-colors cursor-pointer"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                </Link>
-              )}
+              {/* Easter Egg CTF Link */}
+              <Link
+                href="/admin"
+                title="Easter Egg Secreto"
+                className="hidden sm:flex w-8 h-8 rounded-lg bg-surface-raised hover:bg-surface-hover text-neutral-400 hover:text-emerald-400 border border-border/70 items-center justify-center transition-colors cursor-pointer font-mono text-xs"
+              >
+                <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+              </Link>
 
               {/* Avatar Initial */}
               <button
