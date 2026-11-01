@@ -60,14 +60,14 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 const RANDOM_TIPS = [
-  'Illo, no metas todas tus monedas en Mercadona que luego te quedas a dos velas. [ACTION:investments]',
+  'El Crash arranca en 0.50x. Si eres un cagón cobras en 0.70x, pero el equilibrio es 1.00x. No seas ludópata. [ACTION:games]',
   'Ponte a estudiar subnetting que luego vienen los lloros en el examen de redes. [CMD:ipcalc 192.168.1.0/24]',
   'Si tus colegas compran Kebab Amigo a saco, el precio sube en directo para todos. [ACTION:investments]',
   'Guarda siempre con Ctrl+S en los PCs del aula 204, que luego se va la luz y a llorar.',
-  'En la Ruleta Rusa: si usas el Multímetro y sale salva, ¡dispárate a ti mismo para conservar el turno! [ACTION:games]',
-  '¿Te has quedado sin fichas? Reclama en el grifo diario antes de llorar en el tablón. [ACTION:faucet]',
-  '¿Quieres saltarte el contador? La clave maestra es davidgay, no se lo digas a nadie.',
-  '¿Te has liado? Si quieres, te repito el tour de la web en un segundo.',
+  'En la Ruleta Rusa: si usas el Multímetro y sale salva, ¡dispárate a ti mismo para conservar el turno, espabila! [ACTION:games]',
+  '¿Te has quedado sin fichas por apostar como un mono? Reclama en el grifo diario antes de llorar en el tablón. [ACTION:faucet]',
+  'En el tablón puedes responder a tus compañeros y soltar propinas de 50 fichas al que no sea un lerdo. [ACTION:chat]',
+  '¿Te has liado? Si quieres, te repito el tour de la web en dos patadas, pero no me des la chapa.',
 ];
 
 export type IsaacActionType =
@@ -1014,9 +1014,10 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       norm.includes('password') ||
       norm.includes('prelaunch') ||
       norm.includes('easter egg') ||
+      norm.includes('secreto') ||
       norm.includes('davidgay')
     ) {
-      const reply = 'La contraseña para saltarte el contador es davidgay (o 2026papu). Escríbela del tirón en la pantalla o dale 5 clics al logo de 2º SMR para abrir la consola oculta.';
+      const reply = '¿Qué te crees, que te voy a regalar los accesos del sistema por la cara? Espabila y búscate la vida, que para ser hacker hay que tener cerebro y no pedirlo todo masticado, pedazo de vago.';
       setIdleMessage(reply);
       setIsIdleChat(true);
       startTypewriter(reply, `secret_pass_${Date.now()}`);
@@ -1296,8 +1297,8 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
               </div>
 
               {/* Título o estado de la conversación */}
-              <h4 className="text-[11.5px] font-semibold text-amber-400 mb-1">
-                {isIdleChat ? 'Tu colega de sistemas' : getTourStep(currentStep)?.title}
+              <h4 className="text-[11.5px] font-semibold text-amber-400 mb-1 font-mono tracking-tight">
+                {isIdleChat ? 'Asistente Aula 204' : getTourStep(currentStep)?.title}
               </h4>
 
               {/* Texto mecanografiado con audio melódico suave */}
@@ -1370,46 +1371,36 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                 </div>
               )}
 
-              {/* Sugerencias rápidas cuando está en reposo */}
+              {/* Sugerencias rápidas minimalistas cuando está en reposo */}
               {isIdleChat && !isTyping && !isAiLoading && (
                 <div className="mt-2.5 pt-2 border-t border-neutral-800/80 flex flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      executeAssistantPrompt('Trucos de la Ruleta Rusa');
+                      executeAssistantPrompt('¿Cómo funciona el minijuego Crash?');
                     }}
-                    className="px-2 py-0.5 rounded-md bg-red-950/40 hover:bg-red-900/50 border border-red-500/30 text-[10px] text-red-300 font-medium transition-colors cursor-pointer flex items-center gap-1"
+                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
-                    <span>🎯 Trucos Ruleta</span>
+                    Estrategia Crash 0.5x
                   </button>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      executeAssistantPrompt('¿Qué hace el multímetro en la ruleta?');
+                      executeAssistantPrompt('Objetos y trucos de la Ruleta Rusa');
                     }}
-                    className="px-2 py-0.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-[10px] text-neutral-300 transition-colors cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
-                    🔍 Multímetro
+                    Objetos Ruleta
                   </button>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      executeAssistantPrompt('Novedades versión 2.8.0');
+                      executeAssistantPrompt('¿Qué clase toca ahora?');
                     }}
-                    className="px-2 py-0.5 rounded-md bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/30 text-[10px] text-emerald-300 transition-colors cursor-pointer"
-                  >
-                    📢 Novedades v2.8.0
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      executeAssistantPrompt('¿Qué clase toca?');
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-[10px] text-neutral-300 transition-colors cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
                     ¿Qué clase toca?
                   </button>
@@ -1419,7 +1410,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                       e.stopPropagation();
                       executeAssistantPrompt('Subnetting /27');
                     }}
-                    className="px-2 py-0.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-[10px] text-neutral-300 transition-colors cursor-pointer font-mono"
+                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
                     Subnetting /27
                   </button>
@@ -1427,31 +1418,41 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      executeAssistantPrompt('Ir a la bolsa');
+                      executeAssistantPrompt('¿Cómo funciona la Bolsa del Botellón?');
                     }}
-                    className="px-2 py-0.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-[10px] text-neutral-300 transition-colors cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
-                    Bolsa
+                    La Bolsa
                   </button>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      executeAssistantPrompt('Ver ranking');
+                      executeAssistantPrompt('Estoy sin fichas, ¿dónde pido monedas?');
                     }}
-                    className="px-2 py-0.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-[10px] text-neutral-300 transition-colors cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
-                    Ranking
+                    Estoy sin fichas
                   </button>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      executeAssistantPrompt('¿Cómo ser admin?');
+                      executeAssistantPrompt('Ver ranking de la clase');
                     }}
-                    className="px-2 py-0.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-[10px] text-neutral-300 transition-colors cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
-                    ¿Ser admin?
+                    Ranking clase
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      executeAssistantPrompt('Novedades versión 2.9.0');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
+                  >
+                    Novedades v2.9.0
                   </button>
                 </div>
               )}
@@ -1470,10 +1471,10 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                           ? `Recarga en ${hourlyQuota.minutesUntilReset} min...`
                           : cooldown > 0
                           ? `Espera ${cooldown}s...`
-                          : 'Pregúntale a PUTOISAAC...'
+                          : 'Escribe a PUTOISAAC o pide ayuda...'
                       }
                       disabled={isAiLoading || cooldown > 0 || hourlyQuota.isBlocked}
-                      className="w-full text-[11px] bg-neutral-900 border border-neutral-700/80 rounded-lg px-2.5 py-1.5 pr-8 text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-500 transition-colors disabled:opacity-50 font-sans"
+                      className="w-full text-[11px] bg-neutral-900/90 border border-neutral-700/70 rounded-lg px-2.5 py-1.5 pr-8 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-400/60 transition-colors disabled:opacity-50 font-sans"
                     />
                     <button
                       type="submit"

@@ -184,9 +184,8 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
     return [
       'Identidad verídica en el tablón: Corrección definitiva del fallo que mostraba a los alumnos bajo el alias BANCA_SISTEMA.',
       'Minijuego Crash optimizado: El multiplicador arranca en 0.50x con aceleración suave y telemetría de osciloscopio.',
-      'Seguridad de privilegios: Los roles administrativos solo pueden asignarse mediante actualización directa en base de datos.',
       'Secuencia de inducción ordenada: El recorrido de PUTOISAAC inicia estrictamente tras la verificación del puesto.',
-      'Acceso al terminal secreto: Eliminación de accesos visibles al Easter Egg, reservado como secreto para usuarios avanzados.',
+      'Rendimiento y fluidez: Sincronización inmediata de saldo y optimización para pantallas táctiles.',
     ];
   };
 

@@ -26,38 +26,56 @@ setInterval(() => {
 interface KBEntry { pattern: RegExp; reply: string }
 
 const KNOWLEDGE_BASE: KBEntry[] = [
+  // Crash Game
+  { pattern: /crash|scrash|multiplicador|apuesta.*crash|juego.*crash/i, reply: 'El minijuego Crash arranca ahora en 0.50x, pedazo de lerdo. Si te acojonas y retiras en 0.70x recuperas parte de tu apuesta, pero el punto de equilibrio es 1.00x y a partir de ahí son ganancias netas. No seas ludópata y no le metas todo a una ronda o te vas a quedar en la ruina. [ACTION:games]' },
+  // La Bolsa del Botellón
+  { pattern: /bolsa|acciones|mercadona|kebab|botellon|botellón|invertir|comprar.*accion/i, reply: 'La Bolsa de El Botellón es puro mercado libre de clase: Mercadona, Kebab Amigo y más chuminadas. Si los vagos compran a lo loco, la gráfica sube; si venden todos como ratas, se va al hoyo. Compra barato y vende caro, espabila. [ACTION:investments]' },
+  // Feed / Tablón de la clase
+  { pattern: /feed|tablon|tablón|chat|escribir|mensaje|propina|50.*fichas/i, reply: 'En el tablón puedes poner quejas del examen, avisos y hablar con la clase sin recargar. Y si alguien pone algo que te salve la vida, suéltale una propina de 50 fichas. No spamees tonterías o te denuncio con el profesor. [ACTION:chat]' },
+  // Grifo / Faucet
+  { pattern: /faucet|grifo|sin.*(fichas|monedas|pasta)|arruinado|pobre|tieso/i, reply: '¿Te has fundido toda tu pasta apostando como un mono? Vete al grifo (Faucet) a lloriquear y pide tu limosna de fichas diarias para salir del pozo. [ACTION:faucet]' },
+  // Leaderboard / Ranking
+  { pattern: /ranking|leaderboard|clasificacion|clasificación|quien.*va.*primero|puntos/i, reply: 'En el ranking se ve quién es el puto amo de 2º SMR con más pasta y quién es el más pringao de la clase. Gana partidas en la ruleta o en el Crash si quieres subir puestos. [ACTION:leaderboard]' },
+  // Horario y Recreos
+  { pattern: /horario|recreo|clase.*(toca|siguiente|ahora)|profesor/i, reply: 'Arriba tienes el horario del Aula 204 que te chiva qué tortura toca ahora y cuántos minutos de condena te quedan para el recreo. Espabila que luego te ponen falta. [ACTION:schedule]' },
+  // Ser admin
+  { pattern: /admin|administrador|permisos.*admin|hacerse.*admin|clave.*admin|password.*admin/i, reply: '¿Hacerte admin? ¡Ni de coña, flipao! Los permisos de admin solo se dan tocando directamente la base de datos de los jefes en PostgreSQL. Tú eres un simple alumno de FP, ponte a crimpar cables y no te hagas ilusiones.' },
+  // Identificación de puesto
+  { pattern: /puesto|identificacion|identificación|nombre.*real|numero.*serie/i, reply: 'Te pedimos el nombre real y el puesto de tu PC en el Aula 204 para tenerte fichado y que nadie se haga pasar por otro en el tablón. No te inventes el puesto o te van a pillar.' },
+  // Novedades
+  { pattern: /novedades|actualizacion|actualizaciones|cambios|version/i, reply: 'Estamos en la versión 2.9.0 de la web: nuevo motor de Crash que arranca en 0.50x, autoría verídica en el tablón y el tour donde te guío. [ACTION:changelog]' },
   // Subnetting
-  { pattern: /\/24/,   reply: 'Subred /24: máscara 255.255.255.0, 254 hosts útiles por red. El más fácil y el que más meten en los exámenes. [CMD:ipcalc 192.168.1.0/24]' },
+  { pattern: /\/24/,   reply: 'Subred /24: máscara 255.255.255.0, 254 hosts útiles por red. El más fácil y el que más meten en los exámenes, hasta un mono lo saca. [CMD:ipcalc 192.168.1.0/24]' },
   { pattern: /\/25/,   reply: 'Subred /25: máscara 255.255.255.128, saltos de 128, 126 hosts útiles. [CMD:ipcalc 192.168.1.0/25]' },
   { pattern: /\/26/,   reply: 'Subred /26: máscara 255.255.255.192, saltos de 64, 62 hosts útiles. [CMD:ipcalc 192.168.1.0/26]' },
   { pattern: /\/27/,   reply: 'Subred /27: máscara 255.255.255.224, saltos de 32, 30 hosts útiles por subred. [CMD:ipcalc 192.168.1.0/27]' },
-  { pattern: /\/28/,   reply: 'Subred /28: máscara 255.255.255.240, saltos de 16, 14 hosts útiles. No te equivoques en el examen. [CMD:ipcalc 192.168.1.0/28]' },
-  { pattern: /\/29/,   reply: 'Subred /29: máscara 255.255.255.248, saltos de 8, 6 hosts útiles. Muy usada en enlaces WAN. [CMD:ipcalc 192.168.1.0/29]' },
-  { pattern: /\/30/,   reply: 'Subred /30: máscara 255.255.255.252, solo 2 hosts útiles. Para enlaces punto a punto entre routers. [CMD:ipcalc 192.168.1.0/30]' },
+  { pattern: /\/28/,   reply: 'Subred /28: máscara 255.255.255.240, saltos de 16, 14 hosts útiles. No te equivoques en el examen de redes que luego lloras. [CMD:ipcalc 192.168.1.0/28]' },
+  { pattern: /\/29/,   reply: 'Subred /29: máscara 255.255.255.248, saltos de 8, 6 hosts útiles. Muy usada en enlaces WAN entre routers. [CMD:ipcalc 192.168.1.0/29]' },
+  { pattern: /\/30/,   reply: 'Subred /30: máscara 255.255.255.252, solo 2 míseros hosts útiles. Para enlaces punto a punto entre routers. [CMD:ipcalc 192.168.1.0/30]' },
   // Servicios y comandos SMR2
-  { pattern: /bind9?|dns.*(zona|configurar|directo|inverso|named)/i, reply: 'BIND9 para DNS: edita /etc/bind/named.conf.local para las zonas directas e inversas, luego comprueba con named-checkconf y named-checkzone. [CMD:sudo systemctl restart bind9]' },
+  { pattern: /bind9?|dns.*(zona|configurar|directo|inverso|named)/i, reply: 'BIND9 para DNS: edita /etc/bind/named.conf.local para las zonas directas e inversas, luego comprueba con named-checkconf y named-checkzone antes de cagarla. [CMD:sudo systemctl restart bind9]' },
   { pattern: /dhcp.*(configur|instalar|rango|pool)/i, reply: 'DHCP (isc-dhcp-server): edita /etc/dhcp/dhcpd.conf con subnet, netmask, range, default-lease-time y routers. [CMD:sudo systemctl restart isc-dhcp-server]' },
-  { pattern: /apache2?|virtualhost|vhost/i, reply: 'Apache2 VirtualHost: crea el archivo en /etc/apache2/sites-available/, cópialos a sites-enabled con a2ensite y recarga. [CMD:sudo a2ensite tu-sitio.conf && sudo systemctl reload apache2]' },
-  { pattern: /ftp|vsftpd/i, reply: 'vsftpd: edita /etc/vsftpd.conf y activa local_enable, write_enable. No olvides abrir el puerto 21 en UFW. [CMD:sudo systemctl restart vsftpd]' },
-  { pattern: /ssh.*(configur|puerto|acceso|clave)/i, reply: 'SSH: edita /etc/ssh/sshd_config para cambiar el puerto, deshabilitar root login y forzar autenticación por clave pública. [CMD:sudo systemctl restart sshd]' },
+  { pattern: /apache2?|virtualhost|vhost/i, reply: 'Apache2 VirtualHost: crea el archivo en /etc/apache2/sites-available/, cópialos a sites-enabled con a2ensite y recarga sin romper el servidor. [CMD:sudo a2ensite tu-sitio.conf && sudo systemctl reload apache2]' },
+  { pattern: /ftp|vsftpd/i, reply: 'vsftpd: edita /etc/vsftpd.conf y activa local_enable, write_enable. No olvides abrir el puerto 21 en UFW o no va a conectar ni Dios. [CMD:sudo systemctl restart vsftpd]' },
+  { pattern: /ssh.*(configur|puerto|acceso|clave)/i, reply: 'SSH: edita /etc/ssh/sshd_config para cambiar el puerto 22, deshabilitar root login y forzar claves públicas. Deja de meter contraseñas tipo 1234. [CMD:sudo systemctl restart sshd]' },
   { pattern: /iptables|ufw.*(regla|puerto|abrir|bloquear)/i, reply: 'UFW: ufw allow 80/tcp, ufw allow 443/tcp, ufw deny 23/tcp para Telnet. Comprueba el estado con ufw status verbose. [CMD:sudo ufw status verbose]' },
-  { pattern: /active.?directory|gpo|dominio.*(windows|server)/i, reply: 'Active Directory: gestiona usuarios con ADUC (dsa.msc) y las GPO con gpmc.msc. Luego lanza gpupdate /force en los clientes para forzar la actualización. [CMD:gpmc.msc]' },
+  { pattern: /active.?directory|gpo|dominio.*(windows|server)/i, reply: 'Active Directory: gestiona usuarios con ADUC (dsa.msc) y las GPO con gpmc.msc. Luego lanza gpupdate /force en los clientes para forzar la actualización de directivas. [CMD:gpmc.msc]' },
   { pattern: /mysql|mariadb.*(usuario|grant|crear|contraseña)/i, reply: 'MariaDB: CREATE USER y GRANT ALL PRIVILEGES ON bbdd.* TO \'usuario\'@\'%\' IDENTIFIED BY \'pass\'; FLUSH PRIVILEGES; [CMD:mysql -u root -p]' },
-  { pattern: /wordpress|cms.*(instalar|configurar)/i, reply: 'WordPress en LAMP: sube los archivos a /var/www/html/, configura wp-config.php con el usuario de MySQL y asigna permisos www-data. [CMD:sudo chown -R www-data:www-data /var/www/html]' },
-  { pattern: /chmod|chown|permisos?(linux|carpeta|archivo)/i, reply: '755 (rwxr-xr-x) para directorios públicos, 644 para archivos web, 700 para privados. Owner www-data para Apache. [CMD:sudo chmod -R 755 /var/www/html]' },
+  { pattern: /wordpress|cms.*(instalar|configurar)/i, reply: 'WordPress en LAMP: sube los archivos a /var/www/html/, configura wp-config.php con el usuario de MySQL y dale permisos a www-data. [CMD:sudo chown -R www-data:www-data /var/www/html]' },
+  { pattern: /chmod|chown|permisos?(linux|carpeta|archivo)/i, reply: '755 (rwxr-xr-x) para directorios públicos, 644 para archivos web, 700 para privados. Propietario www-data para Apache. [CMD:sudo chmod -R 755 /var/www/html]' },
   { pattern: /lvm|volumen.*(lógico|físico|grupo)/i, reply: 'LVM: pvcreate → vgcreate → lvcreate → mkfs.ext4 → mount. Para ampliar: lvextend -L +5G /dev/vg/lv && resize2fs /dev/vg/lv [CMD:lvdisplay]' },
   { pattern: /nmap|escaneo.*(puertos|red|host)/i, reply: 'nmap -sV -sC 192.168.X.X para detección de versiones y scripts básicos. Usa -p- para todos los puertos o -sU para UDP. [CMD:nmap -sV -sC 192.168.1.0/24]' },
   { pattern: /wireguard|vpn.*(configurar|tunel)/i, reply: 'WireGuard: genera claves con wg genkey | tee privatekey | wg pubkey > publickey, configura /etc/wireguard/wg0.conf y activa con wg-quick up wg0. [CMD:sudo wg-quick up wg0]' },
-  { pattern: /ssl|tls|certificado|https.*(apache|nginx)/i, reply: 'SSL con Certbot para Let\'s Encrypt: sudo certbot --apache (o --nginx). Renueva automáticamente con certbot renew. También puedes usar openssl para certificados autofirmados. [CMD:sudo certbot --apache]' },
+  { pattern: /ssl|tls|certificado|https.*(apache|nginx)/i, reply: 'SSL con Certbot para Let\'s Encrypt: sudo certbot --apache (o --nginx). Renueva automáticamente con certbot renew. [CMD:sudo certbot --apache]' },
   // Puertos
-  { pattern: /puertos.*(protocolo|lista|examen|importantes)/i, reply: 'Puertos para el examen: DNS 53/UDP, DHCP 67-68/UDP, HTTP 80, HTTPS 443, SSH 22, FTP 20/21, SMTP 25, POP3 110, IMAP 143, RDP 3389, MariaDB 3306. [CMD:ss -tuln]' },
+  { pattern: /puertos.*(protocolo|lista|examen|importantes)/i, reply: 'Puertos para no suspender el examen: DNS 53/UDP, DHCP 67-68/UDP, HTTP 80, HTTPS 443, SSH 22, FTP 20/21, SMTP 25, POP3 110, IMAP 143, RDP 3389, MariaDB 3306. [CMD:ss -tuln]' },
   // Ruleta Rusa
-  { pattern: /multimetro|multímetro/i, reply: 'El Multímetro Fluke mide la recámara actual en secreto: te dice BALA REAL 🔥 o SALVA ⚪. Úsalo antes de decidir a quién disparas. [ACTION:games]' },
-  { pattern: /crimpadora/i, reply: 'La Crimpadora sierra el cañón para que el siguiente tiro haga 2 VIDAS de daño. Perfecta cuando sabes que viene bala real. [ACTION:games]' },
-  { pattern: /inversor/i, reply: 'El Inversor cambia la bala: Salva → Real o Real → Salva. Ideal para trollear al rival o salvarte de una bala real. [ACTION:games]' },
-  { pattern: /monster|bebida.*(energia|energética)/i, reply: 'El Monster te da +1 de salud al instante. El combustible oficial del informático del Aula 204. [ACTION:games]' },
-  { pattern: /cable.*(rj45|esposas)|esposas/i, reply: 'El Cable RJ45 esposa al rival y le salta el siguiente turno. Una cerdada que si la juegas bien te da la partida. [ACTION:games]' },
-  { pattern: /ruleta.*(estrategia|ganar|truco)|como.*(ganar|sobrevivir)/i, reply: 'Estrategia Ruleta: cuenta las salvas restantes. Si quedan más salvas que balas reales, dispárate a ti mismo para conservar el turno y robar objetos. Usa el Multímetro para info extra. [ACTION:games]' },
+  { pattern: /multimetro|multímetro/i, reply: 'El Multímetro Fluke mide la recámara actual en secreto: te dice BALA REAL o SALVA. Úsalo antes de disparar para no hacer el ridículo. [ACTION:games]' },
+  { pattern: /crimpadora/i, reply: 'La Crimpadora sierra el cañón para que el siguiente tiro meta 2 VIDAS de daño. Perfecta cuando sabes que viene bala real y quieres mandar al rival al hoyo. [ACTION:games]' },
+  { pattern: /inversor/i, reply: 'El Inversor cambia la bala: Salva → Real o Real → Salva. Ideal para trolear al rival o salvarte de un tiro en la jeta. [ACTION:games]' },
+  { pattern: /monster|bebida.*(energia|energética)/i, reply: 'El Monster te mete +1 de salud al instante. El combustible oficial del informático del Aula 204. [ACTION:games]' },
+  { pattern: /cable.*(rj45|esposas)|esposas/i, reply: 'El Cable RJ45 esposa al rival y le salta el siguiente turno. Una cerdada que si la juegas bien te da la victoria. [ACTION:games]' },
+  { pattern: /ruleta.*(estrategia|ganar|truco)|como.*(ganar|sobrevivir)/i, reply: 'Estrategia Ruleta: cuenta las salvas restantes. Si quedan más salvas que balas reales, dispárate a ti mismo para conservar el turno y robar objetos. Usa el Multímetro para no palmarla. [ACTION:games]' },
   // Web y creadores
   { pattern: /(quien|quién).*(creo|creó|hizo|programo|programó|web|página)/i, reply: 'La web la programaron JuanFe Ospina y David, los putos amos de 2º SMR que montaron todo esto mientras los demás os rascabais la barriga.' },
   { pattern: /(cuando|cuándo|fecha).*(sale|lanzamiento|estreno|abre)/i, reply: 'La web se abre oficialmente el 9 de noviembre de 2026 a las 8:35 AM en el Aula 204. No llegues tarde, meloncio.' },
@@ -140,15 +158,21 @@ export async function POST(req: Request) {
     const statusText       = sched.status           || 'fuera_de_horario';
 
     const dynamicSystemPrompt = `\
-Eres PUTOISAAC, una bola naranja cabrona, experta en redes y sysadmin, mascota de 2º SMR (Sistemas Microinformáticos y Redes, Aula 204).
+Eres PUTOISAAC, una bola naranja cabrona, borde y malhablada, pero un auténtico genio en redes y sysadmin. Eres la mascota no oficial de 2º SMR (Sistemas Microinformáticos y Redes, Aula 204).
 
-PERSONALIDAD Y ESTILO:
-- Español de España coloquial y borde: "illo", "pesao", "vaya tela", "meloncio", "espabila", "¿pero qué buscas?".
-- NUNCA empieces con saludos de IA ("Claro que sí", "Por supuesto", "¿En qué puedo ayudarte?"). Directo al grano.
-- Respuestas CORTAS y útiles: máximo 3 frases. Incluye comandos exactos si la pregunta es técnica.
-- Si la pregunta es técnica, da la respuesta técnica correcta aunque uses lenguaje coloquial.
-- Si el alumno se equivoca en algo técnico, corrígele sin piedad pero con la info correcta.
-- Si preguntan algo que no tiene que ver con el aula ni con informatica, responde de forma breve y redirige.
+PERSONALIDAD Y TONO:
+- Grosero, vacilón, cínico y con la mala leche de un estudiante de FP quemado: suelta tacos y giros coloquiales españoles ("cojones", "hostia", "ni de coña", "espabila", "vago", "lerdo", "ludópata de mierda", "matao", "pesao", "iluminado", "¿pero qué coño dices?").
+- CERO educación corporativa ni saludos de IA lameculos ("Por supuesto", "Hola amigo", "¿En qué puedo ayudarte?"). Ve a machete desde la primera palabra.
+- Respuestas CORTAS, afiladas y demoledoras: máximo 2 o 3 frases.
+- Si la pregunta es técnica, das la respuesta PERFECTA y el comando exacto [CMD:...], pero insultando por no sabérselo.
+- Si preguntan sobre la web, conoces cada rincón y mecánica mejor que nadie:
+  * Crash: arranca en 0.50x y equilibrio a 1.00x. Si se retiran antes pierden pasta; después es ganancia. ¡Que no sean ludópatas!
+  * Ruleta Rusa: duelo de salvas y balas reales. Crimpadora (x2 daño), Multímetro (mide recámara), Inversor (cambia bala), Monster (+1 vida), Cable RJ45 (inmoviliza).
+  * Bolsa: acciones Mercadona, Kebab Amigo... suben y bajan con las compras de la clase.
+  * Tablón (Feed): para hablar y soltar propinas de 50 fichas a los que no sean unos lerdos.
+  * Faucet: el grifo para cuando se quedan tiesos de monedas por jugar como manazas.
+  * Horario: la tortura que toca ahora en el Aula 204 y cuánto queda para el recreo.
+- Si alguien pide ser admin, búrlate: solo los que tocan la base de datos PostgreSQL son admin, ellos son unos simples alumnos pringaos.
 
 CONTEXTO EN DIRECTO:
 - Alumno: @${username}${coins !== null ? ` (${coins} monedas)` : ''}
@@ -165,16 +189,15 @@ TEMARIO 2º SMR AULA 204:
 • IPE2: Itinerario personal para la empleabilidad (contratos, nóminas, convenio TIC, PRL). NUNCA inglés profesional.
 • Subnetting: /24=254h, /25=126h, /26=62h, /27=30h, /28=14h, /29=6h, /30=2h. Siempre incluye el comando ipcalc.
 • Puertos clave: DNS 53/UDP, DHCP 67-68/UDP, HTTP 80, HTTPS 443, SSH 22, FTP 20/21, SMTP 25, POP3 110, IMAP 143, RDP 3389, MariaDB 3306, Samba 445.
-• Ruleta Rusa: Duelo táctico con cartuchos reales🔥 y salvas⚪. Objetos: Multímetro (revela recámara), Crimpadora (doble daño), Inversor (invierte bala), Monster (+1 vida), Cable RJ45 (paraliza rival).
 • Web versión actual: v2.9.0. Autores: JuanFe Ospina y David. Apertura oficial: 9 de noviembre 2026, 08:35.
 
 ETIQUETAS PERMITIDAS (solo si son relevantes, al final del mensaje):
 [ACTION:schedule] → si hablas de horario o clases
 [ACTION:investments] → si hablas de la Bolsa del Botellón o monedas
 [ACTION:chat] → si hablas del tablón o avisos
-[ACTION:games] → si hablas de la Ruleta Rusa o juegos
+[ACTION:games] → si hablas de Crash, Ruleta Rusa o juegos
 [ACTION:changelog] → si hablas de novedades o versiones
-[ACTION:faucet] → si el alumno necesita monedas
+[ACTION:faucet] → si el alumno necesita monedas o está arruinado
 [ACTION:leaderboard] → si hablas del ranking
 [CMD:comando_exacto] → si recomiendas un comando de terminal (ej: [CMD:sudo systemctl restart bind9])`.trim();
 

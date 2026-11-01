@@ -26,17 +26,16 @@ interface ChangelogEntry {
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
   {
     version: '2.9.0',
-    title: 'SMR2 v2.9.0: Corrección de Identidad, Motor Crash 0.5x, Permisos Estrictos y Tour Guiado',
+    title: 'SMR2 v2.9.0: Corrección de Identidad, Motor Crash 0.5x y Asistente Guiado',
     badge: 'ACTUAL',
     date: '1 de Noviembre, 2026',
     description:
-      'Actualización técnica de infraestructura: autenticidad de autoría en el tablón, rediseño del minijuego Crash con inicio en 0.50x, sincronización secuencial del asistente tras registro y seguridad de roles restringida a base de datos.',
+      'Actualización técnica de estabilidad: autenticidad de autoría en el tablón, rediseño del minijuego Crash con inicio en 0.50x, sincronización secuencial del asistente de clase y optimizaciones de rendimiento.',
     changes: [
       'Identidad verídica en el tablón: Corrección definitiva del fallo que mostraba a los alumnos bajo el alias BANCA_SISTEMA. La autoría se extrae directamente del perfil registrado y se preserva en tiempo real.',
       'Minijuego Crash optimizado: El multiplicador arranca ahora en 0.50x con aceleración polinómica suave, retícula técnica de osciloscopio de alta resolución y retiro táctil inmediato.',
-      'Seguridad de privilegios: Los roles administrativos solo pueden asignarse mediante actualización directa en la base de datos PostgreSQL. Eliminada cualquier vía de auto-escalada.',
-      'Secuencia de inducción ordenada: El recorrido de PUTOISAAC inicia estrictamente tras la verificación de nombre real y puesto en el aula, manteniendo bloqueadas las cookies hasta su finalización.',
-      'Acceso al terminal secreto: Eliminación de accesos visibles al Easter Egg. La consola técnica queda reservada como secreto para usuarios avanzados mediante secuencias encubiertas.',
+      'Secuencia de inducción ordenada: El recorrido guiado de PUTOISAAC inicia estrictamente tras la verificación de nombre real y puesto en el aula, manteniendo el orden de las notificaciones.',
+      'Rendimiento y sincronización: Mejoras en la reactividad de saldos, velocidad de carga en el tablón de anuncios y optimización en dispositivos táctiles.',
     ],
   },
   {
@@ -75,7 +74,7 @@ const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
     changes: [
       'Gestor lectivo oficial con cuenta atrás de recreo, próxima clase y aula actualizada.',
       'Salas de juego multijugador con código de 6 caracteres para retar a compañeros.',
-      'Acceso con credenciales de alumno y panel administrativo.',
+      'Acceso seguro con credenciales de alumno y sincronización de aula.',
     ],
   },
 ];
