@@ -126,6 +126,61 @@ export default function Home() {
   // Real-time presence hook (tracks active user view and aggregates online classmates)
   const { onlineUsers, onlineCount } = useRealtimePresence(user, activeView);
 
+  // Easter Egg secreto - Disparador de 5 taps para los ms listos
+  const secretTapCountRef = useRef(0);
+  const secretTapTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleSecretTrigger = useCallback(() => {
+    secretTapCountRef.current += 1;
+    if (secretTapTimerRef.current) clearTimeout(secretTapTimerRef.current);
+    if (secretTapCountRef.current >= 5) {
+      secretTapCountRef.current = 0;
+      try { sound.tap(); } catch {}
+      window.location.href = '/admin';
+      return;
+    }
+    secretTapTimerRef.current = setTimeout(() => {
+      secretTapCountRef.current = 0;
+    }, 2000);
+  }, []);
+
+  // Atajos de teclado hacker ('david', 'root', Ctrl+Shift+~ o Ctrl+Alt+S) y telemetra de consola
+  useEffect(() => {
+    let keyBuffer = '';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (e.target as HTMLElement)?.isContentEditable) {
+        return;
+      }
+      if (
+        (e.ctrlKey && e.shiftKey && (e.key === '`' || e.key === '~')) ||
+        (e.ctrlKey && e.altKey && e.key.toLowerCase() === 's')
+      ) {
+        e.preventDefault();
+        try { sound.tap(); } catch {}
+        window.location.href = '/admin';
+        return;
+      }
+      keyBuffer = (keyBuffer + e.key.toLowerCase()).slice(-5);
+      if (keyBuffer === 'david' || keyBuffer.endsWith('root')) {
+        try { sound.tap(); } catch {}
+        window.location.href = '/admin';
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    console.log(
+      '%c[SMR2 KERNEL]%c Gateway ttyS0 en escucha. ¿Buscas el acceso oculto? Hay una terminal disponible en /admin (Atajos: 5 clics en pie o teclea \'david\').',
+      'color: #10b981; font-weight: bold; font-family: monospace;',
+      'color: #71717a; font-family: monospace;'
+    );
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const userRef = useRef<UserProfile | null>(user);
   const notificationsEnabledRef = useRef(notificationsEnabled);
@@ -198,7 +253,12 @@ export default function Home() {
           last_claim_date: data.last_claim_date || undefined,
           last_spin_date: data.last_spin_date || undefined,
           last_rescue_date: data.last_rescue_date || undefined,
-          role: data.role || data.rol || (rawUsername === 'admin' ? 'admin' : 'student'),
+          role:
+            data.rol === 'admin' || data.role === 'admin'
+              ? 'admin'
+              : data.rol === 'delegado' || data.role === 'delegado'
+              ? 'delegado'
+              : 'student',
           avatar_color: data.avatar_color || data.color_acento || 'emerald',
           games_played: Number(data.games_played ?? 0),
           games_won: Number(data.games_won ?? 0),
@@ -213,7 +273,7 @@ export default function Home() {
         const fallbackUsername = (email ? email.split('@')[0] : `user_${userId.slice(0, 5)}`)
           .toLowerCase()
           .replace(/[^a-z0-9_]/g, '_');
-        const role = fallbackUsername === 'admin' ? 'admin' : 'student';
+        const role: 'admin' | 'delegado' | 'student' = 'student';
 
         try {
           await supabase.from('profiles').upsert(
@@ -229,8 +289,8 @@ export default function Home() {
                 biggest_win: 0,
                 streak_count: 1,
                 racha_actual: 1,
-                role,
-                rol: role === 'admin' ? 'admin' : 'alumno',
+                role: 'student',
+                rol: 'alumno',
               },
             ],
             { onConflict: 'id' }
@@ -464,7 +524,12 @@ export default function Home() {
               biggest_win: Number(p.biggest_win ?? 0),
               streak_count: Number(p.streak_count ?? p.racha_actual ?? 1),
               avatar_color: p.avatar_color || p.color_acento || 'emerald',
-              role: p.role || p.rol || (rawUsername === 'admin' ? 'admin' : 'student'),
+              role:
+                p.rol === 'admin' || p.role === 'admin'
+                  ? 'admin'
+                  : p.rol === 'delegado' || p.role === 'delegado'
+                  ? 'delegado'
+                  : 'student',
               is_current_user: activeUser ? (p.id === activeUser.id || rawUsername.toLowerCase() === activeUser.username.toLowerCase()) : false,
             });
           });
@@ -597,9 +662,18 @@ export default function Home() {
         if (dismissed !== 'true') {
           setIsWindowsWelcomeOpen(true);
         } else {
-          const tourDone = localStorage.getItem('smr2_putoisaac_tour_done');
-          if (!tourDone) {
-            setTimeout(() => setIsIsaacTourOpen(true), 900);
+          // Solo iniciar el tour automticamente si el alumno NO tiene pendiente identificarse
+          const needsId = Boolean(
+            cachedSession &&
+            cachedSession.role !== 'admin' &&
+            cachedSession.username !== 'admin' &&
+            (!cachedSession.full_name || !cachedSession.student_number)
+          );
+          if (!needsId) {
+            const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
+            if (!tourDone) {
+              setTimeout(() => setIsIsaacTourOpen(true), 900);
+            }
           }
         }
       }
@@ -1956,7 +2030,21 @@ export default function Home() {
         user={user}
         onClose={() => {
           setIsWindowsWelcomeOpen(false);
-          setTimeout(() => setIsIsaacTourOpen(true), 400);
+          const needsId = Boolean(
+            user &&
+            user.role !== 'admin' &&
+            user.username !== 'admin' &&
+            !dismissedIdentification &&
+            (!user.full_name || !user.student_number)
+          );
+          if (!needsId) {
+            try {
+              const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
+              if (!tourDone) {
+                setTimeout(() => setIsIsaacTourOpen(true), 400);
+              }
+            } catch {}
+          }
         }}
       />
 
@@ -1999,21 +2087,35 @@ export default function Home() {
         onSuccess={(updated) => {
           setUser(updated);
           fetchLeaderboard();
+          try {
+            const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
+            if (!tourDone) {
+              setTimeout(() => setIsIsaacTourOpen(true), 600);
+            }
+          } catch {}
         }}
         onSignOut={handleSignOut}
-        onSkip={() => setDismissedIdentification(true)}
+        onSkip={() => {
+          setDismissedIdentification(true);
+          try {
+            const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
+            if (!tourDone) {
+              setTimeout(() => setIsIsaacTourOpen(true), 600);
+            }
+          } catch {}
+        }}
       />
 
       <CookieBanner
         onOpenTerms={() => setIsTermsOpen(true)}
-        isBlocked={isTourActive}
+        isBlocked={isTourActive || isIsaacTourOpen}
       />
 
       {/* Actualizaciones del sistema en vivo (sincronizadas secuencialmente tras el tour) */}
-      <UpdateNotificationBanner isBlocked={isTourActive} />
+      <UpdateNotificationBanner isBlocked={isTourActive || isIsaacTourOpen} />
 
       {/* 8. Live Realtime Notification Banner */}
-      {!isTourActive && (
+      {!isTourActive && !isIsaacTourOpen && (
         <RealtimeToast
           notification={realtimeNotification}
           onDismiss={() => setRealtimeNotification(null)}
@@ -2036,13 +2138,21 @@ export default function Home() {
       <footer className="border-t border-border/70 bg-surface/80 py-6 mt-10 mb-16 lg:mb-0 text-center text-xs text-foreground-muted">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 flex items-center justify-center shrink-0">
+            <div
+              onClick={handleSecretTrigger}
+              className="w-6 h-6 flex items-center justify-center shrink-0 cursor-pointer select-none"
+              title="SMR2 Core"
+            >
               <img src="/logo.png" alt="SMR2" className="w-full h-full object-contain drop-shadow-xs" />
             </div>
             <span className="font-medium text-foreground tracking-tight">SMR2 · 2º Sistemas Microinformáticos y Redes</span>
           </div>
 
-          <div className="text-center sm:text-right space-y-0.5">
+          <div
+            onClick={handleSecretTrigger}
+            className="text-center sm:text-right space-y-0.5 cursor-pointer select-none"
+            title="Creditos del sistema"
+          >
             <p className="text-xs text-foreground">
               Desarrollado y creado por <strong className="text-amber-500 font-semibold">JuanFe Ospina</strong> y <strong className="text-amber-500 font-semibold">David</strong>
             </p>
@@ -2062,7 +2172,13 @@ export default function Home() {
             >
               Normas y Privacidad
             </button>
-            <span>Aula 204</span>
+            <span
+              onClick={handleSecretTrigger}
+              className="hover:text-foreground transition-colors cursor-pointer select-none"
+              title="Terminal de enlace"
+            >
+              Aula 204
+            </span>
           </div>
         </div>
       </footer>

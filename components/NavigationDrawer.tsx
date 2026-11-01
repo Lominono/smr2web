@@ -443,18 +443,6 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               <ChevronRight className="w-4 h-4 text-foreground-subtle" />
             </button>
 
-            <Link
-              href="/admin"
-              onClick={onClose}
-              className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-mono font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all active:scale-[0.98] touch-manipulation"
-            >
-              <div className="flex items-center gap-3">
-                <Terminal className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm font-sans">Easter Egg Secreto</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-foreground-subtle" />
-            </Link>
-
             <button
               type="button"
               onClick={() => {

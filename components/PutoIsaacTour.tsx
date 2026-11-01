@@ -261,13 +261,21 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
       setIsTourCompleted(tourDone);
       if (!tourDone && isOpenControlled === undefined) {
-        const timer = setTimeout(() => {
-          setIsOpen(true);
-        }, 1200);
-        return () => clearTimeout(timer);
+        const needsId = Boolean(
+          currentUser &&
+          currentUser.role !== 'admin' &&
+          currentUser.username !== 'admin' &&
+          (!currentUser.full_name || !currentUser.student_number)
+        );
+        if (!needsId) {
+          const timer = setTimeout(() => {
+            setIsOpen(true);
+          }, 1200);
+          return () => clearTimeout(timer);
+        }
       }
     } catch {}
-  }, [isOpenControlled]);
+  }, [isOpenControlled, currentUser]);
 
   // Apertura controlada externa
   useEffect(() => {
@@ -416,6 +424,25 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     typewriterTimeoutRef.current = setTimeout(typeNext, 40);
   }, []);
 
+  const getTourStep = useCallback((stepIdx: number): TourStep => {
+    const base = TOUR_STEPS[stepIdx] || TOUR_STEPS[0];
+    if (stepIdx === 0) {
+      if (currentUser?.full_name || currentUser?.student_number) {
+        const firstName = currentUser.full_name ? currentUser.full_name.trim().split(' ')[0] : (currentUser.username || 'socio');
+        const seatText = currentUser.student_number ? `Puesto #${currentUser.student_number}` : 'Aula 204';
+        return {
+          title: `¡Epa, ${firstName}!`,
+          text: `¡${seatText} registrado! Soy PUTOISAAC, el asistente de 2º SMR. Te enseño esto en dos patadas para que no te pierdas el primer día.`,
+        };
+      }
+      return {
+        title: '¡Epa socio!',
+        text: 'Ya tenemos tu puesto del aula fichado. Soy PUTOISAAC, el asistente de 2º SMR. Te enseño esto en dos patadas para que no te pierdas el primer día.',
+      };
+    }
+    return base;
+  }, [currentUser]);
+
   // Disparar texto correspondiente según el estado
   useEffect(() => {
     if (!isOpen) {
@@ -431,18 +458,18 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       return;
     }
 
-    const step = TOUR_STEPS[currentStep];
+    const step = getTourStep(currentStep);
     if (!step) return;
 
     if (onSelectTabRef.current && step.tabTarget) {
       onSelectTabRef.current(step.tabTarget);
     }
 
-    const key = `tour_step_${currentStep}`;
+    const key = `tour_step_${currentStep}_${currentUser?.student_number || 'default'}`;
     if (currentTextKeyRef.current !== key) {
       startTypewriter(step.text, key);
     }
-  }, [isOpen, currentStep, isIdleChat, idleMessage, startTypewriter]);
+  }, [isOpen, currentStep, isIdleChat, idleMessage, startTypewriter, getTourStep, currentUser]);
 
   // Completar el texto al hacer clic en el bocadillo
   const handleBubbleClick = () => {
@@ -450,7 +477,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       if (typewriterTimeoutRef.current) {
         clearTimeout(typewriterTimeoutRef.current);
       }
-      const rawText = isIdleChat ? idleMessage : TOUR_STEPS[currentStep]?.text || '';
+      const rawText = isIdleChat ? idleMessage : getTourStep(currentStep)?.text || '';
       const { cleanText, actions, commands } = parseIsaacMessage(rawText);
       setCurrentActions(actions);
       setCurrentCommands(commands);
@@ -1270,7 +1297,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
               {/* Título o estado de la conversación */}
               <h4 className="text-[11.5px] font-semibold text-amber-400 mb-1">
-                {isIdleChat ? 'Tu colega de sistemas' : TOUR_STEPS[currentStep]?.title}
+                {isIdleChat ? 'Tu colega de sistemas' : getTourStep(currentStep)?.title}
               </h4>
 
               {/* Texto mecanografiado con audio melódico suave */}

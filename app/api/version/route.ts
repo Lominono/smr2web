@@ -26,32 +26,32 @@ interface ChangelogEntry {
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
   {
     version: '2.9.0',
-    title: 'SMR2 v2.9.0: Corrección del Feed, Propinas Fluidas, Tour sin Solapamientos y Nueva Física',
-    badge: 'VERSIÓN ACTUAL',
+    title: 'SMR2 v2.9.0: Corrección de Identidad, Motor Crash 0.5x, Permisos Estrictos y Tour Guiado',
+    badge: 'ACTUAL',
     date: '1 de Noviembre, 2026',
     description:
-      'Actualización enfocada en la autenticidad del feed escolar, nuevo sistema de propinas de fichas, orquestación fluida de avisos sin solapamientos y animaciones físicas orgánicas para PUTOISAAC.',
+      'Actualización técnica de infraestructura: autenticidad de autoría en el tablón, rediseño del minijuego Crash con inicio en 0.50x, sincronización secuencial del asistente tras registro y seguridad de roles restringida a base de datos.',
     changes: [
-      '💬 Identidad Real en el Feed: Resuelto el fallo que provocaba que algunos alumnos apareciesen erróneamente como BANCA_SISTEMA al comentar. Sincronización fidedigna del autor original con base de datos.',
-      '🪙 Sistema de Propinas Renovado: Envío ágil de 50 fichas con confirmación táctil en directo, sin alertas intrusivas y con notificación comunitaria en el tablón de clase.',
-      '🧭 Tour Secuencial no Invasivo: El asistente PUTOISAAC guía el aula sin solaparse con ningún elemento. Las advertencias de cookies y avisos de versión se muestran ordenadamente tras finalizar el recorrido.',
-      '👁️ Expresividad Orgánica de PUTOISAAC: Seguimiento ocular dinámico con el cursor, modulación fonética bucal en tiempo real y física elástica (squish & stretch) al interactuar.',
-      '⚡ Terminal CTF y Blindaje de Sesión: Transición completa de antiguos paneles administrativos hacia la experiencia secreta del terminal CTF, con identificadores canónicos UUID v4 para todos los usuarios.',
+      'Identidad verídica en el tablón: Corrección definitiva del fallo que mostraba a los alumnos bajo el alias BANCA_SISTEMA. La autoría se extrae directamente del perfil registrado y se preserva en tiempo real.',
+      'Minijuego Crash optimizado: El multiplicador arranca ahora en 0.50x con aceleración polinómica suave, retícula técnica de osciloscopio de alta resolución y retiro táctil inmediato.',
+      'Seguridad de privilegios: Los roles administrativos solo pueden asignarse mediante actualización directa en la base de datos PostgreSQL. Eliminada cualquier vía de auto-escalada.',
+      'Secuencia de inducción ordenada: El recorrido de PUTOISAAC inicia estrictamente tras la verificación de nombre real y puesto en el aula, manteniendo bloqueadas las cookies hasta su finalización.',
+      'Acceso al terminal secreto: Eliminación de accesos visibles al Easter Egg. La consola técnica queda reservada como secreto para usuarios avanzados mediante secuencias encubiertas.',
     ],
   },
   {
     version: '2.8.0',
-    title: 'SMR2 v2.8.0: Revolución Ruleta Rusa, Avisos Veraces y PUTOISAAC Pro',
-    badge: 'ÚLTIMA NOVEDAD',
+    title: 'SMR2 v2.8.0: Ruleta Rusa Táctica, Visor de Cartuchos e IA de Aula',
+    badge: 'ESTABLE',
     date: '28 de Octubre, 2026',
     description:
-      'Actualización mayor centrada en la experiencia de juego táctico de la Ruleta Rusa, sistema de avisos de novedades fidedigno e IA de aula potenciada.',
+      'Actualización mayor centrada en la experiencia de juego táctico de la Ruleta Rusa, sistema de avisos de novedades fidedigno e IA de aula optimizada.',
     changes: [
-      '🎮 Ruleta Rusa Táctica Inmersiva: Nuevo visor visual de cargador con cartuchos reales (rojo) y salvas (cian), indicador dinámico de probabilidades estilo Buckshot, recámara animada y efectos de tensión con sonido metálico.',
-      '🤖 IA de Rivales Inteligente: Los oponentes de clase (David, Dani, Álex y Marcos) ahora usan tácticamente los objetos de redes (Multímetro, Crimpadora, Inversor, Monster y Cable RJ45) con cálculo real de probabilidades.',
-      '📢 Centro de Avisos y Novedades Veraces: Notificador de despliegues en directo y modal completo de versiones que detalla fielmente lo que hay de verdad en cada actualización.',
-      '🧠 Asistente PUTOISAAC Potenciado: Conocimiento de temario de 2º SMR ampliado (DNS BIND9, DHCP, Apache2, SSH, permisos Linux, Windows Server, subnetting rápido y comandos directos con un clic).',
-      '🏆 Racha y Estadísticas en Ruleta: Seguimiento de victorias, derrotas y racha ganadora con sincronización de monedas inmediata.',
+      'Ruleta Rusa Táctica: Nuevo visor de cargador con cartuchos reales y salvas, indicador dinámico de probabilidades estilo Buckshot y efectos de tensión sonora.',
+      'Lógica de rivales de clase: Los oponentes emplean tácticamente los objetos de redes (Multímetro, Crimpadora, Inversor, Monster y Cable RJ45) con cálculo probabilístico.',
+      'Centro de novedades y versiones: Registro fidedigno de cambios en tiempo real y modal con histórico de versiones.',
+      'Asistente PUTOISAAC: Ampliación de temario de 2º SMR (DNS BIND9, DHCP, Apache2, SSH, permisos Linux, Windows Server y comandos directos).',
+      'Estadísticas de partida: Registro de victorias, derrotas y racha con sincronización inmediata de saldo.',
     ],
   },
   {
@@ -61,9 +61,9 @@ const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
     description:
       'Lanzamiento del mercado bursátil de clase y tablón de anuncios en tiempo real.',
     changes: [
-      '📈 Bolsa de El Botellón: Gráfica interactiva de cotizaciones que reacciona a compras y ventas de los alumnos.',
-      '💬 Tablón de clase en vivo: Notificaciones de mensajes instantáneos entre compañeros sin recargar.',
-      '💰 Transferencias y propinas de fichas entre perfiles autenticados.',
+      'Bolsa de El Botellón: Gráfica interactiva de cotizaciones sensible a operaciones de compra y venta de los alumnos.',
+      'Tablón de clase en vivo: Notificaciones de mensajes instantáneos entre compañeros sin recargar.',
+      'Transferencias y propinas de fichas entre perfiles autenticados.',
     ],
   },
   {
@@ -73,9 +73,9 @@ const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
     description:
       'Integración del gestor lectivo oficial y primeras salas multijugador.',
     changes: [
-      '📅 Gestor lectivo oficial con cuenta atrás de recreo, próxima clase y aula actualizada.',
-      '👥 Salas de juego multijugador con código de 6 caracteres para retar a compañeros.',
-      '🔐 Acceso con credenciales de alumno y panel administrativo.',
+      'Gestor lectivo oficial con cuenta atrás de recreo, próxima clase y aula actualizada.',
+      'Salas de juego multijugador con código de 6 caracteres para retar a compañeros.',
+      'Acceso con credenciales de alumno y panel administrativo.',
     ],
   },
 ];

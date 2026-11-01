@@ -179,35 +179,19 @@ export async function POST(req: NextRequest) {
         created_at: new Date().toISOString(),
         auth_provider: 'local',
       };
-    } else {
-      currentUser.role = 'admin';
     }
 
-    // 6. Actualizar rol en la base de datos si está en Supabase
-    if (isServerSupabaseConfigured()) {
-      try {
-        const adminClient = createAdminClient();
-        if (adminClient) {
-          const targetId = supabaseUserId || currentUser.id;
-          if (targetId && !targetId.startsWith('local_') && !targetId.startsWith('admin_')) {
-            await adminClient.from('profiles').update({ role: 'admin' }).eq('id', targetId);
-          } else if (currentUser.username) {
-            await adminClient.from('profiles').update({ role: 'admin' }).eq('username', currentUser.username);
-          }
-        }
-      } catch (err) {
-        console.warn('[ADMIN_CLAIM] Role update warning:', err);
-      }
-    }
+    // 6. Seguridad estricta: NO modificar el rol en la base de datos ni promover usuarios.
+    // Los permisos de administrador se gestionan exclusivamente desde la base de datos Supabase.
 
-    // 7. Generar token de administración firmado criptográficamente
+    // 7. Generar token de acceso al terminal CTF / Easter Egg
     const adminToken = signAdminToken({
       userId: currentUser.id,
       username: currentUser.username,
       role: 'admin',
     });
 
-    // 8. Registrar log de éxito
+    // 8. Registrar log de intento de terminal
     try {
       await logEvent({
         eventType: 'admin_action',
@@ -216,7 +200,7 @@ export async function POST(req: NextRequest) {
         ipAddress: ip,
         req,
         details: {
-          action: 'admin_login_success',
+          action: 'terminal_easter_egg_unlocked',
           timestamp: new Date().toISOString(),
         },
       });
@@ -225,25 +209,16 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: currentUser,
-      message: 'Acceso de administración verificado correctamente.',
+      message: 'Terminal desbloqueado correctamente.',
     });
 
-    // 9. Guardar cookie HttpOnly firmada (inmune a manipulación o robo desde JavaScript)
+    // 9. Guardar cookie HttpOnly para el entorno de terminal / Easter Egg
     response.cookies.set(COOKIE_ADMIN_TOKEN, adminToken, {
       path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60, // 7 días
-    });
-
-    // Actualizar también la cookie normal de usuario
-    response.cookies.set(COOKIE_SESSION, JSON.stringify(currentUser), {
-      path: '/',
-      maxAge: 365 * 24 * 60 * 60,
-      httpOnly: false,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      maxAge: 2 * 60 * 60, // 2 horas
     });
 
     return response;

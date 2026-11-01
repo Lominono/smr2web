@@ -1170,8 +1170,8 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                     <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
                       Novedades y Versiones
                     </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-500 font-semibold border border-emerald-500/30">
-                      v2.8.0
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-raised text-foreground font-semibold border border-border">
+                      v2.9.0
                     </span>
                   </div>
                   <p className="text-[11px] text-neutral-500">
@@ -1387,29 +1387,6 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                   </Button>
                 </div>
               </form>
-
-              {/* Acceso al Easter Egg Secreto */}
-              <div className="pt-3 border-t border-neutral-200 dark:border-neutral-800/80 flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-1.5 font-mono">
-                    <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
-                      Easter Egg Secreto
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-neutral-500">
-                    Terminal CTF y reto interactivo del Aula 204. ¿Te atreves a piratearlo?
-                  </p>
-                </div>
-
-                <a
-                  href="/admin"
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-950 hover:opacity-90 transition-opacity shrink-0 cursor-pointer"
-                >
-                  <span>Terminal CTF</span>
-                  <ArrowUpRight className="w-3 h-3" />
-                </a>
-              </div>
 
               {/* Danger Zone: Logout */}
               <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800/80 flex items-center justify-between">

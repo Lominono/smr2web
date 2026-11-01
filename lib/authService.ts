@@ -178,7 +178,7 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
       }
 
       if (data.user) {
-        const role: 'admin' | 'delegado' | 'student' = cleanUsername === 'admin' ? 'admin' : 'student';
+        const role: 'admin' | 'delegado' | 'student' = 'student';
 
         // Upsert profile in Supabase
         try {
@@ -195,7 +195,7 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
                 streak_count: 1,
                 racha_actual: 1,
                 role,
-                rol: role === 'admin' ? 'admin' : 'alumno',
+                rol: 'alumno',
               },
             ],
             { onConflict: 'id' }
@@ -339,10 +339,10 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
             data.user.email?.split('@')[0] ||
             cleanIdentifier;
 
-          const role =
-            profileData?.role ||
-            profileData?.rol ||
-            (username === 'admin' ? 'admin' : 'student');
+          const role: 'admin' | 'delegado' | 'student' =
+            profileData?.rol === 'admin' || profileData?.role === 'admin'
+              ? 'admin'
+              : (profileData?.rol === 'delegado' || profileData?.role === 'delegado' ? 'delegado' : 'student');
 
           const profile: UserProfile = {
             id: data.user.id,

@@ -994,7 +994,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                           <Coins className={`w-3.5 h-3.5 ${tipSuccessId === msg.id ? 'text-emerald-500' : ''}`} />
                           <span className="font-mono text-[11px]">
                             {tipSuccessId === msg.id
-                              ? '+50 🪙 Enviado'
+                              ? '+50 enviadas'
                               : tipErrorId === msg.id
                               ? 'Faltan fichas'
                               : '50 fichas'}

@@ -147,15 +147,6 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             </button>
           )}
 
-          <Link
-            href="/admin"
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-mono font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
-            title="Easter Egg Secreto del Aula 204"
-          >
-            <Terminal className="w-4 h-4 text-emerald-400" />
-            <span>Easter Egg</span>
-          </Link>
-
           {onOpenFeedback && (
             <button
               type="button"

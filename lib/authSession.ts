@@ -402,7 +402,7 @@ export async function registerLocalUser(
 
   const passwordHash = await hashPassword(password, cleanUsername);
   const now = new Date().toISOString();
-  const role: 'admin' | 'delegado' | 'student' = cleanUsername === 'admin' ? 'admin' : 'student';
+  const role: 'admin' | 'delegado' | 'student' = 'student';
 
   const newAccount: StoredLocalAccount = {
     id: generateUUID(),
@@ -485,7 +485,7 @@ export async function loginLocalUser(
     biggest_win: account.biggest_win,
     streak_count: account.streak_count || 1,
     last_claim_date: account.last_claim_date,
-    role: account.role || (account.username === 'admin' ? 'admin' : 'student'),
+    role: account.role || 'student',
     avatar_color: account.avatar_color || 'emerald',
     games_played: account.games_played || 0,
     games_won: account.games_won || 0,

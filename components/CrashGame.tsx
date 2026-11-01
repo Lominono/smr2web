@@ -5,14 +5,11 @@ import { sound } from '@/lib/audio';
 import { CrashHistoryItem } from '@/lib/types';
 import {
   TrendingUp,
-  AlertTriangle,
   Coins,
   Zap,
   Trophy,
-  ShieldAlert,
-  Flame,
   Activity,
-  Check,
+  AlertCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -34,10 +31,11 @@ export const CrashGame: React.FC<CrashGameProps> = ({
   const [autoCashoutEnabled, setAutoCashoutEnabled] = useState<boolean>(false);
   const [autoCashoutMult, setAutoCashoutMult] = useState<number>(2.0);
   const [gameState, setGameState] = useState<'idle' | 'running' | 'crashed'>('idle');
-  const [currentMultiplier, setCurrentMultiplier] = useState<number>(1.0);
+  const [currentMultiplier, setCurrentMultiplier] = useState<number>(0.5);
   const [hasCashedOut, setHasCashedOut] = useState<boolean>(false);
   const [cashedAmount, setCashedAmount] = useState<number | null>(null);
   const [cashedMultiplier, setCashedMultiplier] = useState<number | null>(null);
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
 
   const crashPointRef = useRef<number>(2.0);
   const animFrameRef = useRef<number | null>(null);
@@ -47,20 +45,24 @@ export const CrashGame: React.FC<CrashGameProps> = ({
   const LOGICAL_WIDTH = 840;
   const LOGICAL_HEIGHT = 340;
 
+  // Generador de punto de crash con inicio desde 0.50x
   const generateCrashPoint = () => {
-    // 4% direct instant bust house edge (1.00x)
     const e = 2 ** 32;
     const h = crypto.getRandomValues(new Uint32Array(1))[0];
-    if (h % 25 === 0) return 1.0;
 
-    // 10% early shakeout (1.05x - 1.25x)
-    if (Math.random() < 0.10) {
-      return 1.05 + Math.random() * 0.20;
+    // 5% caída fulminante inmediata (0.50x - 0.53x)
+    if (h % 20 === 0) {
+      return Number((0.50 + Math.random() * 0.03).toFixed(2));
     }
 
-    // Provably fair exponential distribution with 25x cap
+    // 15% caída sub-equilibrio temprana (0.55x - 0.98x)
+    if (Math.random() < 0.15) {
+      return Number((0.55 + Math.random() * 0.43).toFixed(2));
+    }
+
+    // Distribución exponencial verificable hacia arriba (1.05x - 25.0x)
     const crash = Math.floor((96 * e) / (e - h)) / 100;
-    return Math.min(Math.max(crash, 1.08), 25.0);
+    return Math.min(Math.max(Number(crash.toFixed(2)), 1.05), 25.0);
   };
 
   const cashOutAt = (multToCash: number) => {
@@ -75,7 +77,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     onUpdateCoins(win);
     sound.coinWin();
 
-    if (multToCash >= 2.5) {
+    if (multToCash >= 2.0) {
       confetti({
         particleCount: 80,
         spread: 60,
@@ -94,10 +96,12 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     const safeBet = Math.min(Math.max(10, bet), 500);
     if (userCoins < safeBet) {
       sound.broke();
-      alert('Saldo insuficiente. Pulsa el botón + arriba a la derecha para recargar.');
+      setStatusNotice('Saldo insuficiente para apostar esta cantidad.');
+      setTimeout(() => setStatusNotice(null), 3500);
       return;
     }
 
+    setStatusNotice(null);
     onUpdateCoins(-safeBet);
     sound.whoosh();
 
@@ -108,12 +112,13 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     autoCashedRef.current = false;
     setCashedAmount(null);
     setCashedMultiplier(null);
-    setCurrentMultiplier(1.0);
+    setCurrentMultiplier(0.5);
     startTimeRef.current = performance.now();
 
     const loop = (now: number) => {
       const elapsed = (now - startTimeRef.current) / 1000;
-      const mult = Math.max(1.0, Math.exp(0.08 * (elapsed ** 1.35)));
+      // Arranca en 0.50x y acelera exponencialmente
+      const mult = Math.max(0.5, Number((0.5 * Math.exp(0.12 * (elapsed ** 1.3))).toFixed(2)));
 
       // Auto Cashout check
       if (
@@ -176,7 +181,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
       ctx.scale(scaleX, scaleY);
 
       // Deep matte obsidian canvas background
-      ctx.fillStyle = '#08080c';
+      ctx.fillStyle = '#09090b';
       ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
       // Technical oscilloscope grid
@@ -209,22 +214,38 @@ export const CrashGame: React.FC<CrashGameProps> = ({
       ctx.lineTo(LOGICAL_WIDTH - 20, startY);
       ctx.stroke();
 
-      // Axis labels
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      // Axis labels (Starting at 0.5x base)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.font = '10px monospace';
-      ctx.fillText('1.0x', 12, startY + 3);
-      ctx.fillText('2.0x', 12, startY - 60);
-      ctx.fillText('5.0x', 12, startY - 140);
-      ctx.fillText('10x+', 12, startY - 220);
+      ctx.fillText('0.5x', 12, startY + 3);
+      ctx.fillText('1.0x', 12, startY - 45);
+      ctx.fillText('2.0x', 12, startY - 100);
+      ctx.fillText('5.0x', 12, startY - 175);
+      ctx.fillText('10x+', 12, startY - 245);
+
+      // Línea de equilibrio (1.00x)
+      const breakevenProgress = (1.0 - 0.5) / 9.5;
+      const breakevenY = startY - Math.sqrt(breakevenProgress) * (startY - 35);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(startX, breakevenY);
+      ctx.lineTo(LOGICAL_WIDTH - 20, breakevenY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.font = '8.5px monospace';
+      ctx.fillText('EQUILIBRIO (1.0x)', LOGICAL_WIDTH - 115, breakevenY - 3);
 
       if (gameState === 'running' || gameState === 'crashed') {
-        const progress = Math.min((currentMultiplier - 1.0) / 10.0, 1.0);
+        const progress = Math.min(Math.max(0, (currentMultiplier - 0.5) / 9.5), 1.0);
         const endX = startX + progress * (LOGICAL_WIDTH - startX - 40);
         const endY = startY - Math.sqrt(progress) * (startY - 35);
+        const isProfitable = currentMultiplier >= 1.0;
 
         // Auto Cashout Target Line
-        if (autoCashoutEnabled && autoCashoutMult > 1.0) {
-          const autoProgress = Math.min((autoCashoutMult - 1.0) / 10.0, 1.0);
+        if (autoCashoutEnabled && autoCashoutMult > 0.5) {
+          const autoProgress = Math.min(Math.max(0, (autoCashoutMult - 0.5) / 9.5), 1.0);
           const autoLineY = startY - Math.sqrt(autoProgress) * (startY - 35);
 
           ctx.strokeStyle = 'rgba(234, 179, 8, 0.25)';
@@ -245,10 +266,15 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         if (gameState === 'crashed') {
           areaGrad.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
           areaGrad.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
-        } else {
+        } else if (isProfitable) {
           areaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
           areaGrad.addColorStop(0.7, 'rgba(16, 185, 129, 0.08)');
           areaGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+        } else {
+          // Fase sub-equilibrio 0.5x - 0.99x
+          areaGrad.addColorStop(0, 'rgba(245, 158, 11, 0.22)');
+          areaGrad.addColorStop(0.7, 'rgba(245, 158, 11, 0.06)');
+          areaGrad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
         }
 
         ctx.fillStyle = areaGrad;
@@ -260,7 +286,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         ctx.fill();
 
         // High intensity neon line
-        ctx.strokeStyle = gameState === 'crashed' ? '#ef4444' : '#10b981';
+        ctx.strokeStyle = gameState === 'crashed' ? '#ef4444' : isProfitable ? '#10b981' : '#f59e0b';
         ctx.lineWidth = 3.5;
         ctx.lineCap = 'round';
         ctx.beginPath();
@@ -271,7 +297,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
         // Tip effects
         if (gameState === 'running') {
           // Glow halo
-          ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
+          ctx.strokeStyle = isProfitable ? 'rgba(16, 185, 129, 0.45)' : 'rgba(245, 158, 11, 0.45)';
           ctx.lineWidth = 10;
           ctx.beginPath();
           ctx.arc(endX, endY, 8, 0, Math.PI * 2);
@@ -283,9 +309,9 @@ export const CrashGame: React.FC<CrashGameProps> = ({
           ctx.arc(endX, endY, 4.5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Rocket flame sparks
+          // Sparks
           for (let s = 0; s < 4; s++) {
-            ctx.fillStyle = Math.random() > 0.5 ? '#f59e0b' : '#34d399';
+            ctx.fillStyle = Math.random() > 0.5 ? '#f59e0b' : (isProfitable ? '#34d399' : '#fbbf24');
             ctx.beginPath();
             ctx.arc(
               endX - Math.random() * 12 - 2,
@@ -328,7 +354,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
   const historyAvg =
     history.length > 0
       ? (history.reduce((acc, h) => acc + h.crashPoint, 0) / history.length).toFixed(2)
-      : '2.00';
+      : '1.50';
 
   const historyMax =
     history.length > 0
@@ -337,6 +363,23 @@ export const CrashGame: React.FC<CrashGameProps> = ({
 
   return (
     <div className="rounded-2xl p-4 sm:p-6 bg-surface border border-border/80 flex flex-col items-center shadow-xs">
+      {/* Aviso inline si ocurre error */}
+      {statusNotice && (
+        <div className="w-full mb-3 px-3.5 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs font-mono flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+            <span>{statusNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusNotice(null)}
+            className="text-rose-400/70 hover:text-rose-300 text-xs font-mono cursor-pointer ml-3"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header telemetry & history */}
       <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3 border-b border-border/70">
         <div className="flex items-center gap-2.5">
@@ -349,11 +392,11 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                 Crash
               </h2>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-surface-raised text-foreground-muted border border-border/70 font-medium">
-                Media: {historyAvg}x · Máx: {historyMax}x
+                Inicio: 0.50x · Media: {historyAvg}x · Máx: {historyMax}x
               </span>
             </div>
             <p className="text-[11px] text-foreground-subtle font-mono">
-              Multiplicador en tiempo real
+              Multiplicador de riesgo continuo
             </p>
           </div>
         </div>
@@ -374,9 +417,9 @@ export const CrashGame: React.FC<CrashGameProps> = ({
                     ? 'bg-amber-500/15 text-amber-500 border-amber-500/40'
                     : item.crashPoint >= 2.0
                     ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                    : item.crashPoint >= 1.5
+                    : item.crashPoint >= 1.0
                     ? 'bg-blue-500/10 text-blue-500 border-blue-500/30'
-                    : 'bg-surface-raised text-foreground-subtle border-border/70'
+                    : 'bg-rose-500/10 text-rose-400 border-rose-500/25'
                 }`}
               >
                 {item.crashPoint.toFixed(2)}x
@@ -387,7 +430,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
       </div>
 
       {/* Screen Canvas Area */}
-      <div className="relative w-full overflow-hidden rounded-2xl border border-border/80 bg-surface-raised flex items-center justify-center">
+      <div className="relative w-full overflow-hidden rounded-2xl border border-border/80 bg-[#09090b] flex items-center justify-center">
         <canvas ref={canvasRef} className="w-full h-auto block aspect-[2/1] sm:aspect-[2.5/1]" />
 
         {/* Dynamic HUD Center Overlay */}
@@ -403,19 +446,27 @@ export const CrashGame: React.FC<CrashGameProps> = ({
             </div>
           ) : gameState === 'running' ? (
             <div className="text-center">
-              <h3 className="text-6xl sm:text-8xl font-bold text-foreground font-mono tracking-tight tabular-nums">
+              <span className={`text-[11px] font-mono uppercase tracking-wider font-semibold ${
+                currentMultiplier >= 1.0 ? 'text-emerald-400' : 'text-amber-400'
+              }`}>
+                {currentMultiplier >= 1.0 ? 'Ganancia Neta' : 'Sub-Equilibrio (0.50x)'}
+              </span>
+              <h3 className={`text-6xl sm:text-8xl font-bold font-mono tracking-tight tabular-nums transition-colors ${
+                currentMultiplier >= 1.0 ? 'text-foreground' : 'text-amber-400'
+              }`}>
                 {currentMultiplier.toFixed(2)}x
               </h3>
               {hasCashedOut && cashedAmount && (
-                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 text-xs font-mono font-semibold shadow-xs">
-                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-mono font-semibold shadow-xs">
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
                   <span>+{cashedAmount.toLocaleString()} fichas</span>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center text-foreground-subtle">
-              <p className="text-xs font-mono text-foreground-muted font-medium">Selecciona apuesta e inicia la subida</p>
+            <div className="text-center text-foreground-subtle space-y-1">
+              <p className="text-xs font-mono text-foreground-muted font-medium">Inicia en 0.50x · Equilibrio a 1.00x</p>
+              <p className="text-[11px] font-mono text-foreground-subtle">Ajusta tu apuesta y pulsa Iniciar</p>
             </div>
           )}
         </div>
@@ -443,7 +494,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
 
           {autoCashoutEnabled && (
             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-              {[1.5, 2.0, 3.0, 5.0].map((preset) => (
+              {[1.0, 1.5, 2.0, 3.0, 5.0].map((preset) => (
                 <button
                   key={preset}
                   type="button"
@@ -556,13 +607,15 @@ export const CrashGame: React.FC<CrashGameProps> = ({
               className={`w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs active:scale-[0.98] touch-manipulation ${
                 hasCashedOut
                   ? 'bg-surface-raised text-foreground-subtle border border-border cursor-not-allowed'
-                  : 'bg-success hover:opacity-90 text-white'
+                  : currentMultiplier >= 1.0
+                  ? 'bg-success hover:opacity-90 text-white'
+                  : 'bg-amber-500 hover:opacity-90 text-black font-bold'
               }`}
             >
               <span>
                 {hasCashedOut
                   ? 'Cobrado'
-                  : `Cobrar (+${(bet * currentMultiplier).toFixed(0)} fichas)`}
+                  : `Retirar (+${Math.round(bet * currentMultiplier)} fichas)`}
               </span>
             </button>
           ) : (

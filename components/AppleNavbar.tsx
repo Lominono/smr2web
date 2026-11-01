@@ -271,15 +271,6 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                 </button>
               )}
 
-              {/* Easter Egg CTF Link */}
-              <Link
-                href="/admin"
-                title="Easter Egg Secreto"
-                className="hidden sm:flex w-8 h-8 rounded-lg bg-surface-raised hover:bg-surface-hover text-neutral-400 hover:text-emerald-400 border border-border/70 items-center justify-center transition-colors cursor-pointer font-mono text-xs"
-              >
-                <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-              </Link>
-
               {/* Avatar Initial */}
               <button
                 type="button"

@@ -182,10 +182,11 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
       }
     }
     return [
-      '💬 Identidad Real en el Feed: Resuelto el fallo que provocaba que algunos alumnos apareciesen erróneamente como BANCA_SISTEMA al comentar.',
-      '🪙 Sistema de Propinas Renovado: Envío ágil de 50 fichas con confirmación táctil en directo y difusión en el tablón sin alertas invasivas.',
-      '🧭 Tour Secuencial no Invasivo: El asistente PUTOISAAC guía el aula sin solaparse; cookies y novedades aguardan a que termine el recorrido.',
-      '👁️ Expresividad Orgánica de PUTOISAAC: Seguimiento ocular dinámico y fonemas sincronizados.',
+      'Identidad verídica en el tablón: Corrección definitiva del fallo que mostraba a los alumnos bajo el alias BANCA_SISTEMA.',
+      'Minijuego Crash optimizado: El multiplicador arranca en 0.50x con aceleración suave y telemetría de osciloscopio.',
+      'Seguridad de privilegios: Los roles administrativos solo pueden asignarse mediante actualización directa en base de datos.',
+      'Secuencia de inducción ordenada: El recorrido de PUTOISAAC inicia estrictamente tras la verificación del puesto.',
+      'Acceso al terminal secreto: Eliminación de accesos visibles al Easter Egg, reservado como secreto para usuarios avanzados.',
     ];
   };
 
@@ -198,7 +199,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
       version: updateDetails?.version || '2.9.0',
       title: updateDetails?.title || 'Novedades de la versión',
       description: updateDetails?.description || 'Mejoras en el portal de 2º SMR.',
-      badge: 'VERSIÓN ACTUAL',
+      badge: 'ACTUAL',
       date: 'Hoy',
       changes: currentChangeList,
     };
