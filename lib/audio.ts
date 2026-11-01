@@ -27,13 +27,17 @@ class SoundFX {
 
   public unlockAudio() {
     userGestureUnlocked = true;
-    this.initCtx();
+    if (this.ctx && this.ctx.state === 'suspended') {
+      try {
+        this.ctx.resume().catch(() => {});
+      } catch {}
+    }
   }
 
   private initCtx(): boolean {
     if (typeof window === 'undefined') return false;
 
-    // Never initialize before user gesture to respect browser autoplay policies
+    // Never initialize before an explicit user gesture to respect browser autoplay policies
     if (!userGestureUnlocked) {
       return false;
     }
@@ -50,7 +54,9 @@ class SoundFX {
     }
 
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
+      try {
+        this.ctx.resume().catch(() => {});
+      } catch {}
     }
 
     return Boolean(this.ctx && this.ctx.state !== 'suspended');

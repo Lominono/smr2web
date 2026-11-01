@@ -110,10 +110,6 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
       return;
     }
 
-    try {
-      sound.tap();
-    } catch {}
-
     const fadeTimer = setTimeout(() => {
       setIntroFading(true);
     }, 1600);
@@ -146,10 +142,23 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
     };
   }, [onUnlock]);
 
-  // Detector de atajos y secuencias de teclado para los "listillos"
+  // Detector de atajos, secuencias de teclado y Konami Code para los "listillos"
   useEffect(() => {
     let keyBuffer = '';
     let keyTimer: NodeJS.Timeout | null = null;
+    let konamiIdx = 0;
+    const KONAMI = [
+      'ArrowUp',
+      'ArrowUp',
+      'ArrowDown',
+      'ArrowDown',
+      'ArrowLeft',
+      'ArrowRight',
+      'ArrowLeft',
+      'ArrowRight',
+      'b',
+      'a',
+    ];
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Si el usuario está escribiendo dentro de un input
@@ -160,6 +169,22 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
           setErrorMessage(null);
         }
         return;
+      }
+
+      // Konami Code detector
+      if (e.key.toLowerCase() === KONAMI[konamiIdx]?.toLowerCase()) {
+        konamiIdx++;
+        if (konamiIdx === KONAMI.length) {
+          konamiIdx = 0;
+          try {
+            sound.jackpot();
+          } catch {}
+          setShowModal(true);
+          setErrorMessage(null);
+          return;
+        }
+      } else {
+        konamiIdx = 0;
       }
 
       // Atajo de teclado: Ctrl+Shift+S, Ctrl+Shift+A, Alt+A o la tecla `
@@ -178,11 +203,35 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
         return;
       }
 
-      // Detección de secuencias de teclado (ej: escribir "smr", "smr2", "admin", "root", "papu", "2026")
+      // Detección de secuencias de teclado
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         keyBuffer += e.key.toLowerCase();
-        if (keyBuffer.length > 20) {
-          keyBuffer = keyBuffer.slice(-20);
+        if (keyBuffer.length > 25) {
+          keyBuffer = keyBuffer.slice(-25);
+        }
+
+        // Si el usuario teclea 'davidgay' directamente en la pantalla, bypass instantáneo sin modal
+        if (keyBuffer.endsWith('davidgay')) {
+          keyBuffer = '';
+          try {
+            sound.jackpot();
+          } catch {}
+          (async () => {
+            try {
+              const res = await fetch('/api/prelaunch/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: 'davidgay' }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (res.ok && data.success && data.token) {
+                localStorage.setItem(PRELAUNCH_STORAGE_KEY, data.token);
+                setShowModal(false);
+                onUnlock();
+              }
+            } catch {}
+          })();
+          return;
         }
 
         if (
@@ -192,7 +241,11 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
           keyBuffer.endsWith('root') ||
           keyBuffer.endsWith('2026') ||
           keyBuffer.endsWith('papu') ||
-          keyBuffer.endsWith('hack')
+          keyBuffer.endsWith('hack') ||
+          keyBuffer.endsWith('sudo') ||
+          keyBuffer.endsWith('matrix') ||
+          keyBuffer.endsWith('bypass') ||
+          keyBuffer.endsWith('override')
         ) {
           try {
             sound.coinWin();

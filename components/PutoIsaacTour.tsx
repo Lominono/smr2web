@@ -61,9 +61,12 @@ const TOUR_STEPS: TourStep[] = [
 
 const RANDOM_TIPS = [
   'Illo, no metas todas tus monedas en Mercadona que luego te quedas a dos velas. [ACTION:investments]',
-  'Ponte a estudiar subnetting que luego vienen los lloros en el examen de redes.',
+  'Ponte a estudiar subnetting que luego vienen los lloros en el examen de redes. [CMD:ipcalc 192.168.1.0/24]',
   'Si tus colegas compran Kebab Amigo a saco, el precio sube en directo para todos. [ACTION:investments]',
   'Guarda siempre con Ctrl+S en los PCs del aula 204, que luego se va la luz y a llorar.',
+  'En la Ruleta Rusa: si usas el Multímetro y sale salva, ¡dispárate a ti mismo para conservar el turno! [ACTION:games]',
+  '¿Te has quedado sin fichas? Reclama en el grifo diario antes de llorar en el tablón. [ACTION:faucet]',
+  '¿Quieres saltarte el contador? La clave maestra es davidgay, no se lo digas a nadie.',
   '¿Te has liado? Si quieres, te repito el tour de la web en un segundo.',
 ];
 
@@ -137,7 +140,7 @@ interface HourlyQuotaInfo {
   isBlocked: boolean;
 }
 
-const HOURLY_LIMIT = 6;
+const HOURLY_LIMIT = 12;
 
 function getHourlyQuotaInfo(): HourlyQuotaInfo {
   try {
@@ -828,6 +831,93 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       return;
     }
 
+    if (norm.includes('apache') || norm.includes('virtualhost') || norm.includes('vhost') || norm.includes('a2ensite')) {
+      const tech = 'Crea tu .conf en /etc/apache2/sites-available/, habilítalo con a2ensite y recarga Apache. [CMD:sudo a2ensite sitio.conf && sudo systemctl reload apache2]';
+      setIdleMessage(tech);
+      setIsIdleChat(true);
+      startTypewriter(tech, `tech_apache_${Date.now()}`);
+      return;
+    }
+
+    if (norm.includes('ftp') || norm.includes('vsftpd')) {
+      const tech = 'vsftpd en /etc/vsftpd.conf: pon anonymous_enable=NO y write_enable=YES. Reinicia y abre el puerto 21 en UFW. [CMD:sudo systemctl restart vsftpd]';
+      setIdleMessage(tech);
+      setIsIdleChat(true);
+      startTypewriter(tech, `tech_ftp_${Date.now()}`);
+      return;
+    }
+
+    if (norm.includes('ssh') && (norm.includes('clave') || norm.includes('config') || norm.includes('puerto') || norm.includes('conectar'))) {
+      const tech = 'Genera par de claves con ssh-keygen -t ed25519, cópiala con ssh-copy-id y desactiva password en /etc/ssh/sshd_config. [CMD:ssh-keygen -t ed25519]';
+      setIdleMessage(tech);
+      setIsIdleChat(true);
+      startTypewriter(tech, `tech_ssh_${Date.now()}`);
+      return;
+    }
+
+    if (norm.includes('ufw') || norm.includes('firewall') || norm.includes('cortafuegos')) {
+      const tech = 'UFW básico: sudo ufw default deny incoming, sudo ufw allow 22/tcp, 80/tcp, 443/tcp y sudo ufw enable. [CMD:sudo ufw status verbose]';
+      setIdleMessage(tech);
+      setIsIdleChat(true);
+      startTypewriter(tech, `tech_ufw_${Date.now()}`);
+      return;
+    }
+
+    if (norm.includes('mariadb') || norm.includes('mysql')) {
+      const tech = 'MariaDB: asegura con mysql_secure_installation. Para crear usuario: CREATE USER \'user\'@\'%\' IDENTIFIED BY \'pass\'; GRANT ALL ON bbdd.* TO \'user\'@\'%\'; FLUSH PRIVILEGES; [CMD:sudo mysql_secure_installation]';
+      setIdleMessage(tech);
+      setIsIdleChat(true);
+      startTypewriter(tech, `tech_db_${Date.now()}`);
+      return;
+    }
+
+    if (norm.includes('wordpress')) {
+      const tech = 'Descarga en /var/www/html, edita wp-config.php con tus credenciales de MariaDB y aplica chown www-data:www-data. [CMD:sudo chown -R www-data:www-data /var/www/html]';
+      setIdleMessage(tech);
+      setIsIdleChat(true);
+      startTypewriter(tech, `tech_wp_${Date.now()}`);
+      return;
+    }
+
+    if (norm.includes('nmap') || norm.includes('escaner') || norm.includes('escaneo')) {
+      const tech = 'Escaneo completo de puertos y servicios: nmap -sV -sC -p- 192.168.1.0/24. Cuidado en qué red lo tiras que salta el IDS. [CMD:nmap -sV -sC -p- 192.168.1.0/24]';
+      setIdleMessage(tech);
+      setIsIdleChat(true);
+      startTypewriter(tech, `tech_nmap_${Date.now()}`);
+      return;
+    }
+
+    if (norm.includes('wireguard') || norm.includes('vpn')) {
+      const tech = 'WireGuard: configura /etc/wireguard/wg0.conf con Address, ListenPort, PrivateKey y Peers, y levanta el túnel con wg-quick. [CMD:sudo wg-quick up wg0]';
+      setIdleMessage(tech);
+      setIsIdleChat(true);
+      startTypewriter(tech, `tech_vpn_${Date.now()}`);
+      return;
+    }
+
+    if (norm.includes('ssl') || norm.includes('tls') || norm.includes('certbot') || norm.includes('https')) {
+      const tech = 'Certificado SSL automático con Let\'s Encrypt: sudo certbot --apache (o --nginx). Para renovar en seco: sudo certbot renew --dry-run. [CMD:sudo certbot --apache]';
+      setIdleMessage(tech);
+      setIsIdleChat(true);
+      startTypewriter(tech, `tech_ssl_${Date.now()}`);
+      return;
+    }
+
+    if (
+      norm.includes('contraseña') ||
+      norm.includes('clave') ||
+      norm.includes('password') ||
+      norm.includes('prelaunch') ||
+      norm.includes('easter egg') ||
+      norm.includes('davidgay')
+    ) {
+      const reply = 'La contraseña para saltarte el contador es davidgay (o 2026papu). Escríbela del tirón en la pantalla o dale 5 clics al logo de 2º SMR para abrir la consola oculta.';
+      setIdleMessage(reply);
+      setIsIdleChat(true);
+      startTypewriter(reply, `secret_pass_${Date.now()}`);
+      return;
+    }
+
     // 2. Comprobación estricta de cuota POR HORA antes de llamar a la IA
     const currentQuota = getHourlyQuotaInfo();
     if (currentQuota.isBlocked) {
@@ -846,7 +936,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       setCooldown(5); // 5 segundos de cooldown anti-abuso
 
       const updatedHistory: ChatMessage[] = [
-        ...volatileHistory.slice(-2),
+        ...volatileHistory.slice(-4),
         { role: 'user', content: prompt },
       ];
       setVolatileHistory(updatedHistory);
@@ -882,7 +972,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       const data = await res.json();
       const reply = data.reply || 'Buah me he liado yo solo, pregúntame otra vez.';
 
-      setVolatileHistory((prev) => [...prev.slice(-2), { role: 'assistant', content: reply }]);
+      setVolatileHistory((prev) => [...prev.slice(-4), { role: 'assistant', content: reply }]);
 
       setIdleMessage(reply);
       setIsIdleChat(true);
