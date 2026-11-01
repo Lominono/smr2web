@@ -38,11 +38,9 @@ COMMIT;
 -- DESPUÉS DE EJECUTAR ESTO:
 -- ==============================================================
 -- 1. Entra a tu web y crea/inicia sesión con tu nuevo usuario.
--- 2. Ve a /admin e introduce la clave: 2026papu
---    ¡Tu cuenta pasará a ser Administrador automáticamente!
---
--- O si prefieres hacerlo directamente por SQL tras registrarte:
+-- 2. Asigna el rol de administrador directamente por SQL en la base de datos:
 -- UPDATE public.profiles
 -- SET role = 'admin', coins = 50000
 -- WHERE username = 'tu_usuario';
+-- (Por seguridad ya no se permite auto-otorgar rol de admin desde la interfaz web)
 -- ==============================================================

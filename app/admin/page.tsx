@@ -211,7 +211,7 @@ export default function AdminHackerPage() {
     // 5. Comando scan / nmap
     if (lower.startsWith('scan') || lower.startsWith('nmap')) {
       newHistory.push(
-        { text: '[*] Iniciando sondeo TCP SYN contra 192.168.204.1/24...', type: 'output' },
+        { text: '[*] Iniciando sondeo TCP SYN contra 192.168.35.1/24...', type: 'output' },
         { text: 'PUERTO 22/tcp   OPEN  OpenSSH 9.6p1 Debian-SMR2', type: 'output' },
         { text: 'PUERTO 80/tcp   OPEN  nginx/1.24.0 (Proxy inverso)', type: 'output' },
         { text: 'PUERTO 443/tcp  OPEN  Cloudflare HTTPS Edge', type: 'output' },
@@ -250,7 +250,7 @@ export default function AdminHackerPage() {
       if (!hexInput) {
         newHistory.push(
           { text: 'Uso: hex <cadena_hexadecimal>', type: 'system' },
-          { text: 'Ejemplo: hex 3230323670617075', type: 'output' }
+          { text: 'Ejemplo: hex 6461766964676179', type: 'output' }
         );
       } else {
         let asciiOutput = '';
@@ -280,7 +280,7 @@ export default function AdminHackerPage() {
       if (!b64Str) {
         newHistory.push(
           { text: 'Uso: base64 -d <cadena_base64>', type: 'system' },
-          { text: 'Ejemplo: base64 -d MjAyNnBhcHU=', type: 'output' }
+          { text: 'Ejemplo: base64 -d ZGF2aWRnYXk=', type: 'output' }
         );
       } else {
         try {
@@ -323,11 +323,11 @@ export default function AdminHackerPage() {
         newHistory.push(
           { text: '[VOLCADO EN BRUTO - DIRECCIÓN DE MEMORIA 0x00007FFF]', type: 'system' },
           { text: 'Offset    00 01 02 03 04 05 06 07', type: 'output' },
-          { text: '0x0000    32 30 32 36 70 61 70 75', type: 'output' },
+          { text: '0x0000    64 61 76 69 64 67 61 79', type: 'output' },
           { text: '', type: 'output' },
-          { text: 'CADENA HEX: 3230323670617075', type: 'output' },
-          { text: '(Pista: 8 bytes ASCII. Ej: 0x32 = \'2\', 0x70 = \'p\'...)', type: 'system' },
-          { text: 'Usa: \'hex 3230323670617075\' para decodificarlo o hazlo mentalmente.', type: 'system' }
+          { text: 'CADENA HEX: 6461766964676179', type: 'output' },
+          { text: '(Pista: 8 bytes ASCII. Ej: 0x64 = \'d\', 0x61 = \'a\'...)', type: 'system' },
+          { text: 'Usa: \'hex 6461766964676179\' para decodificarlo o hazlo mentalmente.', type: 'system' }
         );
       } else if (target.includes('auth') || target.includes('log') || target.includes('syslog')) {
         newHistory.push(
@@ -335,7 +335,7 @@ export default function AdminHackerPage() {
           { text: 'Oct 28 18:40:12 smr2-srv pam_smr2[812]: FORMATO = [CURSO]#[AULA].[ACCESO][AÑO]!', type: 'output' },
           { text: 'Oct 28 18:40:13 smr2-srv pam_smr2[812]: Parámetros requeridos para deducirla:', type: 'output' },
           { text: '  1. [CURSO]   -> Ciclo actual en mayúsculas (ej: SMR2)', type: 'output' },
-          { text: '  2. [AULA]    -> Hostname asignado en /etc/hosts (ej: Aula204)', type: 'output' },
+          { text: '  2. [AULA]    -> Hostname asignado en /etc/hosts (ej: Aula35)', type: 'output' },
           { text: '  3. [ACCESO]  -> Palabra clave \'Acceso\'', type: 'output' },
           { text: '  4. [AÑO]     -> Año de promoción en \'uname -a\' (ej: 2026)', type: 'output' },
           { text: '  5. Sufijo obligatorio final: \'!\'', type: 'output' },
@@ -344,8 +344,8 @@ export default function AdminHackerPage() {
       } else if (target.includes('hosts') || target.includes('hostname')) {
         newHistory.push(
           { text: '127.0.0.1       localhost smr2-srv', type: 'output' },
-          { text: '192.168.204.1   gateway.smr2.local', type: 'output' },
-          { text: '192.168.204.204 aula204.smr2.lan      # Servidor DHCP del aula asignada', type: 'output' }
+          { text: '192.168.35.1    gateway.smr2.local', type: 'output' },
+          { text: '192.168.35.35   aula35.smr2.lan      # Servidor DHCP del aula asignada', type: 'output' }
         );
       } else if (target.includes('shadow') || target.includes('passwd')) {
         newHistory.push(
@@ -379,14 +379,14 @@ export default function AdminHackerPage() {
       const term = parts[1]?.toLowerCase();
       if (!term) {
         newHistory.push({ text: 'Uso: grep <término> <archivo>', type: 'system' });
-      } else if (term.includes('aula') || term.includes('host') || term.includes('204')) {
+      } else if (term.includes('aula') || term.includes('host') || term.includes('35')) {
         newHistory.push(
-          { text: '192.168.204.204 aula204.smr2.lan      # Servidor DHCP del aula asignada', type: 'success' }
+          { text: '192.168.35.35 aula35.smr2.lan      # Servidor DHCP del aula asignada', type: 'success' }
         );
       } else if (term.includes('formato') || term.includes('curso') || term.includes('pam')) {
         newHistory.push(
           { text: 'FORMATO = [CURSO]#[AULA].[ACCESO][AÑO]!', type: 'success' },
-          { text: 'Parámetros: SMR2 + # + Aula204 + . + Acceso + 2026 + !', type: 'output' }
+          { text: 'Parámetros: SMR2 + # + Aula35 + . + Acceso + 2026 + !', type: 'output' }
         );
       } else {
         newHistory.push({ text: `grep: no se encontraron coincidencias para '${parts[1]}'`, type: 'output' });

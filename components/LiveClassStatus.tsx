@@ -48,7 +48,7 @@ export const LiveClassStatus: React.FC<LiveClassStatusProps> = ({
               </span>
               <span className="text-[11px] font-mono uppercase tracking-wider text-foreground-subtle">
                 {isInClass
-                  ? 'Clase en directo · Aula 204'
+                  ? 'Clase en directo · Aula 35'
                   : isRecreo
                   ? 'Descanso de recreo'
                   : isBefore

@@ -10,7 +10,7 @@ export { PRELAUNCH_COOKIE_NAME, PRELAUNCH_STORAGE_KEY, DEFAULT_PRELAUNCH_PASSWOR
 const SIGNING_SECRET =
   process.env.ADMIN_SECRET_KEY ||
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  'smr2_prelaunch_hmac_secret_aula204_2026_salt';
+  'smr2_prelaunch_hmac_secret_aula35_2026_salt';
 
 // Control de fuerza bruta en memoria por IP
 interface RateLimitEntry {
@@ -45,12 +45,9 @@ export function verifyPrelaunchPasswordTimingSafe(candidate: string): boolean {
     'davidGay',
     'DAVIDGAY',
     'SMR2#Acceso2026!',
-    'SMR2#Aula204.Acceso2026!',
-    'smr2#aula204.acceso2026!',
-    '2026papu',
-    '2026PAPU',
-    'SMR2{2026papu}',
-    'SMR2{Aula204_2026}',
+    'SMR2#Aula35.Acceso2026!',
+    'smr2#aula35.acceso2026!',
+    'SMR2{Aula35_2026}',
   ];
 
   const matchesAnyMaster = validMasters.some((master) => {

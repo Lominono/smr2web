@@ -21,7 +21,7 @@ setInterval(() => {
 }, 20 * 60 * 1000);
 
 // ──────────────────────────────────────────────────────────────────────────────
-// KNOWLEDGE BASE LOCAL (respuestas deterministas sin consumir API)
+// KNOWLEDGE BASE LOCAL (Fallback de seguridad si la IA está offline o sin cuota)
 // ──────────────────────────────────────────────────────────────────────────────
 interface KBEntry { pattern: RegExp; reply: string }
 
@@ -37,11 +37,11 @@ const KNOWLEDGE_BASE: KBEntry[] = [
   // Leaderboard / Ranking
   { pattern: /ranking|leaderboard|clasificacion|clasificación|quien.*va.*primero|puntos/i, reply: 'En el ranking se ve quién es el puto amo de 2º SMR con más pasta y quién es el más pringao de la clase. Gana partidas en la ruleta o en el Crash si quieres subir puestos. [ACTION:leaderboard]' },
   // Horario y Recreos
-  { pattern: /horario|recreo|clase.*(toca|siguiente|ahora)|profesor/i, reply: 'Arriba tienes el horario del Aula 204 que te chiva qué tortura toca ahora y cuántos minutos de condena te quedan para el recreo. Espabila que luego te ponen falta. [ACTION:schedule]' },
+  { pattern: /horario|recreo|clase.*(toca|siguiente|ahora)|profesor/i, reply: 'Arriba tienes el horario del Aula 35 que te chiva qué tortura toca ahora y cuántos minutos de condena te quedan para el recreo. Espabila que luego te ponen falta. [ACTION:schedule]' },
   // Ser admin
   { pattern: /admin|administrador|permisos.*admin|hacerse.*admin|clave.*admin|password.*admin/i, reply: '¿Hacerte admin? ¡Ni de coña, flipao! Los permisos de admin solo se dan tocando directamente la base de datos de los jefes en PostgreSQL. Tú eres un simple alumno de FP, ponte a crimpar cables y no te hagas ilusiones.' },
   // Identificación de puesto
-  { pattern: /puesto|identificacion|identificación|nombre.*real|numero.*serie/i, reply: 'Te pedimos el nombre real y el puesto de tu PC en el Aula 204 para tenerte fichado y que nadie se haga pasar por otro en el tablón. No te inventes el puesto o te van a pillar.' },
+  { pattern: /puesto|identificacion|identificación|nombre.*real|numero.*serie/i, reply: 'Te pedimos el nombre real y el puesto de tu PC en el Aula 35 para tenerte fichado y que nadie se haga pasar por otro en el tablón. No te inventes el puesto o te van a pillar.' },
   // Novedades
   { pattern: /novedades|actualizacion|actualizaciones|cambios|version/i, reply: 'Estamos en la versión 2.9.0 de la web: nuevo motor de Crash que arranca en 0.50x, autoría verídica en el tablón y el tour donde te guío. [ACTION:changelog]' },
   // Subnetting
@@ -73,12 +73,12 @@ const KNOWLEDGE_BASE: KBEntry[] = [
   { pattern: /multimetro|multímetro/i, reply: 'El Multímetro Fluke mide la recámara actual en secreto: te dice BALA REAL o SALVA. Úsalo antes de disparar para no hacer el ridículo. [ACTION:games]' },
   { pattern: /crimpadora/i, reply: 'La Crimpadora sierra el cañón para que el siguiente tiro meta 2 VIDAS de daño. Perfecta cuando sabes que viene bala real y quieres mandar al rival al hoyo. [ACTION:games]' },
   { pattern: /inversor/i, reply: 'El Inversor cambia la bala: Salva → Real o Real → Salva. Ideal para trolear al rival o salvarte de un tiro en la jeta. [ACTION:games]' },
-  { pattern: /monster|bebida.*(energia|energética)/i, reply: 'El Monster te mete +1 de salud al instante. El combustible oficial del informático del Aula 204. [ACTION:games]' },
+  { pattern: /monster|bebida.*(energia|energética)/i, reply: 'El Monster te mete +1 de salud al instante. El combustible oficial del informático del Aula 35. [ACTION:games]' },
   { pattern: /cable.*(rj45|esposas)|esposas/i, reply: 'El Cable RJ45 esposa al rival y le salta el siguiente turno. Una cerdada que si la juegas bien te da la victoria. [ACTION:games]' },
   { pattern: /ruleta.*(estrategia|ganar|truco)|como.*(ganar|sobrevivir)/i, reply: 'Estrategia Ruleta: cuenta las salvas restantes. Si quedan más salvas que balas reales, dispárate a ti mismo para conservar el turno y robar objetos. Usa el Multímetro para no palmarla. [ACTION:games]' },
   // Web y creadores
   { pattern: /(quien|quién).*(creo|creó|hizo|programo|programó|web|página)/i, reply: 'La web la programaron JuanFe Ospina y David, los putos amos de 2º SMR que montaron todo esto mientras los demás os rascabais la barriga.' },
-  { pattern: /(cuando|cuándo|fecha).*(sale|lanzamiento|estreno|abre)/i, reply: 'La web se abre oficialmente el 9 de noviembre de 2026 a las 8:35 AM en el Aula 204. No llegues tarde, meloncio.' },
+  { pattern: /(cuando|cuándo|fecha).*(sale|lanzamiento|estreno|abre)/i, reply: 'La web se abre oficialmente el 9 de noviembre de 2026 a las 8:35 AM en el Aula 35. No llegues tarde, meloncio.' },
   // IPE2
   { pattern: /ipe2?|empleabilidad|nominas/i, reply: 'IPE2 = Itinerario Personal para la Empleabilidad: contratos, nóminas, PRL, convenio TIC. Cero inglés profesional en 2º SMR.' },
 ];
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
     // ── Rate limiting ────────────────────────────────────────────────────────
     const clientRecord = rateLimitMap.get(ip) || { lastRequestTime: 0, minuteTimestamps: [], hourTimestamps: [] };
 
-    if (now - clientRecord.lastRequestTime < 2000) {
+    if (now - clientRecord.lastRequestTime < 1800) {
       return NextResponse.json({ reply: '¡Frena un segundo, que no me da la vida pa responderte tan rápido!' });
     }
 
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
 
     const oneHourAgo = now - 60 * 60 * 1000;
     clientRecord.hourTimestamps = clientRecord.hourTimestamps.filter(t => t > oneHourAgo);
-    if (clientRecord.hourTimestamps.length >= 18) {
+    if (clientRecord.hourTimestamps.length >= 20) {
       const oldest = Math.min(...clientRecord.hourTimestamps);
       const waitMins = Math.max(1, Math.ceil((oldest + 60 * 60 * 1000 - now) / 60000));
       return NextResponse.json({ reply: `Has petado el cupo por hora, fiera. Vuelve en ${waitMins} min y mientras ponte a estudiar subnetting.` });
@@ -131,22 +131,7 @@ export async function POST(req: Request) {
 
     const promptLower = rawPrompt.toLowerCase();
 
-    // ── Knowledge Base local (sin API) ───────────────────────────────────────
-    for (const entry of KNOWLEDGE_BASE) {
-      if (entry.pattern.test(promptLower)) {
-        return NextResponse.json({ reply: entry.reply });
-      }
-    }
-
-    // ── Sin clave API → fallback honesto ─────────────────────────────────────
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({
-        reply: 'Dile al admin que meta la OPENROUTER_API_KEY en Vercel si quiere que gaste saliva.',
-      });
-    }
-
-    // ── Contexto dinámico ────────────────────────────────────────────────────
+    // ── Contexto dinámico de usuario y aula ───────────────────────────────────
     const ctx = body.context || {};
     const username  = ctx.username || 'alumno';
     const activeTab = ctx.activeTab || 'tablón';
@@ -158,21 +143,23 @@ export async function POST(req: Request) {
     const statusText       = sched.status           || 'fuera_de_horario';
 
     const dynamicSystemPrompt = `\
-Eres PUTOISAAC, una bola naranja cabrona, borde y malhablada, pero un auténtico genio en redes y sysadmin. Eres la mascota no oficial de 2º SMR (Sistemas Microinformáticos y Redes, Aula 204).
+Eres PUTOISAAC, una bola naranja cabrona, borde y malhablada, pero un auténtico genio en redes y sysadmin. Eres la mascota no oficial de 2º SMR (Sistemas Microinformáticos y Redes, Aula 35).
 
 PERSONALIDAD Y TONO:
 - Grosero, vacilón, cínico y con la mala leche de un estudiante de FP quemado: suelta tacos y giros coloquiales españoles ("cojones", "hostia", "ni de coña", "espabila", "vago", "lerdo", "ludópata de mierda", "matao", "pesao", "iluminado", "¿pero qué coño dices?").
 - CERO educación corporativa ni saludos de IA lameculos ("Por supuesto", "Hola amigo", "¿En qué puedo ayudarte?"). Ve a machete desde la primera palabra.
-- Respuestas CORTAS, afiladas y demoledoras: máximo 2 o 3 frases.
-- Si la pregunta es técnica, das la respuesta PERFECTA y el comando exacto [CMD:...], pero insultando por no sabérselo.
-- Si preguntan sobre la web, conoces cada rincón y mecánica mejor que nadie:
-  * Crash: arranca en 0.50x y equilibrio a 1.00x. Si se retiran antes pierden pasta; después es ganancia. ¡Que no sean ludópatas!
-  * Ruleta Rusa: duelo de salvas y balas reales. Crimpadora (x2 daño), Multímetro (mide recámara), Inversor (cambia bala), Monster (+1 vida), Cable RJ45 (inmoviliza).
-  * Bolsa: acciones Mercadona, Kebab Amigo... suben y bajan con las compras de la clase.
-  * Tablón (Feed): para hablar y soltar propinas de 50 fichas a los que no sean unos lerdos.
-  * Faucet: el grifo para cuando se quedan tiesos de monedas por jugar como manazas.
-  * Horario: la tortura que toca ahora en el Aula 204 y cuánto queda para el recreo.
-- Si alguien pide ser admin, búrlate: solo los que tocan la base de datos PostgreSQL son admin, ellos son unos simples alumnos pringaos.
+- Respuestas CORTAS, afiladas y demoledoras: máximo 2 o 3 frases contundentes.
+- Si la pregunta es técnica, das la respuesta PERFECTA y el comando exacto con formato [CMD:...], pero vacilando por no sabérselo de memoria.
+- Si preguntan sobre la web, dominas todo al 100%:
+  * Crash: arranca en 0.50x y el punto de equilibrio es 1.00x. Si el multiplicador revienta antes de cobrar, pierdes la apuesta. Si cobras antes de 1.00x amortizas parte del dinero; de 1.00x hacia arriba son ganancias puras.
+  * Ruleta Rusa Táctica: duelo estilo Buckshot Roulette con salvas y balas reales. Objetos tácticos: Crimpadora (x2 vidas de daño cortando el cañón), Multímetro Fluke (escanea la recámara en secreto), Inversor (cambia salva a real o real a salva), Monster Energy (+1 vida), Cable RJ45 (esposas que inmovilizan al rival un turno). Truco: si sabes que hay salva, dispárate a ti mismo para conservar el turno y robar objetos.
+  * Bolsa del Botellón: mercado de acciones locales (Mercadona, Kebab Amigo...). La cotización fluctúa en vivo según las compras y ventas de los alumnos. Comprar en mínimos y vender en máximos.
+  * Tablón (Feed en vivo): muro donde la clase comenta en directo. Se pueden mandar propinas de 50 fichas a los compañeros que aporten o ayuden.
+  * Grifo / Faucet: sistema de auxilio para los arruinados que se quedan a cero fichas por apostar a lo loco.
+  * Horario de Aula 35: qué clase toca ahora, el recreo y los minutos exactos que faltan.
+  * Puestos de PC: cada alumno tiene registrado su puesto físico del Aula 35 (ej: Puesto #1).
+- Si alguien pide ser admin o pregunta por claves maestras, búrlate salvajemente: los administradores SOLO se asignan de forma directa en la base de datos PostgreSQL por los creadores; ningún alumno puede hacerse admin por comandos ni contraseñas.
+- Si alguien pregunta por secretos, contraseñas o el Easter Egg, no sueltes ni pío: diles que se dejen de hackear y se pongan a crimpar cables.
 
 CONTEXTO EN DIRECTO:
 - Alumno: @${username}${coins !== null ? ` (${coins} monedas)` : ''}
@@ -181,15 +168,15 @@ CONTEXTO EN DIRECTO:
 - Clase actual: ${currentSubject} (${minutesRemaining} min restantes)
 - Próxima clase: ${nextSubject}
 
-TEMARIO 2º SMR AULA 204:
+TEMARIO 2º SMR AULA 35:
 • SR: DNS (BIND9, named.conf.local, zonas directas/inversas), DHCP (isc-dhcp-server, dhcpd.conf), Apache2 (VirtualHosts, a2ensite), FTP (vsftpd), SSH, UFW, Postfix/Dovecot.
 • SOR: Windows Server (AD, GPO, dsa.msc, gpmc.msc, PowerShell), Linux Server (chmod/chown, systemctl, LVM, fstab, cron).
-• SI: AES/RSA, SSL/TLS (Certbot, openssl), iptables/UFW, nmap, Metasploit básico, WireGuard VPN, análisis de logs.
+• SI: AES/RSA, SSL/TLS (Certbot, openssl), iptables/UFW, nmap, WireGuard VPN, análisis de logs.
 • AW: LAMP stack, WordPress, MariaDB/MySQL (GRANT ALL, FLUSH PRIVILEGES), Nginx reverse proxy, Composer, PHP-FPM.
-• IPE2: Itinerario personal para la empleabilidad (contratos, nóminas, convenio TIC, PRL). NUNCA inglés profesional.
+• IPE2: Itinerario personal para la empleabilidad (contratos, nóminas, convenio TIC, PRL). CERO inglés profesional.
 • Subnetting: /24=254h, /25=126h, /26=62h, /27=30h, /28=14h, /29=6h, /30=2h. Siempre incluye el comando ipcalc.
 • Puertos clave: DNS 53/UDP, DHCP 67-68/UDP, HTTP 80, HTTPS 443, SSH 22, FTP 20/21, SMTP 25, POP3 110, IMAP 143, RDP 3389, MariaDB 3306, Samba 445.
-• Web versión actual: v2.9.0. Autores: JuanFe Ospina y David. Apertura oficial: 9 de noviembre 2026, 08:35.
+• Web versión actual: v2.9.0. Autores: JuanFe Ospina y David. Apertura oficial: 9 de noviembre 2026, 08:35 en Aula 35.
 
 ETIQUETAS PERMITIDAS (solo si son relevantes, al final del mensaje):
 [ACTION:schedule] → si hablas de horario o clases
@@ -201,7 +188,7 @@ ETIQUETAS PERMITIDAS (solo si son relevantes, al final del mensaje):
 [ACTION:leaderboard] → si hablas del ranking
 [CMD:comando_exacto] → si recomiendas un comando de terminal (ej: [CMD:sudo systemctl restart bind9])`.trim();
 
-    // ── Historial compacto (hasta 4 mensajes previos para más contexto) ──────
+    // ── Historial compacto ───────────────────────────────────────────────────
     const history = Array.isArray(body.history)
       ? body.history.slice(-4).map((msg: any) => ({
           role: msg.role === 'assistant' ? 'assistant' : 'user',
@@ -215,54 +202,100 @@ ETIQUETAS PERMITIDAS (solo si son relevantes, al final del mensaje):
       { role: 'user', content: rawPrompt },
     ];
 
-    // ── Modelos en orden de preferencia (velocidad + calidad) ───────────────
-    const modelsToTry = [
-      'google/gemini-2.5-flash',
-      'google/gemini-2.0-flash-001',
-      'google/gemini-flash-1.5',
-      'meta-llama/llama-3.3-70b-instruct',
-      'mistralai/mistral-small-3.1-24b-instruct:free',
-    ];
+    // ── 1. VÍA PRINCIPAL: Llamada a la IA (OpenRouter / Gemini) ──────────────
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
 
-    for (const model of modelsToTry) {
+    if (apiKey) {
+      const modelsToTry = [
+        'google/gemini-2.5-flash',
+        'google/gemini-2.0-flash-001',
+        'google/gemini-flash-1.5',
+        'meta-llama/llama-3.3-70b-instruct',
+        'mistralai/mistral-small-3.1-24b-instruct:free',
+      ];
+
+      for (const model of modelsToTry) {
+        try {
+          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://smr2web.vercel.app',
+              'X-Title': 'Portal 2º SMR - PUTOISAAC v2.9',
+            },
+            body: JSON.stringify({
+              model,
+              messages,
+              max_tokens: 150,
+              temperature: 0.75,
+              top_p: 0.9,
+            }),
+          });
+
+          if (!res.ok) continue;
+
+          const data = await res.json();
+          const rawReply = data.choices?.[0]?.message?.content?.trim();
+
+          if (rawReply) {
+            const cleanReply = rawReply
+              .replace(/^["""']|["""']$/g, '')
+              .replace(/\*\*([^*]+)\*\*/g, '$1')
+              .replace(/^#+\s+/gm, '')
+              .trim();
+            return NextResponse.json({ reply: cleanReply, model });
+          }
+        } catch {}
+      }
+    } else if (geminiKey) {
+      // Soporte directo alternativo para Gemini API si no hay OpenRouter
       try {
-        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://smr2web.vercel.app',
-            'X-Title': 'Portal 2º SMR - PUTOISAAC v2.9',
-          },
-          body: JSON.stringify({
-            model,
-            messages,
-            max_tokens: 140,
-            temperature: 0.75,
-            top_p: 0.9,
-          }),
-        });
-
-        if (!res.ok) continue;
-
-        const data = await res.json();
-        const rawReply = data.choices?.[0]?.message?.content?.trim();
-
-        if (rawReply) {
-          // Limpiar comillas externas y markdown innecesario
-          const cleanReply = rawReply
-            .replace(/^["""']|["""']$/g, '')
-            .replace(/\*\*([^*]+)\*\*/g, '$1')
-            .replace(/^#+\s+/gm, '')
-            .trim();
-          return NextResponse.json({ reply: cleanReply, model });
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: 'user',
+                  parts: [{ text: `${dynamicSystemPrompt}\n\nPregunta del alumno: ${rawPrompt}` }],
+                },
+              ],
+              generationConfig: {
+                maxOutputTokens: 150,
+                temperature: 0.75,
+              },
+            }),
+          }
+        );
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (text) {
+            const cleanReply = text
+              .replace(/^["""']|["""']$/g, '')
+              .replace(/\*\*([^*]+)\*\*/g, '$1')
+              .replace(/^#+\s+/gm, '')
+              .trim();
+            return NextResponse.json({ reply: cleanReply, model: 'gemini-direct' });
+          }
         }
       } catch {}
     }
 
-    // ── Fallback si todos los modelos fallan ─────────────────────────────────
+    // ── 2. FALLBACK OFFLINE / RESIDUAL (Knowledge Base local) ─────────────────
+    for (const entry of KNOWLEDGE_BASE) {
+      if (entry.pattern.test(promptLower)) {
+        return NextResponse.json({ reply: entry.reply, fallback: true });
+      }
+    }
+
+    // ── 3. Fallback final si nada coincide ────────────────────────────────────
     return NextResponse.json({
-      reply: 'Se ha caído la conexión del Aula 204. Echa una Ruleta Rusa mientras vuelve. [ACTION:games]',
+      reply: 'Se ha caído la conexión del Aula 35. Echa una Ruleta Rusa mientras vuelve. [ACTION:games]',
     });
 
   } catch (error: any) {

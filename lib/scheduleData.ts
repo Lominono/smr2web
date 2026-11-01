@@ -301,6 +301,6 @@ export function getCurrentScheduleStatus(now: Date = new Date()): LiveScheduleSt
     elapsedMinutes: 0,
     totalSlotMinutes: 0,
     progressPercent: 100,
-    message: 'Horario escolar SMR2 · Aula 204',
+    message: 'Horario escolar SMR2 · Aula 35',
   };
 }

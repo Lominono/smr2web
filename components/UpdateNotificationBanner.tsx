@@ -234,7 +234,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
                     </span>
                   </div>
                   <p className="text-[11px] text-foreground-muted truncate">
-                    Registro de desarrollo y mejoras del aula 204.
+                    Registro de desarrollo y mejoras del aula 35.
                   </p>
                 </div>
               </div>
@@ -328,7 +328,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
             {/* Pie de acciones del modal */}
             <div className="px-5 py-3.5 border-t border-border bg-surface-raised/30 flex items-center justify-between gap-3">
               <div className="text-[11px] text-foreground-subtle font-mono hidden sm:block">
-                SMR2 Web · Aula 204
+                SMR2 Web · Aula 35
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">

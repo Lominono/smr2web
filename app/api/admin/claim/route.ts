@@ -25,11 +25,9 @@ const BASE_ADMIN_KEYS = [
   'davidgay',
   process.env.ADMIN_PASSWORD,
   process.env.ADMIN_ACCESS_CODE,
-  'SMR2#Aula204.Acceso2026!',
-  '2026papu',
-  'SMR2{2026papu}',
-  'SMR2{Aula204_2026}',
-  'SMR2{SMR2#Aula204.Acceso2026!}',
+  'SMR2#Aula35.Acceso2026!',
+  'SMR2{Aula35_2026}',
+  'SMR2{SMR2#Aula35.Acceso2026!}',
 ]
   .filter(Boolean)
   .map((k) => String(k).trim());

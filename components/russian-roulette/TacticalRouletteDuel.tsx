@@ -95,7 +95,7 @@ export const RIVALS: RivalProfile[] = [
     id: 'delegado',
     name: 'Marcos',
     nickname: 'El Delegado de Clase',
-    title: 'Autoridad Suprema del Aula 204',
+    title: 'Autoridad Suprema del Aula 35',
     bet: 800,
     maxHp: 4,
     difficulty: 'Boss',

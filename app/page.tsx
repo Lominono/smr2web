@@ -126,17 +126,24 @@ export default function Home() {
   // Real-time presence hook (tracks active user view and aggregates online classmates)
   const { onlineUsers, onlineCount } = useRealtimePresence(user, activeView);
 
-  // Easter Egg secreto - Disparador de 5 taps para los ms listos
+  // Easter Egg secreto - Disparador forense restringido para los más observadores y técnicos
   const secretTapCountRef = useRef(0);
   const secretTapTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSecretTrigger = useCallback(() => {
     secretTapCountRef.current += 1;
     if (secretTapTimerRef.current) clearTimeout(secretTapTimerRef.current);
-    if (secretTapCountRef.current >= 5) {
+    if (secretTapCountRef.current >= 9) {
       secretTapCountRef.current = 0;
-      try { sound.tap(); } catch {}
-      window.location.href = '/admin';
+      const code = window.prompt('[GATEWAY KERNEL ttyS0 - AUTH REQUIRED]\nIntroduzca comando o token criptográfico de enlace:');
+      if (
+        code &&
+        (code.trim().toLowerCase() === 'ssh root@aula35' ||
+          code.trim().toLowerCase() === 'davidgay')
+      ) {
+        try { sound.tap(); } catch {}
+        window.location.href = '/admin';
+      }
       return;
     }
     secretTapTimerRef.current = setTimeout(() => {
@@ -144,7 +151,7 @@ export default function Home() {
     }, 2000);
   }, []);
 
-  // Atajos de teclado hacker ('david', 'root', Ctrl+Shift+~ o Ctrl+Alt+S) y telemetra de consola
+  // Atajos de terminal encubiertos ('ssh root@aula35', 'sudo su -' o Ctrl+Alt+Shift+A) y telemetra crptica
   useEffect(() => {
     let keyBuffer = '';
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -152,17 +159,14 @@ export default function Home() {
       if (tag === 'input' || tag === 'textarea' || (e.target as HTMLElement)?.isContentEditable) {
         return;
       }
-      if (
-        (e.ctrlKey && e.shiftKey && (e.key === '`' || e.key === '~')) ||
-        (e.ctrlKey && e.altKey && e.key.toLowerCase() === 's')
-      ) {
+      if (e.ctrlKey && e.altKey && e.shiftKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         try { sound.tap(); } catch {}
         window.location.href = '/admin';
         return;
       }
-      keyBuffer = (keyBuffer + e.key.toLowerCase()).slice(-5);
-      if (keyBuffer === 'david' || keyBuffer.endsWith('root')) {
+      keyBuffer = (keyBuffer + e.key.toLowerCase()).slice(-20);
+      if (keyBuffer.endsWith('ssh root@aula35') || keyBuffer.endsWith('sudo su -')) {
         try { sound.tap(); } catch {}
         window.location.href = '/admin';
       }
@@ -171,9 +175,9 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown);
 
     console.log(
-      '%c[SMR2 KERNEL]%c Gateway ttyS0 en escucha. ¿Buscas el acceso oculto? Hay una terminal disponible en /admin (Atajos: 5 clics en pie o teclea \'david\').',
+      '%c[kernel]%c eth0: 192.168.35.1/24 up. SMR2 diagnostic sub-system armed. Diagnostic shell ttyS0 status: LISTEN.',
       'color: #10b981; font-weight: bold; font-family: monospace;',
-      'color: #71717a; font-family: monospace;'
+      'color: #52525b; font-family: monospace;'
     );
 
     return () => {
@@ -2139,9 +2143,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div
-              onClick={handleSecretTrigger}
-              className="w-6 h-6 flex items-center justify-center shrink-0 cursor-pointer select-none"
-              title="SMR2 Core"
+              className="w-6 h-6 flex items-center justify-center shrink-0 select-none"
             >
               <img src="/logo.png" alt="SMR2" className="w-full h-full object-contain drop-shadow-xs" />
             </div>
@@ -2149,9 +2151,7 @@ export default function Home() {
           </div>
 
           <div
-            onClick={handleSecretTrigger}
-            className="text-center sm:text-right space-y-0.5 cursor-pointer select-none"
-            title="Creditos del sistema"
+            className="text-center sm:text-right space-y-0.5 select-none"
           >
             <p className="text-xs text-foreground">
               Desarrollado y creado por <strong className="text-amber-500 font-semibold">JuanFe Ospina</strong> y <strong className="text-amber-500 font-semibold">David</strong>
@@ -2175,9 +2175,9 @@ export default function Home() {
             <span
               onClick={handleSecretTrigger}
               className="hover:text-foreground transition-colors cursor-pointer select-none"
-              title="Terminal de enlace"
+              title="Aula 35"
             >
-              Aula 204
+              Aula 35
             </span>
           </div>
         </div>

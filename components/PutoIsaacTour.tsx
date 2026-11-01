@@ -63,7 +63,7 @@ const RANDOM_TIPS = [
   'El Crash arranca en 0.50x. Si eres un cagón cobras en 0.70x, pero el equilibrio es 1.00x. No seas ludópata. [ACTION:games]',
   'Ponte a estudiar subnetting que luego vienen los lloros en el examen de redes. [CMD:ipcalc 192.168.1.0/24]',
   'Si tus colegas compran Kebab Amigo a saco, el precio sube en directo para todos. [ACTION:investments]',
-  'Guarda siempre con Ctrl+S en los PCs del aula 204, que luego se va la luz y a llorar.',
+  'Guarda siempre con Ctrl+S en los PCs del aula 35, que luego se va la luz y a llorar.',
   'En la Ruleta Rusa: si usas el Multímetro y sale salva, ¡dispárate a ti mismo para conservar el turno, espabila! [ACTION:games]',
   '¿Te has quedado sin fichas por apostar como un mono? Reclama en el grifo diario antes de llorar en el tablón. [ACTION:faucet]',
   'En el tablón puedes responder a tus compañeros y soltar propinas de 50 fichas al que no sea un lerdo. [ACTION:chat]',
@@ -302,6 +302,62 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
   const [talkPhoneme, setTalkPhoneme] = useState<number>(0);
   const mascotRef = useRef<HTMLDivElement | null>(null);
 
+  // Estados de animación procedural en reposo (idle)
+  const [idleAction, setIdleAction] = useState<'normal' | 'look_left' | 'look_right' | 'yawn' | 'hop' | 'curious'>('normal');
+
+  // Ciclo de animaciones procedurales periódicas cuando PUTOISAAC no está haciendo nada
+  useEffect(() => {
+    if (isTalking || isAiLoading || isSquishing) {
+      setIdleAction('normal');
+      return;
+    }
+
+    let resetTimer: NodeJS.Timeout;
+    const interval = setInterval(() => {
+      if (isTalking || isAiLoading || isSquishing) return;
+
+      const actions: ('look_left' | 'look_right' | 'yawn' | 'hop' | 'curious')[] = [
+        'look_left',
+        'look_right',
+        'yawn',
+        'hop',
+        'curious',
+      ];
+      const randomAction = actions[Math.floor(Math.random() * actions.length)];
+      setIdleAction(randomAction);
+
+      const duration = randomAction === 'yawn' ? 2400 : 1800;
+      resetTimer = setTimeout(() => {
+        setIdleAction('normal');
+      }, duration);
+    }, 5500 + Math.random() * 3500);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(resetTimer);
+    };
+  }, [isTalking, isAiLoading, isSquishing]);
+
+  // Smart Docking: detectar desplazamiento del usuario para acomodarse discretamente
+  const [isScrolling, setIsScrolling] = useState<boolean>(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolling(true);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsScrolling(false);
+      }, 700);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
+  }, []);
+
   // Seguimiento ocular interactivo del cursor
   useEffect(() => {
     let animFrame: number;
@@ -429,7 +485,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     if (stepIdx === 0) {
       if (currentUser?.full_name || currentUser?.student_number) {
         const firstName = currentUser.full_name ? currentUser.full_name.trim().split(' ')[0] : (currentUser.username || 'socio');
-        const seatText = currentUser.student_number ? `Puesto #${currentUser.student_number}` : 'Aula 204';
+        const seatText = currentUser.student_number ? `Puesto #${currentUser.student_number}` : 'Aula 35';
         return {
           title: `¡Epa, ${firstName}!`,
           text: `¡${seatText} registrado! Soy PUTOISAAC, el asistente de 2º SMR. Te enseño esto en dos patadas para que no te pierdas el primer día.`,
@@ -628,386 +684,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
     const norm = prompt.toLowerCase();
 
-    // 1. RECONOCIMIENTO DIRECTO DE INTENCIONES (0 latencia, 0 tokens gastados)
-    // Horario / Clases / Tiempo restante
-    if (
-      norm.includes('cuanto queda') ||
-      norm.includes('cuánto queda') ||
-      norm.includes('cuanto falta') ||
-      norm.includes('cuándo salimos') ||
-      norm.includes('cuando salimos')
-    ) {
-      const sched = getCurrentScheduleStatus();
-      let reply = '';
-      if (sched.status === 'in_class') {
-        reply = `Quedan exactamente ${sched.minutesRemaining} minutos de ${sched.currentSubject?.name || 'clase'}. Luego viene ${sched.nextSubject?.name || 'recreo'}. Aguanta un poco fiera. [ACTION:schedule]`;
-      } else if (sched.status === 'recreo') {
-        reply = `¡Estáis de recreo / descanso! Próxima clase: ${sched.nextSubject?.name || 'la siguiente hora'}. Aprovecha y despeja la cabeza. [ACTION:schedule]`;
-      } else {
-        reply = `Ahora mismo no hay clase activa en el Aula 204. La próxima sesión es ${sched.nextSubject?.name || 'mañana a las 08:15'}. [ACTION:schedule]`;
-      }
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `sched_time_${Date.now()}`);
-      return;
-    }
-
-    if (
-      norm.includes('que toca') ||
-      norm.includes('qué toca') ||
-      norm.includes('que clase') ||
-      norm.includes('qué clase') ||
-      norm.includes('horario')
-    ) {
-      const sched = getCurrentScheduleStatus();
-      let reply = '';
-      if (sched.status === 'in_class') {
-        reply = `Ahora toca ${sched.currentSubject?.name || 'clase'} (Aula 204). Faltan ${sched.minutesRemaining} min. La siguiente es ${sched.nextSubject?.name || 'la siguiente hora'}. [ACTION:schedule]`;
-      } else if (sched.status === 'recreo') {
-        reply = `Estáis en recreo. La siguiente clase es ${sched.nextSubject?.name || 'la siguiente hora'}. [ACTION:schedule]`;
-      } else {
-        reply = `Fuera de horario lectivo. Próxima clase: ${sched.nextSubject?.name || 'mañana a primera hora'}. [ACTION:schedule]`;
-      }
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `sched_${Date.now()}`);
-      return;
-    }
-
-    // Subnetting, máscaras y cálculo de hosts
-    if (
-      norm.includes('subnet') ||
-      norm.includes('subred') ||
-      norm.includes('mascara') ||
-      norm.includes('máscara') ||
-      norm.includes('cidr') ||
-      norm.includes('/24') ||
-      norm.includes('/25') ||
-      norm.includes('/26') ||
-      norm.includes('/27') ||
-      norm.includes('/28') ||
-      norm.includes('/29') ||
-      norm.includes('/30')
-    ) {
-      const match = norm.match(/\/(24|25|26|27|28|29|30)/);
-      const prefix = match ? match[1] : null;
-
-      const subnetMap: Record<string, { mask: string; total: number; hosts: number }> = {
-        '24': { mask: '255.255.255.0', total: 256, hosts: 254 },
-        '25': { mask: '255.255.255.128', total: 128, hosts: 126 },
-        '26': { mask: '255.255.255.192', total: 64, hosts: 62 },
-        '27': { mask: '255.255.255.224', total: 32, hosts: 30 },
-        '28': { mask: '255.255.255.240', total: 16, hosts: 14 },
-        '29': { mask: '255.255.255.248', total: 8, hosts: 6 },
-        '30': { mask: '255.255.255.252', total: 4, hosts: 2 },
-      };
-
-      if (prefix && subnetMap[prefix]) {
-        const info = subnetMap[prefix];
-        const reply = `Subred /${prefix}: máscara ${info.mask}. ${info.total} IPs en bloque, ${info.hosts} hosts útiles (restando red y broadcast). [CMD:ipcalc 192.168.1.0/${prefix}]`;
-        setIdleMessage(reply);
-        setIsIdleChat(true);
-        startTypewriter(reply, `subnet_${prefix}_${Date.now()}`);
-        return;
-      }
-
-      const reply = `Subnetting rápido: /24 (.0, 254 h), /25 (.128, 126 h), /26 (.192, 62 h), /27 (.224, 30 h), /28 (.240, 14 h), /30 (.252, 2 h). [CMD:ipcalc 192.168.1.0/24]`;
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `subnet_all_${Date.now()}`);
-      return;
-    }
-
-    // Puertos y protocolos clave
-    if (norm.includes('puerto') || norm.includes('puertos')) {
-      const reply = `Puertos SMR2 examen: DNS 53, DHCP 67/68, HTTP 80, HTTPS 443, SSH 22, FTP 20/21, MariaDB 3306, RDP 3389. [CMD:ss -tuln]`;
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `ports_${Date.now()}`);
-      return;
-    }
-
-    // Consultas sobre cómo ser admin
-    if (
-      norm.includes('admin') ||
-      norm.includes('administrador') ||
-      norm.includes('hacerme admin') ||
-      norm.includes('ser admin')
-    ) {
-      const reply = `Para ser admin: 1) Entra en /admin con la clave maestra del servidor, o 2) ponte role = 'admin' en la tabla profiles de Supabase. [ACTION:admin]`;
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `admin_info_${Date.now()}`);
-      return;
-    }
-
-    // Navegación instantánea a la Bolsa del Botellón
-    if (
-      norm.includes('bolsa') ||
-      norm.includes('acciones') ||
-      norm.includes('botellon') ||
-      norm.includes('botellón') ||
-      norm.includes('mercadona') ||
-      norm.includes('kebab')
-    ) {
-      onSelectTabRef.current?.('investments');
-      const reply = '¡Vámonos a la Bolsa del Botellón! Compra barato y vende caro fiera, a ver si sales de la miseria. [ACTION:investments]';
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `inv_${Date.now()}`);
-      return;
-    }
-
-    // Trucos y objetos de la Ruleta Rusa
-    if (
-      norm.includes('truco') ||
-      norm.includes('como ganar') ||
-      norm.includes('cómo ganar') ||
-      norm.includes('ganar en la ruleta') ||
-      norm.includes('estrategia')
-    ) {
-      onSelectTabRef.current?.('russian_roulette');
-      const reply = 'El secreto de la Ruleta Rusa es puro cálculo: cuenta las salvas. Si sabes que la bala es salva o usas el Multímetro, ¡dispárate a ti mismo para conservar el turno infinito y robar objetos! [ACTION:games]';
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `rr_tips_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('multimetro') || norm.includes('multímetro')) {
-      const reply = 'El Multímetro Fluke mide la recámara actual en secreto: te dice si hay BALA REAL 🔥 o SALVA ⚪. Úsalo siempre antes de decidir a quién disparar. [ACTION:games]';
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `rr_multi_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('crimpadora')) {
-      const reply = 'La Crimpadora sierra el cañón para que el siguiente tiro inflija 2 VIDAS de daño. Úsala cuando sepas con certeza que viene bala real. [ACTION:games]';
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `rr_crimp_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('inversor')) {
-      const reply = 'El Inversor de Polaridad cambia la bala: si es Salva la convierte en Real, y si es Real la pasa a Salva. Ideal para sorprender al rival. [ACTION:games]';
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `rr_inv_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('novedad') || norm.includes('actualiz') || norm.includes('version') || norm.includes('versión')) {
-      const reply = 'Estamos en la versión 2.8.0 con la Ruleta Rusa táctica renovada (visor de cartuchos y probabilidades estilo Buckshot), centro de avisos verídicos y yo más espabilado. [ACTION:changelog]';
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `changelog_${Date.now()}`);
-      return;
-    }
-
-    // Navegación instantánea a la Ruleta Rusa
-    if (
-      norm.includes('ruleta') ||
-      norm.includes('juego') ||
-      norm.includes('jugar') ||
-      norm.includes('apostar') ||
-      norm.includes('duelo')
-    ) {
-      onSelectTabRef.current?.('russian_roulette');
-      const reply = 'Cargando la Ruleta Rusa táctica estilo Buckshot. A ver si tienes agallas de no volarte la cabeza fiera. [ACTION:games]';
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `games_${Date.now()}`);
-      return;
-    }
-
-    // Navegación instantánea al Tablón
-    if (
-      norm.includes('tablon') ||
-      norm.includes('tablón') ||
-      norm.includes('chat') ||
-      norm.includes('feed') ||
-      norm.includes('avisos')
-    ) {
-      onSelectTabRef.current?.('chat');
-      const reply = 'Abriendo el tablón de la clase en vivo. Escribe algo con cabeza que lo leen todos. [ACTION:chat]';
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `chat_${Date.now()}`);
-      return;
-    }
-
-    // Ranking
-    if (
-      norm.includes('ranking') ||
-      norm.includes('top') ||
-      norm.includes('clasificacion') ||
-      norm.includes('clasificación') ||
-      norm.includes('leaderboard') ||
-      norm.includes('quien va ganando')
-    ) {
-      if (onOpenLeaderboardRef.current) onOpenLeaderboardRef.current();
-      const reply = 'Aquí tienes el ranking de la clase. Mira a ver si estás en el podio o si vas el último jajaja. [ACTION:leaderboard]';
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `rank_${Date.now()}`);
-      return;
-    }
-
-    // Monedas / Grifo
-    if (
-      norm.includes('faucet') ||
-      norm.includes('monedas') ||
-      norm.includes('fichas') ||
-      norm.includes('pobre') ||
-      norm.includes('pasta') ||
-      norm.includes('dinero') ||
-      norm.includes('grifo')
-    ) {
-      if (onOpenFaucetRef.current) onOpenFaucetRef.current();
-      const reply = 'Pide tus fichas diarias en el grifo y deja de lloriquear fiera. [ACTION:faucet]';
-      setIdleMessage(reply);
-      setIsIdleChat(true);
-      startTypewriter(reply, `faucet_${Date.now()}`);
-      return;
-    }
-
-    // Datos estáticos y SMR2
-    if (norm.includes('ipe') || norm.includes('ipe2') || norm.includes('ingles') || norm.includes('inglés')) {
-      const canned = 'En este horario IPE2 es SOLAMENTE Itinerario personal para la empleabilidad (contratos, nóminas, PRL). ¡Cero inglés profesional!';
-      setIdleMessage(canned);
-      setIsIdleChat(true);
-      startTypewriter(canned, `canned_${Date.now()}`);
-      return;
-    }
-
-    if (
-      (norm.includes('quien') || norm.includes('quién')) &&
-      (norm.includes('creo') || norm.includes('creó') || norm.includes('hizo') || norm.includes('programo') || norm.includes('programó') || norm.includes('web'))
-    ) {
-      const canned = 'La web la programaron JuanFe Ospina y David, los putos amos de 2º SMR mientras los demás os rascabais la barriga.';
-      setIdleMessage(canned);
-      setIsIdleChat(true);
-      startTypewriter(canned, `canned_${Date.now()}`);
-      return;
-    }
-
-    if (
-      (norm.includes('cuando') || norm.includes('cuándo') || norm.includes('fecha')) &&
-      (norm.includes('sale') || norm.includes('lanzamiento') || norm.includes('estreno'))
-    ) {
-      const canned = 'La web sale oficialmente el 9 de noviembre a las 8:35 AM en punto. No llegues tarde a clase, meloncio.';
-      setIdleMessage(canned);
-      setIsIdleChat(true);
-      startTypewriter(canned, `canned_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('bind') || norm.includes('bind9') || norm.includes('dns')) {
-      const tech = 'En Debian/Ubuntu configuras /etc/bind/named.conf.local para tus zonas y luego reinicias el servicio. [CMD:sudo systemctl restart bind9]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_dns_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('dhcp')) {
-      const tech = 'Para DHCP editas /etc/dhcp/dhcpd.conf con subnet, netmask, range y routers. Luego reinicias isc-dhcp-server. [CMD:sudo systemctl restart isc-dhcp-server]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_dhcp_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('active directory') || norm.includes('gpo') || norm.includes('windows server')) {
-      const tech = 'En Windows Server gestionas el dominio con Server Manager y las políticas de grupo con gpmc.msc. [CMD:gpmc.msc]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_ad_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('chmod') || norm.includes('chown') || norm.includes('permisos')) {
-      const tech = '755 (rwxr-xr-x) para carpetas y 644 para archivos. Usuario www-data para Apache. [CMD:sudo chmod -R 755 /var/www/html]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_perm_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('apache') || norm.includes('virtualhost') || norm.includes('vhost') || norm.includes('a2ensite')) {
-      const tech = 'Crea tu .conf en /etc/apache2/sites-available/, habilítalo con a2ensite y recarga Apache. [CMD:sudo a2ensite sitio.conf && sudo systemctl reload apache2]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_apache_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('ftp') || norm.includes('vsftpd')) {
-      const tech = 'vsftpd en /etc/vsftpd.conf: pon anonymous_enable=NO y write_enable=YES. Reinicia y abre el puerto 21 en UFW. [CMD:sudo systemctl restart vsftpd]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_ftp_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('ssh') && (norm.includes('clave') || norm.includes('config') || norm.includes('puerto') || norm.includes('conectar'))) {
-      const tech = 'Genera par de claves con ssh-keygen -t ed25519, cópiala con ssh-copy-id y desactiva password en /etc/ssh/sshd_config. [CMD:ssh-keygen -t ed25519]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_ssh_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('ufw') || norm.includes('firewall') || norm.includes('cortafuegos')) {
-      const tech = 'UFW básico: sudo ufw default deny incoming, sudo ufw allow 22/tcp, 80/tcp, 443/tcp y sudo ufw enable. [CMD:sudo ufw status verbose]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_ufw_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('mariadb') || norm.includes('mysql')) {
-      const tech = 'MariaDB: asegura con mysql_secure_installation. Para crear usuario: CREATE USER \'user\'@\'%\' IDENTIFIED BY \'pass\'; GRANT ALL ON bbdd.* TO \'user\'@\'%\'; FLUSH PRIVILEGES; [CMD:sudo mysql_secure_installation]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_db_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('wordpress')) {
-      const tech = 'Descarga en /var/www/html, edita wp-config.php con tus credenciales de MariaDB y aplica chown www-data:www-data. [CMD:sudo chown -R www-data:www-data /var/www/html]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_wp_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('nmap') || norm.includes('escaner') || norm.includes('escaneo')) {
-      const tech = 'Escaneo completo de puertos y servicios: nmap -sV -sC -p- 192.168.1.0/24. Cuidado en qué red lo tiras que salta el IDS. [CMD:nmap -sV -sC -p- 192.168.1.0/24]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_nmap_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('wireguard') || norm.includes('vpn')) {
-      const tech = 'WireGuard: configura /etc/wireguard/wg0.conf con Address, ListenPort, PrivateKey y Peers, y levanta el túnel con wg-quick. [CMD:sudo wg-quick up wg0]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_vpn_${Date.now()}`);
-      return;
-    }
-
-    if (norm.includes('ssl') || norm.includes('tls') || norm.includes('certbot') || norm.includes('https')) {
-      const tech = 'Certificado SSL automático con Let\'s Encrypt: sudo certbot --apache (o --nginx). Para renovar en seco: sudo certbot renew --dry-run. [CMD:sudo certbot --apache]';
-      setIdleMessage(tech);
-      setIsIdleChat(true);
-      startTypewriter(tech, `tech_ssl_${Date.now()}`);
-      return;
-    }
-
+    // 1. Filtro estricto de seguridad: Burlarse de quien pida claves o el Easter Egg
     if (
       norm.includes('contraseña') ||
       norm.includes('clave') ||
@@ -1113,7 +790,8 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     onTourStateChange?.(isIntroTourActive);
   }, [isIntroTourActive, onTourStateChange]);
 
-  let positionClasses = 'bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-3.5 sm:left-5 sm:bottom-5';
+  // Smart Docking: Posición inteligente sin estorbar la navegación ni los controles del aula
+  let positionClasses = 'bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] left-3.5 sm:left-6 sm:bottom-6';
   let mascotScale = 'scale-100';
   let bubbleAlignment = 'items-start';
 
@@ -1121,6 +799,9 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     positionClasses = 'bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:bottom-10 left-1/2 -translate-x-1/2';
     mascotScale = 'scale-115 sm:scale-120';
     bubbleAlignment = 'items-center';
+  } else if (!isOpen && isScrolling) {
+    // Si el usuario hace scroll y PUTOISAAC está cerrado, se repliega discretamente
+    mascotScale = 'scale-85 opacity-35 hover:opacity-100 hover:scale-100 transition-all duration-300';
   }
 
   return (
@@ -1159,6 +840,31 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
             }
             75% {
               transform: translateY(-3px) rotate(0.8deg);
+            }
+          }
+          @keyframes putoIdleHop {
+            0%, 100% {
+              transform: translateY(0px) scale(1, 1);
+            }
+            25% {
+              transform: translateY(-8px) scale(0.95, 1.05);
+            }
+            50% {
+              transform: translateY(-11px) scale(0.98, 1.02);
+            }
+            75% {
+              transform: translateY(1px) scale(1.05, 0.95);
+            }
+          }
+          @keyframes putoYawnAnim {
+            0%, 100% {
+              transform: scale(1, 1);
+            }
+            35% {
+              transform: scale(0.95, 1.07) translateY(-2px);
+            }
+            70% {
+              transform: scale(1.03, 0.97);
             }
           }
           @keyframes putoSquish {
@@ -1221,7 +927,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                     </span>
                   ) : (
                     <span className="text-[9.5px] text-neutral-500 font-mono ml-1">
-                      aula 204
+                      aula 35
                     </span>
                   )}
                 </div>
@@ -1298,7 +1004,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
               {/* Título o estado de la conversación */}
               <h4 className="text-[11.5px] font-semibold text-amber-400 mb-1 font-mono tracking-tight">
-                {isIdleChat ? 'Asistente Aula 204' : getTourStep(currentStep)?.title}
+                {isIdleChat ? 'Asistente Aula 35' : getTourStep(currentStep)?.title}
               </h4>
 
               {/* Texto mecanografiado con audio melódico suave */}
@@ -1608,7 +1314,12 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
             style={{
               animation: isSquishing
                 ? 'putoSquish 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                : idleAction === 'hop'
+                ? 'putoIdleHop 0.9s ease-in-out'
+                : idleAction === 'yawn'
+                ? 'putoYawnAnim 2.2s ease-in-out'
                 : 'putoFloat 4s ease-in-out infinite',
+              transform: idleAction === 'curious' ? 'rotate(5deg)' : undefined,
             }}
             title="Toca para hablar con PUTOISAAC"
           >
@@ -1645,6 +1356,10 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                         ? 'translateY(-2px) rotate(-10deg)'
                         : isTalking && talkPhoneme % 2 === 1
                         ? 'translateY(-1.5px) rotate(4deg)'
+                        : idleAction === 'curious'
+                        ? 'translateY(-2.5px) rotate(-6deg)'
+                        : idleAction === 'look_left'
+                        ? 'translateY(-2px) rotate(-8deg)'
                         : 'translateY(0px)',
                     }}
                   />
@@ -1655,6 +1370,10 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                         ? 'translateY(-3.5px) rotate(14deg)'
                         : isTalking && talkPhoneme % 2 === 1
                         ? 'translateY(-1.5px) rotate(-4deg)'
+                        : idleAction === 'curious'
+                        ? 'translateY(-2.5px) rotate(6deg)'
+                        : idleAction === 'look_right'
+                        ? 'translateY(-2px) rotate(8deg)'
                         : 'translateY(0px)',
                     }}
                   />
@@ -1665,15 +1384,27 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                   {/* Ojo Izquierdo */}
                   <div
                     className={`w-2.5 h-3 rounded-full bg-neutral-950 transition-all duration-100 flex items-center justify-center relative overflow-hidden ${
-                      isBlinking ? '!h-[1px] !w-2.5 my-1.5 !bg-neutral-900' : ''
+                      isBlinking
+                        ? '!h-[1px] !w-2.5 my-1.5 !bg-neutral-900'
+                        : idleAction === 'yawn'
+                        ? '!h-[1.5px] !w-2.5 my-1 !bg-neutral-900'
+                        : idleAction === 'curious'
+                        ? '!h-3.5 !w-2.5'
+                        : ''
                     }`}
                   >
-                    {!isBlinking && (
+                    {!isBlinking && idleAction !== 'yawn' && (
                       <div
                         className="w-1 h-1 rounded-full bg-white absolute transition-transform duration-75"
                         style={{
                           transform: isAiLoading
                             ? 'translate(0.6px, -0.9px)'
+                            : idleAction === 'look_left'
+                            ? 'translate(-1.4px, 0.1px)'
+                            : idleAction === 'look_right'
+                            ? 'translate(1.4px, 0.1px)'
+                            : idleAction === 'curious'
+                            ? 'translate(0.2px, -1px)'
                             : `translate(${pupilOffset.x * 0.45}px, ${pupilOffset.y * 0.45}px)`,
                         }}
                       />
@@ -1683,15 +1414,27 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                   {/* Ojo Derecho */}
                   <div
                     className={`w-2.5 h-3 rounded-full bg-neutral-950 transition-all duration-100 flex items-center justify-center relative overflow-hidden ${
-                      isBlinking ? '!h-[1px] !w-2.5 my-1.5 !bg-neutral-900' : ''
+                      isBlinking
+                        ? '!h-[1px] !w-2.5 my-1.5 !bg-neutral-900'
+                        : idleAction === 'yawn'
+                        ? '!h-[1.5px] !w-2.5 my-1 !bg-neutral-900'
+                        : idleAction === 'curious'
+                        ? '!h-3.5 !w-2.5'
+                        : ''
                     }`}
                   >
-                    {!isBlinking && (
+                    {!isBlinking && idleAction !== 'yawn' && (
                       <div
                         className="w-1 h-1 rounded-full bg-white absolute transition-transform duration-75"
                         style={{
                           transform: isAiLoading
                             ? 'translate(0.6px, -0.9px)'
+                            : idleAction === 'look_left'
+                            ? 'translate(-1.4px, 0.1px)'
+                            : idleAction === 'look_right'
+                            ? 'translate(1.4px, 0.1px)'
+                            : idleAction === 'curious'
+                            ? 'translate(0.2px, -1px)'
                             : `translate(${pupilOffset.x * 0.45}px, ${pupilOffset.y * 0.45}px)`,
                         }}
                       />
@@ -1699,7 +1442,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                   </div>
                 </div>
 
-                {/* Boca expresiva sincronizada por fonemas */}
+                {/* Boca expresiva sincronizada por fonemas y estados de reposo */}
                 <div className="h-2 flex items-center justify-center pt-0.5">
                   {isTalking ? (
                     <div
@@ -1715,6 +1458,10 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                     />
                   ) : isAiLoading ? (
                     <div className="w-1.5 h-1.5 rounded-full border border-neutral-950 animate-pulse" />
+                  ) : idleAction === 'yawn' ? (
+                    <div className="w-2 h-2 rounded-full bg-neutral-950" />
+                  ) : idleAction === 'curious' ? (
+                    <div className="w-1.5 h-1 border-b-[1.5px] border-neutral-950 rounded-full" />
                   ) : (
                     <div className="w-2 h-1 border-b-[1.5px] border-neutral-950 rounded-full translate-x-0.5" />
                   )}

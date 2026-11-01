@@ -67,7 +67,7 @@ const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
   },
   {
     version: '2.6.0',
-    title: 'SMR2 v2.6.0: Horario de Aula 204 y Salas Multijugador',
+    title: 'SMR2 v2.6.0: Horario de Aula 35 y Salas Multijugador',
     date: '18 de Octubre, 2026',
     description:
       'Integración del gestor lectivo oficial y primeras salas multijugador.',

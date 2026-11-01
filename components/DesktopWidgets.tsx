@@ -247,7 +247,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
               Horario lectivo
             </h3>
           </div>
-          <span className="text-[11px] font-mono text-foreground-subtle">Aula 204</span>
+          <span className="text-[11px] font-mono text-foreground-subtle">Aula 35</span>
         </div>
 
         <LiveClassStatus status={liveStatus} variant="widget" />

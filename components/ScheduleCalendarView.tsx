@@ -290,7 +290,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               Horario lectivo y entregas
             </h2>
             <Badge variant="default" size="sm">
-              Aula 204
+              Aula 35
             </Badge>
           </div>
           <p className="text-xs text-foreground-muted mt-0.5">
