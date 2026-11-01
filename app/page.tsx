@@ -101,6 +101,20 @@ export default function Home() {
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
   const [realtimeNotification, setRealtimeNotification] = useState<RealtimeNotification | null>(null);
   const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
+  const [isTourActive, setIsTourActive] = useState(false);
+
+  useEffect(() => {
+    try {
+      const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
+      if (!tourDone) {
+        setIsTourActive(true);
+      }
+    } catch {}
+
+    const handleTourCompleted = () => setIsTourActive(false);
+    window.addEventListener('smr2_tour_completed', handleTourCompleted);
+    return () => window.removeEventListener('smr2_tour_completed', handleTourCompleted);
+  }, []);
 
   const handleIsaacSelectTab = useCallback((tab: 'chat' | 'investments' | 'schedule' | 'russian_roulette') => {
     if (tab === 'investments') setActiveView('party_idle');
@@ -313,6 +327,7 @@ export default function Home() {
               likes_count,
               fijado,
               canal,
+              reply_to_nombre,
               profiles!messages_user_id_fkey ( id, username, nombre )
             `)
             .order('created_at', { ascending: false })
@@ -322,17 +337,27 @@ export default function Home() {
             markTableMissing('messages');
           } else if (legacyMessages && legacyMessages.length > 0) {
             setChatMessages(
-              legacyMessages.map((m: any) => ({
-                id: m.id,
-                user_id: m.user_id,
-                username: m.profiles?.username || m.profiles?.nombre || 'alumno',
-                text: m.texto,
-                tag: m.canal === 'general' ? undefined : m.canal,
-                pinned: Boolean(m.fijado),
-                likes_count: Number(m.likes_count || 0),
-                is_liked_by_me: myLikedMessageIds.has(m.id),
-                created_at: m.created_at,
-              }))
+              legacyMessages.map((m: any) => {
+                // Si el mensaje fue vinculado a la cuenta del sistema (00000000...) o perfil genérico, recuperar el nombre original guardado en reply_to_nombre
+                const authorUsername =
+                  m.user_id === '00000000-0000-4000-a000-000000000000'
+                    ? (m.reply_to_nombre || 'SMR2')
+                    : (m.profiles?.username && m.profiles.username !== 'banca_sistema'
+                        ? m.profiles.username
+                        : (m.reply_to_nombre || m.profiles?.nombre || 'alumno'));
+
+                return {
+                  id: m.id,
+                  user_id: m.user_id,
+                  username: authorUsername,
+                  text: m.texto,
+                  tag: m.canal === 'general' ? undefined : m.canal,
+                  pinned: Boolean(m.fijado),
+                  likes_count: Number(m.likes_count || 0),
+                  is_liked_by_me: myLikedMessageIds.has(m.id),
+                  created_at: m.created_at,
+                };
+              })
             );
           }
         } catch (_) {
@@ -1189,6 +1214,21 @@ export default function Home() {
       let data: any = null;
       let error: any = null;
 
+      // Asegurar que el perfil del usuario existe en Supabase para evitar violación de foreign key en messages
+      if (dbUserId && user.username) {
+        try {
+          await supabase.from('profiles').upsert(
+            {
+              id: dbUserId,
+              username: user.username,
+              nombre: user.username,
+              role: user.role || 'student',
+            },
+            { onConflict: 'id' }
+          );
+        } catch (_) {}
+      }
+
       if (isTableAvailable('chat_messages')) {
         const payload: Record<string, any> = {
           username: user.username,
@@ -1224,19 +1264,30 @@ export default function Home() {
       // Si chat_messages no existe en la base remota (404), insertar en la tabla existente 'messages' si está disponible
       if ((error || !isTableAvailable('chat_messages')) && isTableAvailable('messages')) {
         try {
-          const fallbackUserId = dbUserId || '00000000-0000-4000-a000-000000000000';
+          const targetUserId = dbUserId || '00000000-0000-4000-a000-000000000000';
           const msgPayload: Record<string, any> = {
-            user_id: fallbackUserId,
+            user_id: targetUserId,
             canal: tag ? tag.toLowerCase() : 'general',
             texto: text,
             fijado: Boolean(pinned),
             reply_to_nombre: user.username,
           };
-          const legacyInsert = await supabase
+          let legacyInsert = await supabase
             .from('messages')
             .insert([msgPayload])
-            .select('id, user_id, canal, texto, created_at, likes_count')
+            .select('id, user_id, canal, texto, created_at, likes_count, reply_to_nombre')
             .single();
+
+          // Si falla por foreign key (usuario local no presente en auth.users/profiles), reintentar con cuenta de sistema asegurando autoría en reply_to_nombre
+          if (legacyInsert.error && targetUserId !== '00000000-0000-4000-a000-000000000000') {
+            msgPayload.user_id = '00000000-0000-4000-a000-000000000000';
+            msgPayload.reply_to_nombre = user.username;
+            legacyInsert = await supabase
+              .from('messages')
+              .insert([msgPayload])
+              .select('id, user_id, canal, texto, created_at, likes_count, reply_to_nombre')
+              .single();
+          }
 
           if (legacyInsert.data && !legacyInsert.error) {
             data = {
@@ -1390,7 +1441,6 @@ export default function Home() {
 
     if (user.coins < amount) {
       sound.broke();
-      alert('Saldo insuficiente para enviar propina.');
       return;
     }
 
@@ -1409,8 +1459,23 @@ export default function Home() {
       if (receiver && isUUID(receiver.id)) {
         await supabase
           .from('profiles')
-          .update({ coins: Number(receiver.coins) + amount })
+          .update({ coins: Number(receiver.coins || 0) + amount })
           .eq('id', receiver.id);
+      }
+
+      const tipText = `🪙 @${user.username} ha enviado una propina de ${amount} fichas a @${targetUsername}`;
+
+      if (isTableAvailable('messages')) {
+        try {
+          await supabase.from('messages').insert([
+            {
+              user_id: '00000000-0000-4000-a000-000000000000',
+              canal: 'recreo',
+              texto: tipText,
+              reply_to_nombre: 'SMR2',
+            },
+          ]);
+        } catch (_) {}
       }
 
       if (isTableAvailable('chat_messages')) {
@@ -1419,13 +1484,30 @@ export default function Home() {
             {
               user_id: user.id && isUUID(user.id) ? user.id : null,
               username: 'SISTEMA',
-              text: `@${user.username} transfirió ${amount} fichas a @${targetUsername}`,
+              text: tipText,
               is_system_win: true,
               win_amount: amount,
             },
           ]);
-        } catch {}
+        } catch (_) {}
       }
+
+      // Difundir en tiempo real a todas las pestañas conectadas
+      try {
+        const bc = new BroadcastChannel('smr2_chat_realtime_channel');
+        bc.postMessage({
+          type: 'NEW_CHAT_MESSAGE',
+          message: {
+            id: `tip_${Date.now()}`,
+            user_id: '00000000-0000-4000-a000-000000000000',
+            username: 'SMR2',
+            text: tipText,
+            tag: 'recreo',
+            created_at: new Date().toISOString(),
+          },
+        });
+        bc.close();
+      } catch (_) {}
     } catch {}
 
     sound.coinWin();
@@ -1924,16 +2006,19 @@ export default function Home() {
 
       <CookieBanner
         onOpenTerms={() => setIsTermsOpen(true)}
+        isBlocked={isTourActive}
       />
 
-      {/* Actualizaciones del sistema en vivo */}
-      <UpdateNotificationBanner />
+      {/* Actualizaciones del sistema en vivo (sincronizadas secuencialmente tras el tour) */}
+      <UpdateNotificationBanner isBlocked={isTourActive} />
 
       {/* 8. Live Realtime Notification Banner */}
-      <RealtimeToast
-        notification={realtimeNotification}
-        onDismiss={() => setRealtimeNotification(null)}
-      />
+      {!isTourActive && (
+        <RealtimeToast
+          notification={realtimeNotification}
+          onDismiss={() => setRealtimeNotification(null)}
+        />
+      )}
 
       {/* 9. PUTOISAAC interactive ball mascot and tour */}
       <PutoIsaacTour
@@ -1942,6 +2027,7 @@ export default function Home() {
         onSelectTab={handleIsaacSelectTab}
         onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
         onOpenFaucet={() => setIsFaucetOpen(true)}
+        onTourStateChange={setIsTourActive}
         currentTab={activeView}
         currentUser={user}
       />

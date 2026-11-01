@@ -117,6 +117,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [tipSuccessId, setTipSuccessId] = useState<string | null>(null);
+  const [tipErrorId, setTipErrorId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   const [hasNewMessagesAbove, setHasNewMessagesAbove] = useState(false);
@@ -229,13 +230,20 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
       onOpenAuth();
       return;
     }
-    if (currentUser.username === authorUsername) return;
-    if (currentUser.coins < 50) {
-      alert('Saldo insuficiente para enviar propina (mínimo 50 fichas).');
+    const cleanAuthor = authorUsername.trim();
+    if (currentUser.username === cleanAuthor) return;
+    if (cleanAuthor.toLowerCase().includes('sistema') || cleanAuthor.toLowerCase().includes('banca')) {
       return;
     }
 
-    onTipUser(authorUsername, 50);
+    if (currentUser.coins < 50) {
+      sound.broke();
+      setTipErrorId(msgId);
+      setTimeout(() => setTipErrorId(null), 2500);
+      return;
+    }
+
+    onTipUser(cleanAuthor, 50);
     sound.coinWin();
     setTipSuccessId(msgId);
     setTimeout(() => setTipSuccessId(null), 2500);
@@ -966,15 +974,30 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                         <span>Responder</span>
                       </button>
 
-                      {!isMe && currentUser && (
+                      {!isMe && currentUser && !msg.username.toLowerCase().includes('sistema') && (
                         <button
                           type="button"
                           onClick={() => handleTip(msg.id, msg.username)}
-                          className="inline-flex items-center gap-1.5 py-1 -my-1 hover:text-amber-500 transition-colors cursor-pointer select-none touch-manipulation active:scale-95"
+                          title={
+                            currentUser.coins < 50
+                              ? 'Necesitas al menos 50 fichas para enviar propina'
+                              : `Enviar 50 fichas a @${msg.username}`
+                          }
+                          className={`inline-flex items-center gap-1.5 py-1 -my-1 transition-all cursor-pointer select-none touch-manipulation active:scale-95 ${
+                            tipSuccessId === msg.id
+                              ? 'text-emerald-500 font-medium'
+                              : tipErrorId === msg.id
+                              ? 'text-rose-500 font-medium'
+                              : 'text-foreground-muted hover:text-amber-500'
+                          }`}
                         >
-                          <Coins className="w-3.5 h-3.5" />
-                          <span>
-                            {tipSuccessId === msg.id ? 'Enviado' : '50 fichas'}
+                          <Coins className={`w-3.5 h-3.5 ${tipSuccessId === msg.id ? 'text-emerald-500' : ''}`} />
+                          <span className="font-mono text-[11px]">
+                            {tipSuccessId === msg.id
+                              ? '+50 🪙 Enviado'
+                              : tipErrorId === msg.id
+                              ? 'Faltan fichas'
+                              : '50 fichas'}
                           </span>
                         </button>
                       )}

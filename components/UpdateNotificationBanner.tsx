@@ -6,13 +6,11 @@ import {
   X,
   Check,
   ChevronRight,
-  Sparkles,
+  GitBranch,
   History,
-  ExternalLink,
-  Flame,
-  Bot,
-  Zap,
-  ShieldCheck,
+  Terminal,
+  Layers,
+  ArrowUpRight,
 } from 'lucide-react';
 import { sound } from '@/lib/audio';
 import { createClient } from '@/lib/supabase/client';
@@ -37,7 +35,13 @@ export interface ChangelogHistoryItem {
   changes: string[];
 }
 
-export const UpdateNotificationBanner: React.FC = () => {
+interface UpdateNotificationBannerProps {
+  isBlocked?: boolean;
+}
+
+export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> = ({
+  isBlocked = false,
+}) => {
   const initialVersionRef = useRef<string | null>(null);
   const [hasUpdate, setHasUpdate] = useState(false);
   const [updateDetails, setUpdateDetails] = useState<UpdateDetails | null>(null);
@@ -45,7 +49,7 @@ export const UpdateNotificationBanner: React.FC = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isLiveDeploy, setIsLiveDeploy] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedHistoryVersion, setSelectedHistoryVersion] = useState<string>('2.8.0');
+  const [selectedHistoryVersion, setSelectedHistoryVersion] = useState<string>('2.9.0');
 
   const checkVersion = async () => {
     try {
@@ -67,7 +71,7 @@ export const UpdateNotificationBanner: React.FC = () => {
         setHasUpdate(true);
         if (latest) {
           setUpdateDetails(latest);
-          setSelectedHistoryVersion(latest.version || '2.8.0');
+          setSelectedHistoryVersion(latest.version || '2.9.0');
         }
         sound.tap();
       } else {
@@ -76,10 +80,10 @@ export const UpdateNotificationBanner: React.FC = () => {
         }
 
         const lastSeen = typeof window !== 'undefined' ? localStorage.getItem('smr2_last_seen_version') : null;
-        const currentVersion = latest?.version || data.appVersion || '2.8.0';
+        const currentVersion = latest?.version || data.appVersion || '2.9.0';
         if (latest) {
           setUpdateDetails(latest);
-          setSelectedHistoryVersion(latest.version || '2.8.0');
+          setSelectedHistoryVersion(latest.version || '2.9.0');
         }
 
         if (lastSeen !== currentVersion) {
@@ -100,8 +104,8 @@ export const UpdateNotificationBanner: React.FC = () => {
     };
     window.addEventListener('smr2_open_changelog', handleOpenChangelog);
 
-    // Polling regular cada 40 segundos para detectar despliegues automáticos
-    const interval = setInterval(checkVersion, 40000);
+    // Polling regular cada 45 segundos para detectar despliegues automáticos
+    const interval = setInterval(checkVersion, 45000);
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
@@ -124,7 +128,7 @@ export const UpdateNotificationBanner: React.FC = () => {
             setIsLiveDeploy(true);
             setHasUpdate(true);
             setUpdateDetails(upd);
-            setSelectedHistoryVersion(upd.version || '2.8.0');
+            setSelectedHistoryVersion(upd.version || '2.9.0');
             sound.tap();
           }
         )
@@ -144,7 +148,7 @@ export const UpdateNotificationBanner: React.FC = () => {
 
   const handleReload = () => {
     sound.tap();
-    const v = updateDetails?.version || '2.8.0';
+    const v = updateDetails?.version || '2.9.0';
     try {
       localStorage.setItem('smr2_last_seen_version', v);
     } catch {}
@@ -153,7 +157,7 @@ export const UpdateNotificationBanner: React.FC = () => {
 
   const handleDismiss = () => {
     sound.tap();
-    const v = updateDetails?.version || '2.8.0';
+    const v = updateDetails?.version || '2.9.0';
     try {
       localStorage.setItem('smr2_last_seen_version', v);
     } catch {}
@@ -178,9 +182,10 @@ export const UpdateNotificationBanner: React.FC = () => {
       }
     }
     return [
-      '🎮 Ruleta Rusa Táctica Inmersiva: Nuevo visor de cartuchos reales y salvas, animaciones de recámara con tensión e IA de rivales avanzada.',
-      '📢 Centro de Avisos y Novedades Veraces: Registro fiel y en tiempo real de todo lo que cambia en la plataforma.',
-      '🤖 Asistente PUTOISAAC Pro: Temario completo de 2º SMR, atajos y comandos directos de aula.',
+      '💬 Identidad Real en el Feed: Resuelto el fallo que provocaba que algunos alumnos apareciesen erróneamente como BANCA_SISTEMA al comentar.',
+      '🪙 Sistema de Propinas Renovado: Envío ágil de 50 fichas con confirmación táctil en directo y difusión en el tablón sin alertas invasivas.',
+      '🧭 Tour Secuencial no Invasivo: El asistente PUTOISAAC guía el aula sin solaparse; cookies y novedades aguardan a que termine el recorrido.',
+      '👁️ Expresividad Orgánica de PUTOISAAC: Seguimiento ocular dinámico y fonemas sincronizados.',
     ];
   };
 
@@ -190,41 +195,46 @@ export const UpdateNotificationBanner: React.FC = () => {
   const activeHistoryEntry =
     changelogHistory.find((item) => item.version === selectedHistoryVersion) ||
     changelogHistory[0] || {
-      version: updateDetails?.version || '2.8.0',
+      version: updateDetails?.version || '2.9.0',
       title: updateDetails?.title || 'Novedades de la versión',
       description: updateDetails?.description || 'Mejoras en el portal de 2º SMR.',
-      badge: 'ÚLTIMA NOVEDAD',
+      badge: 'VERSIÓN ACTUAL',
       date: 'Hoy',
       changes: currentChangeList,
     };
 
+  // Si está bloqueado por el tour activo, no renderizar ni banner ni píldora (el modal manual siempre se respeta)
+  if (isBlocked && !isModalOpen) {
+    return null;
+  }
+
   return (
     <>
-      {/* 1. Modal Completo de Novedades e Historial de Versiones */}
+      {/* 1. Modal Editorial de Novedades e Historial de Versiones */}
       {isModalOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
         >
-          <div className="w-full max-w-2xl bg-surface/95 border border-border shadow-2xl rounded-3xl overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Cabecera del modal */}
-            <div className="p-4 sm:p-6 border-b border-border/80 flex items-center justify-between gap-4 bg-surface-raised/40">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-5 h-5" />
+          <div className="w-full max-w-2xl bg-surface/98 border border-border shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Cabecera editorial */}
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-4 bg-surface-raised/40">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-surface-raised border border-border text-foreground flex items-center justify-center shrink-0">
+                  <GitBranch className="w-4 h-4 text-foreground-muted" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-base sm:text-lg font-bold text-foreground tracking-tight">
-                      Centro de Novedades y Versiones
+                    <h2 className="text-sm font-semibold text-foreground tracking-tight truncate">
+                      Registro de Versiones y Cambios
                     </h2>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                      v{updateDetails?.version || '2.8.0'}
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-raised text-foreground-muted border border-border/70">
+                      v{updateDetails?.version || '2.9.0'}
                     </span>
                   </div>
-                  <p className="text-xs text-foreground-muted">
-                    Transparencia absoluta: qué se ha añadido, mejorado o arreglado de verdad.
+                  <p className="text-[11px] text-foreground-muted truncate">
+                    Registro de desarrollo y mejoras del aula 204.
                   </p>
                 </div>
               </div>
@@ -232,17 +242,17 @@ export const UpdateNotificationBanner: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 rounded-xl bg-surface hover:bg-surface-hover border border-border text-foreground-subtle hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-lg text-foreground-subtle hover:text-foreground hover:bg-surface-raised border border-border flex items-center justify-center transition-colors cursor-pointer"
                 title="Cerrar modal"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Pestañas de versiones anteriores (si hay varias) */}
+            {/* Pestañas de versiones anteriores */}
             {changelogHistory.length > 1 && (
-              <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-surface-raised/60 border-b border-border/60 overflow-x-auto no-scrollbar">
-                <span className="text-[11px] font-mono text-foreground-subtle shrink-0 mr-1 flex items-center gap-1">
+              <div className="flex items-center gap-1.5 px-5 py-2 bg-surface border-b border-border/60 overflow-x-auto scrollbar-none">
+                <span className="text-[11px] font-mono text-foreground-subtle shrink-0 mr-1.5 flex items-center gap-1">
                   <History className="w-3 h-3" /> Historial:
                 </span>
                 {changelogHistory.map((entry) => {
@@ -255,10 +265,10 @@ export const UpdateNotificationBanner: React.FC = () => {
                         sound.tap();
                         setSelectedHistoryVersion(entry.version);
                       }}
-                      className={`px-3 py-1 rounded-xl text-xs font-mono transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1 rounded-md text-xs font-mono transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 ${
                         isSelected
-                          ? 'bg-foreground text-background font-semibold shadow-xs'
-                          : 'bg-surface hover:bg-surface-raised text-foreground-muted border border-border/80'
+                          ? 'bg-foreground text-background font-medium'
+                          : 'bg-surface-raised/60 hover:bg-surface-raised text-foreground-muted border border-border/60'
                       }`}
                     >
                       <span>v{entry.version}</span>
@@ -272,17 +282,17 @@ export const UpdateNotificationBanner: React.FC = () => {
             )}
 
             {/* Contenido de la versión activa */}
-            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
-              <div className="p-4 rounded-2xl bg-surface-raised/50 border border-border/70 space-y-2">
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              <div className="p-4 rounded-xl bg-surface-raised/40 border border-border/70 space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-foreground-muted font-medium">
                     {activeHistoryEntry.badge || `Versión ${activeHistoryEntry.version}`}
                   </span>
                   <span className="text-[11px] font-mono text-foreground-subtle">
                     {activeHistoryEntry.date}
                   </span>
                 </div>
-                <h3 className="text-sm sm:text-base font-bold text-foreground">
+                <h3 className="text-sm font-semibold text-foreground">
                   {activeHistoryEntry.title}
                 </h3>
                 <p className="text-xs text-foreground-muted leading-relaxed">
@@ -291,19 +301,24 @@ export const UpdateNotificationBanner: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-foreground tracking-tight flex items-center gap-1.5">
-                  <span>Cambios y mejoras en esta versión:</span>
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[11px] font-semibold text-foreground uppercase tracking-wider font-mono">
+                    Detalle de Cambios
+                  </h4>
+                  <span className="text-[10px] font-mono text-foreground-subtle">
+                    {getChangeList(activeHistoryEntry.changes).length} entradas
+                  </span>
+                </div>
                 <div className="space-y-2">
                   {getChangeList(activeHistoryEntry.changes).map((change, idx) => (
                     <div
                       key={idx}
-                      className="p-3 rounded-2xl bg-surface border border-border/60 flex items-start gap-3 text-xs text-foreground-muted leading-relaxed"
+                      className="p-3 rounded-lg bg-surface border border-border/60 flex items-start gap-3 text-xs text-foreground leading-relaxed"
                     >
-                      <span className="w-5 h-5 rounded-lg bg-surface-raised border border-border/80 text-foreground font-mono text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="w-4 h-4 rounded bg-surface-raised border border-border/80 text-foreground-muted font-mono text-[10px] flex items-center justify-center shrink-0 mt-0.5">
                         {idx + 1}
                       </span>
-                      <span className="flex-1">{change}</span>
+                      <span className="flex-1 text-foreground-muted">{change}</span>
                     </div>
                   ))}
                 </div>
@@ -311,7 +326,7 @@ export const UpdateNotificationBanner: React.FC = () => {
             </div>
 
             {/* Pie de acciones del modal */}
-            <div className="p-4 sm:p-5 border-t border-border/80 bg-surface-raised/30 flex items-center justify-between gap-3">
+            <div className="px-5 py-3.5 border-t border-border bg-surface-raised/30 flex items-center justify-between gap-3">
               <div className="text-[11px] text-foreground-subtle font-mono hidden sm:block">
                 SMR2 Web · Aula 204
               </div>
@@ -321,7 +336,7 @@ export const UpdateNotificationBanner: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleReload}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-foreground text-background text-xs font-semibold hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                    className="w-full sm:w-auto px-4 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>Recargar para aplicar</span>
@@ -330,10 +345,10 @@ export const UpdateNotificationBanner: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleDismiss}
-                    className="w-full sm:w-auto px-5 py-2 rounded-xl bg-foreground text-background text-xs font-semibold hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                    className="w-full sm:w-auto px-4 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>Entendido, marcar como leído</span>
+                    <span>Marcar como leído</span>
                   </button>
                 )}
               </div>
@@ -342,67 +357,67 @@ export const UpdateNotificationBanner: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Píldora minimizada en esquina inferior */}
+      {/* 2. Píldora minimizada en esquina inferior derecha */}
       {hasUpdate && isMinimized && (
-        <div className="fixed bottom-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="fixed bottom-4 right-4 z-40 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <button
             type="button"
             onClick={() => {
               sound.tap();
               setIsMinimized(false);
             }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface/90 backdrop-blur-md text-foreground text-xs border border-border/80 shadow-md hover:bg-surface-raised active:scale-95 transition-all cursor-pointer font-sans"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface/95 backdrop-blur-md text-foreground text-xs border border-border shadow-md hover:bg-surface-raised active:scale-95 transition-all cursor-pointer font-sans"
             title="Ver detalles de la versión"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="font-mono text-[11px] text-foreground-muted">
-              v{updateDetails?.version || '2.8.0'}
+              v{updateDetails?.version || '2.9.0'}
             </span>
             <span className="text-[11px] font-medium text-foreground">
-              {isLiveDeploy ? 'Actualizar' : 'Novedades'}
+              {isLiveDeploy ? 'Actualización' : 'Novedades'}
             </span>
             <ChevronRight className="w-3 h-3 text-foreground-subtle" />
           </button>
         </div>
       )}
 
-      {/* 3. Banner flotante superior (Aviso destacado con resumen de verdad) */}
+      {/* 3. Banner superior editorial sin clichés */}
       {hasUpdate && !isMinimized && !isModalOpen && (
-        <div
+        <aside
           role="alert"
-          aria-live="assertive"
-          className="fixed top-3 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-50 animate-in slide-in-from-top-2 fade-in duration-200 select-none"
+          aria-live="polite"
+          className="fixed top-3 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-40 animate-in slide-in-from-top-2 fade-in duration-200 select-none"
         >
-          <div className="p-4 rounded-3xl bg-surface/95 backdrop-blur-xl border border-border shadow-2xl space-y-3 text-foreground">
+          <div className="p-4 rounded-2xl bg-surface/98 backdrop-blur-xl border border-border shadow-xl space-y-3 text-foreground">
             {/* Cabecera del aviso */}
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-0.5 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-                  <span className="text-[11px] font-mono font-medium uppercase tracking-wider text-emerald-400">
-                    Versión {updateDetails?.version || '2.8.0'}
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-foreground-muted">
+                    Versión {updateDetails?.version || '2.9.0'}
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-raised text-foreground-subtle border border-border/60">
-                    {isLiveDeploy ? 'Despliegue en vivo' : 'Nueva versión'}
+                  <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-surface-raised text-foreground-subtle border border-border/60">
+                    {isLiveDeploy ? 'Despliegue en vivo' : 'Novedad'}
                   </span>
                 </div>
-                <h3 className="text-xs font-bold text-foreground tracking-tight line-clamp-1">
-                  {updateDetails?.title || 'Mejoras en Ruleta Rusa y Asistente'}
+                <h3 className="text-xs font-semibold text-foreground tracking-tight line-clamp-1">
+                  {updateDetails?.title || 'Actualización de 2º SMR'}
                 </h3>
               </div>
 
               <button
                 type="button"
                 onClick={handleDismiss}
-                className="w-6 h-6 rounded-lg text-foreground-subtle hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                className="w-6 h-6 rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-colors cursor-pointer shrink-0"
                 title="Cerrar aviso"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Resumen honesto de cambios */}
-            <div className="p-3 rounded-2xl bg-surface-raised/70 border border-border/60 space-y-2">
+            {/* Resumen ordenado de cambios */}
+            <div className="p-3 rounded-xl bg-surface-raised/40 border border-border/60 space-y-2">
               {updateDetails?.description && (
                 <p className="text-[11px] text-foreground-muted leading-relaxed font-sans line-clamp-2">
                   {updateDetails.description}
@@ -412,7 +427,7 @@ export const UpdateNotificationBanner: React.FC = () => {
               <ul className="space-y-1.5 pt-0.5">
                 {currentChangeList.slice(0, 3).map((change, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-[11px] text-foreground-muted leading-relaxed">
-                    <span className="text-emerald-500 shrink-0 mt-0.5 text-[9px] font-mono">✓</span>
+                    <span className="text-foreground shrink-0 mt-0.5 text-[10px] font-mono">·</span>
                     <span className="line-clamp-2">{change}</span>
                   </li>
                 ))}
@@ -421,14 +436,14 @@ export const UpdateNotificationBanner: React.FC = () => {
               <button
                 type="button"
                 onClick={handleOpenFullModal}
-                className="w-full pt-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                className="w-full pt-1 text-[11px] font-medium text-foreground-muted hover:text-foreground flex items-center justify-center gap-1 transition-colors cursor-pointer"
               >
-                <span>Ver todos los detalles y versiones anteriores</span>
+                <span>Ver historial completo</span>
                 <ChevronRight className="w-3 h-3" />
               </button>
             </div>
 
-            {/* Botones de acción */}
+            {/* Acciones */}
             <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
               <button
                 type="button"
@@ -454,17 +469,17 @@ export const UpdateNotificationBanner: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleReload}
-                      className="px-3.5 py-1.5 rounded-xl bg-foreground text-background text-xs font-semibold hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      className="px-3.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <RefreshCw className="w-3 h-3" />
-                      <span>Actualizar ahora</span>
+                      <span>Actualizar</span>
                     </button>
                   </>
                 ) : (
                   <button
                     type="button"
                     onClick={handleDismiss}
-                    className="px-3.5 py-1.5 rounded-xl bg-foreground text-background text-xs font-semibold hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-3.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <Check className="w-3 h-3" />
                     <span>Entendido</span>
@@ -473,7 +488,7 @@ export const UpdateNotificationBanner: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </aside>
       )}
     </>
   );

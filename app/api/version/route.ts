@@ -6,7 +6,7 @@ export const revalidate = 0;
 
 // Unique timestamp of this server deployment instance
 const SERVER_BOOT_TIME = Date.now();
-const CURRENT_APP_VERSION = '2.8.0';
+const CURRENT_APP_VERSION = '2.9.0';
 
 const COMMIT_SHA =
   process.env.VERCEL_GIT_COMMIT_SHA ||
@@ -24,6 +24,21 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '2.9.0',
+    title: 'SMR2 v2.9.0: Corrección del Feed, Propinas Fluidas, Tour sin Solapamientos y Nueva Física',
+    badge: 'VERSIÓN ACTUAL',
+    date: '1 de Noviembre, 2026',
+    description:
+      'Actualización enfocada en la autenticidad del feed escolar, nuevo sistema de propinas de fichas, orquestación fluida de avisos sin solapamientos y animaciones físicas orgánicas para PUTOISAAC.',
+    changes: [
+      '💬 Identidad Real en el Feed: Resuelto el fallo que provocaba que algunos alumnos apareciesen erróneamente como BANCA_SISTEMA al comentar. Sincronización fidedigna del autor original con base de datos.',
+      '🪙 Sistema de Propinas Renovado: Envío ágil de 50 fichas con confirmación táctil en directo, sin alertas intrusivas y con notificación comunitaria en el tablón de clase.',
+      '🧭 Tour Secuencial no Invasivo: El asistente PUTOISAAC guía el aula sin solaparse con ningún elemento. Las advertencias de cookies y avisos de versión se muestran ordenadamente tras finalizar el recorrido.',
+      '👁️ Expresividad Orgánica de PUTOISAAC: Seguimiento ocular dinámico con el cursor, modulación fonética bucal en tiempo real y física elástica (squish & stretch) al interactuar.',
+      '⚡ Terminal CTF y Blindaje de Sesión: Transición completa de antiguos paneles administrativos hacia la experiencia secreta del terminal CTF, con identificadores canónicos UUID v4 para todos los usuarios.',
+    ],
+  },
   {
     version: '2.8.0',
     title: 'SMR2 v2.8.0: Revolución Ruleta Rusa, Avisos Veraces y PUTOISAAC Pro',

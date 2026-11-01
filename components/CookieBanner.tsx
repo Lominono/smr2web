@@ -1,26 +1,36 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ArrowRight } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { setCookie, getCookie } from '@/lib/cookies';
 import { sound } from '@/lib/audio';
 import { Button } from '@/components/ui/Button';
 
 interface CookieBannerProps {
   onOpenTerms: () => void;
+  isBlocked?: boolean;
 }
 
-export const CookieBanner: React.FC<CookieBannerProps> = ({ onOpenTerms }) => {
+export const CookieBanner: React.FC<CookieBannerProps> = ({ onOpenTerms, isBlocked = false }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    if (isBlocked) {
+      setIsVisible(false);
+      return;
+    }
+
     try {
       const consent = getCookie('smr2_cookie_consent');
       if (!consent) {
-        setIsVisible(true);
+        // Retraso intencional para no colisionar inmediatamente con la carga inicial
+        const timer = setTimeout(() => {
+          setIsVisible(true);
+        }, 800);
+        return () => clearTimeout(timer);
       }
     } catch {}
-  }, []);
+  }, [isBlocked]);
 
   const handleAccept = () => {
     setCookie('smr2_cookie_consent', 'accepted', { days: 365 });
@@ -34,17 +44,17 @@ export const CookieBanner: React.FC<CookieBannerProps> = ({ onOpenTerms }) => {
     setIsVisible(false);
   };
 
-  if (!isVisible) return null;
+  if (isBlocked || !isVisible) return null;
 
   return (
     <aside
       aria-label="Aviso de privacidad y almacenamiento"
-      className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] sm:bottom-4 left-3 right-3 sm:left-auto sm:right-4 z-40 max-w-md w-auto animate-in fade-in slide-in-from-bottom-2 duration-200 select-none"
+      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-4 left-3 right-3 sm:left-auto sm:right-4 z-40 max-w-md w-auto animate-in fade-in slide-in-from-bottom-2 duration-300 select-none"
     >
-      <div className="p-4 rounded-2xl bg-surface/95 backdrop-blur-md border border-border shadow-lg space-y-3">
+      <div className="p-4 rounded-2xl bg-surface/98 backdrop-blur-md border border-border shadow-xl space-y-3">
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 rounded-lg bg-surface-raised border border-border flex items-center justify-center text-foreground shrink-0 mt-0.5">
-            <ShieldCheck className="w-4 h-4 text-accent" />
+            <ShieldCheck className="w-4 h-4 text-foreground-muted" />
           </div>
 
           <div className="space-y-1 min-w-0">

@@ -188,6 +188,7 @@ interface PutoIsaacTourProps {
   currentUser?: UserProfile | null;
   onOpenLeaderboard?: () => void;
   onOpenFaucet?: () => void;
+  onTourStateChange?: (isActive: boolean) => void;
 }
 
 export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
@@ -198,6 +199,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
   currentUser = null,
   onOpenLeaderboard,
   onOpenFaucet,
+  onTourStateChange,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -471,6 +473,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     } else {
       try {
         localStorage.setItem('smr2_putoisaac_tour_done', 'true');
+        window.dispatchEvent(new CustomEvent('smr2_tour_completed'));
       } catch {}
       setIsTourCompleted(true);
       setIsOpen(false);
@@ -488,6 +491,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
     if (markDone) {
       try {
         localStorage.setItem('smr2_putoisaac_tour_done', 'true');
+        window.dispatchEvent(new CustomEvent('smr2_tour_completed'));
       } catch {}
       setIsTourCompleted(true);
     }
@@ -1077,37 +1081,31 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
   const isIntroTourActive = !isTourCompleted && isOpen && !isIdleChat;
 
+  useEffect(() => {
+    onTourStateChange?.(isIntroTourActive);
+  }, [isIntroTourActive, onTourStateChange]);
+
   let positionClasses = 'bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-3.5 sm:left-5 sm:bottom-5';
   let mascotScale = 'scale-100';
   let bubbleAlignment = 'items-start';
 
   if (isIntroTourActive) {
-    if (currentStep === 0) {
-      positionClasses = 'bottom-28 sm:bottom-36 left-1/2 -translate-x-1/2';
-      mascotScale = 'scale-125 sm:scale-130';
-      bubbleAlignment = 'items-center';
-    } else if (currentStep === 1) {
-      positionClasses = 'bottom-28 sm:bottom-32 left-4 sm:left-12 translate-x-0';
-      mascotScale = 'scale-110 rotate-3';
-      bubbleAlignment = 'items-start';
-    } else if (currentStep === 2) {
-      positionClasses = 'bottom-36 sm:bottom-44 right-4 sm:right-12 translate-x-0';
-      mascotScale = 'scale-115 -rotate-3';
-      bubbleAlignment = 'items-end';
-    } else if (currentStep === 3) {
-      positionClasses = 'bottom-28 sm:bottom-36 left-1/2 -translate-x-1/2';
-      mascotScale = 'scale-125';
-      bubbleAlignment = 'items-center';
-    } else if (currentStep === 4) {
-      positionClasses = 'top-24 sm:top-28 left-6 sm:left-14 translate-x-0';
-      mascotScale = 'scale-110';
-      bubbleAlignment = 'items-start';
-    }
+    positionClasses = 'bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:bottom-10 left-1/2 -translate-x-1/2';
+    mascotScale = 'scale-115 sm:scale-120';
+    bubbleAlignment = 'items-center';
   }
 
   return (
     <>
-      {/* Fondo transparente para cerrar el bocadillo con un toque fuera */}
+      {/* Telón sutil y limpio durante el tour guiado para evitar solapamientos y clics accidentales */}
+      {isIntroTourActive && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1.5px] pointer-events-auto transition-opacity duration-300"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Fondo transparente para cerrar el bocadillo con un toque fuera en modo libre */}
       {isOpen && isTourCompleted && (
         <div
           onClick={() => handleClose(false)}
@@ -1118,7 +1116,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
       <aside
         aria-label="Asistente interactivo PUTOISAAC"
-        className={`fixed z-45 pointer-events-none select-none font-sans transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1) ${positionClasses}`}
+        className={`fixed z-50 pointer-events-none select-none font-sans transition-all duration-500 ease-out ${positionClasses}`}
       >
         <style jsx>{`
           @keyframes putoFloat {
