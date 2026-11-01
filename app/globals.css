@@ -1,0 +1,335 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fbfbfd;
+  --surface: #ffffff;
+  --surface-raised: #f4f4f6;
+  --surface-hover: #ececef;
+  --border: #e2e2e8;
+  --border-subtle: #eeeeef;
+  --border-focus: #0071e3;
+  --foreground: #111113;
+  --foreground-muted: #57575d;
+  --foreground-subtle: #7e7e86;
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-foreground: #ffffff;
+  --accent-subtle: rgba(0, 113, 227, 0.08);
+  --danger: #ff3b30;
+  --danger-subtle: rgba(255, 59, 48, 0.1);
+  --success: #34c759;
+  --success-subtle: rgba(52, 199, 89, 0.1);
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: #09090b;
+    --surface: #121215;
+    --surface-raised: #18181c;
+    --surface-hover: #222227;
+    --border: #26262b;
+    --border-subtle: #1a1a1e;
+    --border-focus: #0a84ff;
+    --foreground: #f4f4f6;
+    --foreground-muted: #9e9ea7;
+    --foreground-subtle: #71717a;
+    --accent: #0a84ff;
+    --accent-hover: #2e97ff;
+    --accent-foreground: #ffffff;
+    --accent-subtle: rgba(10, 132, 255, 0.14);
+    --danger: #ff453a;
+    --danger-subtle: rgba(255, 69, 58, 0.15);
+    --success: #32d74b;
+    --success-subtle: rgba(50, 215, 75, 0.15);
+  }
+}
+
+html.dark {
+  --background: #09090b;
+  --surface: #121215;
+  --surface-raised: #18181c;
+  --surface-hover: #222227;
+  --border: #26262b;
+  --border-subtle: #1a1a1e;
+  --border-focus: #0a84ff;
+  --foreground: #f4f4f6;
+  --foreground-muted: #9e9ea7;
+  --foreground-subtle: #71717a;
+  --accent: #0a84ff;
+  --accent-hover: #2e97ff;
+  --accent-foreground: #ffffff;
+  --accent-subtle: rgba(10, 132, 255, 0.14);
+  --danger: #ff453a;
+  --danger-subtle: rgba(255, 69, 58, 0.15);
+  --success: #32d74b;
+  --success-subtle: rgba(50, 215, 75, 0.15);
+}
+
+html.light {
+  --background: #fbfbfd;
+  --surface: #ffffff;
+  --surface-raised: #f4f4f6;
+  --surface-hover: #ececef;
+  --border: #e2e2e8;
+  --border-subtle: #eeeeef;
+  --border-focus: #0071e3;
+  --foreground: #111113;
+  --foreground-muted: #57575d;
+  --foreground-subtle: #7e7e86;
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-foreground: #ffffff;
+  --accent-subtle: rgba(0, 113, 227, 0.08);
+  --danger: #ff3b30;
+  --danger-subtle: rgba(255, 59, 48, 0.1);
+  --success: #34c759;
+  --success-subtle: rgba(52, 199, 89, 0.1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-focus: var(--border-focus);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: "SF Mono", Menlo, Monaco, Consolas, var(--font-geist-mono), monospace;
+  --radius: var(--radius);
+  --radius-lg: var(--radius-lg);
+  --radius-sm: var(--radius-sm);
+}
+
+html {
+  scroll-behavior: smooth;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+  font-family: var(--font-sans);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* Fallbacks sobrios y limpios */
+.glass-panel {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.glass-panel-subtle {
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Scrollbar ultra-minimalista */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground-subtle);
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Scroll performance & rendering */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 90px;
+}
+
+/* Zonas táctiles mínimas (Apple HIG: 44x44px) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Accesibilidad táctil y prevención de auto-zoom en iOS Safari */
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select,
+  button {
+    touch-action: manipulation;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="url"],
+  input[type="date"],
+  input[type="time"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Animaciones respetuosas y fluidas (60fps) */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Animaciones ultra-minimalistas de alta fidelidad para cronometría y splash */
+@keyframes chronoTick {
+  0% {
+    transform: translateY(-3px);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes letterTrackIn {
+  0% {
+    letter-spacing: 0.2em;
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  100% {
+    letter-spacing: -0.05em;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes logoReveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-chrono-tick {
+  animation: chronoTick 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-letter-track {
+  animation: letterTrackIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-logo-reveal {
+  animation: logoReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Efectos de explosión y terremoto troll */
+@keyframes earthquakeShake {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-10px, -8px) rotate(-1.5deg); }
+  20% { transform: translate(12px, 8px) rotate(2deg); }
+  30% { transform: translate(-14px, 6px) rotate(-2deg); }
+  40% { transform: translate(10px, -10px) rotate(1.5deg); }
+  50% { transform: translate(-8px, -6px) rotate(-1deg); }
+  60% { transform: translate(8px, 6px) rotate(1deg); }
+  70% { transform: translate(-5px, 3px) rotate(-0.5deg); }
+  80% { transform: translate(5px, -3px) rotate(0.5deg); }
+  90% { transform: translate(-2px, 2px) rotate(0deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes explosionFlash {
+  0% { opacity: 0; }
+  10% { opacity: 0.95; }
+  25% { opacity: 0.7; }
+  100% { opacity: 0; }
+}
+
+@keyframes sirenStrobe {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 0.3; }
+}
+
+.animate-earthquake {
+  animation: earthquakeShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+}
+
+.animate-explosion-flash {
+  animation: explosionFlash 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-siren-strobe {
+  animation: sirenStrobe 0.7s ease-in-out infinite;
+}
+
+/* Fallo de hardware y colapso glitch brutalista (sin estética IA) */
+@keyframes hardwareGlitch {
+  0% { transform: translate(0); filter: invert(0); }
+  12% { transform: translate(-8px, 6px) skewX(-3deg); filter: invert(1); }
+  25% { transform: translate(6px, -4px) skewX(2deg); filter: invert(0); }
+  37% { transform: translate(-9px, -6px) skewX(-4deg); filter: invert(1); }
+  50% { transform: translate(7px, 5px) skewX(3deg); filter: contrast(250%); }
+  62% { transform: translate(-5px, 3px); filter: invert(1); }
+  75% { transform: translate(4px, -3px); filter: invert(0); }
+  87% { transform: translate(-3px, 2px); filter: invert(1); }
+  100% { transform: translate(0); filter: invert(0); }
+}
+
+.animate-hardware-glitch {
+  animation: hardwareGlitch 0.35s steps(3, start) infinite;
+}

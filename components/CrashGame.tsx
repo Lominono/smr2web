@@ -1,0 +1,581 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { sound } from '@/lib/audio';
+import { CrashHistoryItem } from '@/lib/types';
+import {
+  TrendingUp,
+  AlertTriangle,
+  Coins,
+  Zap,
+  Trophy,
+  ShieldAlert,
+  Flame,
+  Activity,
+  Check,
+} from 'lucide-react';
+import confetti from 'canvas-confetti';
+
+interface CrashGameProps {
+  userCoins: number;
+  onUpdateCoins: (delta: number) => void;
+  onBroadcastWin: (game: 'crash', multiplier: number, winAmount: number) => void;
+}
+
+export const CrashGame: React.FC<CrashGameProps> = ({
+  userCoins,
+  onUpdateCoins,
+  onBroadcastWin,
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const [history, setHistory] = useState<CrashHistoryItem[]>([]);
+  const [bet, setBet] = useState<number>(25);
+  const [autoCashoutEnabled, setAutoCashoutEnabled] = useState<boolean>(false);
+  const [autoCashoutMult, setAutoCashoutMult] = useState<number>(2.0);
+  const [gameState, setGameState] = useState<'idle' | 'running' | 'crashed'>('idle');
+  const [currentMultiplier, setCurrentMultiplier] = useState<number>(1.0);
+  const [hasCashedOut, setHasCashedOut] = useState<boolean>(false);
+  const [cashedAmount, setCashedAmount] = useState<number | null>(null);
+  const [cashedMultiplier, setCashedMultiplier] = useState<number | null>(null);
+
+  const crashPointRef = useRef<number>(2.0);
+  const animFrameRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
+  const autoCashedRef = useRef<boolean>(false);
+
+  const LOGICAL_WIDTH = 840;
+  const LOGICAL_HEIGHT = 340;
+
+  const generateCrashPoint = () => {
+    // 4% direct instant bust house edge (1.00x)
+    const e = 2 ** 32;
+    const h = crypto.getRandomValues(new Uint32Array(1))[0];
+    if (h % 25 === 0) return 1.0;
+
+    // 10% early shakeout (1.05x - 1.25x)
+    if (Math.random() < 0.10) {
+      return 1.05 + Math.random() * 0.20;
+    }
+
+    // Provably fair exponential distribution with 25x cap
+    const crash = Math.floor((96 * e) / (e - h)) / 100;
+    return Math.min(Math.max(crash, 1.08), 25.0);
+  };
+
+  const cashOutAt = (multToCash: number) => {
+    if (hasCashedOut || autoCashedRef.current) return;
+    autoCashedRef.current = true;
+
+    // Límite de seguridad: Pago máximo de 15.000 fichas
+    const win = Math.min(Math.round(bet * multToCash), 15000);
+    setHasCashedOut(true);
+    setCashedAmount(win);
+    setCashedMultiplier(multToCash);
+    onUpdateCoins(win);
+    sound.coinWin();
+
+    if (multToCash >= 2.5) {
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        origin: { y: 0.6 },
+      });
+      onBroadcastWin('crash', multToCash, win);
+    }
+  };
+
+  const cashOut = () => {
+    if (gameState !== 'running' || hasCashedOut) return;
+    cashOutAt(currentMultiplier);
+  };
+
+  const startGame = () => {
+    const safeBet = Math.min(Math.max(10, bet), 500);
+    if (userCoins < safeBet) {
+      sound.broke();
+      alert('Saldo insuficiente. Pulsa el botón + arriba a la derecha para recargar.');
+      return;
+    }
+
+    onUpdateCoins(-safeBet);
+    sound.whoosh();
+
+    const targetCrash = generateCrashPoint();
+    crashPointRef.current = targetCrash;
+    setGameState('running');
+    setHasCashedOut(false);
+    autoCashedRef.current = false;
+    setCashedAmount(null);
+    setCashedMultiplier(null);
+    setCurrentMultiplier(1.0);
+    startTimeRef.current = performance.now();
+
+    const loop = (now: number) => {
+      const elapsed = (now - startTimeRef.current) / 1000;
+      const mult = Math.max(1.0, Math.exp(0.08 * (elapsed ** 1.35)));
+
+      // Auto Cashout check
+      if (
+        autoCashoutEnabled &&
+        !autoCashedRef.current &&
+        mult >= autoCashoutMult &&
+        mult < crashPointRef.current
+      ) {
+        cashOutAt(autoCashoutMult);
+      }
+
+      if (mult >= crashPointRef.current) {
+        const finalCrash = crashPointRef.current;
+        setCurrentMultiplier(finalCrash);
+        setGameState('crashed');
+        sound.crashExplode();
+
+        setHistory((prev) => [
+          { id: `h-${Date.now()}`, crashPoint: Number(finalCrash.toFixed(2)), timestamp: 'Ahora' },
+          ...prev.slice(0, 9),
+        ]);
+        return;
+      }
+
+      setCurrentMultiplier(mult);
+
+      if (Math.floor(elapsed * 10) % 3 === 0) {
+        sound.crashTick(mult);
+      }
+
+      animFrameRef.current = requestAnimationFrame(loop);
+    };
+
+    animFrameRef.current = requestAnimationFrame(loop);
+  };
+
+  // High-DPI canvas loop
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+
+    const render = () => {
+      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+      const rect = canvas.getBoundingClientRect();
+      const targetWidth = Math.floor(rect.width * dpr);
+      const targetHeight = Math.floor((rect.width * (LOGICAL_HEIGHT / LOGICAL_WIDTH)) * dpr);
+
+      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+      }
+
+      ctx.save();
+      const scaleX = canvas.width / LOGICAL_WIDTH;
+      const scaleY = canvas.height / LOGICAL_HEIGHT;
+      ctx.scale(scaleX, scaleY);
+
+      // Deep matte obsidian canvas background
+      ctx.fillStyle = '#08080c';
+      ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+      // Technical oscilloscope grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < LOGICAL_WIDTH; x += 45) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, LOGICAL_HEIGHT);
+        ctx.stroke();
+      }
+      for (let y = 0; y < LOGICAL_HEIGHT; y += 45) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(LOGICAL_WIDTH, y);
+        ctx.stroke();
+      }
+
+      const paddingLeft = 45;
+      const paddingBottom = 40;
+      const startX = paddingLeft;
+      const startY = LOGICAL_HEIGHT - paddingBottom;
+
+      // Axis lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(startX, 15);
+      ctx.lineTo(startX, startY);
+      ctx.lineTo(LOGICAL_WIDTH - 20, startY);
+      ctx.stroke();
+
+      // Axis labels
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.font = '10px monospace';
+      ctx.fillText('1.0x', 12, startY + 3);
+      ctx.fillText('2.0x', 12, startY - 60);
+      ctx.fillText('5.0x', 12, startY - 140);
+      ctx.fillText('10x+', 12, startY - 220);
+
+      if (gameState === 'running' || gameState === 'crashed') {
+        const progress = Math.min((currentMultiplier - 1.0) / 10.0, 1.0);
+        const endX = startX + progress * (LOGICAL_WIDTH - startX - 40);
+        const endY = startY - Math.sqrt(progress) * (startY - 35);
+
+        // Auto Cashout Target Line
+        if (autoCashoutEnabled && autoCashoutMult > 1.0) {
+          const autoProgress = Math.min((autoCashoutMult - 1.0) / 10.0, 1.0);
+          const autoLineY = startY - Math.sqrt(autoProgress) * (startY - 35);
+
+          ctx.strokeStyle = 'rgba(234, 179, 8, 0.25)';
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(startX, autoLineY);
+          ctx.lineTo(LOGICAL_WIDTH - 20, autoLineY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = 'rgba(234, 179, 8, 0.7)';
+          ctx.font = '9px monospace';
+          ctx.fillText(`Auto: ${autoCashoutMult.toFixed(2)}x`, LOGICAL_WIDTH - 90, autoLineY - 4);
+        }
+
+        // Gradient under the curve
+        const areaGrad = ctx.createLinearGradient(0, endY, 0, startY);
+        if (gameState === 'crashed') {
+          areaGrad.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
+          areaGrad.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+        } else {
+          areaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
+          areaGrad.addColorStop(0.7, 'rgba(16, 185, 129, 0.08)');
+          areaGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+        }
+
+        ctx.fillStyle = areaGrad;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.quadraticCurveTo((startX + endX) / 2, startY, endX, endY);
+        ctx.lineTo(endX, startY);
+        ctx.closePath();
+        ctx.fill();
+
+        // High intensity neon line
+        ctx.strokeStyle = gameState === 'crashed' ? '#ef4444' : '#10b981';
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.quadraticCurveTo((startX + endX) / 2, startY, endX, endY);
+        ctx.stroke();
+
+        // Tip effects
+        if (gameState === 'running') {
+          // Glow halo
+          ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
+          ctx.lineWidth = 10;
+          ctx.beginPath();
+          ctx.arc(endX, endY, 8, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Core circle
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(endX, endY, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Rocket flame sparks
+          for (let s = 0; s < 4; s++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#f59e0b' : '#34d399';
+            ctx.beginPath();
+            ctx.arc(
+              endX - Math.random() * 12 - 2,
+              endY + Math.random() * 6 - 3,
+              1.5 + Math.random() * 2,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+          }
+        } else {
+          // Crash explosion ring
+          ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.arc(endX, endY, 12, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(endX, endY, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
+      animId = requestAnimationFrame(render);
+    };
+
+    animId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animId);
+  }, [currentMultiplier, gameState, autoCashoutEnabled, autoCashoutMult]);
+
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, []);
+
+  const historyAvg =
+    history.length > 0
+      ? (history.reduce((acc, h) => acc + h.crashPoint, 0) / history.length).toFixed(2)
+      : '2.00';
+
+  const historyMax =
+    history.length > 0
+      ? Math.max(...history.map((h) => h.crashPoint)).toFixed(2)
+      : '5.00';
+
+  return (
+    <div className="rounded-2xl p-4 sm:p-6 bg-surface border border-border/80 flex flex-col items-center shadow-xs">
+      {/* Header telemetry & history */}
+      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3 border-b border-border/70">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500">
+            <TrendingUp className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold tracking-tight text-foreground font-mono">
+                Crash
+              </h2>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-surface-raised text-foreground-muted border border-border/70 font-medium">
+                Media: {historyAvg}x · Máx: {historyMax}x
+              </span>
+            </div>
+            <p className="text-[11px] text-foreground-subtle font-mono">
+              Multiplicador en tiempo real
+            </p>
+          </div>
+        </div>
+
+        {/* History Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0 scrollbar-none">
+          <span className="text-[10px] font-mono text-foreground-subtle uppercase tracking-wider shrink-0 mr-1">
+            Rondas:
+          </span>
+          {history.length === 0 ? (
+            <span className="text-[11px] font-mono text-foreground-subtle">Sin rondas previas</span>
+          ) : (
+            history.map((item) => (
+              <span
+                key={item.id}
+                className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg border shrink-0 tabular-nums transition-all ${
+                  item.crashPoint >= 5.0
+                    ? 'bg-amber-500/15 text-amber-500 border-amber-500/40'
+                    : item.crashPoint >= 2.0
+                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                    : item.crashPoint >= 1.5
+                    ? 'bg-blue-500/10 text-blue-500 border-blue-500/30'
+                    : 'bg-surface-raised text-foreground-subtle border-border/70'
+                }`}
+              >
+                {item.crashPoint.toFixed(2)}x
+              </span>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Screen Canvas Area */}
+      <div className="relative w-full overflow-hidden rounded-2xl border border-border/80 bg-surface-raised flex items-center justify-center">
+        <canvas ref={canvasRef} className="w-full h-auto block aspect-[2/1] sm:aspect-[2.5/1]" />
+
+        {/* Dynamic HUD Center Overlay */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
+          {gameState === 'crashed' ? (
+            <div className="text-center animate-in zoom-in-95 duration-150">
+              <span className="text-xs font-mono font-semibold text-danger tracking-wider uppercase">
+                Crash
+              </span>
+              <h3 className="text-5xl sm:text-7xl font-bold text-danger font-mono tracking-tight tabular-nums">
+                {currentMultiplier.toFixed(2)}x
+              </h3>
+            </div>
+          ) : gameState === 'running' ? (
+            <div className="text-center">
+              <h3 className="text-6xl sm:text-8xl font-bold text-foreground font-mono tracking-tight tabular-nums">
+                {currentMultiplier.toFixed(2)}x
+              </h3>
+              {hasCashedOut && cashedAmount && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 text-xs font-mono font-semibold shadow-xs">
+                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                  <span>+{cashedAmount.toLocaleString()} fichas</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center text-foreground-subtle">
+              <p className="text-xs font-mono text-foreground-muted font-medium">Selecciona apuesta e inicia la subida</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Auto Cashout Controls Bar */}
+      <div className="w-full flex flex-wrap items-center justify-between gap-2.5 mt-3 pt-3 border-t border-border text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={gameState === 'running'}
+            onClick={() => {
+              setAutoCashoutEnabled(!autoCashoutEnabled);
+              sound.tap();
+            }}
+            className={`min-h-[42px] flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-mono transition-all cursor-pointer active:scale-95 touch-manipulation ${
+              autoCashoutEnabled
+                ? 'bg-amber-500/15 text-amber-500 border-amber-500/30 font-bold'
+                : 'bg-surface-raised text-foreground-muted border-border hover:text-foreground'
+            }`}
+          >
+            <Activity className="w-4 h-4 text-amber-500" />
+            <span>Auto-Cobro: {autoCashoutEnabled ? 'ACTIVADO' : 'DESACTIVADO'}</span>
+          </button>
+
+          {autoCashoutEnabled && (
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+              {[1.5, 2.0, 3.0, 5.0].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  disabled={gameState === 'running'}
+                  onClick={() => {
+                    setAutoCashoutMult(preset);
+                    sound.tap();
+                  }}
+                  className={`min-h-[42px] px-3 py-1 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer active:scale-95 touch-manipulation ${
+                    autoCashoutMult === preset
+                      ? 'bg-foreground text-background font-bold shadow-xs'
+                      : 'text-foreground-muted hover:text-foreground bg-surface-raised border border-border'
+                  }`}
+                >
+                  {preset.toFixed(1)}x
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <span className="text-[11px] text-foreground-subtle">
+          {autoCashoutEnabled ? `Fijado en x${autoCashoutMult.toFixed(2)}` : 'Cobro manual activo'}
+        </span>
+      </div>
+
+      {/* Cockpit Bet Console */}
+      <div className="w-full flex flex-col sm:grid sm:grid-cols-12 gap-3 mt-3">
+        {/* Quick Bet Buttons */}
+        <div className="sm:col-span-7 bg-surface-raised p-2.5 rounded-xl border border-border space-y-2">
+          <div className="flex items-center justify-between text-xs font-mono">
+            <span className="text-foreground-muted flex items-center gap-1.5 font-medium">
+              <Coins className="w-4 h-4 text-amber-500" />
+              <span>Apuesta:</span>
+            </span>
+            <span className="text-amber-500 font-bold">{bet.toLocaleString()} fichas</span>
+          </div>
+
+          {/* Presets row */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+            {[10, 25, 50, 100, 250].map((amt) => (
+              <button
+                key={amt}
+                disabled={gameState === 'running'}
+                onClick={() => {
+                  setBet(amt);
+                  sound.tap();
+                }}
+                className={`flex-1 min-h-[42px] px-2.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation disabled:opacity-40 ${
+                  bet === amt
+                    ? 'bg-foreground text-background font-black shadow-xs'
+                    : 'text-foreground-muted hover:text-foreground bg-surface border border-border'
+                }`}
+              >
+                {amt}
+              </button>
+            ))}
+          </div>
+
+          {/* Modifiers row */}
+          <div className="grid grid-cols-3 gap-1 pt-1 border-t border-border-subtle">
+            <button
+              type="button"
+              disabled={gameState === 'running'}
+              onClick={() => {
+                setBet((prev) => Math.max(10, Math.floor(prev / 2)));
+                sound.tap();
+              }}
+              title="Dividir apuesta entre 2"
+              className="min-h-[40px] px-2 py-1 rounded-lg text-xs font-mono font-bold text-foreground-muted hover:text-foreground bg-surface border border-border active:scale-95 touch-manipulation cursor-pointer disabled:opacity-40"
+            >
+              ½ Mitad
+            </button>
+            <button
+              type="button"
+              disabled={gameState === 'running'}
+              onClick={() => {
+                setBet((prev) => Math.min(Math.min(userCoins, 500), prev * 2));
+                sound.tap();
+              }}
+              title="Duplicar apuesta"
+              className="min-h-[40px] px-2 py-1 rounded-lg text-xs font-mono font-bold text-foreground-muted hover:text-foreground bg-surface border border-border active:scale-95 touch-manipulation cursor-pointer disabled:opacity-40"
+            >
+              2× Doble
+            </button>
+            <button
+              type="button"
+              disabled={gameState === 'running'}
+              onClick={() => {
+                setBet(Math.min(userCoins > 0 ? userCoins : 100, 500));
+                sound.tap();
+              }}
+              className={`min-h-[40px] px-2 py-1 rounded-lg text-xs font-mono font-black transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation disabled:opacity-40 ${
+                bet >= 500 || bet === userCoins
+                  ? 'bg-amber-500 text-black shadow-xs'
+                  : 'text-amber-500 bg-amber-500/10 border border-amber-500/25'
+              }`}
+            >
+              MÁX
+            </button>
+          </div>
+        </div>
+
+        {/* Primary Action Button */}
+        <div className="sm:col-span-5 flex items-stretch">
+          {gameState === 'running' ? (
+            <button
+              onClick={cashOut}
+              disabled={hasCashedOut}
+              className={`w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs active:scale-[0.98] touch-manipulation ${
+                hasCashedOut
+                  ? 'bg-surface-raised text-foreground-subtle border border-border cursor-not-allowed'
+                  : 'bg-success hover:opacity-90 text-white'
+              }`}
+            >
+              <span>
+                {hasCashedOut
+                  ? 'Cobrado'
+                  : `Cobrar (+${(bet * currentMultiplier).toFixed(0)} fichas)`}
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={startGame}
+              className="w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-semibold bg-foreground hover:opacity-90 text-background shadow-xs active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Zap className="w-4 h-4 fill-current" />
+              <span>Iniciar (-{bet} fichas)</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,592 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
+import { Eye, EyeOff, Loader2, ArrowRight, X, Terminal } from 'lucide-react';
+import { sound } from '@/lib/audio';
+import { PRELAUNCH_STORAGE_KEY } from '@/lib/prelaunchConstants';
+
+// Fecha oficial de apertura: 9 de noviembre de 2026 a las 08:35 AM (CET)
+export const TARGET_LAUNCH_TIMESTAMP = new Date('2026-11-09T08:35:00+01:00').getTime();
+const LAUNCH_START_TIMESTAMP = new Date('2026-10-20T00:00:00+01:00').getTime();
+
+interface LaunchCountdownGateProps {
+  onUnlock: () => void;
+}
+
+interface TimeLeft {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  progressPercent: number;
+  isCompleted: boolean;
+}
+
+function calculateTime(): TimeLeft {
+  const now = Date.now();
+  const diff = TARGET_LAUNCH_TIMESTAMP - now;
+
+  if (diff <= 0) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, progressPercent: 100, isCompleted: true };
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((diff / (1000 * 60)) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
+
+  const totalDuration = TARGET_LAUNCH_TIMESTAMP - LAUNCH_START_TIMESTAMP;
+  const elapsed = Math.max(0, now - LAUNCH_START_TIMESTAMP);
+  const progressPercent = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
+
+  return { days, hours, minutes, seconds, progressPercent, isCompleted: false };
+}
+
+export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlock }) => {
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTime);
+  const [mounted, setMounted] = useState(false);
+
+  // Animación inicial sobria: solo si la cuenta atrás existe y no ha concluido
+  const initialTime = calculateTime();
+  const [showIntro, setShowIntro] = useState<boolean>(!initialTime.isCompleted);
+  const [introFading, setIntroFading] = useState<boolean>(false);
+  const introTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Modal oculto de acceso anticipado (Easter egg)
+  const [showModal, setShowModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Contadores de clics para el easter egg
+  const [logoClicks, setLogoClicks] = useState(0);
+  const [aulaClicks, setAulaClicks] = useState(0);
+  const logoResetTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const aulaResetTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoClick = () => {
+    if (logoResetTimerRef.current) clearTimeout(logoResetTimerRef.current);
+    const next = logoClicks + 1;
+    setLogoClicks(next);
+    if (next >= 5) {
+      try {
+        sound.coinWin();
+      } catch {}
+      setShowModal(true);
+      setErrorMessage(null);
+      setLogoClicks(0);
+    } else {
+      logoResetTimerRef.current = setTimeout(() => {
+        setLogoClicks(0);
+      }, 2500);
+    }
+  };
+
+  const handleAulaClick = () => {
+    if (aulaResetTimerRef.current) clearTimeout(aulaResetTimerRef.current);
+    const next = aulaClicks + 1;
+    setAulaClicks(next);
+    if (next >= 3) {
+      try {
+        sound.coinWin();
+      } catch {}
+      setShowModal(true);
+      setErrorMessage(null);
+      setAulaClicks(0);
+    } else {
+      aulaResetTimerRef.current = setTimeout(() => {
+        setAulaClicks(0);
+      }, 2500);
+    }
+  };
+
+  useEffect(() => {
+    setMounted(true);
+
+    if (initialTime.isCompleted) {
+      onUnlock();
+      return;
+    }
+
+    try {
+      sound.tap();
+    } catch {}
+
+    const fadeTimer = setTimeout(() => {
+      setIntroFading(true);
+    }, 1600);
+
+    const finishTimer = setTimeout(() => {
+      setShowIntro(false);
+    }, 2200);
+
+    introTimerRef.current = finishTimer;
+
+    const timer = setInterval(() => {
+      const current = calculateTime();
+      setTimeLeft(current);
+
+      if (current.isCompleted) {
+        clearInterval(timer);
+        try {
+          sound.windowsStartup();
+        } catch {}
+        setTimeout(() => {
+          onUnlock();
+        }, 1000);
+      }
+    }, 1000);
+
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(finishTimer);
+      clearInterval(timer);
+    };
+  }, [onUnlock]);
+
+  // Detector de atajos y secuencias de teclado para los "listillos"
+  useEffect(() => {
+    let keyBuffer = '';
+    let keyTimer: NodeJS.Timeout | null = null;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Si el usuario está escribiendo dentro de un input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        if (e.key === 'Escape') {
+          setShowModal(false);
+          setPassword('');
+          setErrorMessage(null);
+        }
+        return;
+      }
+
+      // Atajo de teclado: Ctrl+Shift+S, Ctrl+Shift+A, Alt+A o la tecla `
+      if (
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'S' || e.key === 's' || e.key === 'A' || e.key === 'a')) ||
+        (e.altKey && (e.key === 'A' || e.key === 'a')) ||
+        e.key === '`' ||
+        e.key === '~'
+      ) {
+        e.preventDefault();
+        try {
+          sound.tap();
+        } catch {}
+        setShowModal(true);
+        setErrorMessage(null);
+        return;
+      }
+
+      // Detección de secuencias de teclado (ej: escribir "smr", "smr2", "admin", "root", "papu", "2026")
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        keyBuffer += e.key.toLowerCase();
+        if (keyBuffer.length > 20) {
+          keyBuffer = keyBuffer.slice(-20);
+        }
+
+        if (
+          keyBuffer.endsWith('smr') ||
+          keyBuffer.endsWith('smr2') ||
+          keyBuffer.endsWith('admin') ||
+          keyBuffer.endsWith('root') ||
+          keyBuffer.endsWith('2026') ||
+          keyBuffer.endsWith('papu') ||
+          keyBuffer.endsWith('hack')
+        ) {
+          try {
+            sound.coinWin();
+          } catch {}
+          setShowModal(true);
+          setErrorMessage(null);
+          keyBuffer = '';
+        }
+
+        if (keyTimer) clearTimeout(keyTimer);
+        keyTimer = setTimeout(() => {
+          keyBuffer = '';
+        }, 3000);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Gancho en DevTools Console para los que inspeccionan con F12
+    if (typeof window !== 'undefined') {
+      (window as any).unlock = async (pass: string) => {
+        const cleanPass = String(pass || '').trim();
+        if (!cleanPass) {
+          console.warn('[SMR2] Especifica la clave: unlock("tu_clave")');
+          return;
+        }
+        console.log('%c[SMR2] Validando credencial con el servidor...', 'color: #38bdf8; font-family: monospace;');
+        try {
+          const res = await fetch('/api/prelaunch/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: cleanPass }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.success && data.token) {
+            localStorage.setItem(PRELAUNCH_STORAGE_KEY, data.token);
+            try {
+              sound.toastClink();
+            } catch {}
+            console.log('%c[SMR2] ¡Acceso concedido! Saltando la cuenta regresiva...', 'color: #10b981; font-weight: bold; font-family: monospace;');
+            setShowModal(false);
+            onUnlock();
+          } else {
+            console.error('[SMR2] Acceso denegado:', data.error || 'Clave incorrecta');
+          }
+        } catch (err: any) {
+          console.error('[SMR2] Error de conexión:', err?.message);
+        }
+      };
+
+      (window as any).smr2 = {
+        unlock: (window as any).unlock,
+        info: '2º SMR · Aula: Ni puta idea',
+      };
+
+      console.log(
+        '%c[SMR2] SISTEMA EN CUENTA REGRESIVA\n%c¿Te pasas de listo mirando la consola? Si tienes la clave, escribe: unlock("clave") o haz 5 clics en el logo.',
+        'color: #e5e5e5; font-size: 13px; font-weight: bold; font-family: monospace;',
+        'color: #a3a3a3; font-size: 11px; font-family: monospace;'
+      );
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (keyTimer) clearTimeout(keyTimer);
+      if (typeof window !== 'undefined') {
+        delete (window as any).unlock;
+        delete (window as any).smr2;
+      }
+    };
+  }, [onUnlock]);
+
+  const handleSkipIntro = () => {
+    if (!showIntro) return;
+    try {
+      sound.tap();
+    } catch {}
+    setIntroFading(true);
+    setTimeout(() => {
+      setShowIntro(false);
+    }, 200);
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanPassword = password.trim();
+    if (!cleanPassword || isLoading) return;
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await fetch('/api/prelaunch/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: cleanPassword }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success && data.token) {
+        try {
+          localStorage.setItem(PRELAUNCH_STORAGE_KEY, data.token);
+          localStorage.removeItem('smr2_prelaunch_bypass');
+          sound.toastClink();
+        } catch {}
+        setShowModal(false);
+        onUnlock();
+      } else {
+        try {
+          sound.impact(0.4);
+        } catch {}
+        setErrorMessage(data.error || 'Clave de acceso no válida.');
+      }
+    } catch {
+      setErrorMessage('Error de conexión con el servidor. Inténtalo de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!mounted) {
+    return <div className="fixed inset-0 bg-[#09090b] z-[9999]" />;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex flex-col justify-between bg-[#09090b] text-neutral-100 p-5 sm:p-8 md:p-12 select-none overflow-y-auto antialiased">
+      {/* ============================================================ */}
+      {/* 1. INTRO SPLASH: Revelación tipográfica minimalista           */}
+      {/* ============================================================ */}
+      {showIntro && (
+        <div
+          onClick={handleSkipIntro}
+          className={`fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-[#09090b] p-6 cursor-pointer transition-opacity duration-500 ease-out ${
+            introFading ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          }`}
+        >
+          <div className="flex flex-col items-center justify-center text-center space-y-4">
+            <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+              <Image
+                src="/logo.png"
+                alt="SMR2 Logo"
+                fill
+                sizes="96px"
+                className="object-contain"
+                priority
+              />
+            </div>
+
+            <h1 className="text-5xl sm:text-7xl font-bold tracking-tight text-white">
+              SMR2
+            </h1>
+
+            <div className="w-8 h-px bg-neutral-800" />
+
+            <p className="text-xs font-mono tracking-widest uppercase text-neutral-500">
+              Aula: Ni puta idea
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 2. PANTALLA PRINCIPAL: CONTADOR ULTRA-MINIMALISTA SIN BOTONES */}
+      {/* ============================================================ */}
+
+      {/* Encabezado sin botones: 100% sobrio y minimalista */}
+      <header className="w-full max-w-4xl mx-auto flex items-center justify-between relative z-10 select-none">
+        <div
+          onClick={handleLogoClick}
+          className="flex items-center gap-3 cursor-default active:opacity-90 transition-opacity"
+          title="2º SMR"
+        >
+          <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 p-1.5 flex items-center justify-center">
+            <Image
+              src="/logo.png"
+              alt="SMR2 Logo"
+              width={24}
+              height={24}
+              className="w-full h-full object-contain pointer-events-none"
+              priority
+            />
+          </div>
+          <div>
+            <div className="text-xs font-semibold tracking-tight text-neutral-200">
+              2º SMR
+            </div>
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAulaClick();
+              }}
+              className="text-[10px] text-neutral-500 font-mono cursor-default"
+            >
+              Aula: Ni puta idea
+            </div>
+          </div>
+        </div>
+
+        {/* Sin ningún botón visible: Solo indicador sutil de estado */}
+        <div className="flex items-center gap-2 text-[10px] font-mono text-neutral-600">
+          <span className="w-1.5 h-1.5 rounded-full bg-neutral-700 animate-pulse" />
+          <span className="tracking-widest">SMR2</span>
+        </div>
+      </header>
+
+      {/* Núcleo cronométrico tipográfico (sin cajas ni botones) */}
+      <main className="w-full max-w-3xl mx-auto my-auto py-12 sm:py-20 flex flex-col items-center text-center relative z-10">
+        {/* Meta sutil */}
+        <div className="text-[11px] font-mono tracking-widest uppercase text-neutral-500 mb-8 sm:mb-12">
+          Apertura · 9 nov 2026 · 08:35
+        </div>
+
+        {/* Tipografía Monumental Suiza y minimalista */}
+        <div className="flex items-baseline justify-center gap-2 sm:gap-6 md:gap-8">
+          {/* DÍAS */}
+          <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
+            <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none">
+              {timeLeft.days}
+            </span>
+            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
+              días
+            </span>
+          </div>
+
+          <span className="font-mono text-2xl sm:text-5xl md:text-6xl font-extralight text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
+            :
+          </span>
+
+          {/* HORAS */}
+          <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
+            <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none">
+              {String(timeLeft.hours).padStart(2, '0')}
+            </span>
+            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
+              horas
+            </span>
+          </div>
+
+          <span className="font-mono text-2xl sm:text-5xl md:text-6xl font-extralight text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
+            :
+          </span>
+
+          {/* MINUTOS */}
+          <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
+            <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none">
+              {String(timeLeft.minutes).padStart(2, '0')}
+            </span>
+            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
+              min
+            </span>
+          </div>
+
+          <span className="font-mono text-2xl sm:text-5xl md:text-6xl font-extralight text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
+            :
+          </span>
+
+          {/* SEGUNDOS */}
+          <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
+            <span
+              key={timeLeft.seconds}
+              className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-neutral-200 tabular-nums leading-none"
+            >
+              {String(timeLeft.seconds).padStart(2, '0')}
+            </span>
+            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
+              seg
+            </span>
+          </div>
+        </div>
+
+        {/* Línea de progreso ultra-fina (hairline) */}
+        <div className="w-full max-w-sm mt-12 sm:mt-16 space-y-2">
+          <div className="w-full h-px bg-neutral-800">
+            <div
+              className="h-px bg-neutral-300 transition-all duration-1000 ease-out"
+              style={{ width: `${timeLeft.progressPercent}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] font-mono text-neutral-600">
+            <span>Inicio</span>
+            <span>{timeLeft.progressPercent}%</span>
+            <span>Apertura</span>
+          </div>
+        </div>
+      </main>
+
+      {/* Pie minimalista sin enlaces */}
+      <footer className="w-full max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 pt-4 border-t border-neutral-900 text-[11px] text-neutral-500 font-mono select-none">
+        <div>
+          Desarrollado por JuanFe y David
+        </div>
+        <div
+          onClick={handleAulaClick}
+          className="cursor-default"
+        >
+          Aula: Ni puta idea
+        </div>
+      </footer>
+
+      {/* Modal secreto del Easter Egg (Solo para los que se pasan de listos) */}
+      {showModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            setShowModal(false);
+            setPassword('');
+            setErrorMessage(null);
+          }}
+          className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-neutral-950 border border-neutral-800 rounded-xl p-5 text-left font-mono space-y-3.5 shadow-2xl relative"
+          >
+            <div className="flex items-center justify-between pb-1 border-b border-neutral-900">
+              <div>
+                <h3 className="text-xs font-semibold text-neutral-200 tracking-tight flex items-center gap-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>EASTER_EGG: BYPASS</span>
+                </h3>
+                <p className="text-[10px] text-neutral-500 mt-0.5">
+                  Puerta trasera activada. Clave maestra requerida.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(false);
+                  setPassword('');
+                  setErrorMessage(null);
+                }}
+                className="text-neutral-500 hover:text-neutral-300 text-xs p-1 cursor-pointer transition-colors"
+                title="Cerrar (Esc)"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-3 pt-1">
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  placeholder="introduce_clave..."
+                  autoFocus
+                  disabled={isLoading}
+                  className="w-full text-xs font-mono bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 pr-9 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 p-1 cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+
+              {errorMessage && (
+                <p className="text-[11px] text-red-400 font-mono">
+                  {errorMessage}
+                </p>
+              )}
+
+              <div className="flex items-center justify-between pt-1 text-[10px] text-neutral-500">
+                <span className="hidden sm:inline">Pulsa ENTER para verificar</span>
+                <button
+                  type="submit"
+                  disabled={isLoading || !password.trim()}
+                  className="px-3 py-1.5 bg-neutral-100 hover:bg-white text-black text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Validando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Entrar</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

@@ -1,0 +1,473 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { sound } from '@/lib/audio';
+import {
+  Bomb,
+  Server,
+  Coins,
+  Trophy,
+  RotateCcw,
+  Sparkles,
+  Zap,
+  Share2,
+  Check,
+  Flame,
+  AlertTriangle,
+  Shuffle,
+} from 'lucide-react';
+import confetti from 'canvas-confetti';
+
+interface MinesGameProps {
+  userCoins: number;
+  onUpdateCoins: (delta: number) => void;
+  onBroadcastWin: (game: 'mines', multiplier: number, winAmount: number) => void;
+}
+
+interface TileState {
+  index: number;
+  isMine: boolean;
+  isRevealed: boolean;
+}
+
+const TOTAL_TILES = 25;
+
+export const MinesGame: React.FC<MinesGameProps> = ({
+  userCoins,
+  onUpdateCoins,
+  onBroadcastWin,
+}) => {
+  const [bet, setBet] = useState<number>(25);
+  const [mineCount, setMineCount] = useState<number>(3);
+  const [gameState, setGameState] = useState<'idle' | 'playing' | 'cashed' | 'busted'>('idle');
+  const [tiles, setTiles] = useState<TileState[]>(() =>
+    Array.from({ length: TOTAL_TILES }, (_, index) => ({
+      index,
+      isMine: false,
+      isRevealed: false,
+    }))
+  );
+  const [revealedCount, setRevealedCount] = useState<number>(0);
+  const [lastWin, setLastWin] = useState<{ amount: number; multiplier: number } | null>(null);
+  const [bragged, setBragged] = useState<boolean>(false);
+
+  // Helper to calculate exact fair multiplier based on open-source Stake Mines formulas
+  const calculateMultiplier = (revealed: number, mines: number): number => {
+    if (revealed === 0) return 1.0;
+    const totalGems = TOTAL_TILES - mines;
+    if (revealed > totalGems) return 1.0;
+
+    let mult = 0.99; // 99% RTP
+    for (let i = 0; i < revealed; i++) {
+      mult *= (TOTAL_TILES - i) / (totalGems - i);
+    }
+    return Math.floor(mult * 100) / 100;
+  };
+
+  const currentMultiplier = calculateMultiplier(revealedCount, mineCount);
+  const nextMultiplier = calculateMultiplier(revealedCount + 1, mineCount);
+
+  // Start a new Mines round
+  const startGame = () => {
+    const safeBet = Math.min(Math.max(10, bet), 500);
+    if (userCoins < safeBet) {
+      sound.broke();
+      alert('Saldo insuficiente para realizar esta apuesta.');
+      return;
+    }
+
+    onUpdateCoins(-safeBet);
+    sound.whoosh();
+
+    // 1. Generate random mine positions using crypto RNG
+    const mineIndices = new Set<number>();
+    while (mineIndices.size < mineCount) {
+      const randArr = new Uint32Array(1);
+      crypto.getRandomValues(randArr);
+      const randIdx = randArr[0] % TOTAL_TILES;
+      mineIndices.add(randIdx);
+    }
+
+    const newTiles: TileState[] = Array.from({ length: TOTAL_TILES }, (_, idx) => ({
+      index: idx,
+      isMine: mineIndices.has(idx),
+      isRevealed: false,
+    }));
+
+    setTiles(newTiles);
+    setRevealedCount(0);
+    setGameState('playing');
+    setLastWin(null);
+    setBragged(false);
+  };
+
+  // Handle clicking a specific tile
+  const handleTileClick = (index: number) => {
+    if (gameState !== 'playing') return;
+    const tile = tiles[index];
+    if (tile.isRevealed) return;
+
+    if (tile.isMine) {
+      // Hit a mine! Busted!
+      sound.crashExplode();
+      setGameState('busted');
+      setTiles((prev) =>
+        prev.map((t) => (t.index === index ? { ...t, isRevealed: true } : t))
+      );
+      return;
+    }
+
+    // Safe tile / gem!
+    const nextRevealed = revealedCount + 1;
+    setRevealedCount(nextRevealed);
+    sound.gemPing(nextRevealed);
+
+    const updatedTiles = tiles.map((t) =>
+      t.index === index ? { ...t, isRevealed: true } : t
+    );
+    setTiles(updatedTiles);
+
+    // If all safe tiles have been found, auto cashout jackpot!
+    const totalSafe = TOTAL_TILES - mineCount;
+    if (nextRevealed === totalSafe) {
+      const finalMult = calculateMultiplier(nextRevealed, mineCount);
+      const win = Math.round(bet * finalMult);
+      onUpdateCoins(win);
+      setLastWin({ amount: win, multiplier: finalMult });
+      setGameState('cashed');
+      sound.coinWin();
+      confetti({ particleCount: 120, spread: 80 });
+      if (finalMult >= 2.5) {
+        onBroadcastWin('mines', finalMult, win);
+      }
+    }
+  };
+
+  // Quick Pick: reveals a random unopened tile
+  const handleQuickPick = () => {
+    if (gameState !== 'playing') return;
+    const unrevealed = tiles.filter((t) => !t.isRevealed);
+    if (unrevealed.length === 0) return;
+
+    const rand = Math.floor(Math.random() * unrevealed.length);
+    handleTileClick(unrevealed[rand].index);
+  };
+
+  // Cash out current winnings
+  const handleCashOut = () => {
+    if (gameState !== 'playing' || revealedCount === 0) return;
+
+    // Límite de seguridad: Pago máximo de 15.000 fichas
+    const winAmount = Math.min(Math.round(bet * currentMultiplier), 15000);
+    onUpdateCoins(winAmount);
+    setLastWin({ amount: winAmount, multiplier: currentMultiplier });
+    setGameState('cashed');
+    sound.coinWin();
+
+    if (currentMultiplier >= 2.5) {
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+      onBroadcastWin('mines', currentMultiplier, winAmount);
+    }
+  };
+
+  const handleBrag = () => {
+    if (!lastWin || bragged) return;
+    onBroadcastWin('mines', lastWin.multiplier, lastWin.amount);
+    setBragged(true);
+    sound.coinWin();
+  };
+
+  const isGameOver = gameState === 'cashed' || gameState === 'busted';
+
+  return (
+    <div className="rounded-2xl p-4 sm:p-6 bg-surface border border-border/80 flex flex-col items-center shadow-xs">
+      {/* Header telemetry */}
+      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3 border-b border-border/70">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500">
+            <Server className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold tracking-tight text-foreground font-mono">
+                Minas
+              </h2>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-surface-raised text-foreground-muted border border-border/70 font-medium">
+                {mineCount} minas · {TOTAL_TILES - mineCount} servidores
+              </span>
+            </div>
+            <p className="text-[11px] text-foreground-subtle font-mono">
+              Descubre servidores funcionales y retira a tiempo
+            </p>
+          </div>
+        </div>
+
+        {/* Live Multiplier readout */}
+        <div className="flex items-center gap-2">
+          {gameState === 'playing' && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 font-mono">
+              <span className="text-[11px] text-emerald-500 font-medium">Multiplicador:</span>
+              <span className="text-sm font-bold text-foreground tabular-nums">
+                x{currentMultiplier.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {gameState === 'playing' && (
+            <button
+              type="button"
+              onClick={handleQuickPick}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-raised hover:bg-surface-hover border border-border text-xs font-mono text-foreground-muted hover:text-foreground transition-all cursor-pointer"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Aleatorio</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 2-Column Responsive Layout: Left Grid / Right Cockpit */}
+      <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+        {/* Left Column: 5x5 Mines Board */}
+        <div className="md:col-span-7 flex flex-col items-center">
+          <div className="w-full max-w-sm sm:max-w-md aspect-square grid grid-cols-5 gap-2 sm:gap-2.5 p-3 rounded-2xl bg-surface-raised border border-border/80 shadow-inner select-none">
+            {tiles.map((tile) => {
+              const showContent = tile.isRevealed || isGameOver;
+              const isMineAndRevealed = showContent && tile.isMine;
+              const isSafeAndRevealed = showContent && !tile.isMine;
+
+              return (
+                <button
+                  key={tile.index}
+                  type="button"
+                  disabled={gameState !== 'playing' || tile.isRevealed}
+                  onClick={() => handleTileClick(tile.index)}
+                  className={`relative rounded-xl border flex items-center justify-center transition-all cursor-pointer aspect-square ${
+                    !tile.isRevealed && gameState === 'playing'
+                      ? 'bg-surface hover:bg-surface-hover border-border hover:border-foreground/30 active:scale-95 shadow-2xs'
+                      : tile.isRevealed && !tile.isMine
+                      ? 'bg-emerald-500/15 border-emerald-500/40'
+                      : tile.isRevealed && tile.isMine
+                      ? 'bg-rose-500/20 border-rose-500'
+                      : isGameOver && tile.isMine
+                      ? 'bg-rose-500/10 border-rose-500/20 opacity-60'
+                      : isGameOver && !tile.isMine
+                      ? 'bg-emerald-500/10 border-emerald-500/20 opacity-50'
+                      : 'bg-surface border-border/60'
+                  }`}
+                >
+                  {isSafeAndRevealed ? (
+                    <div className="flex flex-col items-center justify-center animate-in zoom-in-75 duration-150">
+                      <Server className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />
+                    </div>
+                  ) : isMineAndRevealed ? (
+                    <div className="flex flex-col items-center justify-center animate-in zoom-in-90 duration-150">
+                      <Bomb className="w-5 h-5 sm:w-6 sm:h-6 text-rose-500" />
+                    </div>
+                  ) : (
+                    <div className="w-2.5 h-2.5 rounded-full bg-border" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Game Over Banner */}
+          {gameState === 'busted' && (
+            <div className="w-full max-w-sm sm:max-w-md mt-3 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between text-xs font-mono text-rose-300 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>Cortocircuito: Servidor quemado</span>
+              </div>
+              <span className="font-bold">0 fichas</span>
+            </div>
+          )}
+
+          {gameState === 'cashed' && lastWin && (
+            <div className="w-full max-w-sm sm:max-w-md mt-3 p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-between text-xs font-mono text-emerald-300 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
+                <div>
+                  <span className="font-bold block text-white">
+                    +{lastWin.amount.toLocaleString()} fichas
+                  </span>
+                  <span className="text-[10px] text-emerald-400/80">
+                    Cobrado en x{lastWin.multiplier.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleBrag}
+                disabled={bragged}
+                className="px-2.5 py-1.5 rounded-xl bg-white text-black font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                <Share2 className="w-3 h-3" />
+                <span>{bragged ? 'Compartido' : 'Al Chat'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Controls, Mines & Bet Config */}
+        <div className="md:col-span-5 space-y-4">
+          {/* Mine count selection */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-zinc-400 flex items-center gap-1.5">
+                <Bomb className="w-3.5 h-3.5 text-rose-400" />
+                <span>Número de minas:</span>
+              </span>
+              <span className="text-white font-bold">{mineCount}</span>
+            </div>
+
+            <div className="grid grid-cols-4 gap-1.5 bg-surface-raised p-1.5 rounded-xl border border-border">
+              {[1, 3, 5, 10].map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  disabled={gameState === 'playing'}
+                  onClick={() => {
+                    setMineCount(count);
+                    sound.tap();
+                  }}
+                  className={`min-h-[42px] rounded-lg text-xs font-mono font-medium transition-all cursor-pointer disabled:opacity-40 active:scale-95 touch-manipulation ${
+                    mineCount === count
+                      ? 'bg-foreground text-background font-bold shadow-xs'
+                      : 'text-foreground-muted hover:text-foreground'
+                  }`}
+                >
+                  {count} {count === 1 ? 'Mina' : 'Minas'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Bet Buttons */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-foreground-muted flex items-center gap-1.5">
+                <Coins className="w-3.5 h-3.5 text-amber-500" />
+                <span>Apuesta:</span>
+              </span>
+              <span className="text-amber-500 font-bold">{bet.toLocaleString()} fichas</span>
+            </div>
+
+            <div className="space-y-1.5 bg-surface-raised p-2 rounded-xl border border-border">
+              {/* Presets row */}
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
+                {[10, 25, 50, 100, 250].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    disabled={gameState === 'playing'}
+                    onClick={() => {
+                      setBet(amt);
+                      sound.tap();
+                    }}
+                    className={`flex-1 min-h-[42px] px-2 rounded-lg text-xs font-mono transition-all disabled:opacity-40 cursor-pointer active:scale-95 touch-manipulation shrink-0 ${
+                      bet === amt
+                        ? 'bg-foreground text-background font-bold shadow-xs'
+                        : 'text-foreground-muted hover:text-foreground bg-surface border border-border'
+                    }`}
+                  >
+                    {amt}
+                  </button>
+                ))}
+              </div>
+
+              {/* Modifiers row */}
+              <div className="grid grid-cols-3 gap-1 pt-0.5 border-t border-border-subtle">
+                <button
+                  type="button"
+                  disabled={gameState === 'playing'}
+                  onClick={() => {
+                    setBet((prev) => Math.max(10, Math.floor(prev / 2)));
+                    sound.tap();
+                  }}
+                  className="min-h-[40px] rounded-lg text-xs font-mono font-semibold text-foreground-muted hover:text-foreground bg-surface border border-border disabled:opacity-40 cursor-pointer active:scale-95 touch-manipulation"
+                >
+                  ½ Mitad
+                </button>
+                <button
+                  type="button"
+                  disabled={gameState === 'playing'}
+                  onClick={() => {
+                    setBet((prev) => Math.min(Math.min(userCoins, 500), prev * 2));
+                    sound.tap();
+                  }}
+                  className="min-h-[40px] rounded-lg text-xs font-mono font-semibold text-foreground-muted hover:text-foreground bg-surface border border-border disabled:opacity-40 cursor-pointer active:scale-95 touch-manipulation"
+                >
+                  2× Doble
+                </button>
+                <button
+                  type="button"
+                  disabled={gameState === 'playing'}
+                  onClick={() => {
+                    setBet(Math.min(userCoins > 0 ? userCoins : 100, 500));
+                    sound.tap();
+                  }}
+                  className={`min-h-[40px] rounded-lg text-xs font-mono font-bold transition-all disabled:opacity-40 cursor-pointer active:scale-95 touch-manipulation ${
+                    bet >= 500 || bet === userCoins
+                      ? 'bg-amber-500 text-black font-black'
+                      : 'text-amber-500 bg-amber-500/10 border border-amber-500/20'
+                  }`}
+                >
+                  MÁX
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Current telemetry when playing */}
+          {gameState === 'playing' && (
+            <div className="p-3.5 rounded-xl bg-surface-raised border border-border space-y-2 text-xs font-mono">
+              <div className="flex items-center justify-between">
+                <span className="text-foreground-muted">Gemas descubiertas:</span>
+                <span className="text-foreground font-bold">
+                  {revealedCount} / {TOTAL_TILES - mineCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-foreground-muted">Siguiente multiplicador:</span>
+                <span className="text-success font-bold">
+                  x{nextMultiplier.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Action Button: Start or Cashout */}
+          {gameState === 'playing' ? (
+            <button
+              type="button"
+              disabled={revealedCount === 0}
+              onClick={handleCashOut}
+              className={`w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs active:scale-95 touch-manipulation ${
+                revealedCount === 0
+                  ? 'bg-surface-raised text-foreground-subtle border border-border cursor-not-allowed'
+                  : 'bg-success hover:opacity-90 text-white'
+              }`}
+            >
+              <span>
+                {revealedCount === 0
+                  ? 'Selecciona un servidor'
+                  : `Retirar (+${(bet * currentMultiplier).toFixed(0)} fichas · x${currentMultiplier.toFixed(2)})`}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={startGame}
+              className="w-full min-h-[52px] py-3.5 px-4 rounded-xl font-mono text-sm font-semibold bg-foreground text-background hover:opacity-90 shadow-xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 touch-manipulation"
+            >
+              <Zap className="w-4 h-4 fill-current" />
+              <span>Iniciar (-{bet} fichas)</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
