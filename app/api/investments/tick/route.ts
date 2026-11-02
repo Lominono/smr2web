@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -85,7 +86,7 @@ async function handleMarketTick(request: NextRequest) {
       .eq('id', 1);
 
     const histPoint = {
-      id: `tick_${now}`,
+      id: randomUUID(),
       ticker: 'BTLN',
       price: newPrice,
       volume: businessRevenue,
@@ -99,20 +100,34 @@ async function handleMarketTick(request: NextRequest) {
     };
 
     try {
-      await adminClient.from('price_history').insert([histPoint]);
+      const { error: insErr } = await adminClient.from('price_history').insert([histPoint]);
+      if (insErr) console.warn('[Investments Tick] Error saving price_history:', insErr.message);
     } catch (_) {}
 
     try {
       const channel = adminClient.channel('botellon_market_live_stream');
-      channel.send({
-        type: 'broadcast',
-        event: 'market_trade',
-        payload: {
-          ticker: 'BTLN',
-          newPrice,
-          pricePoint: histPoint,
-          treasuryBalance: newTreasury,
-        },
+      await new Promise<void>((resolve) => {
+        channel.subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            try {
+              await channel.send({
+                type: 'broadcast',
+                event: 'market_trade',
+                payload: {
+                  ticker: 'BTLN',
+                  newPrice,
+                  pricePoint: histPoint,
+                  treasuryBalance: newTreasury,
+                },
+              });
+            } catch (_) {}
+            try { adminClient.removeChannel(channel); } catch (_) {}
+            resolve();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            resolve();
+          }
+        });
+        setTimeout(resolve, 800);
       });
     } catch (_) {}
 

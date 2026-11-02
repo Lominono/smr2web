@@ -120,6 +120,12 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     } catch (_) {}
   }, []);
 
+  // Ref estable para saber en todo momento qué ticker ve el usuario sin desconectar el WebSocket
+  const selectedTickerRef = useRef(selectedTicker);
+  useEffect(() => {
+    selectedTickerRef.current = selectedTicker;
+  }, [selectedTicker]);
+
   // Carga unificada de datos
   const loadData = useCallback(async () => {
     try {
@@ -127,7 +133,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         fetchMarketState(),
         fetchCompanyFinancials(),
         fetchPriceHistory(80, selectedTicker),
-        fetchRecentMarketTrades(30, selectedTicker),
+        fetchRecentMarketTrades(30),
         fetchParodyStocks(),
         fetchUserStocksPortfolio(userId),
         fetchStockShareholders(selectedTicker, 8),
@@ -151,18 +157,16 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     loadData();
   }, [loadData]);
 
-  // Cargar histórico y accionistas cuando cambia el ticker seleccionado
+  // Cargar histórico y accionistas cuando cambia el ticker seleccionado (sin vaciar la cinta de mercado)
   useEffect(() => {
     let active = true;
     Promise.all([
       fetchPriceHistory(80, selectedTicker),
       fetchStockShareholders(selectedTicker, 8),
-      fetchRecentMarketTrades(30, selectedTicker),
-    ]).then(([h, s, t]) => {
+    ]).then(([h, s]) => {
       if (active) {
         setPriceHistory(h);
         setShareholders(s);
-        setTransactions(t);
       }
     });
     return () => {
@@ -179,16 +183,16 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     return () => clearInterval(interval);
   }, [cooldownSeconds]);
 
-  // Suscripción Realtime Unificada (BroadcastChannel + Supabase WebSockets)
+  // Suscripción Realtime Permanente (WebSockets Supabase + BroadcastChannel + CDC Postgres)
   useEffect(() => {
-    // 1. Canal Broadcast local instantáneo
-    const unsub = subscribeToRealtimeTrades((payload) => {
-      if (payload.pricePoint && payload.pricePoint.ticker === selectedTicker) {
+    // 1. Canal Broadcast local intra-navegador
+    const unsubBc = subscribeToRealtimeTrades((payload) => {
+      if (payload.pricePoint && payload.pricePoint.ticker === selectedTickerRef.current) {
         setPriceHistory((prev) => [...prev.slice(-79), payload.pricePoint!]);
       }
       if (payload.transaction) {
         const tx = payload.transaction;
-        setTransactions((prev) => [tx, ...prev.filter((t) => t.id !== tx.id)].slice(0, 30));
+        setTransactions((prev) => [tx, ...prev.filter((t) => t.id !== tx.id)].slice(0, 40));
         setRecentLiveNotification({
           username: tx.username,
           type: tx.type,
@@ -200,117 +204,209 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         setGlowingTicker(tx.ticker);
         setTimeout(() => setGlowingTicker(null), 3000);
       }
-      if (payload.treasuryBalance && companyFinancials) {
+      if (payload.stock) {
+        const st = payload.stock;
+        setParodyStocks((prev) => prev.map((s) => (s.ticker === st.ticker ? { ...s, ...st } : s)));
+      }
+      if (payload.treasuryBalance !== undefined) {
         setCompanyFinancials((prev) =>
           prev ? { ...prev, treasury_balance: payload.treasuryBalance! } : null
         );
       }
     });
 
-    // 2. Supabase Realtime Channels
+    // 2. Canal Supabase Realtime Permanente entre todos los alumnos/dispositivos
     const supabase = createClient();
     let channel: any = null;
 
     if (supabase) {
       try {
-        channel = supabase
-          .channel('botellon_market_live_stream')
-          .on('broadcast', { event: 'market_trade' }, (msg: any) => {
-            if (msg?.payload) {
-              const { transaction, ticker, newPrice, pricePoint, treasuryBalance } = msg.payload;
+        channel = supabase.channel('botellon_market_live_stream', {
+          config: {
+            broadcast: { self: true },
+          },
+        });
 
-              if (pricePoint && pricePoint.ticker === selectedTicker) {
-                setPriceHistory((prev) => [...prev.slice(-79), pricePoint]);
+        // 2.1 Mensajes Broadcast en tiempo real (baja latencia instantánea)
+        channel.on('broadcast', { event: 'market_trade' }, (msg: any) => {
+          if (!msg?.payload) return;
+          const { transaction, ticker, newPrice, pricePoint, treasuryBalance, stock } = msg.payload;
+
+          // A) Cinta de transacciones en vivo: siempre visible para todos los alumnos
+          if (transaction) {
+            setTransactions((prev) => [transaction, ...prev.filter((t) => t.id !== transaction.id)].slice(0, 40));
+            setRecentLiveNotification({
+              username: transaction.username,
+              type: transaction.type,
+              ticker: transaction.ticker || ticker || 'BTLN',
+              coins: Number(transaction.coins_amount || 0),
+              impact: Number(transaction.price_impact_percent || 0),
+              time: Date.now(),
+            });
+            setGlowingTicker(transaction.ticker || ticker || 'BTLN');
+            setTimeout(() => setGlowingTicker(null), 3000);
+          }
+
+          // B) Cotización viva del activo
+          if (ticker === 'BTLN' && newPrice) {
+            setMarketState((prev) => (prev ? { ...prev, current_price: Number(newPrice) } : null));
+          } else if (ticker && newPrice) {
+            setParodyStocks((prev) =>
+              prev.map((s) =>
+                s.ticker === ticker
+                  ? {
+                      ...s,
+                      price: Number(newPrice),
+                      ...(stock ? { change24h: stock.change24h, volume: stock.volume } : {}),
+                    }
+                  : s
+              )
+            );
+          }
+
+          // C) Gráfica viva: se actualiza si el activo coincide con el seleccionado actualmente
+          if (pricePoint && pricePoint.ticker === selectedTickerRef.current) {
+            setPriceHistory((prev) => [...prev.slice(-79), pricePoint]);
+          }
+
+          // D) Tesorería de la empresa
+          if (treasuryBalance !== undefined) {
+            setCompanyFinancials((prev) =>
+              prev ? { ...prev, treasury_balance: Number(treasuryBalance) } : null
+            );
+          }
+        });
+
+        // 2.2 Postgres CDC: Captura de inserciones en la tabla transactions
+        channel.on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'transactions' },
+          (payload: any) => {
+            if (payload?.new) {
+              const t = payload.new;
+              const newTx: InvestmentTransaction = {
+                id: t.id,
+                user_id: t.user_id,
+                username: t.username || 'Alumno',
+                ticker: t.ticker || 'BTLN',
+                type: t.type,
+                coins_amount: Number(t.coins_amount || 0),
+                shares_amount: Number(t.shares_amount || 0),
+                price_per_share: Number(t.price_per_share || 0),
+                fee_coins: Number(t.fee_coins || 0),
+                net_coins: Number(t.net_coins || 0),
+                price_impact_percent: Number(t.price_impact_percent || 0),
+                created_at: t.created_at,
+              };
+              setTransactions((prev) => [newTx, ...prev.filter((item) => item.id !== newTx.id)].slice(0, 40));
+            }
+          }
+        );
+
+        // 2.3 Postgres CDC: Captura de puntos en la tabla price_history
+        channel.on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'price_history' },
+          (payload: any) => {
+            if (payload?.new) {
+              const pt = payload.new;
+              if (pt.ticker === selectedTickerRef.current) {
+                const newPt: PriceHistoryPoint = {
+                  id: pt.id,
+                  ticker: pt.ticker,
+                  price: Number(pt.price),
+                  volume: Number(pt.volume || 0),
+                  pool_balance: Number(pt.pool_balance || 0),
+                  treasury_balance: Number(pt.treasury_balance || 0),
+                  total_shares: Number(pt.total_shares || 0),
+                  change_percent: Number(pt.change_percent || 0),
+                  trigger_type: pt.trigger_type,
+                  event_description: pt.event_description,
+                  player_username: pt.player_username,
+                  created_at: pt.created_at,
+                };
+                setPriceHistory((prev) => [...prev.slice(-79), newPt]);
               }
+            }
+          }
+        );
 
-              if (transaction) {
-                setTransactions((prev) => [transaction, ...prev.filter((t) => t.id !== transaction.id)].slice(0, 30));
-                setRecentLiveNotification({
-                  username: transaction.username,
-                  type: transaction.type,
-                  ticker: transaction.ticker || ticker || 'BTLN',
-                  coins: Number(transaction.coins_amount || 0),
-                  impact: Number(transaction.price_impact_percent || 0),
-                  time: Date.now(),
-                });
-                setGlowingTicker(transaction.ticker || ticker || 'BTLN');
-                setTimeout(() => setGlowingTicker(null), 3000);
-              }
+        // 2.4 Postgres CDC: Captura de cambios de tesorería y precios en market_state
+        channel.on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'market_state', filter: 'id=eq.1' },
+          (payload: any) => {
+            if (payload?.new) {
+              const m = payload.new;
+              setMarketState((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      current_price: Number(m.current_price ?? prev.current_price),
+                      treasury_balance: Number(m.treasury_balance ?? prev.treasury_balance),
+                      total_shares: Number(m.total_shares ?? prev.total_shares),
+                      total_volume: Number(m.total_volume ?? prev.total_volume),
+                      total_revenue_generated: Number(m.total_revenue_generated ?? prev.total_revenue_generated),
+                      arcade_rake_accumulated: Number(m.arcade_rake_accumulated ?? prev.arcade_rake_accumulated),
+                    }
+                  : null
+              );
 
-              if (treasuryBalance && companyFinancials) {
-                setCompanyFinancials((prev) =>
-                  prev ? { ...prev, treasury_balance: Number(treasuryBalance) } : null
+              if (m.parody_stocks && typeof m.parody_stocks === 'object') {
+                const pMap = m.parody_stocks;
+                setParodyStocks((prev) =>
+                  prev.map((s) => {
+                    const rem = pMap[s.ticker];
+                    return rem
+                      ? {
+                          ...s,
+                          price: Number(rem.price ?? s.price),
+                          change24h: Number(rem.change24h ?? s.change24h),
+                          volume: Number(rem.volume ?? s.volume),
+                        }
+                      : s;
+                  })
                 );
               }
+            }
+          }
+        );
 
-              if (ticker === 'BTLN' && newPrice) {
-                setMarketState((prev) => prev ? { ...prev, current_price: Number(newPrice) } : null);
-              }
-            }
-          })
-          .on(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'price_history' },
-            (payload) => {
-              if (payload.new) {
-                const pt = payload.new as any;
-                if (pt.ticker === selectedTicker) {
-                  const newPt: PriceHistoryPoint = {
-                    id: pt.id,
-                    ticker: pt.ticker,
-                    price: Number(pt.price),
-                    volume: Number(pt.volume || 0),
-                    pool_balance: Number(pt.pool_balance || 0),
-                    treasury_balance: Number(pt.treasury_balance || 0),
-                    total_shares: Number(pt.total_shares || 0),
-                    change_percent: Number(pt.change_percent || 0),
-                    trigger_type: pt.trigger_type,
-                    event_description: pt.event_description,
-                    player_username: pt.player_username,
-                    created_at: pt.created_at,
-                  };
-                  setPriceHistory((prev) => [...prev.slice(-79), newPt]);
-                }
-              }
-            }
-          )
-          .on(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'transactions' },
-            (payload) => {
-              if (payload.new) {
-                const t = payload.new as any;
-                const newTx: InvestmentTransaction = {
-                  id: t.id,
-                  user_id: t.user_id,
-                  username: t.username || 'Alumno',
-                  ticker: t.ticker || 'BTLN',
-                  type: t.type,
-                  coins_amount: Number(t.coins_amount || 0),
-                  shares_amount: Number(t.shares_amount || 0),
-                  price_per_share: Number(t.price_per_share || 0),
-                  fee_coins: Number(t.fee_coins || 0),
-                  net_coins: Number(t.net_coins || 0),
-                  price_impact_percent: Number(t.price_impact_percent || 0),
-                  created_at: t.created_at,
-                };
-                setTransactions((prev) => [newTx, ...prev.filter((item) => item.id !== newTx.id)].slice(0, 30));
-              }
-            }
-          )
-          .subscribe();
-      } catch (_) {}
+        channel.subscribe();
+      } catch (err) {
+        console.warn('Error suscribiendo al canal de mercado:', err);
+      }
     }
 
     return () => {
-      unsub();
+      unsubBc();
       if (supabase && channel) {
         try {
           supabase.removeChannel(channel);
         } catch (_) {}
       }
     };
-  }, [selectedTicker, companyFinancials]);
+  }, []);
+
+  // 3. Sincronización continua de respaldo (cada 4s) para móviles y reconexiones automáticas
+  useEffect(() => {
+    const syncInterval = setInterval(async () => {
+      try {
+        const [freshHistory, freshTrades] = await Promise.all([
+          fetchPriceHistory(80, selectedTickerRef.current),
+          fetchRecentMarketTrades(30),
+        ]);
+        if (freshHistory && freshHistory.length > 0) {
+          setPriceHistory(freshHistory);
+        }
+        if (freshTrades && freshTrades.length > 0) {
+          setTransactions(freshTrades);
+        }
+      } catch (_) {}
+    }, 4000);
+
+    return () => clearInterval(syncInterval);
+  }, []);
 
   // Lista unificada de todos los activos disponibles
   const allAssets = useMemo(() => {

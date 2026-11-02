@@ -717,6 +717,26 @@ function broadcastLiveTrade(
       });
     } catch (_) {}
   }
+
+  // Emisión directa por WebSocket de Supabase desde el cliente para sincronizar a todos los dispositivos en paralelo
+  const supabase = createClient();
+  if (supabase && isSupabaseConfigured()) {
+    try {
+      const channel = supabase.channel('botellon_market_live_stream');
+      channel.send({
+        type: 'broadcast',
+        event: 'market_trade',
+        payload: {
+          transaction: tx,
+          ticker: tx?.ticker || pricePoint?.ticker || 'BTLN',
+          newPrice: pricePoint?.price,
+          pricePoint,
+          stock: updatedStock,
+          treasuryBalance: updatedMarket?.treasury_balance,
+        },
+      });
+    } catch (_) {}
+  }
 }
 
 /**

@@ -169,6 +169,10 @@ DROP POLICY IF EXISTS "Lectura pública de transactions" ON public.transactions;
 DROP POLICY IF EXISTS "Lectura pública de investments" ON public.investments;
 DROP POLICY IF EXISTS "Lectura propia de transactions" ON public.transactions;
 DROP POLICY IF EXISTS "Lectura propia de investments" ON public.investments;
+DROP POLICY IF EXISTS "Servicio total market_state" ON public.market_state;
+DROP POLICY IF EXISTS "Servicio total price_history" ON public.price_history;
+DROP POLICY IF EXISTS "Servicio total transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Servicio total investments" ON public.investments;
 
 -- Políticas de lectura 100% públicas para juego estratégico y gráfica compartida
 CREATE POLICY "Lectura pública de market_state" ON public.market_state FOR SELECT USING (true);
@@ -321,3 +325,6 @@ GRANT SELECT ON public.investments TO anon, authenticated, service_role;
 
 GRANT EXECUTE ON FUNCTION public.record_arcade_rake_to_market(BIGINT, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_market_top_shareholders(TEXT, INT) TO anon, authenticated, service_role;
+
+-- 10. RECARGA INMEDIATA DE CACHÉ DE ESQUEMA POSTGREST
+NOTIFY pgrst, 'reload schema';

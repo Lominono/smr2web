@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { randomUUID } from 'crypto';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { COOKIE_SESSION } from '@/lib/authSession';
 import { UserProfile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
+
+function isUUID(str?: string | null): boolean {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+}
 
 const BASE_PRICES: Record<string, number> = {
   BTLN: 10.0,
@@ -48,7 +54,8 @@ export async function POST(req: NextRequest) {
     }
 
     const effectiveUsername = sessionUser?.username || reqUsername || 'Alumno';
-    const effectiveUserId = sessionUser?.id || reqUserId || null;
+    let effectiveUserId = sessionUser?.id || reqUserId || null;
+    let resolvedUserId: string | null = isUUID(effectiveUserId) ? effectiveUserId : null;
 
     if (!isServerSupabaseConfigured()) {
       return NextResponse.json({
@@ -74,13 +81,14 @@ export async function POST(req: NextRequest) {
     if (effectiveUserId) {
       const { data: profData } = await client
         .from('profiles')
-        .select('coins, username')
+        .select('id, coins, username')
         .eq('id', effectiveUserId)
         .maybeSingle();
 
       if (profData) {
         userCoins = Number(profData.coins ?? 0);
         dbUserFound = true;
+        if (profData.id && isUUID(profData.id)) resolvedUserId = profData.id;
       }
     }
 
@@ -94,6 +102,7 @@ export async function POST(req: NextRequest) {
       if (profData) {
         userCoins = Number(profData.coins ?? 0);
         dbUserFound = true;
+        if (profData.id && isUUID(profData.id)) resolvedUserId = profData.id;
       }
     }
 
@@ -286,7 +295,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 7. Actualizar o insertar tenencia del usuario en investments
-    if (effectiveUserId) {
+    if (resolvedUserId) {
       try {
         if (cleanAction === 'buy') {
           const newTotalShares = userPositionShares + shares;
@@ -298,7 +307,7 @@ export async function POST(req: NextRequest) {
             .from('investments')
             .upsert(
               {
-                user_id: effectiveUserId,
+                user_id: resolvedUserId,
                 ticker: cleanTicker,
                 shares: newTotalShares,
                 total_invested_coins: userPositionTotalInvested + Math.abs(coinsDelta),
@@ -313,7 +322,7 @@ export async function POST(req: NextRequest) {
             .from('investments')
             .upsert(
               {
-                user_id: effectiveUserId,
+                user_id: resolvedUserId,
                 ticker: cleanTicker,
                 shares: remainingShares,
                 total_withdrawn_coins: (marketState.total_withdrawn_coins || 0) + coinsDelta,
@@ -323,14 +332,16 @@ export async function POST(req: NextRequest) {
               { onConflict: 'user_id,ticker' }
             );
         }
-      } catch (_) {}
+      } catch (err: any) {
+        console.warn('[INVESTMENTS] Error saving investment position:', err?.message);
+      }
     }
 
     // 8. Registrar en public.transactions (público para todos los alumnos)
-    const txId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const txId = randomUUID();
     const txRow = {
       id: txId,
-      user_id: effectiveUserId,
+      user_id: resolvedUserId,
       username: effectiveUsername,
       ticker: cleanTicker,
       type: cleanAction,
@@ -344,12 +355,16 @@ export async function POST(req: NextRequest) {
     };
 
     try {
-      await client.from('transactions').insert([txRow]).select().maybeSingle();
-    } catch (_) {}
+      const { error: txErr } = await client.from('transactions').insert([txRow]);
+      if (txErr) console.warn('[INVESTMENTS] Error inserting transaction:', txErr.message);
+    } catch (err: any) {
+      console.warn('[INVESTMENTS] Exception inserting transaction:', err?.message);
+    }
 
     // 9. Registrar punto en public.price_history (sincronización idéntica para la gráfica)
+    const histId = randomUUID();
     const histPoint = {
-      id: `pt_${Date.now()}`,
+      id: histId,
       ticker: cleanTicker,
       price: newPrice,
       volume: Math.abs(coinsDelta),
@@ -364,25 +379,43 @@ export async function POST(req: NextRequest) {
     };
 
     try {
-      await client.from('price_history').insert([histPoint]).select().maybeSingle();
-    } catch (_) {}
+      const { error: histErr } = await client.from('price_history').insert([histPoint]);
+      if (histErr) console.warn('[INVESTMENTS] Error inserting price_history:', histErr.message);
+    } catch (err: any) {
+      console.warn('[INVESTMENTS] Exception inserting price_history:', err?.message);
+    }
 
-    // 10. Emitir evento por Supabase Realtime Broadcast a todos los navegadores
+    // 10. Emitir evento por Supabase Realtime Broadcast a todos los navegadores (garantizando entrega en serverless)
     try {
       const channel = client.channel('botellon_market_live_stream');
-      channel.send({
-        type: 'broadcast',
-        event: 'market_trade',
-        payload: {
-          transaction: txRow,
-          ticker: cleanTicker,
-          newPrice,
-          pricePoint: histPoint,
-          stock: stocksMap[cleanTicker],
-          treasuryBalance: newTreasury,
-        },
+      await new Promise<void>((resolve) => {
+        channel.subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            try {
+              await channel.send({
+                type: 'broadcast',
+                event: 'market_trade',
+                payload: {
+                  transaction: txRow,
+                  ticker: cleanTicker,
+                  newPrice,
+                  pricePoint: histPoint,
+                  stock: stocksMap[cleanTicker],
+                  treasuryBalance: newTreasury,
+                },
+              });
+            } catch (_) {}
+            try { client.removeChannel(channel); } catch (_) {}
+            resolve();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            resolve();
+          }
+        });
+        setTimeout(resolve, 800);
       });
-    } catch (_) {}
+    } catch (err: any) {
+      console.warn('[INVESTMENTS] Error broadcasting realtime event:', err?.message);
+    }
 
     const impactPercentText = (slippage * 100).toFixed(1);
     const message = cleanAction === 'buy'
