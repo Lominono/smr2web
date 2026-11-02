@@ -545,12 +545,16 @@ CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON public.transactions(cr
 
 CREATE TABLE IF NOT EXISTS public.price_history (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  ticker TEXT NOT NULL DEFAULT 'BTLN',
   price NUMERIC(12, 4) NOT NULL CHECK (price > 0),
+  volume BIGINT DEFAULT 0 NOT NULL,
   pool_balance NUMERIC(18, 4) NOT NULL,
-  total_shares NUMERIC(18, 4) NOT NULL,
+  treasury_balance NUMERIC(18, 4) DEFAULT 0,
+  total_shares NUMERIC(18, 4) DEFAULT 0,
   change_percent NUMERIC(8, 4) DEFAULT 0.0000 NOT NULL,
-  trigger_type TEXT DEFAULT 'tick' NOT NULL CHECK (trigger_type IN ('tick', 'buy', 'sell', 'event', 'initial')),
+  trigger_type TEXT DEFAULT 'tick' NOT NULL CHECK (trigger_type IN ('tick', 'buy', 'sell', 'event', 'revenue', 'arcade_rake', 'initial')),
   event_description TEXT,
+  player_username TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -575,11 +579,11 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'price_history' AND policyname = 'Lectura pública de price_history') THEN
     CREATE POLICY "Lectura pública de price_history" ON public.price_history FOR SELECT USING (true);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'investments' AND policyname = 'Lectura propia de investments') THEN
-    CREATE POLICY "Lectura propia de investments" ON public.investments FOR SELECT USING (auth.uid() = user_id);
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'investments' AND policyname = 'Lectura pública de investments') THEN
+    CREATE POLICY "Lectura pública de investments" ON public.investments FOR SELECT USING (true);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'transactions' AND policyname = 'Lectura propia de transactions') THEN
-    CREATE POLICY "Lectura propia de transactions" ON public.transactions FOR SELECT USING (auth.uid() = user_id);
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'transactions' AND policyname = 'Lectura pública de transactions') THEN
+    CREATE POLICY "Lectura pública de transactions" ON public.transactions FOR SELECT USING (true);
   END IF;
 END $$;
 

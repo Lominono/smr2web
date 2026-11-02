@@ -14,6 +14,7 @@ import {
   Check,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { recordArcadeRake } from '@/lib/investmentsService';
 
 interface RouletteGameProps {
   userCoins: number;
@@ -188,6 +189,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
     }
 
     onUpdateCoins(-totalBet);
+    recordArcadeRake(Math.max(1, Math.round(totalBet * 0.02)), 'roulette');
     setPreviousBets(bets);
     setIsSpinning(true);
     setWinningNumber(null);

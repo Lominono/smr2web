@@ -156,6 +156,74 @@ runTest('Simulación de operaciones concurrentes con bloqueo secuencial (FOR UPD
   assert(marketPrice > 10.0, 'El precio final del mercado aumentó tras la serie de órdenes');
 });
 
+// -----------------------------------------------------------
+// 8. APORTE DE RAKE DEL ARCADE Y CRECIMIENTO DE TESORERÍA (NAV)
+// -----------------------------------------------------------
+runTest('Tesorería de la empresa: el rake de los minijuegos incrementa la caja y el NAV por acción', () => {
+  let treasury = 5000;
+  let reserve = 25000;
+  let totalShares = 1000;
+  let totalRevenue = 0;
+
+  // Jugadores apuestan en Crash y Ruleta generando 150 monedas de rake
+  const arcadeRake = 150;
+  treasury += arcadeRake;
+  totalRevenue += arcadeRake;
+
+  const initialNav = (5000 + reserve) / totalShares; // 30.00
+  const newNav = (treasury + reserve) / totalShares; // 30.15
+
+  assert.strictEqual(treasury, 5150, 'La tesorería aumentó con el rake');
+  assert.strictEqual(totalRevenue, 150, 'Los ingresos generados se acumularon');
+  assert(newNav > initialNav, 'El valor liquidativo de respaldo por acción creció');
+});
+
+// -----------------------------------------------------------
+// 9. DINÁMICA DE MERCADO: OLA DE COMPRAS MÚLTIPLES (SUBE MUCHO) Y VENTA (BAJA)
+// -----------------------------------------------------------
+runTest('Ley de oferta y demanda continua: múltiples compras provocan subida pronunciada y ventas la bajan', () => {
+  let price = 10.0;
+  const baseLiquidity = 10000;
+
+  // 4 compras consecutivas de 1000 monedas cada una
+  for (let i = 0; i < 4; i++) {
+    const slippage = Math.min(0.20, (1000 / (baseLiquidity + 5000)) * 1.4);
+    price = Number((price * (1 + slippage)).toFixed(2));
+  }
+
+  assert(price > 13.5, 'Tras 4 compras fuertes el precio subió pronunciadamente');
+
+  // Venta masiva de acciones
+  const grossSell = 2000;
+  const sellSlippage = Math.min(0.20, (grossSell / (baseLiquidity + 5000)) * 1.4);
+  const droppedPrice = Math.max(1.0, Number((price * (1 - sellSlippage)).toFixed(2)));
+
+  assert(droppedPrice < price, 'La venta redujo el precio inmediatamente');
+  assert(droppedPrice >= 1.0, 'Respeta el suelo mínimo');
+});
+
+// -----------------------------------------------------------
+// 10. LIBRO DE ACCIONISTAS (CAP TABLE): CÁLCULO DE PORCENTAJE DE PROPIEDAD
+// -----------------------------------------------------------
+runTest('Cap Table: cálculo exacto de porcentaje de propiedad sobre el total de acciones emitidas', () => {
+  const investors = [
+    { username: 'Juanfe', shares: 350 },
+    { username: 'Carlos', shares: 200 },
+    { username: 'Elena', shares: 150 },
+  ];
+  const totalShares = investors.reduce((sum, i) => sum + i.shares, 0); // 700
+
+  const capTable = investors.map((i) => ({
+    username: i.username,
+    shares: i.shares,
+    percentage: Number(((i.shares / totalShares) * 100).toFixed(1)),
+  }));
+
+  assert.strictEqual(capTable[0].percentage, 50.0, 'Juanfe controla exactamente el 50.0% de la empresa');
+  assert.strictEqual(capTable[1].percentage, 28.6, 'Carlos controla el 28.6%');
+  assert.strictEqual(capTable[2].percentage, 21.4, 'Elena controla el 21.4%');
+});
+
 console.log('\n====================================================');
 console.log(`📊 RESULTADO DE TESTS: ${testsPassed} PASADOS, ${testsFailed} FALLADOS`);
 console.log('====================================================\n');

@@ -105,9 +105,13 @@ export interface MarketState {
   current_price: number;
   total_shares: number;
   pool_balance: number;
+  treasury_balance?: number;
   reserve_balance: number;
   total_volume: number;
   total_investors: number;
+  total_revenue_generated?: number;
+  total_dividends_paid?: number;
+  arcade_rake_accumulated?: number;
   fee_rate: number;
   cooldown_seconds: number;
   min_investment: number;
@@ -117,11 +121,25 @@ export interface MarketState {
   last_event_impact: number;
   last_tick_at: string;
   updated_at: string;
+  parody_stocks?: Record<string, any>;
+}
+
+export interface CompanyFinancials {
+  treasury_balance: number;
+  pool_balance: number;
+  reserve_balance: number;
+  total_revenue_generated: number;
+  arcade_rake_accumulated: number;
+  total_volume: number;
+  total_shares: number;
+  nav_per_share: number;
+  total_investors: number;
 }
 
 export interface InvestmentPosition {
   id: string;
   user_id: string;
+  ticker?: string;
   shares: number;
   total_invested_coins: number;
   total_withdrawn_coins: number;
@@ -135,7 +153,7 @@ export interface InvestmentTransaction {
   id: string;
   user_id: string;
   username: string;
-  ticker?: string;
+  ticker: string;
   type: 'buy' | 'sell';
   coins_amount: number;
   shares_amount: number;
@@ -157,13 +175,16 @@ export interface MarketSentiment {
 
 export interface PriceHistoryPoint {
   id: string;
-  ticker?: string;
+  ticker: string;
   price: number;
+  volume?: number;
   pool_balance: number;
+  treasury_balance?: number;
   total_shares: number;
   change_percent: number;
-  trigger_type: 'tick' | 'buy' | 'sell' | 'event' | 'initial';
+  trigger_type: 'tick' | 'buy' | 'sell' | 'event' | 'initial' | 'revenue' | 'arcade_rake';
   event_description?: string;
+  player_username?: string;
   created_at: string;
 }
 
@@ -172,6 +193,17 @@ export interface TopInvestor {
   username: string;
   avatar_color: string;
   shares: number;
+  position_value: number;
+  total_invested: number;
+  profit_percent: number;
+}
+
+export interface StockShareholder {
+  user_id: string;
+  username: string;
+  avatar_color: string;
+  shares: number;
+  ownership_percentage: number;
   position_value: number;
   total_invested: number;
   profit_percent: number;

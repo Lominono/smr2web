@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { recordArcadeRake } from '@/lib/investmentsService';
 
 interface CrashGameProps {
   userCoins: number;
@@ -103,6 +104,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
 
     setStatusNotice(null);
     onUpdateCoins(-safeBet);
+    recordArcadeRake(Math.max(1, Math.round(safeBet * 0.02)), 'crash');
     sound.whoosh();
 
     const targetCrash = generateCrashPoint();
