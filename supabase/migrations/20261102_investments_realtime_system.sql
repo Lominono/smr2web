@@ -194,6 +194,10 @@ ALTER TABLE public.price_history REPLICA IDENTITY FULL;
 -- 7. SUSCRIPCIÓN SUPABASE REALTIME
 DO $$
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    CREATE PUBLICATION supabase_realtime;
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'market_state') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.market_state;
   END IF;
@@ -206,6 +210,8 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'price_history') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.price_history;
   END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
 END $$;
 
 -- 8. RPC: APORTE DE RAKE DEL ARCADE A LA EMPRESA (record_arcade_rake_to_market)
@@ -318,10 +324,10 @@ $$;
 
 -- Permisos de ejecución
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-GRANT SELECT ON public.market_state TO anon, authenticated, service_role;
-GRANT SELECT ON public.price_history TO anon, authenticated, service_role;
-GRANT SELECT ON public.transactions TO anon, authenticated, service_role;
-GRANT SELECT ON public.investments TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.market_state TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.price_history TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.transactions TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.investments TO anon, authenticated, service_role;
 
 GRANT EXECUTE ON FUNCTION public.record_arcade_rake_to_market(BIGINT, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_market_top_shareholders(TEXT, INT) TO anon, authenticated, service_role;
