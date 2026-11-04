@@ -27,6 +27,7 @@ export const OnlineUsersModal: React.FC<OnlineUsersModalProps> = ({
   isOpen,
   onClose,
   onlineUsers,
+  onSelectUser,
 }) => {
   if (!isOpen) return null;
 
@@ -88,7 +89,9 @@ export const OnlineUsersModal: React.FC<OnlineUsersModalProps> = ({
             return (
               <div
                 key={u.id}
-                className="pt-2 first:pt-0 flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors"
+                onClick={() => onSelectUser?.(u)}
+                title={`Ver ficha oficial de @${u.username}`}
+                className="pt-2 first:pt-0 flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors cursor-pointer group"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative shrink-0">

@@ -5,19 +5,20 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import {
   X,
-  CheckCircle2,
-  CalendarCheck,
   Copy,
   Check,
+  CalendarCheck,
   Monitor,
   Flame,
-  Clock,
   Sparkles,
   Edit2,
   Save,
-  BookOpen,
-  Hash,
+  Clock,
+  Coins,
+  ShieldCheck,
+  CheckCircle2,
   User,
+  Send,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { sound } from '@/lib/audio';
@@ -27,7 +28,6 @@ import {
   SCHEDULE_GRID,
   SMR2_SUBJECTS,
   TIME_SLOTS,
-  DAYS,
   DayKey,
 } from '@/lib/scheduleData';
 import { saveStudentIdentification } from '@/lib/authService';
@@ -36,32 +36,51 @@ interface StudentCardModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: UserProfile | null;
-  onUpdateUser: (updated: UserProfile) => void;
+  inspectedUser?: Partial<UserProfile> | null;
+  onUpdateUser?: (updated: UserProfile) => void;
+  onTipUser?: (username: string, amount: number) => void;
 }
 
 export const StudentCardModal: React.FC<StudentCardModalProps> = ({
   isOpen,
   onClose,
   user,
+  inspectedUser,
   onUpdateUser,
+  onTipUser,
 }) => {
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedNia, setCopiedNia] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [fullNameInput, setFullNameInput] = useState(user?.full_name || '');
-  const [studentNumberInput, setStudentNumberInput] = useState(user?.student_number || '');
+  const [fullNameInput, setFullNameInput] = useState('');
+  const [studentNumberInput, setStudentNumberInput] = useState('');
   const [selectedSeat, setSelectedSeat] = useState<string>('PC-01');
   const [savingEdit, setSavingEdit] = useState(false);
   const [attendanceClaimed, setAttendanceClaimed] = useState(false);
   const [attendanceStreak, setAttendanceStreak] = useState(1);
+  const [tipSent, setTipSent] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Determinar si estamos inspeccionando a otro compañero
+  const isViewingOther = Boolean(
+    inspectedUser &&
+      (!user ||
+        (inspectedUser.username &&
+          inspectedUser.username.toLowerCase() !== user.username.toLowerCase()) ||
+        (inspectedUser.id && user.id && inspectedUser.id !== user.id))
+  );
+
+  const displayUser: Partial<UserProfile> | null = isViewingOther
+    ? inspectedUser!
+    : user;
+
   // Sincronizar datos de usuario
   useEffect(() => {
-    if (user) {
+    if (!isViewingOther && user) {
       setFullNameInput(user.full_name || '');
       setStudentNumberInput(user.student_number || '');
       try {
@@ -70,12 +89,20 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
 
         const todayKey = new Date().toISOString().slice(0, 10);
         const lastAtt = localStorage.getItem(`smr2_attendance_date_${user.id}`);
-        const savedStreak = parseInt(localStorage.getItem(`smr2_attendance_streak_${user.id}`) || '1', 10);
+        const savedStreak = parseInt(
+          localStorage.getItem(`smr2_attendance_streak_${user.id}`) || '1',
+          10
+        );
         setAttendanceStreak(isNaN(savedStreak) ? 1 : savedStreak);
         setAttendanceClaimed(lastAtt === todayKey);
       } catch {}
+    } else if (isViewingOther && inspectedUser) {
+      if (inspectedUser.pc_seat) {
+        setSelectedSeat(inspectedUser.pc_seat);
+      }
+      setIsEditing(false);
     }
-  }, [user]);
+  }, [user, inspectedUser, isViewingOther]);
 
   // Bloquear scroll de fondo cuando está abierto
   useEffect(() => {
@@ -88,7 +115,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
     }
   }, [isOpen]);
 
-  // Horario de hoy para este estudiante
+  // Horario de hoy para 2º SMR
   const todaySchedule = useMemo(() => {
     const now = new Date();
     const day = now.getDay();
@@ -112,11 +139,11 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
 
   const liveStatus = useMemo(() => getCurrentScheduleStatus(), []);
 
-  if (!isOpen || !mounted || !user) return null;
+  if (!isOpen || !mounted || !displayUser) return null;
 
-  // Registrar asistencia de clase
+  // Registrar asistencia de clase (solo para uno mismo)
   const handleClaimAttendance = () => {
-    if (attendanceClaimed) return;
+    if (attendanceClaimed || !user || isViewingOther) return;
 
     try {
       const todayKey = new Date().toISOString().slice(0, 10);
@@ -135,13 +162,14 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
         streak_count: newStreak,
       };
 
-      onUpdateUser(updatedUser);
+      if (onUpdateUser) onUpdateUser(updatedUser);
       sound.jackpot();
     } catch {}
   };
 
-  // Guardar puesto de PC
+  // Guardar puesto de PC (solo para uno mismo)
   const handleSelectSeat = (seat: string) => {
+    if (isViewingOther || !user) return;
     setSelectedSeat(seat);
     try {
       localStorage.setItem(`smr2_pc_seat_${user.id}`, seat);
@@ -149,22 +177,45 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
     } catch {}
   };
 
-  // Copiar ficha de estudiante al portapapeles
+  // Copiar ficha completa al portapapeles
   const handleCopyCard = () => {
-    const text = `--- FICHA DE ESTUDIANTE SMR2 ---\nNombre: ${user.full_name || user.username}\nUsuario: @${user.username}\nNIA: ${user.student_number || 'No asignado'}\nCurso: 2º SMR · Aula 35 (${selectedSeat})\nEstado: Alumno Oficial Activo (2026/2027)\nPortal: https://smr2web.vercel.app`;
+    const targetName = displayUser.full_name || displayUser.username || 'Estudiante';
+    const targetUser = displayUser.username || 'estudiante';
+    const targetNia = displayUser.student_number || 'No asignado';
+    const targetSeat = displayUser.pc_seat || selectedSeat || 'Aula 35';
+
+    const text = `--- FICHA DE ESTUDIANTE SMR2 ---\nNombre: ${targetName}\nUsuario: @${targetUser}\nNIA: ${targetNia}\nCurso: 2º SMR · Aula 35 (${targetSeat})\nEstado: Alumno Oficial Activo (2026/2027)\nPortal: https://smr2web.vercel.app`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     sound.tap();
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Guardar edición de datos
+  // Copiar solo el NIA
+  const handleCopyNiaOnly = () => {
+    if (!displayUser.student_number) return;
+    navigator.clipboard.writeText(displayUser.student_number);
+    setCopiedNia(true);
+    sound.tap();
+    setTimeout(() => setCopiedNia(false), 2000);
+  };
+
+  // Enviar propina al usuario inspeccionado
+  const handleSendTip = () => {
+    if (!isViewingOther || !displayUser.username || !onTipUser || !user || (user.coins || 0) < 50) return;
+    onTipUser(displayUser.username, 50);
+    setTipSent(true);
+    sound.coinWin();
+    setTimeout(() => setTipSent(false), 3000);
+  };
+
+  // Guardar edición de datos propios
   const handleSaveEdit = async () => {
-    if (!fullNameInput.trim() || !studentNumberInput.trim()) return;
+    if (!user || !fullNameInput.trim() || !studentNumberInput.trim()) return;
     setSavingEdit(true);
     try {
       const res = await saveStudentIdentification(user.id, fullNameInput.trim(), studentNumberInput.trim());
-      if (res.success && res.user) {
+      if (res.success && res.user && onUpdateUser) {
         onUpdateUser(res.user);
         setIsEditing(false);
         sound.coinWin();
@@ -172,6 +223,17 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
     } catch {}
     setSavingEdit(false);
   };
+
+  const displayName = displayUser.full_name || displayUser.username || 'Estudiante';
+  const displayUsername = displayUser.username || 'usuario';
+  const displayNia = displayUser.student_number ? `NIA-${displayUser.student_number}` : 'SIN ASIGNAR';
+  const displaySeat = isViewingOther ? (displayUser.pc_seat || selectedSeat || 'Aula 35') : selectedSeat;
+  const displayRole =
+    displayUser.role === 'admin'
+      ? 'Administrador'
+      : displayUser.role === 'delegado'
+      ? 'Delegado'
+      : 'Estudiante 2º SMR';
 
   return createPortal(
     <div
@@ -204,11 +266,18 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
               />
             </div>
             <div>
-              <h2 id="student-card-title" className="text-sm font-semibold tracking-tight text-white">
-                Ficha Oficial de Estudiante
+              <h2 id="student-card-title" className="text-sm font-semibold tracking-tight text-white flex items-center gap-1.5">
+                <span>{isViewingOther ? 'Ficha de Estudiante' : 'Mi Ficha Oficial de Estudiante'}</span>
+                {isViewingOther && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300">
+                    Compañero
+                  </span>
+                )}
               </h2>
               <p className="text-[11px] text-neutral-500 font-mono">
-                Credencial Digital · 2º SMR · Aula 35
+                {isViewingOther
+                  ? `Perfil público de @${displayUsername} · 2º SMR`
+                  : 'Credencial Digital Personal · 2º SMR · Aula 35'}
               </p>
             </div>
           </div>
@@ -262,7 +331,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800 text-emerald-400 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  OFICIAL
+                  {isViewingOther ? 'COMPAÑERO' : 'OFICIAL'}
                 </span>
               </div>
               <span className="text-[10px] font-mono text-neutral-400">
@@ -274,13 +343,13 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
             <div className="pt-4 pb-2 flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
-                  Estudiante Oficial
+                  {displayRole}
                 </div>
                 <div className="text-lg sm:text-xl font-bold tracking-tight text-white leading-tight">
-                  {user.full_name || 'Nombre no configurado'}
+                  {displayName}
                 </div>
                 <div className="text-xs text-neutral-400 font-mono">
-                  @{user.username}
+                  @{displayUsername}
                 </div>
               </div>
 
@@ -299,7 +368,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                   Número NIA
                 </span>
                 <span className="text-xs font-mono font-bold text-sky-400">
-                  {user.student_number ? `NIA-${user.student_number}` : 'SIN ASIGNAR'}
+                  {displayNia}
                 </span>
               </div>
 
@@ -308,7 +377,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                   Puesto Taller
                 </span>
                 <span className="text-xs font-mono font-medium text-emerald-400">
-                  {selectedSeat}
+                  {displaySeat}
                 </span>
               </div>
 
@@ -334,115 +403,198 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
           </div>
 
           {/* ============================================================== */}
-          {/* UTILIDAD 1: CHECK-IN DIARIO DE ASISTENCIA A CLASE              */}
+          {/* MODO INSPECCIÓN DE OTRO COMPAÑERO: ESTADÍSTICAS Y ACCIONES     */}
           {/* ============================================================== */}
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-emerald-950/80 border border-emerald-800 text-emerald-400">
-                  <CalendarCheck className="w-4 h-4" />
-                </span>
-                <div>
-                  <h3 className="text-xs font-semibold text-white">
-                    Check-in Diario de Asistencia
-                  </h3>
-                  <p className="text-[11px] text-neutral-400">
-                    Confirma tu asistencia en el aula para ganar fichas y sumar racha
-                  </p>
-                </div>
-              </div>
-
-              {/* Contador de racha */}
-              <div className="flex items-center gap-1 text-xs font-mono font-semibold text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2.5 py-1 rounded-full">
-                <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                <span>Racha: {attendanceStreak}d</span>
-              </div>
-            </div>
-
-            <div className="pt-1">
-              {attendanceClaimed ? (
-                <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-800/60 flex items-center justify-between text-xs text-emerald-400">
-                  <span className="flex items-center gap-2 font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    ¡Asistencia registrada con éxito para hoy!
+          {isViewingOther ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <div className="p-3 rounded-2xl bg-neutral-900/60 border border-neutral-800">
+                  <span className="text-[10px] font-mono uppercase text-neutral-500 block mb-1">
+                    Saldo Público
                   </span>
-                  <span className="font-mono text-[11px] text-emerald-300">
-                    +25 fichas reclamadas
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-white">
+                    <Coins className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{(displayUser.coins ?? 1000).toLocaleString('es-ES')}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-neutral-900/60 border border-neutral-800">
+                  <span className="text-[10px] font-mono uppercase text-neutral-500 block mb-1">
+                    Racha en Clase
+                  </span>
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-amber-400">
+                    <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                    <span>{displayUser.streak_count || 1} días</span>
+                  </div>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-neutral-900/60 border border-neutral-800">
+                  <span className="text-[10px] font-mono uppercase text-neutral-500 block mb-1">
+                    Rol en 2º SMR
+                  </span>
+                  <span className="text-xs font-mono font-medium text-emerald-400">
+                    {displayRole}
                   </span>
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleClaimAttendance}
-                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Confirmar asistencia hoy (+25 fichas)</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* ============================================================== */}
-          {/* UTILIDAD 2: MI PUESTO EN EL TALLER DE INFORMÁTICA              */}
-          {/* ============================================================== */}
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300">
-                  <Monitor className="w-4 h-4" />
-                </span>
-                <div>
-                  <h3 className="text-xs font-semibold text-white">
-                    Mi Puesto de PC en el Aula 35
-                  </h3>
-                  <p className="text-[11px] text-neutral-400">
-                    Selecciona en qué ordenador del taller te sientas habitualmente
-                  </p>
-                </div>
               </div>
 
-              <span className="text-xs font-mono font-bold text-sky-400 px-2 py-0.5 rounded bg-sky-950/80 border border-sky-800">
-                {selectedSeat}
-              </span>
-            </div>
+              {/* Acciones para interactuar con este compañero */}
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
+                <h3 className="text-xs font-semibold text-white">
+                  Acciones con este compañero
+                </h3>
 
-            {/* Selector de puestos tipo rejilla rápida */}
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 pt-1">
-              {Array.from({ length: 24 }, (_, i) => {
-                const pcId = `PC-${String(i + 1).padStart(2, '0')}`;
-                const isSelected = selectedSeat === pcId;
-                return (
+                <div className="flex flex-wrap gap-2">
                   <button
-                    key={pcId}
                     type="button"
-                    onClick={() => handleSelectSeat(pcId)}
-                    className={`py-1.5 text-center text-xs font-mono rounded-lg transition-all cursor-pointer border ${
-                      isSelected
+                    onClick={() => {
+                      navigator.clipboard.writeText(`@${displayUsername}`);
+                      sound.tap();
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-xs text-neutral-200 transition-colors flex items-center gap-1.5 cursor-pointer font-mono"
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    <span>Copiar @{displayUsername}</span>
+                  </button>
+
+                  {displayUser.student_number && (
+                    <button
+                      type="button"
+                      onClick={handleCopyNiaOnly}
+                      className="px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-xs text-neutral-200 transition-colors flex items-center gap-1.5 cursor-pointer font-mono"
+                    >
+                      {copiedNia ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedNia ? '¡NIA copiado!' : `Copiar NIA (${displayUser.student_number})`}</span>
+                    </button>
+                  )}
+
+                  {user && onTipUser && (user.coins || 0) >= 50 && (
+                    <button
+                      type="button"
+                      onClick={handleSendTip}
+                      disabled={tipSent}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs text-amber-300 transition-colors flex items-center gap-1.5 cursor-pointer font-mono"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{tipSent ? '¡50 fichas enviadas!' : 'Enviar propina (50 fichas)'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ============================================================== */
+            /* MODO PROPIO: ASISTENCIA, PUESTO Y EDICIÓN                      */
+            /* ============================================================== */
+            <>
+              {/* UTILIDAD 1: CHECK-IN DIARIO DE ASISTENCIA A CLASE */}
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-emerald-950/80 border border-emerald-800 text-emerald-400">
+                      <CalendarCheck className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h3 className="text-xs font-semibold text-white">
+                        Check-in Diario de Asistencia
+                      </h3>
+                      <p className="text-[11px] text-neutral-400">
+                        Confirma tu asistencia en el aula para ganar fichas y sumar racha
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Contador de racha */}
+                  <div className="flex items-center gap-1 text-xs font-mono font-semibold text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2.5 py-1 rounded-full">
+                    <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                    <span>Racha: {attendanceStreak}d</span>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  {attendanceClaimed ? (
+                    <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-800/60 flex items-center justify-between text-xs text-emerald-400">
+                      <span className="flex items-center gap-2 font-medium">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        ¡Asistencia registrada con éxito para hoy!
+                      </span>
+                      <span className="font-mono text-[11px] text-emerald-300">
+                        +25 fichas reclamadas
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleClaimAttendance}
+                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Confirmar asistencia hoy (+25 fichas)</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* UTILIDAD 2: MI PUESTO EN EL TALLER DE INFORMÁTICA */}
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300">
+                      <Monitor className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h3 className="text-xs font-semibold text-white">
+                        Mi Puesto de PC en el Aula 35
+                      </h3>
+                      <p className="text-[11px] text-neutral-400">
+                        Selecciona en qué ordenador del taller te sientas habitualmente
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="text-xs font-mono font-bold text-sky-400 px-2 py-0.5 rounded bg-sky-950/80 border border-sky-800">
+                    {selectedSeat}
+                  </span>
+                </div>
+
+                {/* Selector de puestos tipo rejilla rápida */}
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 pt-1">
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const pcId = `PC-${String(i + 1).padStart(2, '0')}`;
+                    const isSelected = selectedSeat === pcId;
+                    return (
+                      <button
+                        key={pcId}
+                        type="button"
+                        onClick={() => handleSelectSeat(pcId)}
+                        className={`py-1.5 text-center text-xs font-mono rounded-lg transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-sky-500 text-neutral-950 font-bold border-sky-400 shadow-sm'
+                            : 'bg-neutral-950/80 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800'
+                        }`}
+                      >
+                        {pcId}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSeat('Portátil')}
+                    className={`col-span-4 sm:col-span-6 py-1.5 text-center text-xs font-mono rounded-lg transition-all cursor-pointer border ${
+                      selectedSeat === 'Portátil'
                         ? 'bg-sky-500 text-neutral-950 font-bold border-sky-400 shadow-sm'
                         : 'bg-neutral-950/80 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800'
                     }`}
                   >
-                    {pcId}
+                    Portátil propio (Sin PC fijo)
                   </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => handleSelectSeat('Portátil')}
-                className={`col-span-4 sm:col-span-6 py-1.5 text-center text-xs font-mono rounded-lg transition-all cursor-pointer border ${
-                  selectedSeat === 'Portátil'
-                    ? 'bg-sky-500 text-neutral-950 font-bold border-sky-400 shadow-sm'
-                    : 'bg-neutral-950/80 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800'
-                }`}
-              >
-                Portátil propio (Sin PC fijo)
-              </button>
-            </div>
-          </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* ============================================================== */}
-          {/* UTILIDAD 3: MIS CLASES DE HOY (HORARIO PERSONALIZADO)          */}
+          {/* UTILIDAD COMÚN: MIS CLASES DE HOY (HORARIO DE 2º SMR)           */}
           {/* ============================================================== */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -452,7 +604,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                 </span>
                 <div>
                   <h3 className="text-xs font-semibold text-white">
-                    Mis Clases de Hoy
+                    Clases de Hoy (2º SMR)
                   </h3>
                   <p className="text-[11px] text-neutral-400">
                     {liveStatus.message}
@@ -501,92 +653,94 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
           </div>
 
           {/* ============================================================== */}
-          {/* UTILIDAD 4: EDITAR DATOS DE LA FICHA                           */}
+          {/* UTILIDAD EDITAR: SOLO DISPONIBLE PARA EL PROPIO ESTUDIANTE     */}
           {/* ============================================================== */}
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300">
-                  <Edit2 className="w-4 h-4" />
-                </span>
-                <div>
-                  <h3 className="text-xs font-semibold text-white">
-                    Modificar Datos de Identificación
-                  </h3>
-                  <p className="text-[11px] text-neutral-400">
-                    Corrige tu nombre real o número NIA si hubo algún error
-                  </p>
+          {!isViewingOther && (
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300">
+                    <Edit2 className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h3 className="text-xs font-semibold text-white">
+                      Modificar Datos de Identificación
+                    </h3>
+                    <p className="text-[11px] text-neutral-400">
+                      Corrige tu nombre real o número NIA si hubo algún error
+                    </p>
+                  </div>
                 </div>
+
+                {!isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="text-xs text-sky-400 hover:underline cursor-pointer"
+                  >
+                    Editar
+                  </button>
+                )}
               </div>
 
-              {!isEditing && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="text-xs text-sky-400 hover:underline cursor-pointer"
-                >
-                  Editar
-                </button>
+              {isEditing && (
+                <div className="space-y-3 pt-2">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-neutral-400 block">
+                      Nombre y apellidos completos
+                    </label>
+                    <input
+                      type="text"
+                      value={fullNameInput}
+                      onChange={(e) => setFullNameInput(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-neutral-950 border border-neutral-800 text-white focus:outline-none focus:border-sky-500"
+                      placeholder="Ej. Juan Pérez Gómez"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-neutral-400 block">
+                      Número de estudiante / NIA (Separado y único)
+                    </label>
+                    <input
+                      type="text"
+                      value={studentNumberInput}
+                      onChange={(e) => setStudentNumberInput(e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 text-xs font-mono uppercase rounded-xl bg-neutral-950 border border-neutral-800 text-white focus:outline-none focus:border-sky-500"
+                      placeholder="Ej. 10482910"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setIsEditing(false)}
+                      className="rounded-xl text-xs"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleSaveEdit}
+                      isLoading={savingEdit}
+                      className="rounded-xl text-xs bg-white text-black hover:bg-neutral-200"
+                    >
+                      <Save className="w-3.5 h-3.5 mr-1" />
+                      <span>Guardar cambios</span>
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
-
-            {isEditing && (
-              <div className="space-y-3 pt-2">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-neutral-400 block">
-                    Nombre y apellidos completos
-                  </label>
-                  <input
-                    type="text"
-                    value={fullNameInput}
-                    onChange={(e) => setFullNameInput(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-neutral-950 border border-neutral-800 text-white focus:outline-none focus:border-sky-500"
-                    placeholder="Ej. Juan Pérez Gómez"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-neutral-400 block">
-                    Número de estudiante / NIA
-                  </label>
-                  <input
-                    type="text"
-                    value={studentNumberInput}
-                    onChange={(e) => setStudentNumberInput(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 text-xs font-mono uppercase rounded-xl bg-neutral-950 border border-neutral-800 text-white focus:outline-none focus:border-sky-500"
-                    placeholder="Ej. 10482910"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-1">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setIsEditing(false)}
-                    className="rounded-xl text-xs"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleSaveEdit}
-                    isLoading={savingEdit}
-                    className="rounded-xl text-xs bg-white text-black hover:bg-neutral-200"
-                  >
-                    <Save className="w-3.5 h-3.5 mr-1" />
-                    <span>Guardar cambios</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Footer */}
         <footer className="px-5 sm:px-6 py-3.5 border-t border-neutral-800/80 bg-neutral-950/80 flex items-center justify-between shrink-0">
           <div className="text-[11px] font-mono text-neutral-500">
-            Ficha oficial · 2º SMR · 2026/2027
+            {isViewingOther ? `@${displayUsername} · 2º SMR` : 'Ficha oficial · 2º SMR · 2026/2027'}
           </div>
 
           <Button

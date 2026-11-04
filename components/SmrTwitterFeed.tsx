@@ -37,6 +37,7 @@ interface SmrTwitterFeedProps {
   onToggleLike?: (messageId: string) => void;
   onOpenNotifications?: () => void;
   onOpenFeedback?: () => void;
+  onInspectUser?: (identifier: { id?: string; username: string }) => void;
   isRealtimeConnected?: boolean;
   composerRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
@@ -105,6 +106,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   onToggleLike,
   onOpenNotifications,
   onOpenFeedback,
+  onInspectUser,
   isRealtimeConnected = true,
   composerRef: externalComposerRef,
 }) => {
@@ -880,17 +882,27 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                 }`}
               >
                 <div className="flex items-start gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-full sm:rounded-lg bg-surface-raised border border-border flex items-center justify-center font-mono font-semibold text-xs text-foreground uppercase shrink-0 mt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => onInspectUser?.({ id: msg.user_id, username: msg.username })}
+                    title={`Ver ficha de @${msg.username}`}
+                    className="w-8 h-8 rounded-full sm:rounded-lg bg-surface-raised border border-border flex items-center justify-center font-mono font-semibold text-xs text-foreground uppercase shrink-0 mt-0.5 hover:border-neutral-500 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  >
                     {msg.username.charAt(0)}
-                  </div>
+                  </button>
 
                   <div className="flex-1 min-w-0 space-y-1">
                     {/* Fila de metadatos */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                        <span className="font-semibold text-xs text-foreground font-mono truncate max-w-[140px] sm:max-w-none">
+                        <button
+                          type="button"
+                          onClick={() => onInspectUser?.({ id: msg.user_id, username: msg.username })}
+                          title={`Ver ficha oficial de @${msg.username}`}
+                          className="font-semibold text-xs text-foreground font-mono truncate max-w-[140px] sm:max-w-none hover:text-sky-400 hover:underline cursor-pointer text-left"
+                        >
                           @{msg.username}
-                        </span>
+                        </button>
 
                         {msg.pinned && (
                           <span className="text-[10px] font-mono px-1 py-0.2 rounded border border-border text-foreground-subtle shrink-0">

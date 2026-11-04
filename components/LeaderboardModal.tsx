@@ -21,6 +21,13 @@ interface LeaderboardModalProps {
   currentUser?: UserProfile | null;
   onlineUsers?: OnlineUser[];
   onRefresh?: () => void;
+  onInspectUser?: (identifier: {
+    id?: string;
+    username: string;
+    full_name?: string;
+    coins?: number;
+    role?: string;
+  }) => void;
 }
 
 type SortCategory = 'coins' | 'biggest_win' | 'streak';
@@ -32,6 +39,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   currentUser,
   onlineUsers = [],
   onRefresh,
+  onInspectUser,
 }) => {
   const [activeTab, setActiveTab] = useState<SortCategory>('coins');
   const [searchQuery, setSearchQuery] = useState('');
@@ -274,7 +282,17 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   <div className="grid grid-cols-3 gap-2 items-end">
                     {/* 2º Puesto (Plata) */}
                     <div
-                      className={`flex flex-col items-center p-3 rounded-xl border text-center transition-all ${
+                      onClick={() =>
+                        onInspectUser?.({
+                          id: top3[1].id,
+                          username: top3[1].username,
+                          full_name: top3[1].full_name,
+                          coins: top3[1].coins,
+                          role: top3[1].role,
+                        })
+                      }
+                      title={`Ver ficha de @${top3[1].username}`}
+                      className={`flex flex-col items-center p-3 rounded-xl border text-center transition-all cursor-pointer hover:border-neutral-500 hover:scale-[1.02] active:scale-[0.98] ${
                         top3[1].is_current_user
                           ? 'bg-surface-raised border-accent/60'
                           : 'bg-surface-raised/40 border-border/70'
@@ -312,7 +330,17 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
                     {/* 1º Puesto (Oro / Líder) */}
                     <div
-                      className={`relative flex flex-col items-center p-3.5 rounded-xl border text-center -mt-2 transition-all ${
+                      onClick={() =>
+                        onInspectUser?.({
+                          id: top3[0].id,
+                          username: top3[0].username,
+                          full_name: top3[0].full_name,
+                          coins: top3[0].coins,
+                          role: top3[0].role,
+                        })
+                      }
+                      title={`Ver ficha del líder @${top3[0].username}`}
+                      className={`relative flex flex-col items-center p-3.5 rounded-xl border text-center -mt-2 transition-all cursor-pointer hover:border-amber-400 hover:scale-[1.02] active:scale-[0.98] ${
                         top3[0].is_current_user
                           ? 'bg-amber-500/10 border-amber-500/50 shadow-sm'
                           : 'bg-surface-raised border-border/80 shadow-xs'
@@ -350,7 +378,17 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
                     {/* 3º Puesto (Bronce) */}
                     <div
-                      className={`flex flex-col items-center p-3 rounded-xl border text-center transition-all ${
+                      onClick={() =>
+                        onInspectUser?.({
+                          id: top3[2].id,
+                          username: top3[2].username,
+                          full_name: top3[2].full_name,
+                          coins: top3[2].coins,
+                          role: top3[2].role,
+                        })
+                      }
+                      title={`Ver ficha de @${top3[2].username}`}
+                      className={`flex flex-col items-center p-3 rounded-xl border text-center transition-all cursor-pointer hover:border-neutral-500 hover:scale-[1.02] active:scale-[0.98] ${
                         top3[2].is_current_user
                           ? 'bg-surface-raised border-accent/60'
                           : 'bg-surface-raised/40 border-border/70'
@@ -400,10 +438,20 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                     <div
                       key={item.id}
                       ref={isUser ? userRowRef : undefined}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                      onClick={() =>
+                        onInspectUser?.({
+                          id: item.id,
+                          username: item.username,
+                          full_name: item.full_name,
+                          coins: item.coins,
+                          role: item.role,
+                        })
+                      }
+                      title={`Ver ficha oficial de @${item.username}`}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
                         isUser
-                          ? 'bg-surface-raised border-accent/70 shadow-xs'
-                          : 'bg-surface border-border/60 hover:border-border hover:bg-surface-raised/30'
+                          ? 'bg-surface-raised border-accent/70 shadow-xs hover:border-accent'
+                          : 'bg-surface border-border/60 hover:border-neutral-500 hover:bg-surface-raised/40 active:scale-[0.99]'
                       }`}
                     >
                       {/* Izquierda: Índice y datos de usuario */}

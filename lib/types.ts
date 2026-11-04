@@ -3,6 +3,7 @@ export interface UserProfile {
   username: string;
   full_name?: string;
   student_number?: string;
+  pc_seat?: string;
   email?: string;
   coins: number;
   biggest_win: number;
@@ -27,6 +28,7 @@ export interface OnlineUser {
   username: string;
   full_name?: string;
   student_number?: string;
+  pc_seat?: string;
   avatar_color?: string;
   role?: string;
   coins?: number;

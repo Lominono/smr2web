@@ -106,6 +106,7 @@ export default function Home() {
   const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
   const [isTourActive, setIsTourActive] = useState(false);
   const [isStudentCardOpen, setIsStudentCardOpen] = useState(false);
+  const [inspectedStudent, setInspectedStudent] = useState<Partial<UserProfile> | null>(null);
 
   // Estados de control para desarrolladores (Debug y ajustes de diseño)
   const [isAdmin, setIsAdmin] = useState(false);
@@ -1635,6 +1636,50 @@ export default function Home() {
     sound.coinWin();
   };
 
+  const handleInspectStudent = async (identifier: {
+    id?: string;
+    username: string;
+    full_name?: string;
+    student_number?: string;
+    role?: string;
+    coins?: number;
+    pc_seat?: string;
+  }) => {
+    const cleanUsername = (identifier.username || '').trim().toLowerCase().replace(/^@/, '');
+    if (!cleanUsername) return;
+
+    // Si es el propio usuario autenticado, abrir su ficha propia editable
+    if (user && (identifier.id === user.id || cleanUsername === user.username.toLowerCase())) {
+      setInspectedStudent(null);
+      setIsStudentCardOpen(true);
+      return;
+    }
+
+    let target: Partial<UserProfile> = {
+      id: identifier.id,
+      username: cleanUsername,
+      full_name: identifier.full_name,
+      student_number: identifier.student_number,
+      role: (identifier.role as any) || 'student',
+      coins: identifier.coins ?? 1000,
+      pc_seat: identifier.pc_seat,
+    };
+
+    // Intentar consultar datos públicos actualizados del compañero (NIA, puesto, etc.)
+    try {
+      const res = await fetch(`/api/user/profile?username=${encodeURIComponent(cleanUsername)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.user) {
+          target = { ...target, ...data.user };
+        }
+      }
+    } catch {}
+
+    setInspectedStudent(target);
+    setIsStudentCardOpen(true);
+  };
+
   const handleToggleLike = async (messageId: string) => {
     sound.tap();
 
@@ -1901,6 +1946,7 @@ export default function Home() {
                   onToggleLike={handleToggleLike}
                   onOpenNotifications={() => setIsPushModalOpen(true)}
                   onOpenFeedback={() => setIsFeedbackOpen(true)}
+                  onInspectUser={handleInspectStudent}
                   isRealtimeConnected={isRealtimeConnected}
                   composerRef={composerRef}
                 />
@@ -2110,6 +2156,7 @@ export default function Home() {
         currentUser={user}
         onlineUsers={onlineUsers}
         onRefresh={fetchLeaderboard}
+        onInspectUser={handleInspectStudent}
       />
 
       <FaucetModal
@@ -2179,6 +2226,15 @@ export default function Home() {
         isOpen={isOnlineUsersOpen}
         onClose={() => setIsOnlineUsersOpen(false)}
         onlineUsers={onlineUsers}
+        onSelectUser={(u) =>
+          handleInspectStudent({
+            id: u.id,
+            username: u.username,
+            full_name: u.full_name,
+            role: u.role,
+            coins: u.coins,
+          })
+        }
       />
 
       <TermsModal
@@ -2236,12 +2292,17 @@ export default function Home() {
       {/* Carnet y Ficha de Estudiante Oficial Interactiva */}
       <StudentCardModal
         isOpen={isStudentCardOpen}
-        onClose={() => setIsStudentCardOpen(false)}
+        onClose={() => {
+          setIsStudentCardOpen(false);
+          setInspectedStudent(null);
+        }}
         user={user}
+        inspectedUser={inspectedStudent}
         onUpdateUser={(updated) => {
           setUser(updated);
           fetchLeaderboard();
         }}
+        onTipUser={handleTipUser}
       />
 
       <CookieBanner

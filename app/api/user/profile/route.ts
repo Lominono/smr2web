@@ -1,11 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
-import { isUUID } from '@/lib/uuid';
+import { isUUID, generateUUID } from '@/lib/uuid';
 import { verifyUserSession } from '@/lib/adminAuth';
 import { logEvent } from '@/lib/logger';
 import { validatePasswordSecurity } from '@/lib/passwordSecurity';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * GET /api/user/profile?username=xyz&id=123
+ * Obtains public student profile / card info for viewing other classmates.
+ * Strictly strips sensitive personal data (passwords, emails, session tokens).
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const rawUsername = searchParams.get('username')?.trim().toLowerCase().replace(/^@/, '');
+    const rawId = searchParams.get('id')?.trim();
+
+    if (!rawUsername && !rawId) {
+      return NextResponse.json(
+        { success: false, error: 'Identificador o nombre de usuario no proporcionado.' },
+        { status: 400 }
+      );
+    }
+
+    if (isServerSupabaseConfigured()) {
+      const client = createAdminClient();
+      if (client) {
+        try {
+          let query = client
+            .from('profiles')
+            .select(
+              'id, username, full_name, student_number, pc_seat, coins, biggest_win, streak_count, avatar_color, role, created_at, games_played, games_won'
+            );
+
+          if (rawId && isUUID(rawId)) {
+            query = query.eq('id', rawId);
+          } else if (rawUsername) {
+            query = query.ilike('username', rawUsername);
+          }
+
+          const { data, error } = await query.maybeSingle();
+
+          if (!error && data) {
+            return NextResponse.json({
+              success: true,
+              user: {
+                id: data.id,
+                username: data.username,
+                full_name: data.full_name || undefined,
+                student_number: data.student_number || undefined,
+                pc_seat: data.pc_seat || undefined,
+                coins: Math.max(0, Number(data.coins ?? 1000)),
+                biggest_win: Math.max(0, Number(data.biggest_win ?? 0)),
+                streak_count: Math.max(1, Number(data.streak_count ?? 1)),
+                avatar_color: data.avatar_color || 'emerald',
+                role: data.role || 'student',
+                created_at: data.created_at,
+                games_played: Number(data.games_played ?? 0),
+                games_won: Number(data.games_won ?? 0),
+              },
+            });
+          }
+        } catch (dbErr) {
+          console.warn('Note retrieving public profile from Supabase:', dbErr);
+        }
+      }
+    }
+
+    // Respuesta segura de perfil público de respaldo
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: rawId || generateUUID(),
+        username: rawUsername || 'estudiante',
+        role: 'student',
+        coins: 1000,
+        streak_count: 1,
+      },
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error?.message || 'Error al consultar perfil de estudiante.' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
