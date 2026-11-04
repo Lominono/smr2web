@@ -258,7 +258,7 @@ export const TextAnimate: FC<TextAnimateProps> = ({
         {words.map((word, wIdx) => (
           <motion.span
             key={`${word}-${wIdx}`}
-            className="mr-[0.25em] inline-block whitespace-nowrap overflow-hidden"
+            className="mr-[0.25em] inline-block whitespace-nowrap overflow-hidden align-bottom"
             variants={child}
           >
             {word}
@@ -268,7 +268,7 @@ export const TextAnimate: FC<TextAnimateProps> = ({
     );
   }
 
-  // Descomposición por caracteres
+  // Descomposición por caracteres (con corrección de alineación vertical para Safari/WebKit)
   const letters = Array.from(text);
 
   return (
@@ -282,7 +282,7 @@ export const TextAnimate: FC<TextAnimateProps> = ({
       {...props}
     >
       {letters.map((letter, idx) => (
-        <span key={`${letter}-${idx}`} className="overflow-hidden inline-block">
+        <span key={`${letter}-${idx}`} className="overflow-hidden inline-block align-bottom">
           <motion.span
             variants={child}
             className="inline-block"

@@ -14,35 +14,43 @@ export const LaunchLoadingTransition: React.FC<LaunchLoadingTransitionProps> = (
   speedMultiplier = 1,
 }) => {
   const [isExiting, setIsExiting] = useState(false);
-  const [fillProgress, setFillProgress] = useState(false);
+  const [percent, setPercent] = useState(0);
   const onCompleteRef = useRef(onComplete);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
-  // Duración sincronizada: 3200ms = exactamente 4 ciclos completos de 800ms de la animación
-  const durationMs = Math.round(3200 / Math.max(0.2, speedMultiplier));
-  const exitLeadMs = Math.round(380 / Math.max(0.2, speedMultiplier));
+  // Duración solicitada: exactamente 5 segundos (5000ms)
+  const durationMs = Math.round(5000 / Math.max(0.2, speedMultiplier));
+  const exitLeadMs = Math.round(450 / Math.max(0.2, speedMultiplier));
 
   useEffect(() => {
-    // Inicia la barra de progreso con aceleración por GPU (0 re-renders de React)
-    const animFrame = requestAnimationFrame(() => {
-      setFillProgress(true);
-    });
+    const startTime = Date.now();
 
-    // Desvanecimiento de salida suave antes del cambio
+    // Actualizador fluido del porcentaje numérico
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const currentPct = Math.min(100, Math.floor((elapsed / durationMs) * 100));
+      setPercent(currentPct);
+
+      if (elapsed >= durationMs) {
+        clearInterval(interval);
+      }
+    }, 40);
+
+    // Desvanecimiento suave antes de finalizar
     const exitTimer = setTimeout(() => {
       setIsExiting(true);
     }, Math.max(100, durationMs - exitLeadMs));
 
-    // Finalización de la transición y paso a AuthGate
+    // Finalización a los 5 segundos
     const finishTimer = setTimeout(() => {
       onCompleteRef.current();
     }, durationMs);
 
     return () => {
-      cancelAnimationFrame(animFrame);
+      clearInterval(interval);
       clearTimeout(exitTimer);
       clearTimeout(finishTimer);
     };
@@ -55,11 +63,11 @@ export const LaunchLoadingTransition: React.FC<LaunchLoadingTransitionProps> = (
       }`}
     >
       {/* Luz ambiental sutil detrás del Mac */}
-      <div className="absolute w-72 sm:w-96 h-72 sm:h-96 rounded-full bg-neutral-800/25 blur-3xl pointer-events-none -translate-y-6" />
+      <div className="absolute w-72 sm:w-96 h-72 sm:h-96 rounded-full bg-neutral-800/20 blur-3xl pointer-events-none -translate-y-6" />
 
-      {/* Contenedor central estático para no reiniciar el decodificador de imagen */}
+      {/* Contenedor central estático */}
       <div className="relative z-10 flex flex-col items-center text-center max-w-sm sm:max-w-md mx-auto">
-        {/* Cult UI MacScreen Memoizado */}
+        {/* Cult UI MacScreen Memoizado con renderizado por hardware */}
         <div className="transform hover:scale-[1.01] transition-transform duration-500 ease-out">
           <MacScreen
             gifUrl="/component-frames/mac-screen-content.gif"
@@ -79,20 +87,21 @@ export const LaunchLoadingTransition: React.FC<LaunchLoadingTransitionProps> = (
             />
           </div>
 
-          {/* Barra de progreso minimalista fluida por hardware */}
-          <div className="w-44 sm:w-56 space-y-2">
-            <div className="w-full h-[2px] bg-neutral-900 rounded-full overflow-hidden border border-neutral-800/80">
+          {/* Barra de progreso de 5 segundos garantizada por keyframe CSS */}
+          <div className="w-48 sm:w-60 space-y-2">
+            <div className="w-full h-[2.5px] bg-neutral-900 rounded-full overflow-hidden border border-neutral-800/80">
               <div
-                className="h-full bg-neutral-300 rounded-full"
+                className="h-full bg-neutral-200 rounded-full animate-progress-fill-5s"
                 style={{
-                  width: fillProgress ? '100%' : '0%',
-                  transition: `width ${durationMs}ms cubic-bezier(0.2, 0.8, 0.4, 1)`,
+                  animationDuration: `${durationMs}ms`,
+                  animationTimingFunction: 'linear',
                 }}
               />
             </div>
-            <div className="flex justify-between text-[10px] font-mono text-neutral-600">
+            <div className="flex justify-between text-[10px] font-mono text-neutral-500">
               <span>SMR2 OS</span>
-              <span>Cargando</span>
+              <span>{percent}%</span>
+              <span>Iniciando</span>
             </div>
           </div>
         </div>

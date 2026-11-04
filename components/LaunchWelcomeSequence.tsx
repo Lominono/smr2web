@@ -43,22 +43,22 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
     // Paso 1: Aparición de la primera burbuja con TextAnimate
     const t1 = setTimeout(() => {
       setStep(1);
-    }, 150 * pace);
+    }, 120 * pace);
 
     // Paso 2: Segunda burbuja de diálogo
     const t2 = setTimeout(() => {
       setStep(2);
-    }, 1250 * pace);
+    }, 950 * pace);
 
     // Paso 3: Revelar botón de acceso
     const t3 = setTimeout(() => {
       setStep(3);
-    }, 2350 * pace);
+    }, 1900 * pace);
 
-    // Paso 4: Transición automática tras 7.5 segundos
+    // Paso 4: Transición automática directa a la pantalla de carga tras leer el mensaje
     const t4 = setTimeout(() => {
       handleProceed();
-    }, 7500 * pace);
+    }, 2800 * pace);
 
     timersRef.current = [t1, t2, t3, t4];
 

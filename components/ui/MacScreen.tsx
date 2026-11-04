@@ -27,7 +27,7 @@ export const MacScreen: React.FC<MacScreenProps> = React.memo(({
         decoding="sync"
       />
 
-      {/* Screen overlay — all % so it tracks the responsive frame image */}
+      {/* Screen overlay — all % so it tracks the responsive frame image con correcciones WebKit */}
       <div
         className="absolute overflow-hidden bg-black flex items-center justify-center pointer-events-none"
         style={{
@@ -36,6 +36,11 @@ export const MacScreen: React.FC<MacScreenProps> = React.memo(({
           width: '28.79%',
           height: '37.89%',
           borderRadius: '2.5%',
+          transform: 'translateZ(0)',
+          WebkitTransform: 'translateZ(0)',
+          WebkitBackfaceVisibility: 'hidden',
+          backfaceVisibility: 'hidden',
+          contain: 'paint',
         }}
       >
         {children ? (
@@ -47,6 +52,7 @@ export const MacScreen: React.FC<MacScreenProps> = React.memo(({
             src={gifUrl}
             loading="eager"
             decoding="sync"
+            style={{ display: 'block', width: '100%', height: '100%' }}
           />
         )}
       </div>

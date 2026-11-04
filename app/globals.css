@@ -502,3 +502,17 @@ body {
   animation: shimmerSweep 2.5s ease-in-out infinite;
 }
 
+@keyframes fillProgressLinear {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.animate-progress-fill-5s {
+  animation: fillProgressLinear 5s linear forwards;
+  will-change: width;
+}
+
