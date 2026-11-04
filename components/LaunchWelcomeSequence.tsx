@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { ArrowRight } from 'lucide-react';
-import confetti from 'canvas-confetti';
-import { HaloBadge } from '@/components/ui/HaloBadge';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { SpeechBubble } from '@/components/ui/SpeechBubble';
+import { TextAnimate } from '@/components/ui/TextAnimate';
 import { sound } from '@/lib/audio';
 
 interface LaunchWelcomeSequenceProps {
@@ -22,19 +21,6 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
   const [step, setStep] = useState<number>(0);
   const [isExiting, setIsExiting] = useState(false);
   const timersRef = useRef<NodeJS.Timeout[]>([]);
-
-  const fireMinimalConfetti = useCallback(() => {
-    try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.65 },
-        colors: ['#ffffff', '#10b981', '#71717a'],
-        disableForReducedMotion: true,
-        zIndex: 10050,
-      });
-    } catch {}
-  }, []);
 
   const clearAllTimers = () => {
     timersRef.current.forEach((t) => clearTimeout(t));
@@ -54,12 +40,11 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
     // Fade bajo: desvanecimiento suave hacia abajo antes de montar AuthGate
     setTimeout(() => {
       onComplete();
-    }, 550);
+    }, 520);
   }, [isExiting, onComplete, soundEnabled]);
 
   useEffect(() => {
     clearAllTimers();
-    fireMinimalConfetti();
     if (soundEnabled) {
       try {
         sound.toastClink();
@@ -68,12 +53,12 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
 
     const pace = 1 / Math.max(0.2, speedMultiplier);
 
-    // Paso 1: Primera burbuja de texto
+    // Paso 1: Primera burbuja con TextAnimate
     const t1 = setTimeout(() => {
       setStep(1);
-    }, 200 * pace);
+    }, 180 * pace);
 
-    // Paso 2: Segunda burbuja de texto
+    // Paso 2: Segunda burbuja con TextAnimate
     const t2 = setTimeout(() => {
       setStep(2);
       if (soundEnabled) {
@@ -81,36 +66,48 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
           sound.tap();
         } catch {}
       }
-    }, 1200 * pace);
+    }, 1350 * pace);
 
-    // Paso 3: Revelar botón de acceso
+    // Paso 3: Revelar botón de entrada
     const t3 = setTimeout(() => {
       setStep(3);
-    }, 2200 * pace);
+    }, 2450 * pace);
 
-    // Paso 4: Transición automática tras 7 segundos
+    // Paso 4: Transición automática tras 7.5 segundos
     const t4 = setTimeout(() => {
       handleProceed();
-    }, 7000 * pace);
+    }, 7500 * pace);
 
     timersRef.current = [t1, t2, t3, t4];
 
     return () => clearAllTimers();
-  }, [fireMinimalConfetti, handleProceed, soundEnabled, speedMultiplier]);
+  }, [handleProceed, soundEnabled, speedMultiplier]);
+
+  // Soporte de tecla Enter para avanzar rápido
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleProceed();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleProceed]);
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex flex-col justify-between items-center bg-[#09090b] text-neutral-100 p-6 sm:p-10 select-none overflow-hidden transition-all duration-500 ${
+      className={`fixed inset-0 z-[9999] flex flex-col justify-between items-center bg-[#09090b] text-neutral-100 p-6 sm:p-10 select-none overflow-hidden transition-all duration-500 antialiased ${
         isExiting ? 'animate-fade-down-exit pointer-events-none' : 'animate-in fade-in duration-300'
       }`}
     >
       {/* 1. Header Minimalista */}
       <header className="w-full max-w-3xl mx-auto flex items-center justify-between relative z-10 pt-2 select-none">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 p-1.5 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 p-1.5 flex items-center justify-center shadow-sm">
             <Image
               src="/logo.png"
-              alt="SMR2"
+              alt="SMR2 Logo"
               width={22}
               height={22}
               className="object-contain"
@@ -127,23 +124,30 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
           </div>
         </div>
 
-        <HaloBadge variant="subtle" size="sm" live>
-          <span className="tracking-widest uppercase text-[10px]">Portal Activo</span>
-        </HaloBadge>
+        {/* Indicador de estado sobrio Cult UI */}
+        <div className="flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/60 backdrop-blur-md px-3 py-1 text-[10px] font-mono text-neutral-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="tracking-widest uppercase">Portal Activo</span>
+        </div>
       </header>
 
-      {/* 2. Cuerpo Principal: Burbujas de Cult UI limpias y breves */}
-      <main className="w-full max-w-2xl mx-auto my-auto flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6 relative z-10 py-8">
-        {/* Burbuja Principal 1 (Cult UI SpeechBubble) */}
+      {/* 2. Cuerpo Principal: Burbujas de Cult UI con TextAnimate */}
+      <main className="w-full max-w-2xl mx-auto my-auto flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6 relative z-10 py-6">
+        {/* Burbuja Principal 1: Text Animate calmInUp */}
         {step >= 1 && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <SpeechBubble variant="light" showCursor={step < 2}>
-              2º SMR ya está en línea.
+              <TextAnimate
+                text="¡2º SMR ya está en línea!"
+                type="calmInUp"
+                delay={0.05}
+                animate={true}
+              />
             </SpeechBubble>
           </div>
         )}
 
-        {/* Burbuja Secundaria 2: Breve y humana */}
+        {/* Burbuja Secundaria 2: Text Animate shiftInUp */}
         {step >= 2 && (
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
             <SpeechBubble
@@ -152,7 +156,12 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
               showCursor={step < 3}
               className="ml-6 md:ml-10 mr-0"
             >
-              Horarios, tareas y avisos listos.
+              <TextAnimate
+                text="Felices de que podáis usar esta web. Todo listo."
+                type="shiftInUp"
+                delay={0.05}
+                animate={true}
+              />
             </SpeechBubble>
           </div>
         )}
@@ -181,9 +190,11 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
           onClick={handleProceed}
           className="hover:text-neutral-300 transition-colors cursor-pointer"
         >
-          Saltar
+          Saltar (Enter)
         </button>
       </footer>
     </div>
   );
 };
+
+export default LaunchWelcomeSequence;
