@@ -7,6 +7,7 @@ import { sound } from '@/lib/audio';
 import { PRELAUNCH_STORAGE_KEY } from '@/lib/prelaunchConstants';
 import { HaloBadge } from '@/components/ui/HaloBadge';
 import { LaunchWelcomeSequence } from '@/components/LaunchWelcomeSequence';
+import { LaunchLoadingTransition } from '@/components/LaunchLoadingTransition';
 
 // Fecha oficial de apertura: 9 de noviembre de 2026 a las 08:35 AM (CET)
 export const TARGET_LAUNCH_TIMESTAMP = new Date('2026-11-09T08:35:00+01:00').getTime();
@@ -15,6 +16,7 @@ const LAUNCH_START_TIMESTAMP = new Date('2026-10-20T00:00:00+01:00').getTime();
 interface LaunchCountdownGateProps {
   onUnlock: () => void;
   forceWelcome?: boolean;
+  forceLoading?: boolean;
   speedMultiplier?: number;
 }
 
@@ -50,9 +52,12 @@ function calculateTime(): TimeLeft {
 export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
   onUnlock,
   forceWelcome = false,
+  forceLoading = false,
   speedMultiplier = 1,
 }) => {
-  const [stage, setStage] = useState<'countdown' | 'welcome'>(forceWelcome ? 'welcome' : 'countdown');
+  const [stage, setStage] = useState<'countdown' | 'welcome' | 'loading'>(
+    forceLoading ? 'loading' : forceWelcome ? 'welcome' : 'countdown'
+  );
   const [welcomeKey, setWelcomeKey] = useState(0);
   const [simulatedRemaining, setSimulatedRemaining] = useState<number | null>(null);
 
@@ -61,7 +66,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
 
   // Animación inicial sobria: solo si la cuenta atrás existe y no ha concluido
   const initialTime = calculateTime();
-  const [showIntro, setShowIntro] = useState<boolean>(!initialTime.isCompleted && !forceWelcome);
+  const [showIntro, setShowIntro] = useState<boolean>(!initialTime.isCompleted && !forceWelcome && !forceLoading);
   const [introFading, setIntroFading] = useState<boolean>(false);
   const introTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -148,6 +153,8 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
       const preview = params.get('preview');
       if (preview === 'welcome') {
         setStage('welcome');
+      } else if (preview === 'loading') {
+        setStage('loading');
       } else if (params.has('countdown')) {
         const secs = parseInt(params.get('countdown') || '3', 10);
         if (!isNaN(secs) && secs > 0) {
@@ -442,6 +449,10 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
   };
 
   const handleWelcomeComplete = () => {
+    setStage('loading');
+  };
+
+  const handleLoadingComplete = () => {
     try {
       localStorage.setItem('smr2_launch_welcome_seen', 'true');
     } catch {}
@@ -458,6 +469,16 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
       <LaunchWelcomeSequence
         key={welcomeKey}
         onComplete={handleWelcomeComplete}
+        speedMultiplier={speedMultiplier}
+      />
+    );
+  }
+
+  // Si estamos en la pantalla de carga épica con Mac Screen de Cult UI:
+  if (stage === 'loading') {
+    return (
+      <LaunchLoadingTransition
+        onComplete={handleLoadingComplete}
         speedMultiplier={speedMultiplier}
       />
     );

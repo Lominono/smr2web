@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { PRELAUNCH_STORAGE_KEY } from '@/lib/prelaunchConstants';
 
-export type DevLaunchState = 'countdown' | 'welcome' | 'auth' | 'app';
+export type DevLaunchState = 'countdown' | 'welcome' | 'loading' | 'auth' | 'app';
 
 interface LaunchDevToolbarProps {
   isAdmin: boolean;
@@ -296,11 +296,11 @@ export const LaunchDevToolbar: React.FC<LaunchDevToolbarProps> = ({
                 <label className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 block">
                   Estado Activo
                 </label>
-                <div className="grid grid-cols-3 gap-1 bg-neutral-900 p-1 rounded-xl border border-neutral-800/80">
+                <div className="grid grid-cols-4 gap-1 bg-neutral-900 p-1 rounded-xl border border-neutral-800/80">
                   <button
                     type="button"
                     onClick={() => onSetState('countdown')}
-                    className={`py-1.5 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
+                    className={`py-1.5 rounded-lg text-[10px] font-medium transition-all cursor-pointer ${
                       currentState === 'countdown'
                         ? 'bg-neutral-800 text-white shadow-sm'
                         : 'text-neutral-400 hover:text-neutral-200'
@@ -312,7 +312,7 @@ export const LaunchDevToolbar: React.FC<LaunchDevToolbarProps> = ({
                   <button
                     type="button"
                     onClick={() => onSetState('welcome')}
-                    className={`py-1.5 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
+                    className={`py-1.5 rounded-lg text-[10px] font-medium transition-all cursor-pointer ${
                       currentState === 'welcome'
                         ? 'bg-neutral-800 text-white shadow-sm'
                         : 'text-neutral-400 hover:text-neutral-200'
@@ -323,8 +323,20 @@ export const LaunchDevToolbar: React.FC<LaunchDevToolbarProps> = ({
 
                   <button
                     type="button"
+                    onClick={() => onSetState('loading')}
+                    className={`py-1.5 rounded-lg text-[10px] font-medium transition-all cursor-pointer ${
+                      currentState === 'loading'
+                        ? 'bg-neutral-800 text-white shadow-sm'
+                        : 'text-neutral-400 hover:text-neutral-200'
+                    }`}
+                  >
+                    Carga Mac
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => onSetState('auth')}
-                    className={`py-1.5 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
+                    className={`py-1.5 rounded-lg text-[10px] font-medium transition-all cursor-pointer ${
                       currentState === 'auth'
                         ? 'bg-neutral-800 text-white shadow-sm'
                         : 'text-neutral-400 hover:text-neutral-200'

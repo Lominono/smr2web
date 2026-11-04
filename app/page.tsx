@@ -131,6 +131,7 @@ export default function Home() {
       const params = new URLSearchParams(window.location.search);
       const preview = params.get('preview');
       if (preview === 'welcome') setDevLaunchState('welcome');
+      else if (preview === 'loading') setDevLaunchState('loading');
       else if (preview === 'countdown') setDevLaunchState('countdown');
       else if (preview === 'auth') setDevLaunchState('auth');
     }
@@ -1738,13 +1739,14 @@ export default function Home() {
   const currentEffectiveState: DevLaunchState =
     devLaunchState ?? (!isSiteUnlocked ? 'countdown' : !user ? 'auth' : 'app');
 
-  // Web cerrada con cuenta regresiva en GRANDE o bienvenida tras fin del contador
-  if (currentEffectiveState === 'countdown' || currentEffectiveState === 'welcome') {
+  // Web cerrada con cuenta regresiva en GRANDE, bienvenida o carga épica Mac
+  if (currentEffectiveState === 'countdown' || currentEffectiveState === 'welcome' || currentEffectiveState === 'loading') {
     return (
       <>
         <LaunchCountdownGate
           key={devWelcomeKey}
           forceWelcome={currentEffectiveState === 'welcome'}
+          forceLoading={currentEffectiveState === 'loading'}
           speedMultiplier={devSpeedMultiplier}
           onUnlock={() => {
             setIsSiteUnlocked(true);
