@@ -16,6 +16,7 @@ import {
   Settings,
   Wine,
   Terminal,
+  IdCard,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
@@ -32,6 +33,7 @@ interface AppleNavbarProps {
   soundEnabled: boolean;
   onToggleSound: () => void;
   onOpenSettings?: () => void;
+  onOpenStudentCard?: () => void;
   onOpenDrawer: () => void;
   activeTab?: string;
   onSelectTab?: (tab: string) => void;
@@ -50,6 +52,7 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
   soundEnabled,
   onToggleSound,
   onOpenSettings,
+  onOpenStudentCard,
   onOpenDrawer,
   activeTab = 'feed',
   onSelectTab,
@@ -258,6 +261,19 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                   <Plus className="w-3 h-3" />
                 </span>
               </button>
+
+              {/* Ficha de Estudiante Oficial */}
+              {onOpenStudentCard && (
+                <button
+                  type="button"
+                  onClick={onOpenStudentCard}
+                  title="Mi Ficha y Carnet Oficial de Estudiante"
+                  className="flex items-center gap-1.5 px-2.5 h-9 sm:h-8 rounded-lg bg-surface-raised hover:bg-surface-hover border border-border/70 text-foreground-muted hover:text-foreground text-xs font-medium transition-all cursor-pointer active:scale-95"
+                >
+                  <IdCard className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <span className="hidden md:inline font-mono text-[11px]">Ficha</span>
+                </button>
+              )}
 
               {/* User Settings (Desktop) */}
               {onOpenSettings && (

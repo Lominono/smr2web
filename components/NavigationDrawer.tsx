@@ -29,6 +29,7 @@ import {
   AlertCircle,
   Sparkles,
   Terminal,
+  IdCard,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -54,6 +55,7 @@ interface NavigationDrawerProps {
   onSignOut: () => void;
   onlineCount?: number;
   onOpenOnlineUsers?: () => void;
+  onOpenStudentCard?: () => void;
 }
 
 export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
@@ -73,6 +75,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
   onSignOut,
   onlineCount,
   onOpenOnlineUsers,
+  onOpenStudentCard,
 }) => {
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
 
@@ -261,6 +264,25 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               </div>
               <ChevronRight className="w-4 h-4 text-foreground-subtle" />
             </button>
+
+            {onOpenStudentCard && currentUser && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenStudentCard();
+                }}
+                className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium transition-all cursor-pointer border bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/20 active:scale-[0.98] touch-manipulation"
+              >
+                <div className="flex items-center gap-3">
+                  <IdCard className="w-4 h-4 text-sky-400" />
+                  <span className="text-sm font-sans font-semibold">Mi Ficha de Estudiante</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-sky-500/20">
+                  {currentUser.student_number ? `NIA-${currentUser.student_number}` : 'Abrir'}
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Recreo & Juegos */}

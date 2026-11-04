@@ -31,6 +31,7 @@ import {
   ArrowUpRight,
   Sparkles,
   Terminal,
+  IdCard,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -72,6 +73,7 @@ interface UserSettingsModalProps {
   onlineCount?: number;
   onOpenWindowsWelcome?: () => void;
   onOpenIsaacTour?: () => void;
+  onOpenStudentCard?: () => void;
 }
 
 const AVATAR_COLORS = [
@@ -98,6 +100,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   onlineCount = 1,
   onOpenWindowsWelcome,
   onOpenIsaacTour,
+  onOpenStudentCard,
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'agenda' | 'stats' | 'preferences' | 'security'>('profile');
 
@@ -500,6 +503,37 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
           {/* TAB 1: PROFILE */}
           {activeTab === 'profile' && (
             <form onSubmit={handleSaveProfile} className="space-y-4">
+              {/* Tarjeta de Acceso Directo a Ficha de Estudiante Oficial */}
+              {onOpenStudentCard && (
+                <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+                      <IdCard className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-neutral-900 dark:text-white">
+                        Ficha y Carnet Oficial de Estudiante
+                      </h4>
+                      <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                        Check-in de asistencia diaria, puesto en taller (PC) y horario
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      onClose();
+                      onOpenStudentCard();
+                    }}
+                    className="text-xs rounded-xl bg-sky-500 hover:bg-sky-400 text-neutral-950 font-semibold shrink-0"
+                  >
+                    Ver Ficha
+                  </Button>
+                </div>
+              )}
+
               <Input
                 label="Identificador de Usuario"
                 value={newUsername}

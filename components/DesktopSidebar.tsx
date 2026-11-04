@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   AlertCircle,
   Terminal,
+  IdCard,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -39,6 +40,7 @@ interface DesktopSidebarProps {
   onFocusComposer?: () => void;
   onlineCount?: number;
   onOpenOnlineUsers?: () => void;
+  onOpenStudentCard?: () => void;
 }
 
 export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
@@ -55,6 +57,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onFocusComposer,
   onlineCount,
   onOpenOnlineUsers,
+  onOpenStudentCard,
 }) => {
   const rank = currentUser ? getUserRank(currentUser.coins) : null;
 
@@ -127,6 +130,25 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             <Coins className="w-4 h-4 text-amber-500" />
             <span>Fondo diario</span>
           </button>
+
+          {onOpenStudentCard && currentUser && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.tap();
+                onOpenStudentCard();
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 transition-all cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <IdCard className="w-4 h-4 text-sky-400" />
+                <span className="font-semibold">Mi Ficha Oficial</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/20 font-mono font-bold">
+                {currentUser.student_number ? `NIA-${currentUser.student_number}` : 'SMR2'}
+              </span>
+            </button>
+          )}
 
           {onOpenOnlineUsers && (
             <button

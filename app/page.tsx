@@ -32,6 +32,7 @@ import { UserSettingsModal } from '@/components/UserSettingsModal';
 import { WindowsWelcomeModal } from '@/components/WindowsWelcomeModal';
 import { PutoIsaacTour } from '@/components/PutoIsaacTour';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
+import { StudentCardModal } from '@/components/StudentCardModal';
 import { OnlineUsersModal } from '@/components/OnlineUsersModal';
 import { PushNotificationModal } from '@/components/PushNotificationModal';
 import { FeedbackModal } from '@/components/FeedbackModal';
@@ -104,6 +105,7 @@ export default function Home() {
   const [realtimeNotification, setRealtimeNotification] = useState<RealtimeNotification | null>(null);
   const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
   const [isTourActive, setIsTourActive] = useState(false);
+  const [isStudentCardOpen, setIsStudentCardOpen] = useState(false);
 
   // Estados de control para desarrolladores (Debug y ajustes de diseño)
   const [isAdmin, setIsAdmin] = useState(false);
@@ -510,11 +512,17 @@ export default function Home() {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setCalendarEvents(parsed);
+          // Filtrar exámenes falsos predeterminados que nadie puso
+          const cleaned = parsed.filter(
+            (ev: any) => ev.id !== 'def_2' && !String(ev.title || '').includes('Examen Active Directory')
+          );
+          setCalendarEvents(cleaned);
+          localStorage.setItem('smr2_calendar_events', JSON.stringify(cleaned));
           return;
         }
       }
 
+      // Sin exámenes falsos inventados: solo prácticas y entregas reales
       const defaultEvents: CalendarEvent[] = [
         {
           id: 'def_1',
@@ -523,15 +531,6 @@ export default function Home() {
           event_type: 'homework',
           subject: 'SR',
           description: 'Configuración de zona directa e inversa en Linux Server.',
-          created_at: new Date().toISOString(),
-        },
-        {
-          id: 'def_2',
-          title: 'Examen Active Directory y GPO',
-          event_date: '2026-11-12',
-          event_type: 'exam',
-          subject: 'SOR',
-          description: 'Controladores de dominio, unidades organizativas y directivas.',
           created_at: new Date().toISOString(),
         },
         {
@@ -1847,6 +1846,7 @@ export default function Home() {
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenStudentCard={() => setIsStudentCardOpen(true)}
         onOpenDrawer={() => setIsNavDrawerOpen(true)}
         activeTab={activeView}
         onSelectTab={(tab) => setActiveView(tab as ViewMode)}
@@ -1873,6 +1873,7 @@ export default function Home() {
                   onSignOut={handleSignOut}
                   onOpenAuth={() => setIsAuthOpen(true)}
                   onOpenFeedback={() => setIsFeedbackOpen(true)}
+                  onOpenStudentCard={() => setIsStudentCardOpen(true)}
                   onlineCount={onlineCount}
                   onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
                   onFocusComposer={() => {
@@ -2093,6 +2094,7 @@ export default function Home() {
         onOpenTerms={() => setIsTermsOpen(true)}
         onOpenNotifications={() => setIsPushModalOpen(true)}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
+        onOpenStudentCard={() => setIsStudentCardOpen(true)}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
         onSignOut={handleSignOut}
@@ -2147,6 +2149,7 @@ export default function Home() {
         onlineCount={onlineCount}
         onOpenWindowsWelcome={() => setIsWindowsWelcomeOpen(true)}
         onOpenIsaacTour={() => setIsIsaacTourOpen(true)}
+        onOpenStudentCard={() => setIsStudentCardOpen(true)}
       />
 
       <WindowsWelcomeModal
@@ -2227,6 +2230,17 @@ export default function Home() {
               setTimeout(() => setIsIsaacTourOpen(true), 600);
             }
           } catch {}
+        }}
+      />
+
+      {/* Carnet y Ficha de Estudiante Oficial Interactiva */}
+      <StudentCardModal
+        isOpen={isStudentCardOpen}
+        onClose={() => setIsStudentCardOpen(false)}
+        user={user}
+        onUpdateUser={(updated) => {
+          setUser(updated);
+          fetchLeaderboard();
         }}
       />
 

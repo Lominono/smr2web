@@ -15,6 +15,7 @@ import {
   Users,
   Lock,
   Calendar,
+  Download,
 } from 'lucide-react';
 import {
   SMR2_SUBJECTS,
@@ -147,6 +148,61 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     sound.tap();
   };
 
+  const handleExportIcs = () => {
+    const icsLines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//SMR2 Web//Horario 2º SMR//ES',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'X-WR-CALNAME:Horario 2º SMR (Aula 35)',
+      'X-WR-TIMEZONE:Europe/Madrid',
+    ];
+
+    DAYS.forEach((day) => {
+      const dayCodes = SCHEDULE_GRID[day.key];
+      dayCodes.forEach((code, idx) => {
+        if (code === 'RECREO') return;
+        const slot = TIME_SLOTS[idx];
+        const subj = SMR2_SUBJECTS[code];
+        const byDayMap: Record<DayKey, string> = {
+          lunes: 'MO',
+          martes: 'TU',
+          miercoles: 'WE',
+          jueves: 'TH',
+          viernes: 'FR',
+        };
+        const byDay = byDayMap[day.key];
+        const [startH, startM] = slot.label.split(' — ')[0].split(':').map(Number);
+        const [endH, endM] = slot.label.split(' — ')[1].split(':').map(Number);
+        const pad = (n: number) => String(n).padStart(2, '0');
+
+        icsLines.push(
+          'BEGIN:VEVENT',
+          `SUMMARY:${subj?.name || code} (${code})`,
+          `DESCRIPTION:${subj?.description || 'Clase de 2º SMR'}. Aula 35.`,
+          'LOCATION:Aula 35',
+          `RRULE:FREQ=WEEKLY;BYDAY=${byDay}`,
+          `DTSTART:20261109T${pad(startH)}${pad(startM)}00`,
+          `DTEND:20261109T${pad(endH)}${pad(endM)}00`,
+          'END:VEVENT'
+        );
+      });
+    });
+
+    icsLines.push('END:VCALENDAR');
+    const blob = new Blob([icsLines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'Horario_2_SMR_Aula35.ics');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    sound.coinWin();
+  };
+
   useEffect(() => {
     const update = () => setLiveStatus(getCurrentScheduleStatus());
     update();
@@ -196,8 +252,19 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     try {
       const stored = localStorage.getItem('smr2_calendar_events');
       if (stored) {
-        setEvents(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // Filtrar exámenes falsos predeterminados que nadie puso
+          const cleaned = parsed.filter(
+            (ev: any) => ev.id !== 'def_2' && !String(ev.title || '').includes('Examen Active Directory')
+          );
+          setEvents(cleaned);
+          localStorage.setItem('smr2_calendar_events', JSON.stringify(cleaned));
+        } else {
+          setEvents([]);
+        }
       } else {
+        // Sin exámenes falsos: solo entregas legítimas
         const defaultEvents: CalendarEvent[] = [
           {
             id: 'def_1',
@@ -206,15 +273,6 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
             event_type: 'homework',
             subject: 'SR',
             description: 'Configuración de zona directa e inversa en Linux Server.',
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: 'def_2',
-            title: 'Examen Active Directory y GPO',
-            event_date: '2026-11-12',
-            event_type: 'exam',
-            subject: 'SOR',
-            description: 'Controladores de dominio, unidades organizativas y directivas.',
             created_at: new Date().toISOString(),
           },
           {
@@ -326,6 +384,18 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               <span>Tareas ({events.length})</span>
             </button>
           </div>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExportIcs}
+            title="Descargar horario para Google Calendar / Apple Calendar"
+            className="rounded-xl"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Exportar Calendario</span>
+            <span className="sm:hidden">.ics</span>
+          </Button>
 
           {isAdmin && (
             <Button
@@ -753,9 +823,17 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                 </div>
               ) : filteredEvents.length === 0 ? (
                 <EmptyState
-                  icon={<CalendarIcon className="w-8 h-8 opacity-40" />}
-                  title="Aún no hay entregas ni exámenes programados"
-                  description="Las tareas y exámenes añadidos por los administradores aparecerán aquí y en el horario."
+                  icon={<CalendarIcon className="w-8 h-8 opacity-40 text-emerald-500" />}
+                  title={
+                    taskFilter === 'exam'
+                      ? 'No hay exámenes programados por ahora'
+                      : 'Aún no hay entregas pendientes'
+                  }
+                  description={
+                    taskFilter === 'exam'
+                      ? '¡Todo despejado! No hay exámenes fijados en el calendario de 2º SMR por el momento.'
+                      : 'Las entregas y avisos añadidos aparecerán aquí y en el horario semanal.'
+                  }
                 />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -773,7 +851,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                             </Badge>
                           </div>
 
-                          {isAdmin && (
+                                          {isAdmin && (
                             <button
                               type="button"
                               onClick={() => handleDeleteEvent(ev.id)}
