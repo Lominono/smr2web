@@ -239,19 +239,22 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
         konamiIdx = 0;
       }
 
-      // Atajo de teclado: Ctrl+Shift+S, Ctrl+Shift+A, Alt+A o la tecla `
+      // Atajo de administrador: Alt+D, F2, ~, Ctrl+., Ctrl+Shift+S, Alt+A
       if (
-        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'S' || e.key === 's' || e.key === 'A' || e.key === 'a')) ||
-        (e.altKey && (e.key === 'A' || e.key === 'a')) ||
+        (e.altKey && (e.key === 'D' || e.key === 'd' || e.key === 'A' || e.key === 'a')) ||
+        e.key === 'F2' ||
         e.key === '`' ||
-        e.key === '~'
+        e.key === '~' ||
+        (e.ctrlKey && e.key === '.') ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd' || e.key === 'S' || e.key === 's' || e.key === 'A' || e.key === 'a'))
       ) {
         e.preventDefault();
         try {
           sound.tap();
         } catch {}
-        setShowModal(true);
-        setErrorMessage(null);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('smr2_open_admin_gate'));
+        }
         return;
       }
 
@@ -542,21 +545,23 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
           </div>
         </div>
 
-        {/* Cult UI HaloBadge indicador de estado en vivo */}
-        <HaloBadge variant="subtle" size="sm" live>
-          <span className="tracking-widest uppercase text-[10px]">
+        {/* Indicador de estado sobrio y minimalista */}
+        <div className="flex items-center gap-2 text-[10px] font-mono text-neutral-500">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span className="tracking-widest uppercase">
             {isSimulated ? 'TEST · SIMULACIÓN' : 'SMR2 · CUENTA REGRESIVA'}
           </span>
-        </HaloBadge>
+        </div>
       </header>
 
       {/* Núcleo cronométrico tipográfico */}
       <main className="w-full max-w-3xl mx-auto my-auto py-12 sm:py-20 flex flex-col items-center text-center relative z-10">
-        {/* HaloBadge con fecha de lanzamiento oficial */}
-        <div className="mb-8 sm:mb-12">
-          <HaloBadge variant="default" size="md">
+        {/* Etiqueta editorial limpia */}
+        <div className="mb-10 sm:mb-14">
+          <div className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/60 backdrop-blur-md px-3.5 py-1 text-[11px] font-mono text-neutral-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-neutral-500" />
             <span>Apertura Oficial · 9 nov 2026 · 08:35</span>
-          </HaloBadge>
+          </div>
         </div>
 
         {/* Tipografía Monumental Suiza y minimalista */}
@@ -603,12 +608,9 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
             :
           </span>
 
-          {/* SEGUNDOS */}
+          {/* SEGUNDOS - Sólido y limpio sin saltos raros */}
           <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
-            <span
-              key={displayedSeconds}
-              className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-neutral-200 tabular-nums leading-none animate-chrono-tick"
-            >
+            <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none select-none">
               {String(displayedSeconds).padStart(2, '0')}
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
@@ -621,7 +623,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
         <div className="w-full max-w-sm mt-12 sm:mt-16 space-y-2">
           <div className="w-full h-px bg-neutral-800">
             <div
-              className="h-px bg-neutral-300 transition-all duration-1000 ease-out"
+              className="h-px bg-neutral-400 transition-all duration-300 ease-out"
               style={{ width: `${isSimulated ? 99 : timeLeft.progressPercent}%` }}
             />
           </div>

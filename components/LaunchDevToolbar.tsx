@@ -70,8 +70,21 @@ export const LaunchDevToolbar: React.FC<LaunchDevToolbarProps> = ({
         return;
       }
 
-      // Atajo seguro de Administrador: Ctrl + Alt + Shift + D
-      if (e.ctrlKey && e.altKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+      // Atajos de acceso al panel de Debug de Administrador:
+      // 1. Alt + D (Cómodo, 2 teclas)
+      // 2. F2 (Tecla única instantánea)
+      // 3. ~ o ` (Consola de desarrollador)
+      // 4. Ctrl + . (Atajo de desarrollo común)
+      // 5. Ctrl + Alt + Shift + D (Legacy)
+      const isDebugShortcut =
+        (e.altKey && (e.key === 'D' || e.key === 'd')) ||
+        e.key === 'F2' ||
+        e.key === '`' ||
+        e.key === '~' ||
+        (e.ctrlKey && e.key === '.') ||
+        (e.ctrlKey && e.altKey && e.shiftKey && (e.key === 'D' || e.key === 'd'));
+
+      if (isDebugShortcut) {
         e.preventDefault();
         if (isAdmin) {
           setIsOpen((prev) => !prev);
@@ -251,7 +264,7 @@ export const LaunchDevToolbar: React.FC<LaunchDevToolbarProps> = ({
               )}
 
               <div className="flex items-center justify-between pt-1 text-[10px] text-neutral-500">
-                <span>Atajo: Ctrl+Alt+Shift+D</span>
+                <span>Atajos: Alt+D · F2 · ~</span>
                 <button
                   type="submit"
                   disabled={isLoading || !password.trim()}
