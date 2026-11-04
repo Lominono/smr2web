@@ -97,7 +97,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     changePct?: number;
   } | null>(null);
 
-  // Notificación de trade en vivo
+  // Notificación de trade en vivo y animaciones sincronizadas
   const [recentLiveNotification, setRecentLiveNotification] = useState<{
     username: string;
     type: 'buy' | 'sell';
@@ -106,8 +106,50 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     impact: number;
     time: number;
   } | null>(null);
-  const [glowingTicker, setGlowingTicker] = useState<string | null>(null);
+  const [glowingTicker, setGlowingTicker] = useState<{
+    ticker: string;
+    type: 'buy' | 'sell';
+    timestamp: number;
+  } | null>(null);
+  const [priceFlash, setPriceFlash] = useState<'up' | 'down' | null>(null);
+  const [latestTradeTxId, setLatestTradeTxId] = useState<string | null>(null);
   const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(false);
+
+  // Auto-cierre sincronizado de la notificación de trade en vivo
+  useEffect(() => {
+    if (!recentLiveNotification) return;
+    const t = setTimeout(() => {
+      setRecentLiveNotification(null);
+    }, 3500);
+    return () => clearTimeout(t);
+  }, [recentLiveNotification]);
+
+  // Manejo de animaciones sincronizadas al recibir un nuevo trade de cualquier alumno
+  const handleIncomingTrade = useCallback((tx: InvestmentTransaction) => {
+    setTransactions((prev) => [tx, ...prev.filter((t) => t.id !== tx.id)].slice(0, 40));
+    setLatestTradeTxId(tx.id);
+    setTimeout(() => setLatestTradeTxId(null), 3500);
+
+    setGlowingTicker({
+      ticker: tx.ticker || 'BTLN',
+      type: tx.type,
+      timestamp: Date.now(),
+    });
+    setTimeout(() => setGlowingTicker(null), 2500);
+
+    setRecentLiveNotification({
+      username: tx.username,
+      type: tx.type,
+      ticker: tx.ticker || 'BTLN',
+      coins: Number(tx.coins_amount || 0),
+      impact: Number(tx.price_impact_percent || 0),
+      time: Date.now(),
+    });
+
+    try {
+      sound.tap();
+    } catch (_) {}
+  }, []);
 
   // Auto-apertura del tutorial en primera visita
   useEffect(() => {
@@ -191,18 +233,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         setPriceHistory((prev) => [...prev.slice(-79), payload.pricePoint!]);
       }
       if (payload.transaction) {
-        const tx = payload.transaction;
-        setTransactions((prev) => [tx, ...prev.filter((t) => t.id !== tx.id)].slice(0, 40));
-        setRecentLiveNotification({
-          username: tx.username,
-          type: tx.type,
-          ticker: tx.ticker,
-          coins: tx.coins_amount,
-          impact: tx.price_impact_percent || 0,
-          time: Date.now(),
-        });
-        setGlowingTicker(tx.ticker);
-        setTimeout(() => setGlowingTicker(null), 3000);
+        handleIncomingTrade(payload.transaction);
       }
       if (payload.stock) {
         const st = payload.stock;
@@ -234,17 +265,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
 
           // A) Cinta de transacciones en vivo: siempre visible para todos los alumnos
           if (transaction) {
-            setTransactions((prev) => [transaction, ...prev.filter((t) => t.id !== transaction.id)].slice(0, 40));
-            setRecentLiveNotification({
-              username: transaction.username,
-              type: transaction.type,
-              ticker: transaction.ticker || ticker || 'BTLN',
-              coins: Number(transaction.coins_amount || 0),
-              impact: Number(transaction.price_impact_percent || 0),
-              time: Date.now(),
-            });
-            setGlowingTicker(transaction.ticker || ticker || 'BTLN');
-            setTimeout(() => setGlowingTicker(null), 3000);
+            handleIncomingTrade(transaction);
           }
 
           // B) Cotización viva del activo
@@ -298,7 +319,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 price_impact_percent: Number(t.price_impact_percent || 0),
                 created_at: t.created_at,
               };
-              setTransactions((prev) => [newTx, ...prev.filter((item) => item.id !== newTx.id)].slice(0, 40));
+              handleIncomingTrade(newTx);
             }
           }
         );
@@ -433,6 +454,21 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
   const activeAsset = useMemo(() => {
     return allAssets.find((a) => a.ticker === selectedTicker) || allAssets[0];
   }, [allAssets, selectedTicker]);
+
+  // Detección de subida o bajada en tiempo real para destello visual del precio
+  const prevPriceRef = useRef<number>(activeAsset.price);
+  useEffect(() => {
+    if (prevPriceRef.current !== activeAsset.price) {
+      if (activeAsset.price > prevPriceRef.current) {
+        setPriceFlash('up');
+      } else if (activeAsset.price < prevPriceRef.current) {
+        setPriceFlash('down');
+      }
+      prevPriceRef.current = activeAsset.price;
+      const t = setTimeout(() => setPriceFlash(null), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [activeAsset.price]);
 
   // Tenencia del activo seleccionado
   const currentHolding = useMemo(() => {
@@ -632,7 +668,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none touch-pan-x">
         {allAssets.map((asset) => {
           const isSelected = asset.ticker === selectedTicker;
-          const isGlow = glowingTicker === asset.ticker;
+          const isGlow = glowingTicker?.ticker === asset.ticker;
+          const glowType = glowingTicker?.type || 'buy';
           const isUp = asset.change24h >= 0;
 
           return (
@@ -644,17 +681,26 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 setFeedback(null);
                 sound.tap();
               }}
-              className={`px-3.5 py-2 rounded-xl border flex items-center gap-2.5 shrink-0 transition-all cursor-pointer text-left ${
+              className={`px-3.5 py-2 rounded-xl border flex items-center gap-2.5 shrink-0 transition-all cursor-pointer text-left relative ${
                 isSelected
                   ? 'bg-surface-raised border-foreground/40 shadow-xs'
                   : 'bg-surface hover:bg-surface-raised/70 border-border/70 text-foreground-muted'
-              } ${isGlow ? 'ring-2 ring-emerald-500/50' : ''}`}
+              } ${
+                isGlow
+                  ? glowType === 'buy'
+                    ? 'border-emerald-500/70 bg-emerald-500/10 ring-2 ring-emerald-500/40 animate-ticker-buy'
+                    : 'border-rose-500/70 bg-rose-500/10 ring-2 ring-rose-500/40 animate-ticker-sell'
+                  : ''
+              }`}
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="font-mono font-bold text-xs text-foreground tracking-tight">
                     ${asset.ticker}
                   </span>
+                  {isGlow && (
+                    <span className={`w-1.5 h-1.5 rounded-full animate-ping ${glowType === 'buy' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                  )}
                   {asset.ticker === 'BTLN' && (
                     <span className="px-1 py-0.2 rounded text-[9px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
                       HOLDING
@@ -675,20 +721,52 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         })}
       </div>
 
-      {/* NOTIFICACIÓN FLOTANTE DE MOVIMIENTO EN VIVO */}
+      {/* NOTIFICACIÓN FLOTANTE DE MOVIMIENTO EN VIVO CON TEMPORIZADOR Y CAMBIO RÁPIDO */}
       {recentLiveNotification && (
-        <div className="p-2.5 rounded-xl bg-surface-raised/90 border border-border flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-1 duration-200">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className={`w-2 h-2 rounded-full shrink-0 ${recentLiveNotification.type === 'buy' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-            <span className="text-foreground truncate">
-              <strong>@{recentLiveNotification.username}</strong>{' '}
-              {recentLiveNotification.type === 'buy' ? 'compró' : 'vendió'}{' '}
-              {recentLiveNotification.coins.toLocaleString()} 🪙 de ${recentLiveNotification.ticker}
-            </span>
+        <div className="p-3 rounded-xl bg-surface-raised/95 border border-border/80 shadow-xs space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  recentLiveNotification.type === 'buy' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                }`}
+              />
+              <span className="text-foreground truncate">
+                <strong>@{recentLiveNotification.username}</strong>{' '}
+                {recentLiveNotification.type === 'buy' ? 'compró' : 'vendió'}{' '}
+                {recentLiveNotification.coins.toLocaleString()} 🪙 de ${recentLiveNotification.ticker}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span
+                className={`font-mono font-semibold text-[11px] ${
+                  recentLiveNotification.type === 'buy' ? 'text-emerald-500' : 'text-rose-500'
+                }`}
+              >
+                {recentLiveNotification.type === 'buy' ? '+' : ''}
+                {recentLiveNotification.impact.toFixed(1)}%
+              </span>
+              {recentLiveNotification.ticker !== selectedTicker && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTicker(recentLiveNotification.ticker);
+                    sound.tap();
+                  }}
+                  className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-surface hover:bg-surface-raised border border-border text-foreground transition-colors cursor-pointer"
+                >
+                  Ver ${recentLiveNotification.ticker}
+                </button>
+              )}
+            </div>
           </div>
-          <span className={`font-mono font-semibold text-[11px] shrink-0 ${recentLiveNotification.type === 'buy' ? 'text-emerald-500' : 'text-rose-500'}`}>
-            {recentLiveNotification.type === 'buy' ? '+' : ''}{recentLiveNotification.impact.toFixed(1)}%
-          </span>
+          <div className="w-full h-0.5 bg-border/40 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full animate-progress-shrink ${
+                recentLiveNotification.type === 'buy' ? 'bg-emerald-500/70' : 'bg-rose-500/70'
+              }`}
+            />
+          </div>
         </div>
       )}
 
@@ -711,7 +789,15 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
 
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="font-mono font-bold text-2xl text-foreground tracking-tight">
+              <div
+                className={`font-mono font-bold text-2xl tracking-tight transition-all duration-300 rounded-lg px-2 py-0.5 -mx-2 inline-block ${
+                  priceFlash === 'up'
+                    ? 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 animate-price-up'
+                    : priceFlash === 'down'
+                    ? 'text-rose-400 bg-rose-500/15 border border-rose-500/30 animate-price-down'
+                    : 'text-foreground border border-transparent'
+                }`}
+              >
                 {activeAsset.price.toFixed(2)}{' '}
                 <span className="text-xs font-normal text-foreground-subtle">🪙</span>
               </div>
@@ -811,38 +897,51 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 />
               )}
 
-              {/* Puntos interactivos con información de jugadores */}
+              {/* Puntos interactivos con información de jugadores y pulso en tiempo real */}
               {chartData.points.map((pt, idx) => {
                 const isLast = idx === chartData.points.length - 1;
                 const hasPlayer = !!pt.player;
                 const isBuy = pt.triggerType === 'buy';
 
                 return (
-                  <circle
-                    key={idx}
-                    cx={pt.x}
-                    cy={pt.y}
-                    r={isLast ? 4 : hasPlayer ? 3 : 2}
-                    className={`transition-all cursor-pointer ${
-                      isLast
-                        ? 'fill-foreground stroke-background stroke-2'
-                        : hasPlayer
-                        ? isBuy
-                          ? 'fill-emerald-500 stroke-background stroke-1'
-                          : 'fill-rose-500 stroke-background stroke-1'
-                        : 'fill-transparent hover:fill-foreground'
-                    }`}
-                    onMouseEnter={() =>
-                      setHoveredPoint({
-                        price: pt.price,
-                        time: pt.time,
-                        description: pt.description,
-                        player: pt.player,
-                        changePct: pt.changePct,
-                      })
-                    }
-                    onMouseLeave={() => setHoveredPoint(null)}
-                  />
+                  <g key={idx}>
+                    {isLast && (
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r="8"
+                        className={`pointer-events-none animate-ping ${
+                          isPriceUp ? 'fill-emerald-400/40' : 'fill-rose-400/40'
+                        }`}
+                      />
+                    )}
+                    <circle
+                      cx={pt.x}
+                      cy={pt.y}
+                      r={isLast ? 4.5 : hasPlayer ? 3 : 2}
+                      className={`transition-all cursor-pointer ${
+                        isLast
+                          ? isPriceUp
+                            ? 'fill-emerald-400 stroke-zinc-950 stroke-2'
+                            : 'fill-rose-400 stroke-zinc-950 stroke-2'
+                          : hasPlayer
+                          ? isBuy
+                            ? 'fill-emerald-500 stroke-background stroke-1'
+                            : 'fill-rose-500 stroke-background stroke-1'
+                          : 'fill-transparent hover:fill-foreground'
+                      }`}
+                      onMouseEnter={() =>
+                        setHoveredPoint({
+                          price: pt.price,
+                          time: pt.time,
+                          description: pt.description,
+                          player: pt.player,
+                          changePct: pt.changePct,
+                        })
+                      }
+                      onMouseLeave={() => setHoveredPoint(null)}
+                    />
+                  </g>
                 );
               })}
             </svg>
@@ -1174,12 +1273,19 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                   {transactions.slice(0, 15).map((tx) => {
                     const isBuy = tx.type === 'buy';
                     const isWhale = tx.coins_amount >= 1000;
+                    const isNewest = tx.id === latestTradeTxId;
 
                     return (
                       <div
                         key={tx.id}
-                        className={`p-2 rounded-xl bg-surface-raised/60 border border-border/70 flex items-center justify-between text-xs ${
-                          isWhale ? 'ring-1 ring-amber-500/30' : ''
+                        className={`p-2 rounded-xl border flex items-center justify-between text-xs transition-all duration-300 ${
+                          isNewest
+                            ? isBuy
+                              ? 'bg-emerald-500/15 border-emerald-500/50 ring-1 ring-emerald-500/30 animate-in fade-in slide-in-from-top-2 duration-300'
+                              : 'bg-rose-500/15 border-rose-500/50 ring-1 ring-rose-500/30 animate-in fade-in slide-in-from-top-2 duration-300'
+                            : isWhale
+                            ? 'bg-surface-raised/60 border-border/70 ring-1 ring-amber-500/30'
+                            : 'bg-surface-raised/60 border-border/70'
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">

@@ -333,3 +333,79 @@ body {
 .animate-hardware-glitch {
   animation: hardwareGlitch 0.35s steps(3, start) infinite;
 }
+
+/* Animaciones sincronizadas de mercado e inversiones en tiempo real */
+@keyframes progressShrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+@keyframes tickerPulseBuy {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7);
+    border-color: rgba(52, 199, 89, 0.8);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(52, 199, 89, 0);
+    border-color: rgba(52, 199, 89, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 199, 89, 0);
+  }
+}
+
+@keyframes tickerPulseSell {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7);
+    border-color: rgba(255, 59, 48, 0.8);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 59, 48, 0);
+    border-color: rgba(255, 59, 48, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 59, 48, 0);
+  }
+}
+
+@keyframes priceFlashUp {
+  0% {
+    transform: translateY(-2px) scale(1.02);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes priceFlashDown {
+  0% {
+    transform: translateY(2px) scale(0.98);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-progress-shrink {
+  animation: progressShrink 3.5s linear forwards;
+}
+
+.animate-ticker-buy {
+  animation: tickerPulseBuy 1.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-ticker-sell {
+  animation: tickerPulseSell 1.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-price-up {
+  animation: priceFlashUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-price-down {
+  animation: priceFlashDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}

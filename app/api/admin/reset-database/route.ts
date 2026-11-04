@@ -56,21 +56,23 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 2. Limpiar registros de partidas, inversiones y transacciones
+        // 2. Limpiar registros de partidas, inversiones, transacciones y chat
         try { await client.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('investments').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('price_history').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('balance_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('chat_message_likes').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('chat_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('feedback_votes').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('community_feedback').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('rr_turns').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('rr_room_players').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('rr_games').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('rr_rooms').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+        try { await client.from('event_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         try { await client.from('audit_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
-        try { await client.from('community_feedback').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
 
-        // 3. Limpiar chat
-        try { await client.from('chat_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
-
-        // 4. Reiniciar mercado a valores limpios
+        // 3. Reiniciar mercado y tesorería a valores limpios oficiales
         try {
           await client.from('market_state').upsert({
             id: 1,
@@ -78,9 +80,32 @@ export async function POST(req: NextRequest) {
             pool_balance: 0,
             total_shares: 0,
             total_volume: 0,
+            total_investors: 0,
+            treasury_balance: 5000.0,
+            total_revenue_generated: 0.0,
+            arcade_rake_accumulated: 0.0,
             updated_at: new Date().toISOString(),
           });
-        } catch {}
+
+          // Insertar punto base oficial
+          await client.from('price_history').insert([
+            {
+              ticker: 'BTLN',
+              price: 10.0,
+              volume: 0,
+              pool_balance: 0,
+              treasury_balance: 5000.0,
+              total_shares: 0,
+              change_percent: 0.0,
+              trigger_type: 'SYSTEM_INIT',
+              event_description: 'Punto base oficial de lanzamiento Botellón SMR2',
+              player_username: 'Sistema',
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        } catch (mErr) {
+          console.warn('Error resetting market state:', mErr);
+        }
 
         await logEvent({
           eventType: 'admin_action',
