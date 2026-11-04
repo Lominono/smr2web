@@ -22,6 +22,7 @@ import { MobileTabBar } from '@/components/MobileTabBar';
 import { MinecraftBanner } from '@/components/MinecraftBanner';
 import { LaunchCountdownBanner } from '@/components/LaunchCountdownBanner';
 import { LaunchCountdownGate, TARGET_LAUNCH_TIMESTAMP } from '@/components/LaunchCountdownGate';
+import { LaunchDevToolbar, DevLaunchState } from '@/components/LaunchDevToolbar';
 import { PRELAUNCH_STORAGE_KEY } from '@/lib/prelaunchConstants';
 import { TermsModal } from '@/components/TermsModal';
 import { CookieBanner } from '@/components/CookieBanner';
@@ -102,6 +103,48 @@ export default function Home() {
   const [realtimeNotification, setRealtimeNotification] = useState<RealtimeNotification | null>(null);
   const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
   const [isTourActive, setIsTourActive] = useState(false);
+
+  // Estados de control para desarrolladores (Debug y ajustes de diseño)
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [devLaunchState, setDevLaunchState] = useState<DevLaunchState | null>(null);
+  const [devSpeedMultiplier, setDevSpeedMultiplier] = useState(1);
+  const [devWelcomeKey, setDevWelcomeKey] = useState(0);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem(PRELAUNCH_STORAGE_KEY);
+      if (storedToken && storedToken.includes('.') && storedToken.length > 20) {
+        setIsAdmin(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      setIsAdmin(true);
+    }
+  }, [user?.role]);
+
+  useEffect(() => {
+    // Los previews forzados por URL son exclusivos para administradores autorizados
+    if (isAdmin && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const preview = params.get('preview');
+      if (preview === 'welcome') setDevLaunchState('welcome');
+      else if (preview === 'countdown') setDevLaunchState('countdown');
+      else if (preview === 'auth') setDevLaunchState('auth');
+    }
+  }, [isAdmin]);
+
+  const handleLockAdmin = () => {
+    setIsAdmin(false);
+    setDevLaunchState(null);
+    try {
+      localStorage.removeItem(PRELAUNCH_STORAGE_KEY);
+      localStorage.removeItem('smr2_launch_welcome_seen');
+      localStorage.removeItem('smr2_prelaunch_bypass');
+    } catch {}
+  };
 
   useEffect(() => {
     try {
@@ -1692,24 +1735,98 @@ export default function Home() {
     );
   }
 
-  // Web cerrada con cuenta regresiva en GRANDE hasta la salida oficial (9 de noviembre 8:35 AM)
-  if (!isSiteUnlocked) {
-    return <LaunchCountdownGate onUnlock={() => setIsSiteUnlocked(true)} />;
+  const currentEffectiveState: DevLaunchState =
+    devLaunchState ?? (!isSiteUnlocked ? 'countdown' : !user ? 'auth' : 'app');
+
+  // Web cerrada con cuenta regresiva en GRANDE o bienvenida tras fin del contador
+  if (currentEffectiveState === 'countdown' || currentEffectiveState === 'welcome') {
+    return (
+      <>
+        <LaunchCountdownGate
+          key={devWelcomeKey}
+          forceWelcome={currentEffectiveState === 'welcome'}
+          speedMultiplier={devSpeedMultiplier}
+          onUnlock={() => {
+            setIsSiteUnlocked(true);
+            if (devLaunchState) {
+              setDevLaunchState('auth');
+            }
+          }}
+        />
+        <LaunchDevToolbar
+          isAdmin={isAdmin}
+          onAdminAuthSuccess={() => setIsAdmin(true)}
+          onLockAdmin={handleLockAdmin}
+          currentState={currentEffectiveState}
+          onSetState={setDevLaunchState}
+          onTestCountdown={(secs) => {
+            setDevLaunchState('countdown');
+            setTimeout(() => {
+              if (typeof window !== 'undefined' && (window as any).smr2?.testCountdown) {
+                (window as any).smr2.testCountdown(secs);
+              }
+            }, 60);
+          }}
+          onReplayWelcome={() => {
+            setDevLaunchState('welcome');
+            setDevWelcomeKey((k) => k + 1);
+            setTimeout(() => {
+              if (typeof window !== 'undefined' && (window as any).smr2?.replayWelcome) {
+                (window as any).smr2.replayWelcome();
+              }
+            }, 60);
+          }}
+          speedMultiplier={devSpeedMultiplier}
+          onSetSpeed={setDevSpeedMultiplier}
+        />
+      </>
+    );
   }
 
   // Mandatory Auth Gate (acceso a registro e inicio de sesión tras la salida oficial)
-  if (!user) {
+  if (currentEffectiveState === 'auth' || !user) {
     return (
-      <AuthGate
-        onAuthSuccess={(profile) => {
-          setUser(profile);
-          fetchMessages();
-          fetchLeaderboard();
-          fetchCalendarEvents();
-          setIsWindowsWelcomeOpen(true);
-        }}
-        supabaseConfigured={supabaseConfigured}
-      />
+      <>
+        <AuthGate
+          onAuthSuccess={(profile) => {
+            setUser(profile);
+            fetchMessages();
+            fetchLeaderboard();
+            fetchCalendarEvents();
+            setIsWindowsWelcomeOpen(true);
+            if (devLaunchState) {
+              setDevLaunchState('app');
+            }
+          }}
+          supabaseConfigured={supabaseConfigured}
+        />
+        <LaunchDevToolbar
+          isAdmin={isAdmin}
+          onAdminAuthSuccess={() => setIsAdmin(true)}
+          onLockAdmin={handleLockAdmin}
+          currentState={currentEffectiveState}
+          onSetState={setDevLaunchState}
+          onTestCountdown={(secs) => {
+            setDevLaunchState('countdown');
+            setTimeout(() => {
+              if (typeof window !== 'undefined' && (window as any).smr2?.testCountdown) {
+                (window as any).smr2.testCountdown(secs);
+              }
+            }, 60);
+          }}
+          onReplayWelcome={() => {
+            setDevLaunchState('welcome');
+            setDevWelcomeKey((k) => k + 1);
+            setTimeout(() => {
+              if (typeof window !== 'undefined' && (window as any).smr2?.replayWelcome) {
+                (window as any).smr2.replayWelcome();
+              }
+            }, 60);
+          }}
+          speedMultiplier={devSpeedMultiplier}
+          onSetSpeed={setDevSpeedMultiplier}
+        />
+      </>
     );
   }
 
@@ -2182,6 +2299,33 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      {/* Developer Debug & Design Toolbar */}
+      <LaunchDevToolbar
+        isAdmin={isAdmin}
+        onAdminAuthSuccess={() => setIsAdmin(true)}
+        onLockAdmin={handleLockAdmin}
+        currentState={currentEffectiveState}
+        onSetState={setDevLaunchState}
+        onTestCountdown={(secs) => {
+          setDevLaunchState('countdown');
+          setTimeout(() => {
+            if (typeof window !== 'undefined' && (window as any).smr2?.testCountdown) {
+              (window as any).smr2.testCountdown(secs);
+            }
+          }, 60);
+        }}
+        onReplayWelcome={() => {
+          setDevLaunchState('welcome');
+          setDevWelcomeKey((k) => k + 1);
+          setTimeout(() => {
+            if (typeof window !== 'undefined' && (window as any).smr2?.replayWelcome) {
+              (window as any).smr2.replayWelcome();
+            }
+          }, 60);
+        }}
+        speedMultiplier={devSpeedMultiplier}
+        onSetSpeed={setDevSpeedMultiplier}
+      />
     </div>
   );
 }

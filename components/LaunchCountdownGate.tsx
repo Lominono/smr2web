@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Eye, EyeOff, Loader2, ArrowRight, X, Terminal } from 'lucide-react';
 import { sound } from '@/lib/audio';
 import { PRELAUNCH_STORAGE_KEY } from '@/lib/prelaunchConstants';
+import { HaloBadge } from '@/components/ui/HaloBadge';
+import { LaunchWelcomeSequence } from '@/components/LaunchWelcomeSequence';
 
 // Fecha oficial de apertura: 9 de noviembre de 2026 a las 08:35 AM (CET)
 export const TARGET_LAUNCH_TIMESTAMP = new Date('2026-11-09T08:35:00+01:00').getTime();
@@ -12,6 +14,8 @@ const LAUNCH_START_TIMESTAMP = new Date('2026-10-20T00:00:00+01:00').getTime();
 
 interface LaunchCountdownGateProps {
   onUnlock: () => void;
+  forceWelcome?: boolean;
+  speedMultiplier?: number;
 }
 
 interface TimeLeft {
@@ -43,13 +47,21 @@ function calculateTime(): TimeLeft {
   return { days, hours, minutes, seconds, progressPercent, isCompleted: false };
 }
 
-export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlock }) => {
+export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
+  onUnlock,
+  forceWelcome = false,
+  speedMultiplier = 1,
+}) => {
+  const [stage, setStage] = useState<'countdown' | 'welcome'>(forceWelcome ? 'welcome' : 'countdown');
+  const [welcomeKey, setWelcomeKey] = useState(0);
+  const [simulatedRemaining, setSimulatedRemaining] = useState<number | null>(null);
+
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTime);
   const [mounted, setMounted] = useState(false);
 
   // Animación inicial sobria: solo si la cuenta atrás existe y no ha concluido
   const initialTime = calculateTime();
-  const [showIntro, setShowIntro] = useState<boolean>(!initialTime.isCompleted);
+  const [showIntro, setShowIntro] = useState<boolean>(!initialTime.isCompleted && !forceWelcome);
   const [introFading, setIntroFading] = useState<boolean>(false);
   const introTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -66,6 +78,29 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
   const logoResetTimerRef = useRef<NodeJS.Timeout | null>(null);
   const aulaResetTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const startSimulatedCountdown = useCallback((seconds: number) => {
+    setStage('countdown');
+    setSimulatedRemaining(seconds);
+  }, []);
+
+  // Handle simulated countdown tick
+  useEffect(() => {
+    if (simulatedRemaining === null) return;
+
+    if (simulatedRemaining <= 0) {
+      setSimulatedRemaining(null);
+      setStage('welcome');
+      setWelcomeKey((k) => k + 1);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setSimulatedRemaining((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [simulatedRemaining]);
+
   const handleLogoClick = () => {
     if (logoResetTimerRef.current) clearTimeout(logoResetTimerRef.current);
     const next = logoClicks + 1;
@@ -74,8 +109,9 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
       try {
         sound.coinWin();
       } catch {}
-      setShowModal(true);
-      setErrorMessage(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('smr2_open_admin_gate'));
+      }
       setLogoClicks(0);
     } else {
       logoResetTimerRef.current = setTimeout(() => {
@@ -105,9 +141,29 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
   useEffect(() => {
     setMounted(true);
 
+    // Check preview search query
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const preview = params.get('preview');
+      if (preview === 'welcome') {
+        setStage('welcome');
+      } else if (params.has('countdown')) {
+        const secs = parseInt(params.get('countdown') || '3', 10);
+        if (!isNaN(secs) && secs > 0) {
+          startSimulatedCountdown(secs);
+        }
+      }
+    }
+
     if (initialTime.isCompleted) {
-      onUnlock();
-      return;
+      const hasSeenWelcome =
+        typeof window !== 'undefined' && localStorage.getItem('smr2_launch_welcome_seen') === 'true';
+      if (!hasSeenWelcome && !forceWelcome) {
+        setStage('welcome');
+      } else {
+        onUnlock();
+        return;
+      }
     }
 
     const fadeTimer = setTimeout(() => {
@@ -126,12 +182,8 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
 
       if (current.isCompleted) {
         clearInterval(timer);
-        try {
-          sound.windowsStartup();
-        } catch {}
-        setTimeout(() => {
-          onUnlock();
-        }, 1000);
+        setStage('welcome');
+        setWelcomeKey((k) => k + 1);
       }
     }, 1000);
 
@@ -140,7 +192,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
       clearTimeout(finishTimer);
       clearInterval(timer);
     };
-  }, [onUnlock]);
+  }, [initialTime.isCompleted, onUnlock, forceWelcome, startSimulatedCountdown]);
 
   // Detector de atajos, secuencias de teclado y Konami Code para los "listillos"
   useEffect(() => {
@@ -264,7 +316,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
 
     window.addEventListener('keydown', handleKeyDown);
 
-    // Gancho en DevTools Console para los que inspeccionan con F12
+    // Gancho en DevTools Console para desarrolladores e inspectores
     if (typeof window !== 'undefined') {
       (window as any).unlock = async (pass: string) => {
         const cleanPass = String(pass || '').trim();
@@ -297,26 +349,46 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
       };
 
       (window as any).smr2 = {
+        ...(window as any).smr2,
         unlock: (window as any).unlock,
+        auth: (window as any).unlock,
         info: '2º SMR · Aula: Ni puta idea',
+        testCountdown: (secs = 3) => {
+          const token = localStorage.getItem(PRELAUNCH_STORAGE_KEY);
+          if (!token || !token.includes('.')) {
+            console.warn('[SMR2] Acceso restringido. Autentícate primero con smr2.auth("clave")');
+            return;
+          }
+          console.log(`%c[SMR2] Simulación de fin de cuenta atrás iniciada: ${secs}s`, 'color: #10b981; font-weight: bold;');
+          startSimulatedCountdown(secs);
+        },
+        showWelcome: () => {
+          const token = localStorage.getItem(PRELAUNCH_STORAGE_KEY);
+          if (!token || !token.includes('.')) {
+            console.warn('[SMR2] Acceso restringido. Autentícate primero con smr2.auth("clave")');
+            return;
+          }
+          setStage('welcome');
+          setWelcomeKey((k) => k + 1);
+        },
+        showCountdown: () => {
+          setStage('countdown');
+        },
+        showAuth: () => {
+          onUnlock();
+        },
+        replayWelcome: () => {
+          setStage('welcome');
+          setWelcomeKey((k) => k + 1);
+        },
       };
-
-      console.log(
-        '%c[SMR2] SISTEMA EN CUENTA REGRESIVA\n%c¿Te pasas de listo mirando la consola? Si tienes la clave, escribe: unlock("clave") o haz 5 clics en el logo.',
-        'color: #e5e5e5; font-size: 13px; font-weight: bold; font-family: monospace;',
-        'color: #a3a3a3; font-size: 11px; font-family: monospace;'
-      );
     }
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       if (keyTimer) clearTimeout(keyTimer);
-      if (typeof window !== 'undefined') {
-        delete (window as any).unlock;
-        delete (window as any).smr2;
-      }
     };
-  }, [onUnlock]);
+  }, [onUnlock, startSimulatedCountdown]);
 
   const handleSkipIntro = () => {
     if (!showIntro) return;
@@ -367,9 +439,34 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
     }
   };
 
+  const handleWelcomeComplete = () => {
+    try {
+      localStorage.setItem('smr2_launch_welcome_seen', 'true');
+    } catch {}
+    onUnlock();
+  };
+
   if (!mounted) {
     return <div className="fixed inset-0 bg-[#09090b] z-[9999]" />;
   }
+
+  // Si estamos en la etapa de Bienvenida con burbujas de texto animadas:
+  if (stage === 'welcome') {
+    return (
+      <LaunchWelcomeSequence
+        key={welcomeKey}
+        onComplete={handleWelcomeComplete}
+        speedMultiplier={speedMultiplier}
+      />
+    );
+  }
+
+  // Valores a mostrar (reales o simulados por el dev)
+  const isSimulated = simulatedRemaining !== null;
+  const displayedDays = isSimulated ? 0 : timeLeft.days;
+  const displayedHours = isSimulated ? 0 : timeLeft.hours;
+  const displayedMinutes = isSimulated ? 0 : timeLeft.minutes;
+  const displayedSeconds = isSimulated ? simulatedRemaining : timeLeft.seconds;
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col justify-between bg-[#09090b] text-neutral-100 p-5 sm:p-8 md:p-12 select-none overflow-y-auto antialiased">
@@ -409,17 +506,17 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
       )}
 
       {/* ============================================================ */}
-      {/* 2. PANTALLA PRINCIPAL: CONTADOR ULTRA-MINIMALISTA SIN BOTONES */}
+      {/* 2. PANTALLA PRINCIPAL: CONTADOR ULTRA-MINIMALISTA             */}
       {/* ============================================================ */}
 
-      {/* Encabezado sin botones: 100% sobrio y minimalista */}
+      {/* Encabezado: Elegante con HaloBadge estilo Cult UI */}
       <header className="w-full max-w-4xl mx-auto flex items-center justify-between relative z-10 select-none">
         <div
           onClick={handleLogoClick}
           className="flex items-center gap-3 cursor-default active:opacity-90 transition-opacity"
-          title="2º SMR"
+          title="2º SMR (5 clics para menú secreto)"
         >
-          <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 p-1.5 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 p-1.5 flex items-center justify-center shadow-md">
             <Image
               src="/logo.png"
               alt="SMR2 Logo"
@@ -438,25 +535,28 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
                 e.stopPropagation();
                 handleAulaClick();
               }}
-              className="text-[10px] text-neutral-500 font-mono cursor-default"
+              className="text-[10px] text-neutral-500 font-mono cursor-default hover:text-neutral-400"
             >
               Aula: Ni puta idea
             </div>
           </div>
         </div>
 
-        {/* Sin ningún botón visible: Solo indicador sutil de estado */}
-        <div className="flex items-center gap-2 text-[10px] font-mono text-neutral-600">
-          <span className="w-1.5 h-1.5 rounded-full bg-neutral-700 animate-pulse" />
-          <span className="tracking-widest">SMR2</span>
-        </div>
+        {/* Cult UI HaloBadge indicador de estado en vivo */}
+        <HaloBadge variant="subtle" size="sm" live>
+          <span className="tracking-widest uppercase text-[10px]">
+            {isSimulated ? 'TEST · SIMULACIÓN' : 'SMR2 · CUENTA REGRESIVA'}
+          </span>
+        </HaloBadge>
       </header>
 
-      {/* Núcleo cronométrico tipográfico (sin cajas ni botones) */}
+      {/* Núcleo cronométrico tipográfico */}
       <main className="w-full max-w-3xl mx-auto my-auto py-12 sm:py-20 flex flex-col items-center text-center relative z-10">
-        {/* Meta sutil */}
-        <div className="text-[11px] font-mono tracking-widest uppercase text-neutral-500 mb-8 sm:mb-12">
-          Apertura · 9 nov 2026 · 08:35
+        {/* HaloBadge con fecha de lanzamiento oficial */}
+        <div className="mb-8 sm:mb-12">
+          <HaloBadge variant="default" size="md">
+            <span>Apertura Oficial · 9 nov 2026 · 08:35</span>
+          </HaloBadge>
         </div>
 
         {/* Tipografía Monumental Suiza y minimalista */}
@@ -464,7 +564,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
           {/* DÍAS */}
           <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
             <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none">
-              {timeLeft.days}
+              {displayedDays}
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
               días
@@ -478,7 +578,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
           {/* HORAS */}
           <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
             <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none">
-              {String(timeLeft.hours).padStart(2, '0')}
+              {String(displayedHours).padStart(2, '0')}
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
               horas
@@ -492,7 +592,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
           {/* MINUTOS */}
           <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
             <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none">
-              {String(timeLeft.minutes).padStart(2, '0')}
+              {String(displayedMinutes).padStart(2, '0')}
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
               min
@@ -506,10 +606,10 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
           {/* SEGUNDOS */}
           <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
             <span
-              key={timeLeft.seconds}
-              className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-neutral-200 tabular-nums leading-none"
+              key={displayedSeconds}
+              className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-neutral-200 tabular-nums leading-none animate-chrono-tick"
             >
-              {String(timeLeft.seconds).padStart(2, '0')}
+              {String(displayedSeconds).padStart(2, '0')}
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
               seg
@@ -522,18 +622,18 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
           <div className="w-full h-px bg-neutral-800">
             <div
               className="h-px bg-neutral-300 transition-all duration-1000 ease-out"
-              style={{ width: `${timeLeft.progressPercent}%` }}
+              style={{ width: `${isSimulated ? 99 : timeLeft.progressPercent}%` }}
             />
           </div>
           <div className="flex justify-between text-[10px] font-mono text-neutral-600">
             <span>Inicio</span>
-            <span>{timeLeft.progressPercent}%</span>
+            <span>{isSimulated ? '99%' : `${timeLeft.progressPercent}%`}</span>
             <span>Apertura</span>
           </div>
         </div>
       </main>
 
-      {/* Pie minimalista sin enlaces */}
+      {/* Pie minimalista */}
       <footer className="w-full max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 pt-4 border-t border-neutral-900 text-[11px] text-neutral-500 font-mono select-none">
         <div>
           Desarrollado por JuanFe y David
@@ -546,7 +646,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({ onUnlo
         </div>
       </footer>
 
-      {/* Modal secreto del Easter Egg (Solo para los que se pasan de listos) */}
+      {/* Modal secreto del Easter Egg */}
       {showModal && (
         <div
           role="dialog"

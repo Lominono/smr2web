@@ -409,3 +409,96 @@ body {
 .animate-price-down {
   animation: priceFlashDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ========================================================================== */
+/* CULT UI HALO BADGE & ENTRANCE WELCOME BUBBLES ANIMATIONS                   */
+/* ========================================================================== */
+
+@keyframes haloRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes haloPulse {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes bubblePopIn {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeDownExit {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(32px) scale(0.97);
+    filter: blur(4px);
+  }
+}
+
+@keyframes typingBounce {
+  0%, 80%, 100% {
+    transform: translateY(0) scale(0.7);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-5px) scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmerSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-halo-rotate {
+  animation: haloRotate 4s linear infinite;
+}
+
+.animate-halo-pulse {
+  animation: haloPulse 3s ease-in-out infinite;
+}
+
+.animate-bubble-pop {
+  animation: bubblePopIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-down-exit {
+  animation: fadeDownExit 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-shimmer {
+  animation: shimmerSweep 2.5s ease-in-out infinite;
+}
+
