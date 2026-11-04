@@ -7,8 +7,7 @@ export interface SpeechBubbleProps extends React.ComponentProps<'div'> {
   children: React.ReactNode;
   className?: string;
   showCursor?: boolean;
-  tailDirection?: 'right' | 'left';
-  variant?: 'light' | 'dark' | 'glass';
+  variant?: 'light' | 'dark';
 }
 
 export function SpeechBubbleRoot({
@@ -18,7 +17,7 @@ export function SpeechBubbleRoot({
   return (
     <div
       data-slot="speech-bubble"
-      className={cn('relative inline-flex mr-6 md:mr-10', className)}
+      className={cn('relative inline-flex mr-4 sm:mr-6', className)}
       {...props}
     />
   );
@@ -26,17 +25,14 @@ export function SpeechBubbleRoot({
 
 export function SpeechBubbleTail({
   className,
-  direction = 'right',
   ...props
-}: React.ComponentProps<'svg'> & { direction?: 'right' | 'left' }) {
-  const isLeft = direction === 'left';
+}: React.ComponentProps<'svg'>) {
   return (
     <svg
       data-slot="speech-bubble-tail"
       aria-hidden="true"
       className={cn(
-        'absolute bottom-0 h-5 w-auto transition-colors md:h-7 pointer-events-none',
-        isLeft ? 'left-[-12px] -scale-x-100 rotate-5' : 'right-[-12px] -rotate-5',
+        'absolute right-[-14px] bottom-0 h-5 sm:h-6 -rotate-6 pointer-events-none fill-current select-none',
         className
       )}
       fill="none"
@@ -48,7 +44,6 @@ export function SpeechBubbleTail({
       {...props}
     >
       <path
-        className="fill-current transition-colors"
         d="M44 0H0V0C0 24.8528 20.1472 45 45 45H53V45C47.1396 36.535 44 26.4842 44 16.1886V0Z"
       />
     </svg>
@@ -58,12 +53,12 @@ export function SpeechBubbleTail({
 export function SpeechBubbleText({
   className,
   ...props
-}: React.ComponentProps<'h1'>) {
+}: React.ComponentProps<'div'>) {
   return (
-    <h1
+    <div
       data-slot="speech-bubble-text"
       className={cn(
-        'relative text-balance font-semibold text-base sm:text-2xl md:text-3xl lg:text-[2rem] leading-[1.05] tracking-[-0.05em]',
+        'relative text-balance font-semibold text-base sm:text-2xl md:text-3xl leading-[1.1] tracking-[-0.04em]',
         className
       )}
       {...props}
@@ -79,7 +74,7 @@ export function SpeechBubbleCursor({
     <div
       data-slot="speech-bubble-cursor"
       className={cn(
-        'relative ml-2.5 inline-block h-4 w-2 sm:h-6 sm:w-3 animate-pulse bg-neutral-400 align-middle',
+        'relative ml-2 inline-block h-4 w-1.5 sm:h-5 sm:w-2 animate-pulse bg-neutral-400 align-middle',
         className
       )}
       {...props}
@@ -90,36 +85,33 @@ export function SpeechBubbleCursor({
 export function SpeechBubble({
   children,
   className,
-  showCursor = true,
-  tailDirection = 'right',
+  showCursor = false,
   variant = 'light',
   ...props
 }: SpeechBubbleProps) {
-  const variantStyles = {
-    light: 'bg-white text-black fill-white shadow-[0_8px_30px_rgba(255,255,255,0.12)]',
-    dark: 'bg-neutral-900 text-white fill-neutral-900 border border-neutral-800 shadow-2xl',
-    glass: 'bg-neutral-900/90 text-white fill-neutral-900/90 backdrop-blur-xl border border-white/10 shadow-2xl',
-  }[variant];
+  const isLight = variant === 'light';
 
   return (
     <SpeechBubbleRoot className={className} {...props}>
       <div
         data-slot="speech-bubble-body"
         className={cn(
-          'relative flex w-fit items-center rounded-full px-6 py-3.5 sm:px-9 sm:py-5 transition-all duration-300',
-          variantStyles
+          'relative flex w-fit items-center rounded-[2rem] sm:rounded-full px-6 py-3.5 sm:px-9 sm:py-5 shadow-2xl transition-all duration-300',
+          isLight
+            ? 'bg-white text-neutral-950 fill-white border border-white/20'
+            : 'bg-neutral-900 text-neutral-100 fill-neutral-900 border border-neutral-800'
         )}
       >
-        <SpeechBubbleTail direction={tailDirection} />
-        <SpeechBubbleText className={variant === 'light' ? 'text-black' : 'text-white'}>
+        <SpeechBubbleTail className={isLight ? 'text-white' : 'text-neutral-900'} />
+        <SpeechBubbleText className={isLight ? 'text-neutral-950' : 'text-neutral-100'}>
           {children}
         </SpeechBubbleText>
-        {showCursor ? (
-          <SpeechBubbleCursor
-            className={variant === 'light' ? 'bg-neutral-400' : 'bg-neutral-500'}
-          />
-        ) : null}
+        {showCursor && (
+          <SpeechBubbleCursor className={isLight ? 'bg-neutral-400' : 'bg-neutral-500'} />
+        )}
       </div>
     </SpeechBubbleRoot>
   );
 }
+
+export default SpeechBubble;

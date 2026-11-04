@@ -78,8 +78,11 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
   const logoResetTimerRef = useRef<NodeJS.Timeout | null>(null);
   const aulaResetTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [isTransitioningToWelcome, setIsTransitioningToWelcome] = useState(false);
+
   const startSimulatedCountdown = useCallback((seconds: number) => {
     setStage('countdown');
+    setIsTransitioningToWelcome(false);
     setSimulatedRemaining(seconds);
   }, []);
 
@@ -88,10 +91,14 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
     if (simulatedRemaining === null) return;
 
     if (simulatedRemaining <= 0) {
-      setSimulatedRemaining(null);
-      setStage('welcome');
-      setWelcomeKey((k) => k + 1);
-      return;
+      setIsTransitioningToWelcome(true);
+      const exitTimer = setTimeout(() => {
+        setSimulatedRemaining(null);
+        setStage('welcome');
+        setWelcomeKey((k) => k + 1);
+        setIsTransitioningToWelcome(false);
+      }, 400);
+      return () => clearTimeout(exitTimer);
     }
 
     const timer = setTimeout(() => {
@@ -106,9 +113,6 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
     const next = logoClicks + 1;
     setLogoClicks(next);
     if (next >= 5) {
-      try {
-        sound.coinWin();
-      } catch {}
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('smr2_open_admin_gate'));
       }
@@ -125,9 +129,6 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
     const next = aulaClicks + 1;
     setAulaClicks(next);
     if (next >= 3) {
-      try {
-        sound.coinWin();
-      } catch {}
       setShowModal(true);
       setErrorMessage(null);
       setAulaClicks(0);
@@ -182,8 +183,12 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
 
       if (current.isCompleted) {
         clearInterval(timer);
-        setStage('welcome');
-        setWelcomeKey((k) => k + 1);
+        setIsTransitioningToWelcome(true);
+        setTimeout(() => {
+          setStage('welcome');
+          setWelcomeKey((k) => k + 1);
+          setIsTransitioningToWelcome(false);
+        }, 400);
       }
     }, 1000);
 
@@ -228,9 +233,6 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
         konamiIdx++;
         if (konamiIdx === KONAMI.length) {
           konamiIdx = 0;
-          try {
-            sound.jackpot();
-          } catch {}
           setShowModal(true);
           setErrorMessage(null);
           return;
@@ -249,9 +251,6 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
         ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd' || e.key === 'S' || e.key === 's' || e.key === 'A' || e.key === 'a'))
       ) {
         e.preventDefault();
-        try {
-          sound.tap();
-        } catch {}
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('smr2_open_admin_gate'));
         }
@@ -472,7 +471,11 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
   const displayedSeconds = isSimulated ? simulatedRemaining : timeLeft.seconds;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col justify-between bg-[#09090b] text-neutral-100 p-5 sm:p-8 md:p-12 select-none overflow-y-auto antialiased">
+    <div
+      className={`fixed inset-0 z-[9999] flex flex-col justify-between bg-[#09090b] text-neutral-100 p-5 sm:p-8 md:p-12 select-none overflow-y-auto antialiased transition-all duration-400 ease-out ${
+        isTransitioningToWelcome ? 'opacity-0 scale-[0.98]' : 'opacity-100 scale-100'
+      }`}
+    >
       {/* ============================================================ */}
       {/* 1. INTRO SPLASH: Revelación tipográfica minimalista           */}
       {/* ============================================================ */}
