@@ -4,7 +4,6 @@ import React from 'react';
 import Image from 'next/image';
 import { UserProfile } from '@/lib/types';
 import { AuthForm } from '@/components/AuthForm';
-import { LaunchCountdownBanner } from '@/components/LaunchCountdownBanner';
 
 interface AuthGateProps {
   onAuthSuccess: (user: UserProfile) => void;
@@ -13,45 +12,46 @@ interface AuthGateProps {
 
 export const AuthGate: React.FC<AuthGateProps> = ({ onAuthSuccess }) => {
   return (
-    <div className="min-h-[100dvh] flex flex-col justify-center items-center bg-background text-foreground p-4 sm:p-6 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] transition-opacity duration-700 ease-out animate-in fade-in">
-      <div className="w-full max-w-sm space-y-6 transition-all duration-700 ease-out transform animate-in fade-in slide-in-from-bottom-2">
+    <div className="min-h-[100dvh] flex flex-col justify-center items-center bg-[#09090b] text-neutral-100 p-4 sm:p-6 antialiased select-none">
+      {/* Luz ambiental sutil en el fondo */}
+      <div className="absolute w-96 h-96 rounded-full bg-neutral-800/15 blur-3xl pointer-events-none -translate-y-12" />
+
+      <div className="w-full max-w-sm space-y-5 relative z-10 animate-in fade-in slide-in-from-bottom-2 duration-400">
+        {/* Cabecera con Logo y Título Minimalista */}
         <div className="flex flex-col items-center text-center space-y-2.5">
-          <div className="w-14 h-14 flex items-center justify-center shrink-0 mx-auto">
+          <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-neutral-800 p-2 flex items-center justify-center shadow-md">
             <Image
               src="/logo.png"
               alt="SMR2 Logo"
-              width={56}
-              height={56}
-              className="w-full h-full object-contain drop-shadow-xs"
+              width={28}
+              height={28}
+              className="object-contain"
               priority
             />
           </div>
-          <div className="space-y-1">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight text-white">
               Portal 2º SMR
             </h1>
-            <p className="text-xs text-foreground-muted leading-relaxed">
-              Horario, tareas y avisos del curso
+            <p className="text-xs text-neutral-400 mt-0.5">
+              Acceso a horarios, tareas y avisos
             </p>
           </div>
         </div>
 
-        {/* Cuenta regresiva de salida oficial */}
-        <LaunchCountdownBanner compact={true} />
-
-        <div className="p-5 sm:p-6 rounded-2xl border border-border/80 bg-surface shadow-xs transition-all duration-300">
+        {/* Tarjeta del Formulario Minimalista */}
+        <div className="p-5 sm:p-6 rounded-2xl border border-neutral-800/90 bg-neutral-950/80 backdrop-blur-xl shadow-2xl">
           <AuthForm onSuccess={onAuthSuccess} />
         </div>
 
-        <div className="text-center space-y-1">
-          <p className="text-[11px] text-foreground-subtle tracking-tight font-mono">
-            2º Sistemas Microinformáticos y Redes
-          </p>
-          <p className="text-[11px] text-foreground-muted">
-            Creado y desarrollado por <strong className="text-foreground font-semibold">JuanFe Ospina</strong> y <strong className="text-foreground font-semibold">David</strong>
-          </p>
-        </div>
+        {/* Pie de página discreto */}
+        <footer className="text-center space-y-1 text-[11px] font-mono text-neutral-500">
+          <p>2º Sistemas Microinformáticos y Redes</p>
+          <p className="text-neutral-600">Desarrollado por JuanFe y David</p>
+        </footer>
       </div>
     </div>
   );
 };
+
+export default AuthGate;

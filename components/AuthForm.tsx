@@ -142,18 +142,18 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Mode Switcher */}
-      <div className="grid grid-cols-2 p-1.5 rounded-[var(--radius)] bg-surface-raised border border-border">
+      {/* Selector de modo estilo Segmented Control */}
+      <div className="grid grid-cols-2 p-1 rounded-xl bg-neutral-900 border border-neutral-800/80 text-xs font-medium">
         <button
           type="button"
           onClick={() => {
             setMode('login');
             setError(null);
           }}
-          className={`min-h-[44px] text-xs sm:text-xs font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer flex items-center justify-center active:scale-95 touch-manipulation ${
+          className={`py-2 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center justify-center ${
             mode === 'login'
-              ? 'bg-foreground text-background shadow-xs'
-              : 'text-foreground-muted hover:text-foreground'
+              ? 'bg-neutral-800 text-white shadow-sm'
+              : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           Iniciar sesión
@@ -164,10 +164,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             setMode('register');
             setError(null);
           }}
-          className={`min-h-[44px] text-xs sm:text-xs font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer flex items-center justify-center active:scale-95 touch-manipulation ${
+          className={`py-2 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center justify-center ${
             mode === 'register'
-              ? 'bg-foreground text-background shadow-xs'
-              : 'text-foreground-muted hover:text-foreground'
+              ? 'bg-neutral-800 text-white shadow-sm'
+              : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           Registrarse
@@ -175,18 +175,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
       </div>
 
       {error && (
-        <div className="p-3.5 rounded-[var(--radius)] bg-danger-subtle border border-danger/25 text-xs text-danger flex items-start gap-2.5">
+        <div className="p-3 rounded-xl bg-red-950/25 border border-red-900/40 text-xs text-red-300 flex items-start gap-2.5">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{error}</span>
-        </div>
-      )}
-
-      {mode === 'register' && !error && (
-        <div className="p-3 rounded-[var(--radius)] bg-surface-raised border border-border/80 flex items-center gap-2.5 text-xs text-foreground-muted">
-          <span className="text-base shrink-0">🪙</span>
-          <p className="leading-snug">
-            Bono de bienvenida: <strong className="text-foreground font-semibold">1.000 monedas</strong> añadidas a tu cuenta al registrarte.
-          </p>
         </div>
       )}
 
@@ -382,14 +373,14 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 
         {mode === 'register' && (
           <div className="pt-1">
-            <div className="p-3 rounded-[var(--radius)] bg-surface-raised border border-border/80">
-              <label className="flex items-start gap-2.5 text-xs text-foreground-muted cursor-pointer select-none touch-manipulation">
+            <div className="p-3 rounded-xl bg-neutral-900/60 border border-neutral-800/80">
+              <label className="flex items-start gap-2.5 text-xs text-neutral-400 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   required
                   checked={acceptedTerms}
                   onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded-[var(--radius-sm)] border-border bg-surface text-foreground accent-accent cursor-pointer shrink-0"
+                  className="mt-0.5 w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-white accent-white cursor-pointer shrink-0"
                 />
                 <span className="leading-relaxed">
                   He leído y acepto el{' '}
@@ -399,11 +390,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                       e.stopPropagation();
                       setShowTermsModal(true);
                     }}
-                    className="text-foreground font-semibold underline underline-offset-2 hover:text-accent cursor-pointer inline transition-colors"
+                    className="text-white font-medium underline underline-offset-2 hover:text-neutral-300 cursor-pointer inline transition-colors"
                   >
                     Aviso Legal, Condiciones y Privacidad
                   </button>
-                  . Declaro expresamente ser mayor de 14 años y reconozco que las fichas y juegos son meramente simulados y sin valor económico.
+                  . Declaro expresamente ser mayor de 14 años.
                 </span>
               </label>
             </div>
@@ -416,7 +407,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
               type="button"
               variant="secondary"
               size="lg"
-              className="flex-1"
+              className="flex-1 rounded-xl py-2.5 text-xs font-medium"
               onClick={onCancel}
             >
               Cancelar
@@ -427,14 +418,14 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             type="submit"
             variant="primary"
             size="lg"
-            className={onCancel ? 'flex-1' : 'w-full'}
+            className={`w-full py-2.5 rounded-xl bg-white hover:bg-neutral-200 text-neutral-950 font-semibold text-xs transition-all active:scale-[0.98] cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed`}
             isLoading={loading}
             disabled={
               mode === 'register' &&
               (!acceptedTerms || passwordsMismatch || (passReport !== null && !passReport.valid))
             }
           >
-            {mode === 'login' ? 'Acceder' : 'Crear cuenta'}
+            {mode === 'login' ? 'Acceder al portal' : 'Crear cuenta'}
           </Button>
         </div>
       </form>
