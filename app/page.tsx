@@ -25,6 +25,7 @@ import { LaunchCountdownGate, TARGET_LAUNCH_TIMESTAMP } from '@/components/Launc
 import { LaunchDevToolbar, DevLaunchState } from '@/components/LaunchDevToolbar';
 import { PRELAUNCH_STORAGE_KEY } from '@/lib/prelaunchConstants';
 import { TermsModal } from '@/components/TermsModal';
+import { MobileNotice } from '@/components/MobileNotice';
 import { CookieBanner } from '@/components/CookieBanner';
 import { UpdateNotificationBanner } from '@/components/UpdateNotificationBanner';
 import { UserSettingsModal } from '@/components/UserSettingsModal';
@@ -2328,6 +2329,8 @@ export default function Home() {
         speedMultiplier={devSpeedMultiplier}
         onSetSpeed={setDevSpeedMultiplier}
       />
+      {/* Aviso exclusivo para usuarios móviles */}
+      <MobileNotice />
     </div>
   );
 }

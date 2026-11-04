@@ -8,6 +8,7 @@ import { PRELAUNCH_STORAGE_KEY } from '@/lib/prelaunchConstants';
 import { HaloBadge } from '@/components/ui/HaloBadge';
 import { LaunchWelcomeSequence } from '@/components/LaunchWelcomeSequence';
 import { LaunchLoadingTransition } from '@/components/LaunchLoadingTransition';
+import { MobileNotice } from '@/components/MobileNotice';
 
 // Fecha oficial de apertura: 9 de noviembre de 2026 a las 08:35 AM (CET)
 export const TARGET_LAUNCH_TIMESTAMP = new Date('2026-11-09T08:35:00+01:00').getTime();
@@ -766,6 +767,9 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
           </div>
         </div>
       )}
+
+      {/* Aviso exclusivo para usuarios móviles con disculpas y recomendación PC */}
+      <MobileNotice />
     </div>
   );
 };

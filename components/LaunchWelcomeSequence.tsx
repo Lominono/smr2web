@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { ArrowRight } from 'lucide-react';
 import { SpeechBubble } from '@/components/ui/SpeechBubble';
 import { TextAnimate } from '@/components/ui/TextAnimate';
 
@@ -17,73 +16,73 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
 }) => {
   const [step, setStep] = useState<number>(0);
   const [isExiting, setIsExiting] = useState(false);
-  const timersRef = useRef<NodeJS.Timeout[]>([]);
 
-  const clearAllTimers = () => {
-    timersRef.current.forEach((t) => clearTimeout(t));
-    timersRef.current = [];
-  };
+  // Referencias estables para evitar re-montajes y bucles infinitos
+  const hasTriggeredRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  const speedRef = useRef(speedMultiplier);
 
-  const handleProceed = useCallback(() => {
-    if (isExiting) return;
-    clearAllTimers();
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+    speedRef.current = speedMultiplier;
+  }, [onComplete, speedMultiplier]);
+
+  const advanceToLoading = useCallback(() => {
+    if (hasTriggeredRef.current) return;
+    hasTriggeredRef.current = true;
     setIsExiting(true);
 
-    // Fade bajo suave antes de montar la pasarela de autenticación
     setTimeout(() => {
-      onComplete();
-    }, 480);
-  }, [isExiting, onComplete]);
+      onCompleteRef.current();
+    }, 450);
+  }, []);
 
   useEffect(() => {
-    clearAllTimers();
+    const pace = 1 / Math.max(0.2, speedRef.current);
 
-    const pace = 1 / Math.max(0.2, speedMultiplier);
-
-    // Paso 1: Aparición de la primera burbuja con TextAnimate
+    // 1. Aparece primera burbuja
     const t1 = setTimeout(() => {
       setStep(1);
-    }, 120 * pace);
+    }, 150 * pace);
 
-    // Paso 2: Segunda burbuja de diálogo
+    // 2. Aparece segunda burbuja
     const t2 = setTimeout(() => {
       setStep(2);
-    }, 950 * pace);
+    }, 1200 * pace);
 
-    // Paso 3: Revelar botón de acceso
+    // 3. Avance 100% automático y fluido a la pantalla de carga (sin botones ni prompts)
     const t3 = setTimeout(() => {
-      setStep(3);
-    }, 1900 * pace);
+      advanceToLoading();
+    }, 3400 * pace);
 
-    // Paso 4: Transición automática directa a la pantalla de carga tras leer el mensaje
-    const t4 = setTimeout(() => {
-      handleProceed();
-    }, 2800 * pace);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [advanceToLoading]);
 
-    timersRef.current = [t1, t2, t3, t4];
+  // Si el usuario toca la pantalla o pulsa cualquier tecla, avanza de inmediato
+  const handleUserTap = () => {
+    advanceToLoading();
+  };
 
-    return () => clearAllTimers();
-  }, [handleProceed, speedMultiplier]);
-
-  // Tecla Enter o Espacio para continuar sin ratón
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        handleProceed();
-      }
+    const handleKeyDown = () => {
+      advanceToLoading();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleProceed]);
+  }, [advanceToLoading]);
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex flex-col justify-between items-center bg-[#09090b] text-neutral-100 p-6 sm:p-10 select-none overflow-hidden transition-all duration-500 antialiased ${
-        isExiting ? 'animate-fade-down-exit pointer-events-none' : 'animate-in fade-in duration-300'
+      onClick={handleUserTap}
+      className={`fixed inset-0 z-[9999] flex flex-col justify-between items-center bg-[#09090b] text-neutral-100 p-6 sm:p-10 select-none overflow-hidden transition-all duration-400 ease-out cursor-pointer antialiased ${
+        isExiting ? 'opacity-0 scale-95 blur-xs pointer-events-none' : 'animate-in fade-in duration-300'
       }`}
     >
-      {/* 1. Encabezado sobrio y editorial */}
+      {/* 1. Encabezado sobrio y minimalista */}
       <header className="w-full max-w-2xl mx-auto flex items-center justify-between relative z-10 pt-2 select-none">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 p-1.5 flex items-center justify-center shadow-sm">
@@ -113,9 +112,9 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
         </div>
       </header>
 
-      {/* 2. Cuerpo Principal: Burbujas de Cult UI con TextAnimate */}
+      {/* 2. Burbujas de Cult UI limpias con TextAnimate */}
       <main className="w-full max-w-2xl mx-auto my-auto flex flex-col items-center justify-center text-center space-y-4 sm:space-y-5 relative z-10 py-6">
-        {/* Burbuja Principal 1: Text Animate calmInUp */}
+        {/* Burbuja Principal 1 */}
         {step >= 1 && (
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-400">
             <SpeechBubble variant="light">
@@ -129,7 +128,7 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
           </div>
         )}
 
-        {/* Burbuja Secundaria 2: Text Animate shiftInUp */}
+        {/* Burbuja Secundaria 2 */}
         {step >= 2 && (
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-400">
             <SpeechBubble variant="dark">
@@ -142,33 +141,12 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
             </SpeechBubble>
           </div>
         )}
-
-        {/* Botón de Entrada Minimalista */}
-        {step >= 3 && (
-          <div className="pt-4 sm:pt-6 animate-in fade-in duration-300">
-            <button
-              type="button"
-              onClick={handleProceed}
-              autoFocus
-              className="group px-6 py-3 rounded-full bg-white hover:bg-neutral-200 text-black font-semibold text-xs sm:text-sm tracking-tight flex items-center gap-2 shadow-xl transition-all active:scale-[0.98] cursor-pointer"
-            >
-              <span>Acceder al portal</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-        )}
       </main>
 
       {/* 3. Pie Editorial Minimalista */}
       <footer className="w-full max-w-2xl mx-auto flex items-center justify-between pt-4 border-t border-neutral-900 text-[11px] text-neutral-500 font-mono select-none">
         <span>Desarrollado por JuanFe y David</span>
-        <button
-          type="button"
-          onClick={handleProceed}
-          className="hover:text-neutral-300 transition-colors cursor-pointer"
-        >
-          Saltar (Enter)
-        </button>
+        <span className="text-neutral-600">Cargando sistema...</span>
       </footer>
     </div>
   );

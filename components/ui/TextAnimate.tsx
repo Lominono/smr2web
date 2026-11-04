@@ -215,7 +215,7 @@ const animationVariants: Record<
   },
 };
 
-export const TextAnimate: FC<TextAnimateProps> = ({
+export const TextAnimate: FC<TextAnimateProps> = React.memo(({
   text,
   type = 'calmInUp',
   delay = 0,
@@ -294,6 +294,8 @@ export const TextAnimate: FC<TextAnimateProps> = ({
       ))}
     </MotionComponent>
   );
-};
+});
+
+TextAnimate.displayName = 'TextAnimate';
 
 export default TextAnimate;

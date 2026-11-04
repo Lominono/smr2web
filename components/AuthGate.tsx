@@ -4,6 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import { UserProfile } from '@/lib/types';
 import { AuthForm } from '@/components/AuthForm';
+import { MobileNotice } from '@/components/MobileNotice';
 
 interface AuthGateProps {
   onAuthSuccess: (user: UserProfile) => void;
@@ -50,6 +51,9 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthSuccess }) => {
           <p className="text-neutral-600">Desarrollado por JuanFe y David</p>
         </footer>
       </div>
+
+      {/* Aviso exclusivo para usuarios móviles con disculpas y recomendación PC */}
+      <MobileNotice />
     </div>
   );
 };
