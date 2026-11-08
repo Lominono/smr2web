@@ -20,33 +20,56 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="border border-border/80 rounded-2xl w-full max-w-sm bg-surface shadow-2xl overflow-hidden flex flex-col">
-        <div className="px-5 py-3.5 border-b border-border/70 flex items-center justify-between bg-surface-raised/50">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200 select-none font-sans"
+    >
+      <div
+        className="fixed inset-0"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-neutral-800/90 bg-[#09090b] shadow-2xl overflow-hidden flex flex-col text-neutral-100 animate-in zoom-in-95 duration-200">
+        {/* Cabecera sutil estilo Apple */}
+        <div className="px-6 pt-5 pb-3 border-b border-neutral-800/70 flex items-center justify-between bg-[#09090b]">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 p-1.5 flex items-center justify-center shrink-0">
               <Image
                 src="/logo.png"
                 alt="SMR2 Logo"
-                width={28}
-                height={28}
-                className="w-full h-full object-contain drop-shadow-xs"
+                width={20}
+                height={20}
+                className="object-contain"
               />
             </div>
-            <h2 className="text-xs font-semibold text-foreground tracking-tight">
-              Acceso al portal
-            </h2>
+            <div>
+              <h2
+                id="auth-modal-title"
+                className="text-sm font-semibold text-white tracking-tight"
+              >
+                2º SMR
+              </h2>
+              <p className="text-[11px] text-neutral-400">
+                Acceso al portal oficial
+              </p>
+            </div>
           </div>
+
           <button
+            type="button"
             onClick={onClose}
-            aria-label="Cerrar modal"
-            className="w-8 h-8 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-hover flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="Cerrar modal de autenticación"
+            className="w-8 h-8 rounded-full text-neutral-400 hover:text-white bg-neutral-900/60 hover:bg-neutral-800 border border-neutral-800 flex items-center justify-center transition-colors cursor-pointer touch-manipulation"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-5">
+        {/* Formulario */}
+        <div className="p-6">
           <AuthForm
             isModal
             onSuccess={(user) => {
@@ -60,3 +83,5 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     </div>
   );
 };
+
+export default AuthModal;

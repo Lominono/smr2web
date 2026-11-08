@@ -12,7 +12,6 @@ import {
   CornerDownRight,
   Search,
   X,
-  RotateCcw,
   Pin,
   Trash2,
   Bell,
@@ -24,7 +23,6 @@ import {
   FileText,
 } from 'lucide-react';
 import { ChatMessage, UserProfile } from '@/lib/types';
-import { Button } from '@/components/ui/Button';
 import { sound } from '@/lib/audio';
 
 interface SmrTwitterFeedProps {
@@ -67,7 +65,7 @@ const COMPOSER_TAGS = [
 ] as const;
 
 /**
- * Formato conciso de tiempo relativo
+ * Formato conciso de tiempo relativo estilo Apple
  */
 function formatRelativeTime(dateStr: string): string {
   if (!dateStr) return '';
@@ -392,16 +390,16 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
     const words = cleanText.split(/(\s+)/);
 
     return (
-      <div className="space-y-2 min-w-0">
+      <div className="space-y-2.5 min-w-0 font-sans">
         {extractedTag && extractedTag.toLowerCase() !== 'general' && (
           <div className="flex items-center gap-1">
-            <span className="text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-surface-raised border border-border text-foreground-muted">
+            <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-400">
               #{extractedTag}
             </span>
           </div>
         )}
 
-        <div className="text-[14px] sm:text-[13px] text-foreground leading-relaxed break-words [overflow-wrap:anywhere] font-sans max-w-prose">
+        <div className="text-[15px] sm:text-[14px] text-neutral-200 leading-relaxed break-words [overflow-wrap:anywhere] max-w-prose">
           {words.map((word, i) => {
             if (word.startsWith('@') && word.length > 1) {
               return (
@@ -412,7 +410,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                     setSearchQuery(word);
                     setIsSearchOpen(true);
                   }}
-                  className="font-medium text-foreground hover:underline cursor-pointer bg-surface-raised px-1 py-0.5 rounded text-xs"
+                  className="font-medium text-white hover:underline cursor-pointer bg-neutral-800/80 px-1.5 py-0.5 rounded-md text-[13px] transition-colors"
                 >
                   {word}
                 </span>
@@ -428,7 +426,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                     setSearchQuery(word);
                     setIsSearchOpen(true);
                   }}
-                  className="text-accent hover:underline cursor-pointer"
+                  className="text-neutral-400 hover:text-white hover:underline cursor-pointer transition-colors"
                 >
                   {word}
                 </span>
@@ -446,7 +444,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                     sound.tap();
                   }}
                   title="Copiar comando"
-                  className="px-1.5 py-0.5 mx-0.5 rounded bg-surface-raised border border-border font-mono text-xs text-foreground cursor-copy hover:border-foreground/40 transition-colors"
+                  className="px-1.5 py-0.5 mx-0.5 rounded-md bg-neutral-900 border border-neutral-800 font-mono text-xs text-neutral-200 cursor-copy hover:border-neutral-600 transition-colors"
                 >
                   {cmd}
                 </code>
@@ -463,14 +461,14 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                   href={word}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-accent hover:underline inline-flex items-center gap-1 break-all text-xs bg-surface-raised px-1.5 py-0.5 rounded border border-border/60"
+                  className="text-neutral-300 hover:text-white underline underline-offset-2 inline-flex items-center gap-1.5 break-all text-xs bg-neutral-900/80 px-2 py-0.5 rounded-lg border border-neutral-800 transition-colors"
                 >
                   {isGithub ? (
-                    <FolderGit2 className="w-3 h-3 shrink-0" />
+                    <FolderGit2 className="w-3.5 h-3.5 shrink-0 text-neutral-400" />
                   ) : isDrive ? (
-                    <FileText className="w-3 h-3 shrink-0" />
+                    <FileText className="w-3.5 h-3.5 shrink-0 text-neutral-400" />
                   ) : (
-                    <ExternalLink className="w-3 h-3 shrink-0" />
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0 text-neutral-400" />
                   )}
                   <span>{word.length > 36 ? `${word.slice(0, 33)}...` : word}</span>
                 </a>
@@ -482,20 +480,20 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
         </div>
 
         {codeBlockContent && (
-          <div className="my-2 rounded-lg border border-border bg-surface-raised p-2.5 font-mono text-xs text-foreground relative">
-            <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-border text-[11px] text-foreground-subtle">
-              <span className="flex items-center gap-1.5 font-medium text-foreground">
-                <Terminal className="w-3 h-3" />
-                <span>Consola / Script</span>
+          <div className="my-2.5 rounded-xl border border-neutral-800 bg-[#0c0c0e] p-3 font-mono text-xs text-neutral-200 relative">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800 text-[11px] text-neutral-400">
+              <span className="flex items-center gap-1.5 font-medium text-neutral-300">
+                <Terminal className="w-3.5 h-3.5 text-neutral-400" />
+                <span>Script / Comando</span>
               </span>
               <button
                 type="button"
                 onClick={() => handleCopyCode(codeBlockContent!, msgId || 'block')}
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface border border-border text-foreground-muted hover:text-foreground cursor-pointer transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white cursor-pointer transition-colors"
               >
                 {copiedCodeId === (msgId || 'block') ? (
                   <>
-                    <Check className="w-3 h-3 text-emerald-500" />
+                    <Check className="w-3 h-3 text-emerald-400" />
                     <span>Copiado</span>
                   </>
                 ) : (
@@ -506,7 +504,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                 )}
               </button>
             </div>
-            <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
+            <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed select-all text-neutral-300">
               {codeBlockContent}
             </pre>
           </div>
@@ -518,7 +516,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
           .map((imgUrl, idx) => (
             <div
               key={idx}
-              className="mt-2 rounded-lg overflow-hidden border border-border max-h-72 max-w-md bg-surface-raised"
+              className="mt-2.5 rounded-xl overflow-hidden border border-neutral-800 max-h-80 max-w-md bg-neutral-900"
             >
               <img
                 src={imgUrl}
@@ -539,33 +537,33 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative w-full flex flex-col sm:rounded-xl border-y sm:border border-border bg-surface"
+      className="relative w-full flex flex-col sm:rounded-3xl border-y sm:border border-neutral-800/80 bg-[#09090b] text-neutral-200 font-sans shadow-xl overflow-hidden"
     >
-      {/* Botón flotante para saltar a mensajes nuevos */}
+      {/* Botón flotante para mensajes nuevos */}
       {hasNewMessagesAbove && (
         <div className="sticky top-[calc(6.8rem+env(safe-area-inset-top,0px))] z-30 flex justify-center w-full pointer-events-none -mb-8">
           <button
             type="button"
             onClick={scrollToTop}
-            className="pointer-events-auto flex items-center gap-1.5 px-3 py-1 rounded-full bg-foreground text-background text-xs font-medium shadow-md hover:opacity-90 active:scale-95 transition-all cursor-pointer touch-manipulation"
+            className="pointer-events-auto flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white text-black text-xs font-semibold shadow-lg hover:bg-neutral-200 active:scale-95 transition-all cursor-pointer touch-manipulation"
           >
             <span>Nuevos mensajes</span>
           </button>
         </div>
       )}
 
-      {/* 1. Cabecera sobria del Feed */}
-      <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 bg-surface/95 backdrop-blur-md border-b border-border">
-        <div className="flex items-center justify-between px-3.5 sm:px-4 py-2 sm:py-2.5">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-foreground tracking-tight">
-              Feed
+      {/* 1. Cabecera sobria del Feed con Segmented Control estilo Apple */}
+      <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 bg-[#09090b]/90 backdrop-blur-2xl border-b border-neutral-800/80">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-sm font-semibold text-white tracking-tight">
+              Feed de Clase
             </h2>
 
-            <div className="flex items-center gap-1.5 text-[11px] text-foreground-subtle font-mono">
+            <div className="flex items-center gap-1.5 text-[11px] text-neutral-400 font-mono">
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  isRealtimeConnected ? 'bg-emerald-500' : 'bg-amber-500'
+                  isRealtimeConnected ? 'bg-emerald-400' : 'bg-amber-400'
                 }`}
               />
               <span className="hidden xs:inline">{isRealtimeConnected ? 'En directo' : 'Conectando'}</span>
@@ -582,9 +580,9 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                 }}
                 title="Incidencias técnicas"
                 aria-label="Incidencias"
-                className="w-8 h-8 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-foreground-subtle hover:text-foreground hover:bg-surface-raised cursor-pointer transition-colors touch-manipulation active:scale-95"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-900 cursor-pointer transition-colors touch-manipulation active:scale-95"
               >
-                <AlertCircle className="w-3.5 h-3.5" />
+                <AlertCircle className="w-4 h-4" />
               </button>
             )}
 
@@ -597,9 +595,9 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                 }}
                 title="Notificaciones de avisos"
                 aria-label="Notificaciones"
-                className="w-8 h-8 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-foreground-subtle hover:text-foreground hover:bg-surface-raised cursor-pointer transition-colors touch-manipulation active:scale-95"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-900 cursor-pointer transition-colors touch-manipulation active:scale-95"
               >
-                <Bell className="w-3.5 h-3.5" />
+                <Bell className="w-4 h-4" />
               </button>
             )}
 
@@ -611,72 +609,74 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
               }}
               title="Buscar en el feed"
               aria-label="Buscar"
-              className={`w-8 h-8 sm:w-7 sm:h-7 rounded-md flex items-center justify-center transition-colors cursor-pointer touch-manipulation active:scale-95 ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer touch-manipulation active:scale-95 ${
                 isSearchOpen || searchQuery
-                  ? 'bg-foreground text-background font-semibold'
-                  : 'text-foreground-subtle hover:text-foreground hover:bg-surface-raised'
+                  ? 'bg-white text-black font-semibold'
+                  : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
               }`}
             >
-              <Search className="w-3.5 h-3.5" />
+              <Search className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Campo de búsqueda desplegable */}
         {isSearchOpen && (
-          <div className="px-3.5 sm:px-4 pb-2.5 pt-0.5 animate-in fade-in duration-100">
+          <div className="px-4 sm:px-5 pb-3 animate-in fade-in duration-150">
             <div className="relative flex items-center">
-              <Search className="w-3.5 h-3.5 text-foreground-subtle absolute left-2.5 pointer-events-none" />
+              <Search className="w-4 h-4 text-neutral-500 absolute left-3 pointer-events-none" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar usuario, comando o tema..."
-                className="w-full bg-surface-raised border border-border rounded-md pl-8 pr-8 py-1.5 text-[15px] sm:text-xs text-foreground placeholder:text-foreground-subtle outline-none focus:border-foreground/50 transition-colors"
+                placeholder="Buscar por usuario, comando o tema..."
+                className="w-full bg-neutral-900/90 border border-neutral-800 rounded-xl pl-9 pr-9 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 outline-none focus:border-neutral-500 transition-colors"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
                   aria-label="Limpiar búsqueda"
-                  className="absolute right-2 text-foreground-subtle hover:text-foreground p-1 cursor-pointer touch-manipulation"
+                  className="absolute right-2.5 text-neutral-500 hover:text-neutral-200 p-1 cursor-pointer touch-manipulation"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
           </div>
         )}
 
-        {/* Pestañas de categoría (Estilo minimalista limpio) */}
-        <div className="flex items-center gap-1 px-3 sm:px-4 overflow-x-auto scrollbar-none border-t border-border/50">
-          {FEED_TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            const count = getTabCount(tab.id);
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  sound.tap();
-                  setActiveTab(tab.id);
-                }}
-                className={`py-2.5 px-3 min-h-[40px] text-xs font-medium transition-colors cursor-pointer whitespace-nowrap border-b-2 flex items-center gap-1.5 touch-manipulation shrink-0 ${
-                  isActive
-                    ? 'border-foreground text-foreground font-semibold'
-                    : 'border-transparent text-foreground-muted hover:text-foreground'
-                }`}
-              >
-                <span>{tab.label}</span>
-                {count > 0 && (
-                  <span className="font-mono text-[10px] text-foreground-subtle">
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        {/* Pestañas Segmented Control estilo iOS */}
+        <div className="px-4 sm:px-5 pb-2.5">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-neutral-950/80 border border-neutral-800/80 overflow-x-auto scrollbar-none">
+            {FEED_TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              const count = getTabCount(tab.id);
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    sound.tap();
+                    setActiveTab(tab.id);
+                  }}
+                  className={`min-h-[34px] py-1 px-3 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 touch-manipulation shrink-0 ${
+                    isActive
+                      ? 'bg-neutral-800 text-white font-semibold shadow-xs border border-neutral-700/50'
+                      : 'text-neutral-400 hover:text-neutral-200'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  {count > 0 && (
+                    <span className={`font-mono text-[10px] ${isActive ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -687,26 +687,26 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             sound.tap();
             onOpenAuth();
           }}
-          className="p-3 sm:p-3.5 border-b border-border bg-surface-raised/30 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-raised/50 active:bg-surface-raised/60 transition-colors"
+          className="p-4 sm:p-5 border-b border-neutral-800/80 bg-neutral-900/20 flex items-center justify-between gap-3 cursor-pointer hover:bg-neutral-900/40 active:bg-neutral-900/50 transition-colors"
         >
-          <div className="flex items-center gap-2.5 text-xs text-foreground-muted min-w-0">
-            <div className="w-7 h-7 rounded-full bg-surface-raised border border-border flex items-center justify-center text-foreground-subtle shrink-0">
-              <MessageSquare className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-3 text-xs text-neutral-400 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-400 shrink-0">
+              <MessageSquare className="w-4 h-4" />
             </div>
-            <span className="truncate">Inicia sesión para compartir avisos, dudas o recursos</span>
+            <span className="truncate text-neutral-300">Inicia sesión para compartir avisos, dudas o recursos de clase</span>
           </div>
-          <span className="text-xs font-medium text-foreground shrink-0 underline underline-offset-2">
+          <span className="text-xs font-medium text-white px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 transition-colors shrink-0">
             Entrar
           </span>
         </div>
       ) : (
-        <div className="p-3 sm:p-3.5 border-b border-border bg-surface-raised/15">
+        <div className="p-4 sm:p-5 border-b border-neutral-800/80 bg-neutral-950/40">
           {replyingTo && (
-            <div className="flex items-center justify-between gap-2 mb-2 px-2.5 py-1 rounded-md bg-surface-raised border border-border text-xs text-foreground-muted">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <CornerDownRight className="w-3.5 h-3.5 shrink-0" />
+            <div className="flex items-center justify-between gap-2 mb-3 px-3 py-1.5 rounded-xl bg-neutral-900/80 border border-neutral-800 text-xs text-neutral-300">
+              <div className="flex items-center gap-2 min-w-0">
+                <CornerDownRight className="w-3.5 h-3.5 shrink-0 text-neutral-400" />
                 <span className="truncate">
-                  Respondiendo a <strong className="font-mono text-foreground">@{replyingTo}</strong>
+                  Respondiendo a <strong className="font-mono text-white">@{replyingTo}</strong>
                 </span>
               </div>
               <button
@@ -714,19 +714,19 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                 onClick={handleCancelReply}
                 title="Cancelar respuesta"
                 aria-label="Cancelar respuesta"
-                className="w-7 h-7 -mr-1 rounded flex items-center justify-center hover:text-foreground cursor-pointer shrink-0 active:scale-95 touch-manipulation"
+                className="w-6 h-6 rounded-md flex items-center justify-center text-neutral-400 hover:text-white cursor-pointer shrink-0 active:scale-95 touch-manipulation"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
 
-          <div className="flex items-start gap-2.5">
-            <div className="w-8 h-8 rounded-full sm:rounded-lg bg-surface-raised border border-border flex items-center justify-center font-mono font-semibold text-xs text-foreground uppercase shrink-0 mt-0.5">
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center font-mono font-semibold text-xs text-white uppercase shrink-0 mt-0.5">
               {currentUser.username.charAt(0)}
             </div>
 
-            <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex-1 min-w-0 space-y-3">
               <textarea
                 ref={textareaRef}
                 value={inputText}
@@ -739,16 +739,16 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                 placeholder={
                   replyingTo
                     ? `Responder a @${replyingTo}...`
-                    : 'Publicar un aviso, duda o recurso...'
+                    : 'Publicar aviso, duda o apunte...'
                 }
                 rows={2}
                 maxLength={320}
-                className="w-full bg-transparent text-[15px] sm:text-[13px] text-foreground placeholder:text-foreground-subtle resize-none outline-none leading-relaxed font-sans"
+                className="w-full bg-transparent text-[15px] sm:text-[14px] text-neutral-100 placeholder:text-neutral-500 resize-none outline-none leading-relaxed font-sans"
               />
 
-              <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50">
-                {/* Etiquetas tipo chip */}
-                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 -mx-0.5 px-0.5 max-w-[55%] sm:max-w-none">
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-800/80">
+                {/* Etiquetas estilo pills discretas */}
+                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 max-w-[55%] sm:max-w-none">
                   {COMPOSER_TAGS.map((t) => {
                     const isSelected = selectedTag === t.id;
                     return (
@@ -759,10 +759,10 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                           sound.tap();
                           setSelectedTag(t.id);
                         }}
-                        className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors cursor-pointer border shrink-0 touch-manipulation active:scale-95 ${
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition-colors cursor-pointer border shrink-0 touch-manipulation active:scale-95 ${
                           isSelected
-                            ? 'bg-foreground text-background border-foreground font-semibold'
-                            : 'bg-surface text-foreground-muted border-border hover:text-foreground'
+                            ? 'bg-white text-black border-white font-semibold'
+                            : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:text-white hover:border-neutral-700'
                         }`}
                       >
                         #{t.label}
@@ -771,14 +771,14 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                   })}
                 </div>
 
-                <div className="flex items-center gap-1 sm:gap-1.5 ml-auto shrink-0">
+                <div className="flex items-center gap-1.5 ml-auto shrink-0">
                   <button
                     type="button"
                     onClick={handleInsertCodeSnippet}
                     title="Insertar comando `...`"
-                    className="px-2 py-1 rounded text-xs font-mono text-foreground-muted hover:text-foreground border border-border cursor-pointer transition-colors touch-manipulation active:scale-95"
+                    className="px-2.5 py-1 rounded-lg text-xs font-mono text-neutral-400 hover:text-white border border-neutral-800 bg-neutral-900/60 cursor-pointer transition-colors touch-manipulation active:scale-95 flex items-center gap-1"
                   >
-                    <Code className="w-3 h-3 inline mr-1" />
+                    <Code className="w-3.5 h-3.5" />
                     <span>cmd</span>
                   </button>
 
@@ -790,32 +790,34 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                         setIsPinned((p) => !p);
                       }}
                       title={isPinned ? 'Desmarcar' : 'Fijar aviso'}
-                      className={`px-2 py-1 rounded text-xs font-mono border cursor-pointer transition-colors touch-manipulation active:scale-95 ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-mono border cursor-pointer transition-colors touch-manipulation active:scale-95 flex items-center gap-1 ${
                         isPinned
-                          ? 'bg-foreground text-background border-foreground font-semibold'
-                          : 'text-foreground-muted hover:text-foreground border-border'
+                          ? 'bg-white text-black border-white font-semibold'
+                          : 'text-neutral-400 hover:text-white border-neutral-800 bg-neutral-900/60'
                       }`}
                     >
-                      <Pin className="w-3 h-3 inline mr-1" />
+                      <Pin className="w-3.5 h-3.5" />
                       <span className="hidden xs:inline">Fijar</span>
                     </button>
                   )}
 
-                  <span className={`text-[11px] font-mono text-foreground-subtle px-1 ${isNearLimit ? 'text-amber-500 font-semibold' : ''}`}>
+                  <span className={`text-[11px] font-mono text-neutral-500 px-1 ${isNearLimit ? 'text-amber-400 font-semibold' : ''}`}>
                     {320 - charCount}
                   </span>
 
-                  <Button
-                    variant="primary"
-                    size="sm"
+                  <button
+                    type="button"
                     onClick={() => handlePublish()}
                     disabled={!inputText.trim() || isPosting || charCount > 320}
-                    isLoading={isPosting}
-                    className="rounded-md px-3 h-7 text-xs font-medium touch-manipulation active:scale-95"
+                    className="min-h-[34px] rounded-xl px-3.5 py-1.5 bg-white text-black font-semibold text-xs hover:bg-neutral-200 active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation flex items-center gap-1.5"
                   >
-                    <Send className="w-3 h-3" />
+                    {isPosting ? (
+                      <span className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
                     <span>Publicar</span>
-                  </Button>
+                  </button>
                 </div>
               </div>
             </div>
@@ -824,13 +826,13 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
       )}
 
       {/* 3. Lista de publicaciones */}
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-neutral-800/80">
         {filteredMessages.length === 0 ? (
-          <div className="p-8 text-center space-y-2">
-            <p className="text-xs text-foreground-muted">
+          <div className="p-10 text-center space-y-2.5">
+            <p className="text-xs text-neutral-400">
               {searchQuery
-                ? `No hay resultados para «${searchQuery}».`
-                : 'No hay publicaciones en este apartado.'}
+                ? `No hay publicaciones que coincidan con «${searchQuery}».`
+                : 'No hay publicaciones en esta sección.'}
             </p>
             {searchQuery && (
               <button
@@ -839,7 +841,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                   setSearchQuery('');
                   setActiveTab('all');
                 }}
-                className="text-xs text-accent hover:underline cursor-pointer"
+                className="text-xs text-white underline underline-offset-2 hover:text-neutral-300 cursor-pointer"
               >
                 Limpiar filtros
               </button>
@@ -857,16 +859,16 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
               return (
                 <div
                   key={msg.id}
-                  className="px-3.5 sm:px-4 py-2 bg-surface-raised/30 hover:bg-surface-raised/50 transition-colors flex items-center justify-between gap-2.5 text-xs font-mono text-foreground-muted"
+                  className="px-4 sm:px-5 py-2.5 bg-neutral-900/30 hover:bg-neutral-900/50 transition-colors flex items-center justify-between gap-3 text-xs font-mono text-neutral-400"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[10px] uppercase tracking-wider px-1 py-0.5 rounded bg-surface border border-border text-foreground-subtle shrink-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-400 shrink-0">
                       recreo
                     </span>
-                    <span className="truncate text-foreground text-[12px]">{msg.text}</span>
+                    <span className="truncate text-neutral-200 text-[12px]">{msg.text}</span>
                   </div>
 
-                  <span className="text-[11px] text-foreground-subtle shrink-0">
+                  <span className="text-[11px] text-neutral-500 shrink-0">
                     {formatRelativeTime(msg.created_at)}
                   </span>
                 </div>
@@ -877,62 +879,62 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             return (
               <article
                 key={msg.id}
-                className={`px-3.5 py-3 sm:p-3.5 hover:bg-surface-raised/20 transition-colors ${
-                  msg.pinned ? 'bg-surface-raised/40 border-l-2 border-foreground' : ''
+                className={`p-4 sm:p-5 hover:bg-neutral-900/20 transition-colors ${
+                  msg.pinned ? 'bg-neutral-900/30 border-l-2 border-white' : ''
                 }`}
               >
-                <div className="flex items-start gap-2.5 min-w-0">
+                <div className="flex items-start gap-3.5 min-w-0">
                   <button
                     type="button"
                     onClick={() => onInspectUser?.({ id: msg.user_id, username: msg.username })}
-                    title={`Ver ficha de @${msg.username}`}
-                    className="w-8 h-8 rounded-full sm:rounded-lg bg-surface-raised border border-border flex items-center justify-center font-mono font-semibold text-xs text-foreground uppercase shrink-0 mt-0.5 hover:border-neutral-500 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                    title={`Ver perfil de @${msg.username}`}
+                    className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center font-mono font-semibold text-xs text-neutral-200 uppercase shrink-0 mt-0.5 hover:border-neutral-600 active:scale-95 transition-all cursor-pointer"
                   >
                     {msg.username.charAt(0)}
                   </button>
 
-                  <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex-1 min-w-0 space-y-1.5">
                     {/* Fila de metadatos */}
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <button
                           type="button"
                           onClick={() => onInspectUser?.({ id: msg.user_id, username: msg.username })}
-                          title={`Ver ficha oficial de @${msg.username}`}
-                          className="font-semibold text-xs text-foreground font-mono truncate max-w-[140px] sm:max-w-none hover:text-sky-400 hover:underline cursor-pointer text-left"
+                          title={`Ver perfil de @${msg.username}`}
+                          className="font-semibold text-xs text-white font-mono truncate max-w-[140px] sm:max-w-none hover:text-neutral-300 hover:underline cursor-pointer text-left"
                         >
                           @{msg.username}
                         </button>
 
                         {msg.pinned && (
-                          <span className="text-[10px] font-mono px-1 py-0.2 rounded border border-border text-foreground-subtle shrink-0">
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md border border-neutral-800 text-neutral-400 shrink-0">
                             fijado
                           </span>
                         )}
 
                         {(msg.username === 'admin' ||
                           msg.username.toLowerCase().includes('delegado')) && (
-                          <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-surface-raised border border-border text-foreground-muted shrink-0">
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 shrink-0">
                             delegado
                           </span>
                         )}
 
-                        <span className="text-foreground-subtle text-[11px] shrink-0">·</span>
+                        <span className="text-neutral-600 text-[11px] shrink-0">·</span>
 
-                        <span className="text-[11px] text-foreground-subtle font-mono shrink-0">
+                        <span className="text-[11px] text-neutral-500 font-mono shrink-0">
                           {formatRelativeTime(msg.created_at)}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-0.5 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
                         {canDelete && onDeleteMessage && (
                           <button
                             type="button"
                             onClick={() => handleDelete(msg.id)}
                             disabled={deletingId === msg.id}
                             title="Eliminar"
-                            aria-label="Eliminar"
-                            className="p-1.5 rounded text-foreground-subtle hover:text-danger hover:bg-surface-raised cursor-pointer transition-colors touch-manipulation active:scale-95"
+                            aria-label="Eliminar publicación"
+                            className="p-1.5 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-neutral-900 cursor-pointer transition-colors touch-manipulation active:scale-95"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -942,11 +944,11 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                           type="button"
                           onClick={() => handleShare(msg)}
                           title="Copiar texto"
-                          aria-label="Copiar"
-                          className="p-1.5 rounded text-foreground-subtle hover:text-foreground hover:bg-surface-raised cursor-pointer transition-colors touch-manipulation active:scale-95"
+                          aria-label="Compartir publicación"
+                          className="p-1.5 rounded-lg text-neutral-500 hover:text-neutral-200 hover:bg-neutral-900 cursor-pointer transition-colors touch-manipulation active:scale-95"
                         >
                           {copiedId === msg.id ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
                           ) : (
                             <Share2 className="w-3.5 h-3.5" />
                           )}
@@ -954,24 +956,24 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                       </div>
                     </div>
 
-                    {/* Contenido */}
+                    {/* Contenido formateado */}
                     <div className="min-w-0">
                       {renderFormattedText(msg.text, msg.tag, msg.id)}
                     </div>
 
                     {/* Barra de acciones minimalista */}
-                    <div className="flex items-center gap-5 sm:gap-6 pt-1.5 text-[11px] font-mono text-foreground-subtle">
+                    <div className="flex items-center gap-6 sm:gap-8 pt-2 text-[11px] font-mono text-neutral-400">
                       <button
                         type="button"
                         onClick={() => onToggleLike && onToggleLike(msg.id)}
-                        className={`inline-flex items-center gap-1.5 py-1 -my-1 hover:text-rose-500 transition-colors cursor-pointer select-none touch-manipulation active:scale-95 ${
-                          isLiked ? 'text-rose-500 font-semibold' : ''
+                        className={`inline-flex items-center gap-1.5 py-1.5 -my-1.5 hover:text-rose-400 transition-colors cursor-pointer select-none touch-manipulation active:scale-90 ${
+                          isLiked ? 'text-rose-400 font-semibold' : ''
                         }`}
                         title={isLiked ? 'Quitar me gusta' : 'Me gusta'}
                       >
                         <Heart
-                          className={`w-3.5 h-3.5 ${
-                            isLiked ? 'fill-rose-500 stroke-rose-500' : ''
+                          className={`w-4 h-4 transition-transform ${
+                            isLiked ? 'fill-rose-500 stroke-rose-500 scale-110' : ''
                           }`}
                         />
                         <span>{likesCount > 0 ? likesCount : ''}</span>
@@ -980,9 +982,9 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                       <button
                         type="button"
                         onClick={() => handleStartReply(msg.username)}
-                        className="inline-flex items-center gap-1.5 py-1 -my-1 hover:text-foreground transition-colors cursor-pointer select-none touch-manipulation active:scale-95"
+                        className="inline-flex items-center gap-1.5 py-1.5 -my-1.5 hover:text-white transition-colors cursor-pointer select-none touch-manipulation active:scale-90"
                       >
-                        <MessageSquare className="w-3.5 h-3.5" />
+                        <MessageSquare className="w-4 h-4" />
                         <span>Responder</span>
                       </button>
 
@@ -995,20 +997,20 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                               ? 'Necesitas al menos 50 fichas para enviar propina'
                               : `Enviar 50 fichas a @${msg.username}`
                           }
-                          className={`inline-flex items-center gap-1.5 py-1 -my-1 transition-all cursor-pointer select-none touch-manipulation active:scale-95 ${
+                          className={`inline-flex items-center gap-1.5 py-1.5 -my-1.5 transition-all cursor-pointer select-none touch-manipulation active:scale-90 ${
                             tipSuccessId === msg.id
-                              ? 'text-emerald-500 font-medium'
+                              ? 'text-emerald-400 font-medium'
                               : tipErrorId === msg.id
-                              ? 'text-rose-500 font-medium'
-                              : 'text-foreground-muted hover:text-amber-500'
+                              ? 'text-rose-400 font-medium'
+                              : 'text-neutral-400 hover:text-amber-400'
                           }`}
                         >
-                          <Coins className={`w-3.5 h-3.5 ${tipSuccessId === msg.id ? 'text-emerald-500' : ''}`} />
+                          <Coins className={`w-4 h-4 ${tipSuccessId === msg.id ? 'text-emerald-400' : ''}`} />
                           <span className="font-mono text-[11px]">
                             {tipSuccessId === msg.id
-                              ? '+50 enviadas'
+                              ? '+50'
                               : tipErrorId === msg.id
-                              ? 'Faltan fichas'
+                              ? 'Sin fichas'
                               : '50 fichas'}
                           </span>
                         </button>

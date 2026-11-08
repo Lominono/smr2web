@@ -2103,7 +2103,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* 3. Floating Action Button (FAB) on Mobile for Instant Tweet Compose */}
+      {/* 3. Floating Action Button (FAB) on Mobile for Instant Tweet Compose estilo Apple */}
       {activeView === 'feed' && (
         <button
           type="button"
@@ -2113,9 +2113,9 @@ export default function Home() {
             sound.tap();
           }}
           aria-label="Publicar en el feed"
-          className="lg:hidden fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-30 w-13 h-13 min-w-[52px] min-h-[52px] rounded-full bg-accent hover:opacity-95 text-accent-foreground flex items-center justify-center border border-border shadow-lg cursor-pointer active:scale-95 transition-all touch-manipulation"
+          className="lg:hidden fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-30 w-12 h-12 min-w-[48px] min-h-[48px] rounded-full bg-white text-black shadow-2xl hover:bg-neutral-200 flex items-center justify-center cursor-pointer active:scale-90 transition-all touch-manipulation"
         >
-          <PenSquare className="w-5 h-5" />
+          <PenSquare className="w-5 h-5" strokeWidth={2} />
         </button>
       )}
 
