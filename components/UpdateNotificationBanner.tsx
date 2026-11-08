@@ -49,7 +49,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
   const [isMinimized, setIsMinimized] = useState(false);
   const [isLiveDeploy, setIsLiveDeploy] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedHistoryVersion, setSelectedHistoryVersion] = useState<string>('2.9.0');
+  const [selectedHistoryVersion, setSelectedHistoryVersion] = useState<string>('1.0.0');
 
   const checkVersion = async () => {
     try {
@@ -71,7 +71,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
         setHasUpdate(true);
         if (latest) {
           setUpdateDetails(latest);
-          setSelectedHistoryVersion(latest.version || '2.9.0');
+          setSelectedHistoryVersion(latest.version || '1.0.0');
         }
         sound.tap();
       } else {
@@ -80,10 +80,10 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
         }
 
         const lastSeen = typeof window !== 'undefined' ? localStorage.getItem('smr2_last_seen_version') : null;
-        const currentVersion = latest?.version || data.appVersion || '2.9.0';
+        const currentVersion = latest?.version || data.appVersion || '1.0.0';
         if (latest) {
           setUpdateDetails(latest);
-          setSelectedHistoryVersion(latest.version || '2.9.0');
+          setSelectedHistoryVersion(latest.version || '1.0.0');
         }
 
         if (lastSeen !== currentVersion) {
@@ -128,7 +128,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
             setIsLiveDeploy(true);
             setHasUpdate(true);
             setUpdateDetails(upd);
-            setSelectedHistoryVersion(upd.version || '2.9.0');
+            setSelectedHistoryVersion(upd.version || '1.0.0');
             sound.tap();
           }
         )
@@ -148,7 +148,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
 
   const handleReload = () => {
     sound.tap();
-    const v = updateDetails?.version || '2.9.0';
+    const v = updateDetails?.version || '1.0.0';
     try {
       localStorage.setItem('smr2_last_seen_version', v);
     } catch {}
@@ -157,7 +157,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
 
   const handleDismiss = () => {
     sound.tap();
-    const v = updateDetails?.version || '2.9.0';
+    const v = updateDetails?.version || '1.0.0';
     try {
       localStorage.setItem('smr2_last_seen_version', v);
     } catch {}
@@ -195,7 +195,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
   const activeHistoryEntry =
     changelogHistory.find((item) => item.version === selectedHistoryVersion) ||
     changelogHistory[0] || {
-      version: updateDetails?.version || '2.9.0',
+      version: updateDetails?.version || '1.0.0',
       title: updateDetails?.title || 'Novedades de la versión',
       description: updateDetails?.description || 'Mejoras en el portal de 2º SMR.',
       badge: 'ACTUAL',
@@ -230,7 +230,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
                       Registro de Versiones y Cambios
                     </h2>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-raised text-foreground-muted border border-border/70">
-                      v{updateDetails?.version || '2.9.0'}
+                      v{updateDetails?.version || '1.0.0'}
                     </span>
                   </div>
                   <p className="text-[11px] text-foreground-muted truncate">
@@ -371,7 +371,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="font-mono text-[11px] text-foreground-muted">
-              v{updateDetails?.version || '2.9.0'}
+              v{updateDetails?.version || '1.0.0'}
             </span>
             <span className="text-[11px] font-medium text-foreground">
               {isLiveDeploy ? 'Actualización' : 'Novedades'}
@@ -395,7 +395,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                   <span className="text-[10px] font-mono uppercase tracking-wider text-foreground-muted">
-                    Versión {updateDetails?.version || '2.9.0'}
+                    Versión {updateDetails?.version || '1.0.0'}
                   </span>
                   <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-surface-raised text-foreground-subtle border border-border/60">
                     {isLiveDeploy ? 'Despliegue en vivo' : 'Novedad'}

@@ -40,7 +40,7 @@ interface SmrTwitterFeedProps {
   composerRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
 
-type FeedFilterId = 'all' | 'avisos' | 'dudas' | 'recursos' | 'recreo';
+type FeedFilterId = 'all' | 'avisos' | 'dudas' | 'recursos';
 
 interface FeedTabItem {
   id: FeedFilterId;
@@ -52,7 +52,6 @@ const FEED_TABS: FeedTabItem[] = [
   { id: 'avisos', label: 'Avisos' },
   { id: 'dudas', label: 'Dudas' },
   { id: 'recursos', label: 'Recursos' },
-  { id: 'recreo', label: 'Recreo' },
 ];
 
 const COMPOSER_TAGS = [
@@ -61,12 +60,8 @@ const COMPOSER_TAGS = [
   { id: 'Duda', label: 'duda' },
   { id: 'Examen', label: 'examen' },
   { id: 'Recurso', label: 'recurso' },
-  { id: 'Recreo', label: 'recreo' },
 ] as const;
 
-/**
- * Formato conciso de tiempo relativo estilo Apple
- */
 function formatRelativeTime(dateStr: string): string {
   if (!dateStr) return '';
   if (/^\d{1,2}:\d{2}/.test(dateStr) && !dateStr.includes('-') && !dateStr.includes('T')) {
@@ -120,11 +115,8 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   const [tipErrorId, setTipErrorId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
-  const [hasNewMessagesAbove, setHasNewMessagesAbove] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const prevCountRef = useRef(messages.length);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const localTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalComposerRef || localTextareaRef;
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -135,25 +127,10 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
     currentUser?.username === 'admin';
 
   useEffect(() => {
-    if (messages.length > prevCountRef.current) {
-      if (typeof window !== 'undefined' && window.scrollY > 300) {
-        setHasNewMessagesAbove(true);
-      }
-    }
-    prevCountRef.current = messages.length;
-  }, [messages.length]);
-
-  const scrollToTop = () => {
-    sound.tap();
-    setHasNewMessagesAbove(false);
-    containerRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
     const el = textareaRef.current;
     if (el) {
       el.style.height = 'auto';
-      el.style.height = `${Math.min(220, Math.max(68, el.scrollHeight))}px`;
+      el.style.height = `${Math.min(200, Math.max(56, el.scrollHeight))}px`;
     }
   }, [inputText, textareaRef]);
 
@@ -216,7 +193,6 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
       setInputText((prev) => (prev ? `${prefix}${prev}` : prefix));
     }
     textareaRef.current?.focus();
-    textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const handleCancelReply = () => {
@@ -317,9 +293,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
         textLower.includes('?') ||
         textLower.includes('duda') ||
         textLower.includes('error') ||
-        textLower.includes('fallo') ||
-        textLower.includes('packet tracer') ||
-        textLower.includes('cisco')
+        textLower.includes('fallo')
       );
     }
 
@@ -333,16 +307,6 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
         textLower.includes('drive.google') ||
         textLower.includes('pdf') ||
         textLower.includes('temario')
-      );
-    }
-
-    if (activeTab === 'recreo') {
-      return (
-        msg.is_system_win ||
-        tagLower === 'recreo' ||
-        textLower.includes('[#recreo') ||
-        textLower.includes('ruleta') ||
-        textLower.includes('fichas')
       );
     }
 
@@ -362,9 +326,6 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
       }
       if (tabId === 'recursos') {
         return tag === 'recurso' || tag === 'apuntes' || t.includes('github') || t.includes('drive');
-      }
-      if (tabId === 'recreo') {
-        return m.is_system_win || tag === 'recreo' || t.includes('fichas');
       }
       return false;
     }).length;
@@ -493,12 +454,12 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
               >
                 {copiedCodeId === (msgId || 'block') ? (
                   <>
-                    <Check className="w-3 h-3 text-emerald-400" />
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Copiado</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3 h-3" />
+                    <Copy className="w-3.5 h-3.5" />
                     <span>Copiar</span>
                   </>
                 )}
@@ -509,24 +470,6 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             </pre>
           </div>
         )}
-
-        {words
-          .filter((w) => /^https?:\/\/.*\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(w))
-          .slice(0, 1)
-          .map((imgUrl, idx) => (
-            <div
-              key={idx}
-              className="mt-2.5 rounded-xl overflow-hidden border border-neutral-800 max-h-80 max-w-md bg-neutral-900"
-            >
-              <img
-                src={imgUrl}
-                alt="Adjunto"
-                loading="lazy"
-                className="w-full h-full object-contain cursor-pointer"
-                onClick={() => window.open(imgUrl, '_blank')}
-              />
-            </div>
-          ))}
       </div>
     );
   };
@@ -535,28 +478,12 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   const isNearLimit = charCount > 280;
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full flex flex-col sm:rounded-3xl border-y sm:border border-neutral-800/80 bg-[#09090b] text-neutral-200 font-sans shadow-xl overflow-hidden"
-    >
-      {/* Botón flotante para mensajes nuevos */}
-      {hasNewMessagesAbove && (
-        <div className="sticky top-[calc(6.8rem+env(safe-area-inset-top,0px))] z-30 flex justify-center w-full pointer-events-none -mb-8">
-          <button
-            type="button"
-            onClick={scrollToTop}
-            className="pointer-events-auto flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white text-black text-xs font-semibold shadow-lg hover:bg-neutral-200 active:scale-95 transition-all cursor-pointer touch-manipulation"
-          >
-            <span>Nuevos mensajes</span>
-          </button>
-        </div>
-      )}
-
-      {/* 1. Cabecera sobria del Feed con Segmented Control estilo Apple */}
-      <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 bg-[#09090b]/90 backdrop-blur-2xl border-b border-neutral-800/80">
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3">
+    <div className="relative w-full flex flex-col sm:rounded-3xl border-y sm:border border-neutral-800/80 bg-[#09090b] text-neutral-200 font-sans shadow-xl overflow-hidden">
+      {/* 1. Cabecera simple y sin sticky para evitar solapamientos */}
+      <div className="border-b border-neutral-800/80 bg-[#09090b] px-4 sm:px-6 py-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2.5">
-            <h2 className="text-sm font-semibold text-white tracking-tight">
+            <h2 className="text-base font-semibold text-white tracking-tight">
               Feed de Clase
             </h2>
 
@@ -566,11 +493,11 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                   isRealtimeConnected ? 'bg-emerald-400' : 'bg-amber-400'
                 }`}
               />
-              <span className="hidden xs:inline">{isRealtimeConnected ? 'En directo' : 'Conectando'}</span>
+              <span>{isRealtimeConnected ? 'En directo' : 'Conectando'}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {onOpenFeedback && (
               <button
                 type="button"
@@ -593,7 +520,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                   sound.tap();
                   onOpenNotifications();
                 }}
-                title="Notificaciones de avisos"
+                title="Notificaciones"
                 aria-label="Notificaciones"
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-900 cursor-pointer transition-colors touch-manipulation active:scale-95"
               >
@@ -620,9 +547,9 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
           </div>
         </div>
 
-        {/* Campo de búsqueda desplegable */}
+        {/* Buscador opcional */}
         {isSearchOpen && (
-          <div className="px-4 sm:px-5 pb-3 animate-in fade-in duration-150">
+          <div className="mb-3 animate-in fade-in duration-150">
             <div className="relative flex items-center">
               <Search className="w-4 h-4 text-neutral-500 absolute left-3 pointer-events-none" />
               <input
@@ -647,40 +574,38 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
           </div>
         )}
 
-        {/* Pestañas Segmented Control estilo iOS */}
-        <div className="px-4 sm:px-5 pb-2.5">
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-neutral-950/80 border border-neutral-800/80 overflow-x-auto scrollbar-none">
-            {FEED_TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-              const count = getTabCount(tab.id);
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    sound.tap();
-                    setActiveTab(tab.id);
-                  }}
-                  className={`min-h-[34px] py-1 px-3 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 touch-manipulation shrink-0 ${
-                    isActive
-                      ? 'bg-neutral-800 text-white font-semibold shadow-xs border border-neutral-700/50'
-                      : 'text-neutral-400 hover:text-neutral-200'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  {count > 0 && (
-                    <span className={`font-mono text-[10px] ${isActive ? 'text-neutral-300' : 'text-neutral-500'}`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        {/* Pestañas limpias Segmented Control */}
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-neutral-950/80 border border-neutral-800/80 overflow-x-auto scrollbar-none">
+          {FEED_TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            const count = getTabCount(tab.id);
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  sound.tap();
+                  setActiveTab(tab.id);
+                }}
+                className={`min-h-[34px] py-1 px-3 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 touch-manipulation shrink-0 ${
+                  isActive
+                    ? 'bg-neutral-800 text-white font-semibold shadow-xs border border-neutral-700/50'
+                    : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                <span>{tab.label}</span>
+                {count > 0 && (
+                  <span className={`font-mono text-[10px] ${isActive ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* 2. Redactor de publicaciones */}
+      {/* 2. Redactor Simplificado con Contenedor Claro y Visible */}
       {!currentUser ? (
         <div
           onClick={() => {
@@ -693,16 +618,16 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-400 shrink-0">
               <MessageSquare className="w-4 h-4" />
             </div>
-            <span className="truncate text-neutral-300">Inicia sesión para compartir avisos, dudas o recursos de clase</span>
+            <span className="truncate text-neutral-300">Inicia sesión para escribir avisos o dudas en el feed</span>
           </div>
           <span className="text-xs font-medium text-white px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 transition-colors shrink-0">
             Entrar
           </span>
         </div>
       ) : (
-        <div className="p-4 sm:p-5 border-b border-neutral-800/80 bg-neutral-950/40">
+        <div className="p-4 sm:p-6 border-b border-neutral-800/80 bg-neutral-950/40 space-y-3">
           {replyingTo && (
-            <div className="flex items-center justify-between gap-2 mb-3 px-3 py-1.5 rounded-xl bg-neutral-900/80 border border-neutral-800 text-xs text-neutral-300">
+            <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-neutral-900/80 border border-neutral-800 text-xs text-neutral-300">
               <div className="flex items-center gap-2 min-w-0">
                 <CornerDownRight className="w-3.5 h-3.5 shrink-0 text-neutral-400" />
                 <span className="truncate">
@@ -721,118 +646,121 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             </div>
           )}
 
-          <div className="flex items-start gap-3.5">
-            <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center font-mono font-semibold text-xs text-white uppercase shrink-0 mt-0.5">
-              {currentUser.username.charAt(0)}
-            </div>
-
-            <div className="flex-1 min-w-0 space-y-3">
-              <textarea
-                ref={textareaRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => {
-                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    handlePublish();
-                  }
-                }}
-                placeholder={
-                  replyingTo
-                    ? `Responder a @${replyingTo}...`
-                    : 'Publicar aviso, duda o apunte...'
+          {/* Caja del redactor claramente delimitada para ver siempre lo que se envía */}
+          <div className="rounded-2xl border border-neutral-800 bg-[#0c0c0e] p-3.5 focus-within:border-neutral-600 focus-within:ring-1 focus-within:ring-neutral-600/50 transition-all space-y-3">
+            <textarea
+              ref={textareaRef}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                  handlePublish();
                 }
-                rows={2}
-                maxLength={320}
-                className="w-full bg-transparent text-[15px] sm:text-[14px] text-neutral-100 placeholder:text-neutral-500 resize-none outline-none leading-relaxed font-sans"
-              />
+              }}
+              placeholder={
+                replyingTo
+                  ? `Responder a @${replyingTo}...`
+                  : 'Escribe un aviso, duda o recurso para la clase...'
+              }
+              rows={2}
+              maxLength={320}
+              className="w-full bg-transparent text-[15px] sm:text-[14px] text-neutral-100 placeholder:text-neutral-500 resize-none outline-none leading-relaxed font-sans"
+            />
 
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-800/80">
-                {/* Etiquetas estilo pills discretas */}
-                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 max-w-[55%] sm:max-w-none">
-                  {COMPOSER_TAGS.map((t) => {
-                    const isSelected = selectedTag === t.id;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          sound.tap();
-                          setSelectedTag(t.id);
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition-colors cursor-pointer border shrink-0 touch-manipulation active:scale-95 ${
-                          isSelected
-                            ? 'bg-white text-black border-white font-semibold'
-                            : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:text-white hover:border-neutral-700'
-                        }`}
-                      >
-                        #{t.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center gap-1.5 ml-auto shrink-0">
-                  <button
-                    type="button"
-                    onClick={handleInsertCodeSnippet}
-                    title="Insertar comando `...`"
-                    className="px-2.5 py-1 rounded-lg text-xs font-mono text-neutral-400 hover:text-white border border-neutral-800 bg-neutral-900/60 cursor-pointer transition-colors touch-manipulation active:scale-95 flex items-center gap-1"
-                  >
-                    <Code className="w-3.5 h-3.5" />
-                    <span>cmd</span>
-                  </button>
-
-                  {isStaff && (
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-800/70 flex-wrap">
+              {/* Chips de categorías */}
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
+                {COMPOSER_TAGS.map((t) => {
+                  const isSelected = selectedTag === t.id;
+                  return (
                     <button
+                      key={t.id}
                       type="button"
                       onClick={() => {
                         sound.tap();
-                        setIsPinned((p) => !p);
+                        setSelectedTag(t.id);
                       }}
-                      title={isPinned ? 'Desmarcar' : 'Fijar aviso'}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-mono border cursor-pointer transition-colors touch-manipulation active:scale-95 flex items-center gap-1 ${
-                        isPinned
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition-colors cursor-pointer border shrink-0 touch-manipulation active:scale-95 ${
+                        isSelected
                           ? 'bg-white text-black border-white font-semibold'
-                          : 'text-neutral-400 hover:text-white border-neutral-800 bg-neutral-900/60'
+                          : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:text-white hover:border-neutral-700'
                       }`}
                     >
-                      <Pin className="w-3.5 h-3.5" />
-                      <span className="hidden xs:inline">Fijar</span>
+                      #{t.label}
                     </button>
-                  )}
+                  );
+                })}
+              </div>
 
-                  <span className={`text-[11px] font-mono text-neutral-500 px-1 ${isNearLimit ? 'text-amber-400 font-semibold' : ''}`}>
-                    {320 - charCount}
-                  </span>
+              <div className="flex items-center gap-2 ml-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={handleInsertCodeSnippet}
+                  title="Insertar comando `...`"
+                  className="px-2.5 py-1 rounded-lg text-xs font-mono text-neutral-400 hover:text-white border border-neutral-800 bg-neutral-900/60 cursor-pointer transition-colors touch-manipulation active:scale-95 flex items-center gap-1"
+                >
+                  <Code className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">cmd</span>
+                </button>
 
+                {isStaff && (
                   <button
                     type="button"
-                    onClick={() => handlePublish()}
-                    disabled={!inputText.trim() || isPosting || charCount > 320}
-                    className="min-h-[34px] rounded-xl px-3.5 py-1.5 bg-white text-black font-semibold text-xs hover:bg-neutral-200 active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation flex items-center gap-1.5"
+                    onClick={() => {
+                      sound.tap();
+                      setIsPinned((p) => !p);
+                    }}
+                    title={isPinned ? 'Desmarcar' : 'Fijar aviso'}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-mono border cursor-pointer transition-colors touch-manipulation active:scale-95 flex items-center gap-1 ${
+                      isPinned
+                        ? 'bg-white text-black border-white font-semibold'
+                        : 'text-neutral-400 hover:text-white border-neutral-800 bg-neutral-900/60'
+                    }`}
                   >
-                    {isPosting ? (
-                      <span className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Send className="w-3.5 h-3.5" />
-                    )}
-                    <span>Publicar</span>
+                    <Pin className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline">Fijar</span>
                   </button>
-                </div>
+                )}
+
+                <span className={`text-[11px] font-mono text-neutral-500 px-1 ${isNearLimit ? 'text-amber-400 font-semibold' : ''}`}>
+                  {320 - charCount}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => handlePublish()}
+                  disabled={!inputText.trim() || isPosting || charCount > 320}
+                  className="min-h-[36px] rounded-xl px-4 py-1.5 bg-white text-black font-semibold text-xs hover:bg-neutral-200 active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation flex items-center gap-1.5"
+                >
+                  {isPosting ? (
+                    <span className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Send className="w-3.5 h-3.5" />
+                  )}
+                  <span>Publicar</span>
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 3. Lista de publicaciones */}
+      {/* 3. Lista de publicaciones limpia y espaciosa */}
       <div className="divide-y divide-neutral-800/80">
         {filteredMessages.length === 0 ? (
-          <div className="p-10 text-center space-y-2.5">
-            <p className="text-xs text-neutral-400">
+          <div className="p-12 text-center space-y-2">
+            <div className="w-10 h-10 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-neutral-500">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <p className="text-sm font-medium text-neutral-300">
               {searchQuery
                 ? `No hay publicaciones que coincidan con «${searchQuery}».`
-                : 'No hay publicaciones en esta sección.'}
+                : 'El tablón está listo para el lanzamiento oficial.'}
+            </p>
+            <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+              {searchQuery
+                ? 'Prueba buscando con otro término.'
+                : 'Sé el primero en compartir un aviso o duda cuando abra el portal.'}
             </p>
             {searchQuery && (
               <button
@@ -841,9 +769,9 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                   setSearchQuery('');
                   setActiveTab('all');
                 }}
-                className="text-xs text-white underline underline-offset-2 hover:text-neutral-300 cursor-pointer"
+                className="text-xs text-white underline underline-offset-2 hover:text-neutral-300 cursor-pointer pt-2"
               >
-                Limpiar filtros
+                Limpiar búsqueda
               </button>
             )}
           </div>
@@ -854,32 +782,10 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             const isLiked = Boolean(msg.is_liked_by_me);
             const likesCount = Number(msg.likes_count || 0);
 
-            // Evento de recreo
-            if (msg.is_system_win) {
-              return (
-                <div
-                  key={msg.id}
-                  className="px-4 sm:px-5 py-2.5 bg-neutral-900/30 hover:bg-neutral-900/50 transition-colors flex items-center justify-between gap-3 text-xs font-mono text-neutral-400"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-400 shrink-0">
-                      recreo
-                    </span>
-                    <span className="truncate text-neutral-200 text-[12px]">{msg.text}</span>
-                  </div>
-
-                  <span className="text-[11px] text-neutral-500 shrink-0">
-                    {formatRelativeTime(msg.created_at)}
-                  </span>
-                </div>
-              );
-            }
-
-            // Publicación normal
             return (
               <article
                 key={msg.id}
-                className={`p-4 sm:p-5 hover:bg-neutral-900/20 transition-colors ${
+                className={`p-4 sm:p-6 hover:bg-neutral-900/20 transition-colors ${
                   msg.pinned ? 'bg-neutral-900/30 border-l-2 border-white' : ''
                 }`}
               >

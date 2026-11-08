@@ -15,14 +15,13 @@ import {
   Save,
   Clock,
   Coins,
-  ShieldCheck,
   CheckCircle2,
   User,
   Send,
+  IdCard,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { sound } from '@/lib/audio';
-import { Button } from '@/components/ui/Button';
 import {
   getCurrentScheduleStatus,
   SCHEDULE_GRID,
@@ -65,7 +64,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
     setMounted(true);
   }, []);
 
-  // Determinar si estamos inspeccionando a otro compañero
   const isViewingOther = Boolean(
     inspectedUser &&
       (!user ||
@@ -78,7 +76,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
     ? inspectedUser!
     : user;
 
-  // Sincronizar datos de usuario
   useEffect(() => {
     if (!isViewingOther && user) {
       setFullNameInput(user.full_name || '');
@@ -100,51 +97,35 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
       if (inspectedUser.pc_seat) {
         setSelectedSeat(inspectedUser.pc_seat);
       }
-      setIsEditing(false);
     }
   }, [user, inspectedUser, isViewingOther]);
 
-  // Bloquear scroll de fondo cuando está abierto
-  useEffect(() => {
-    if (isOpen) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
-  }, [isOpen]);
+  const liveStatus = useMemo(() => getCurrentScheduleStatus(), []);
 
-  // Horario de hoy para 2º SMR
   const todaySchedule = useMemo(() => {
-    const now = new Date();
-    const day = now.getDay();
-    const dayMap: Record<number, DayKey> = {
+    const d = new Date().getDay();
+    const map: Record<number, DayKey> = {
       1: 'lunes',
       2: 'martes',
       3: 'miercoles',
       4: 'jueves',
       5: 'viernes',
     };
-    const dayKey = dayMap[day];
+    const dayKey = map[d];
     if (!dayKey) return null;
 
-    const codes = SCHEDULE_GRID[dayKey] || [];
-    return codes.map((code, idx) => ({
-      slot: TIME_SLOTS[idx],
-      code,
-      subject: SMR2_SUBJECTS[code] || null,
-    }));
+    const daySubjects = SCHEDULE_GRID[dayKey];
+    return TIME_SLOTS.map((slot, index) => {
+      const code = daySubjects[index];
+      const subject = SMR2_SUBJECTS[code];
+      return { slot, code, subject };
+    });
   }, []);
-
-  const liveStatus = useMemo(() => getCurrentScheduleStatus(), []);
 
   if (!isOpen || !mounted || !displayUser) return null;
 
-  // Registrar asistencia de clase (solo para uno mismo)
   const handleClaimAttendance = () => {
-    if (attendanceClaimed || !user || isViewingOther) return;
-
+    if (isViewingOther || !user || attendanceClaimed) return;
     try {
       const todayKey = new Date().toISOString().slice(0, 10);
       const newStreak = attendanceStreak + 1;
@@ -154,7 +135,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
       localStorage.setItem(`smr2_attendance_date_${user.id}`, todayKey);
       localStorage.setItem(`smr2_attendance_streak_${user.id}`, String(newStreak));
 
-      // Otorgar bono de puntualidad (+25 fichas)
       const bonusCoins = 25;
       const updatedUser: UserProfile = {
         ...user,
@@ -167,7 +147,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
     } catch {}
   };
 
-  // Guardar puesto de PC (solo para uno mismo)
   const handleSelectSeat = (seat: string) => {
     if (isViewingOther || !user) return;
     setSelectedSeat(seat);
@@ -177,21 +156,19 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
     } catch {}
   };
 
-  // Copiar ficha completa al portapapeles
   const handleCopyCard = () => {
     const targetName = displayUser.full_name || displayUser.username || 'Estudiante';
     const targetUser = displayUser.username || 'estudiante';
     const targetNia = displayUser.student_number || 'No asignado';
     const targetSeat = displayUser.pc_seat || selectedSeat || 'Aula 35';
 
-    const text = `--- FICHA DE ESTUDIANTE SMR2 ---\nNombre: ${targetName}\nUsuario: @${targetUser}\nNIA: ${targetNia}\nCurso: 2º SMR · Aula 35 (${targetSeat})\nEstado: Alumno Oficial Activo (2026/2027)\nPortal: https://smr2web.vercel.app`;
+    const text = `--- FICHA OFICIAL SMR2 ---\nNombre: ${targetName}\nUsuario: @${targetUser}\nNIA: ${targetNia}\nPuesto: Aula 35 (${targetSeat})\nEstado: Alumno Activo (2026/2027)\nPortal: https://smr2web.vercel.app`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     sound.tap();
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Copiar solo el NIA
   const handleCopyNiaOnly = () => {
     if (!displayUser.student_number) return;
     navigator.clipboard.writeText(displayUser.student_number);
@@ -200,7 +177,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
     setTimeout(() => setCopiedNia(false), 2000);
   };
 
-  // Enviar propina al usuario inspeccionado
   const handleSendTip = () => {
     if (!isViewingOther || !displayUser.username || !onTipUser || !user || (user.coins || 0) < 50) return;
     onTipUser(displayUser.username, 50);
@@ -209,7 +185,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
     setTimeout(() => setTipSent(false), 3000);
   };
 
-  // Guardar edición de datos propios
   const handleSaveEdit = async () => {
     if (!user || !fullNameInput.trim() || !studentNumberInput.trim()) return;
     setSavingEdit(true);
@@ -249,21 +224,14 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
       />
 
       <div
-        className="relative z-10 w-full max-w-xl max-h-[92dvh] rounded-3xl bg-[#09090b] border border-neutral-800 shadow-2xl flex flex-col overflow-hidden text-neutral-200 animate-in fade-in zoom-in-95 duration-200"
+        className="relative z-10 w-full max-w-lg max-h-[90dvh] rounded-3xl bg-[#09090b] border border-neutral-800 shadow-2xl flex flex-col overflow-hidden text-neutral-200 animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera del modal */}
         <header className="px-5 sm:px-6 py-4 border-b border-neutral-800/80 flex items-center justify-between shrink-0 bg-[#09090b]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 p-1.5 flex items-center justify-center shadow-xs">
-              <Image
-                src="/logo.png"
-                alt="SMR2 Logo"
-                width={24}
-                height={24}
-                className="object-contain"
-                priority
-              />
+              <IdCard className="w-4 h-4 text-white" />
             </div>
             <div>
               <h2 id="student-card-title" className="text-sm font-semibold tracking-tight text-white flex items-center gap-1.5">
@@ -276,8 +244,8 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
               </h2>
               <p className="text-[11px] text-neutral-500 font-mono">
                 {isViewingOther
-                  ? `Perfil público de @${displayUsername} · 2º SMR`
-                  : 'Credencial Digital Personal · 2º SMR · Aula 35'}
+                  ? `@${displayUsername} · 2º SMR`
+                  : 'Credencial Oficial de Aula · 2º SMR'}
               </p>
             </div>
           </div>
@@ -316,36 +284,30 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
         {/* Contenido con scroll */}
         <div className="flex-1 p-5 sm:p-6 overflow-y-auto space-y-5 select-text">
           {/* ============================================================== */}
-          {/* CARNET DIGITAL APPLE WALLET / CAMPUS PASS                     */}
+          {/* TARJETA DIGITAL ESTILO APPLE PASS / WALLET                     */}
           {/* ============================================================== */}
-          <div className="relative rounded-2xl bg-gradient-to-br from-neutral-900 via-[#101014] to-neutral-950 border border-neutral-700/80 p-5 sm:p-6 shadow-2xl text-white overflow-hidden select-none">
-            {/* Luz ambiental sutil en la tarjeta */}
-            <div className="absolute -top-12 -right-12 w-48 h-48 bg-sky-500/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-
-            {/* Fila 1: Logo y Centro */}
+          <div className="rounded-2xl bg-[#121215] border border-neutral-800 p-5 sm:p-6 shadow-xl text-white select-none space-y-4">
             <div className="flex items-center justify-between border-b border-neutral-800/80 pb-3">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-bold tracking-widest uppercase text-neutral-300">
-                  2º SMR CAMPUS PASS
+                <span className="font-mono text-[11px] font-semibold tracking-wider uppercase text-neutral-400">
+                  2º SMR · AULA 35
                 </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800 text-emerald-400 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  {isViewingOther ? 'COMPAÑERO' : 'OFICIAL'}
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-900 border border-neutral-700 text-neutral-300 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>Activo</span>
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-neutral-400">
-                2026 — 2027
+              <span className="text-[10px] font-mono text-neutral-500">
+                2026 / 2027
               </span>
             </div>
 
-            {/* Fila 2: Chip inteligente y datos */}
-            <div className="pt-4 pb-2 flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5">
+                <div className="text-[11px] font-mono text-neutral-400">
                   {displayRole}
                 </div>
-                <div className="text-lg sm:text-xl font-bold tracking-tight text-white leading-tight">
+                <div className="text-xl font-bold tracking-tight text-white">
                   {displayName}
                 </div>
                 <div className="text-xs text-neutral-400 font-mono">
@@ -353,95 +315,77 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                 </div>
               </div>
 
-              {/* Chip metálico NFC decorativo */}
-              <div className="w-11 h-8 rounded-md bg-gradient-to-tr from-amber-600 via-amber-400 to-amber-200 border border-amber-300/60 shadow-inner flex flex-col justify-around p-1 shrink-0 opacity-90">
-                <div className="w-full h-[1px] bg-amber-800/50" />
-                <div className="w-full h-[1px] bg-amber-800/50" />
-                <div className="w-full h-[1px] bg-amber-800/50" />
+              <div className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 p-2 flex items-center justify-center shrink-0">
+                <Image
+                  src="/logo.png"
+                  alt="SMR2 Logo"
+                  width={24}
+                  height={24}
+                  className="object-contain"
+                />
               </div>
             </div>
 
-            {/* Fila 3: NIA, Puesto y Aula */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-neutral-800/80">
               <div>
-                <span className="text-[10px] font-mono uppercase text-neutral-400 block">
+                <span className="text-[10px] font-mono uppercase text-neutral-500 block">
                   Número NIA
                 </span>
-                <span className="text-xs font-mono font-bold text-sky-400">
+                <span className="text-xs font-mono font-semibold text-neutral-200">
                   {displayNia}
                 </span>
               </div>
 
               <div>
-                <span className="text-[10px] font-mono uppercase text-neutral-400 block">
+                <span className="text-[10px] font-mono uppercase text-neutral-500 block">
                   Puesto Taller
                 </span>
-                <span className="text-xs font-mono font-medium text-emerald-400">
+                <span className="text-xs font-mono font-semibold text-white">
                   {displaySeat}
                 </span>
               </div>
 
-              <div className="col-span-2 sm:col-span-1">
-                <span className="text-[10px] font-mono uppercase text-neutral-400 block">
+              <div>
+                <span className="text-[10px] font-mono uppercase text-neutral-500 block">
                   Ubicación
                 </span>
-                <span className="text-xs font-mono font-medium text-neutral-300">
+                <span className="text-xs font-mono text-neutral-300">
                   Aula 35
                 </span>
-              </div>
-            </div>
-
-            {/* Fila 4: Código de barras visual */}
-            <div className="mt-4 pt-3 border-t border-neutral-800/60 flex items-center justify-between">
-              <div className="font-mono text-[9px] tracking-widest text-neutral-500">
-                ||| | |||| | ||| |||| | || | ||| |||| | ||| ||
-              </div>
-              <div className="text-[10px] font-mono text-neutral-400">
-                Sistemas Microinformáticos y Redes
               </div>
             </div>
           </div>
 
           {/* ============================================================== */}
-          {/* MODO INSPECCIÓN DE OTRO COMPAÑERO: ESTADÍSTICAS Y ACCIONES     */}
+          {/* MODO INSPECCIÓN DE COMPAÑERO                                   */}
           {/* ============================================================== */}
           {isViewingOther ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                <div className="p-3 rounded-2xl bg-neutral-900/60 border border-neutral-800">
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800">
                   <span className="text-[10px] font-mono uppercase text-neutral-500 block mb-1">
-                    Saldo Público
+                    Saldo
                   </span>
                   <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-white">
                     <Coins className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{(displayUser.coins ?? 1000).toLocaleString('es-ES')}</span>
+                    <span>{(displayUser.coins ?? 1000).toLocaleString('es-ES')} fichas</span>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-neutral-900/60 border border-neutral-800">
+                <div className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800">
                   <span className="text-[10px] font-mono uppercase text-neutral-500 block mb-1">
                     Racha en Clase
                   </span>
-                  <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-amber-400">
-                    <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-neutral-200">
+                    <Flame className="w-3.5 h-3.5 text-amber-400" />
                     <span>{displayUser.streak_count || 1} días</span>
                   </div>
                 </div>
-
-                <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-neutral-900/60 border border-neutral-800">
-                  <span className="text-[10px] font-mono uppercase text-neutral-500 block mb-1">
-                    Rol en 2º SMR
-                  </span>
-                  <span className="text-xs font-mono font-medium text-emerald-400">
-                    {displayRole}
-                  </span>
-                </div>
               </div>
 
-              {/* Acciones para interactuar con este compañero */}
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4 space-y-2.5">
                 <h3 className="text-xs font-semibold text-white">
-                  Acciones con este compañero
+                  Acciones con @{displayUsername}
                 </h3>
 
                 <div className="flex flex-wrap gap-2">
@@ -464,7 +408,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                       className="px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-xs text-neutral-200 transition-colors flex items-center gap-1.5 cursor-pointer font-mono"
                     >
                       {copiedNia ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedNia ? '¡NIA copiado!' : `Copiar NIA (${displayUser.student_number})`}</span>
+                      <span>{copiedNia ? '¡Copiado!' : `Copiar NIA (${displayUser.student_number})`}</span>
                     </button>
                   )}
 
@@ -476,7 +420,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                       className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs text-amber-300 transition-colors flex items-center gap-1.5 cursor-pointer font-mono"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>{tipSent ? '¡50 fichas enviadas!' : 'Enviar propina (50 fichas)'}</span>
+                      <span>{tipSent ? '¡50 fichas enviadas!' : 'Enviar 50 fichas'}</span>
                     </button>
                   )}
                 </div>
@@ -484,29 +428,28 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
             </div>
           ) : (
             /* ============================================================== */
-            /* MODO PROPIO: ASISTENCIA, PUESTO Y EDICIÓN                      */
+            /* MODO PROPIO: ASISTENCIA Y PUESTO DE TALLER                     */
             /* ============================================================== */
             <>
-              {/* UTILIDAD 1: CHECK-IN DIARIO DE ASISTENCIA A CLASE */}
+              {/* CHECK-IN DE ASISTENCIA DIARIA */}
               <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-emerald-950/80 border border-emerald-800 text-emerald-400">
+                    <span className="p-1.5 rounded-lg bg-neutral-800 text-neutral-300">
                       <CalendarCheck className="w-4 h-4" />
                     </span>
                     <div>
                       <h3 className="text-xs font-semibold text-white">
-                        Check-in Diario de Asistencia
+                        Asistencia a Clase
                       </h3>
                       <p className="text-[11px] text-neutral-400">
-                        Confirma tu asistencia en el aula para ganar fichas y sumar racha
+                        Confirma tu asistencia hoy para sumar racha
                       </p>
                     </div>
                   </div>
 
-                  {/* Contador de racha */}
-                  <div className="flex items-center gap-1 text-xs font-mono font-semibold text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2.5 py-1 rounded-full">
-                    <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  <div className="flex items-center gap-1 text-xs font-mono font-medium text-neutral-300 bg-neutral-800 px-2.5 py-1 rounded-full border border-neutral-700">
+                    <Flame className="w-3.5 h-3.5 text-amber-400" />
                     <span>Racha: {attendanceStreak}d</span>
                   </div>
                 </div>
@@ -516,17 +459,17 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                     <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-800/60 flex items-center justify-between text-xs text-emerald-400">
                       <span className="flex items-center gap-2 font-medium">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        ¡Asistencia registrada con éxito para hoy!
+                        ¡Asistencia confirmada para hoy!
                       </span>
                       <span className="font-mono text-[11px] text-emerald-300">
-                        +25 fichas reclamadas
+                        +25 fichas
                       </span>
                     </div>
                   ) : (
                     <button
                       type="button"
                       onClick={handleClaimAttendance}
-                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98"
+                      className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98"
                     >
                       <Sparkles className="w-4 h-4" />
                       <span>Confirmar asistencia hoy (+25 fichas)</span>
@@ -535,29 +478,28 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                 </div>
               </div>
 
-              {/* UTILIDAD 2: MI PUESTO EN EL TALLER DE INFORMÁTICA */}
+              {/* ASIGNACIÓN DE PUESTO EN EL TALLER */}
               <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300">
+                    <span className="p-1.5 rounded-lg bg-neutral-800 text-neutral-300">
                       <Monitor className="w-4 h-4" />
                     </span>
                     <div>
                       <h3 className="text-xs font-semibold text-white">
-                        Mi Puesto de PC en el Aula 35
+                        Mi Puesto de Ordenador en Aula 35
                       </h3>
                       <p className="text-[11px] text-neutral-400">
-                        Selecciona en qué ordenador del taller te sientas habitualmente
+                        Selecciona el equipo del taller donde te sientas
                       </p>
                     </div>
                   </div>
 
-                  <span className="text-xs font-mono font-bold text-sky-400 px-2 py-0.5 rounded bg-sky-950/80 border border-sky-800">
+                  <span className="text-xs font-mono font-bold text-white px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700">
                     {selectedSeat}
                   </span>
                 </div>
 
-                {/* Selector de puestos tipo rejilla rápida */}
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 pt-1">
                   {Array.from({ length: 24 }, (_, i) => {
                     const pcId = `PC-${String(i + 1).padStart(2, '0')}`;
@@ -569,7 +511,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                         onClick={() => handleSelectSeat(pcId)}
                         className={`py-1.5 text-center text-xs font-mono rounded-lg transition-all cursor-pointer border ${
                           isSelected
-                            ? 'bg-sky-500 text-neutral-950 font-bold border-sky-400 shadow-sm'
+                            ? 'bg-white text-black font-bold border-white shadow-xs'
                             : 'bg-neutral-950/80 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800'
                         }`}
                       >
@@ -582,24 +524,22 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                     onClick={() => handleSelectSeat('Portátil')}
                     className={`col-span-4 sm:col-span-6 py-1.5 text-center text-xs font-mono rounded-lg transition-all cursor-pointer border ${
                       selectedSeat === 'Portátil'
-                        ? 'bg-sky-500 text-neutral-950 font-bold border-sky-400 shadow-sm'
+                        ? 'bg-white text-black font-bold border-white shadow-xs'
                         : 'bg-neutral-950/80 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800'
                     }`}
                   >
-                    Portátil propio (Sin PC fijo)
+                    Portátil propio (Sin PC de torre)
                   </button>
                 </div>
               </div>
             </>
           )}
 
-          {/* ============================================================== */}
-          {/* UTILIDAD COMÚN: MIS CLASES DE HOY (HORARIO DE 2º SMR)           */}
-          {/* ============================================================== */}
+          {/* CLASES DE HOY */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-sky-950/80 border border-sky-800 text-sky-400">
+                <span className="p-1.5 rounded-lg bg-neutral-800 text-neutral-300">
                   <Clock className="w-4 h-4" />
                 </span>
                 <div>
@@ -647,27 +587,25 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
               </div>
             ) : (
               <div className="p-3 text-center text-xs text-neutral-400 font-mono">
-                Hoy es fin de semana. No hay clases hasta el lunes a las 08:15 (SR).
+                Hoy no hay clases lectivas programadas.
               </div>
             )}
           </div>
 
-          {/* ============================================================== */}
-          {/* UTILIDAD EDITAR: SOLO DISPONIBLE PARA EL PROPIO ESTUDIANTE     */}
-          {/* ============================================================== */}
+          {/* MODIFICAR DATOS */}
           {!isViewingOther && (
             <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300">
+                  <span className="p-1.5 rounded-lg bg-neutral-800 text-neutral-300">
                     <Edit2 className="w-4 h-4" />
                   </span>
                   <div>
                     <h3 className="text-xs font-semibold text-white">
-                      Modificar Datos de Identificación
+                      Modificar Datos de la Ficha
                     </h3>
                     <p className="text-[11px] text-neutral-400">
-                      Corrige tu nombre real o número NIA si hubo algún error
+                      Actualiza tu nombre completo o número NIA
                     </p>
                   </div>
                 </div>
@@ -676,7 +614,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
-                    className="text-xs text-sky-400 hover:underline cursor-pointer"
+                    className="text-xs text-white underline underline-offset-2 hover:text-neutral-300 cursor-pointer"
                   >
                     Editar
                   </button>
@@ -693,43 +631,41 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                       type="text"
                       value={fullNameInput}
                       onChange={(e) => setFullNameInput(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl bg-neutral-950 border border-neutral-800 text-white focus:outline-none focus:border-sky-500"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-neutral-950 border border-neutral-800 text-white focus:outline-none focus:border-neutral-500"
                       placeholder="Ej. Juan Pérez Gómez"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-[11px] font-medium text-neutral-400 block">
-                      Número de estudiante / NIA (Separado y único)
+                      Número de estudiante / NIA
                     </label>
                     <input
                       type="text"
                       value={studentNumberInput}
                       onChange={(e) => setStudentNumberInput(e.target.value.toUpperCase())}
-                      className="w-full px-3 py-2 text-xs font-mono uppercase rounded-xl bg-neutral-950 border border-neutral-800 text-white focus:outline-none focus:border-sky-500"
+                      className="w-full px-3 py-2 text-xs font-mono uppercase rounded-xl bg-neutral-950 border border-neutral-800 text-white focus:outline-none focus:border-neutral-500"
                       placeholder="Ej. 10482910"
                     />
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-1">
-                    <Button
-                      variant="secondary"
-                      size="sm"
+                    <button
+                      type="button"
                       onClick={() => setIsEditing(false)}
-                      className="rounded-xl text-xs"
+                      className="px-3.5 py-1.5 rounded-xl border border-neutral-800 bg-neutral-900 text-xs text-neutral-300 hover:text-white"
                     >
                       Cancelar
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
+                    </button>
+                    <button
+                      type="button"
                       onClick={handleSaveEdit}
-                      isLoading={savingEdit}
-                      className="rounded-xl text-xs bg-white text-black hover:bg-neutral-200"
+                      disabled={savingEdit}
+                      className="px-3.5 py-1.5 rounded-xl bg-white text-black font-semibold text-xs hover:bg-neutral-200 flex items-center gap-1.5"
                     >
-                      <Save className="w-3.5 h-3.5 mr-1" />
-                      <span>Guardar cambios</span>
-                    </Button>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{savingEdit ? 'Guardando...' : 'Guardar'}</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -743,14 +679,13 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
             {isViewingOther ? `@${displayUsername} · 2º SMR` : 'Ficha oficial · 2º SMR · 2026/2027'}
           </div>
 
-          <Button
-            variant="secondary"
-            size="sm"
+          <button
+            type="button"
             onClick={onClose}
-            className="rounded-xl text-xs px-4 py-1.5 cursor-pointer"
+            className="rounded-xl text-xs px-4 py-1.5 bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-white cursor-pointer"
           >
             Cerrar
-          </Button>
+          </button>
         </footer>
       </div>
     </div>,

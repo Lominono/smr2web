@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
           }
 
           try { await client.from('profiles').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('perfiles').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
           try { await client.from('posts').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
           try { await client.from('comments').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
           try { await client.from('likes_posts').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
@@ -74,6 +75,18 @@ export async function POST(req: NextRequest) {
           try { await client.from('post_votes').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
           try { await client.from('push_subscriptions').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
           try { await client.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('messages').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('conversations').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('chismes').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('user_activity').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('user_cosmetics').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('user_auras').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('anchoa_tx').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('faro_wheel_spins').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('cookie_consent_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('rate_limits').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('admin_audit_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
+          try { await client.from('follows').delete().neq('id', '00000000-0000-0000-0000-000000000000'); } catch {}
         } else {
           // Reiniciar todos los perfiles de alumnos a 1.000 monedas y 0 victorias
           const { error: profilesError } = await client
