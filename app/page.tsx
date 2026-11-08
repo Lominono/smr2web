@@ -675,7 +675,7 @@ export default function Home() {
   }, [fetchLeaderboard]);
 
   useEffect(() => {
-    // Comprobar estado de salida oficial (9 de noviembre a las 8:35 AM)
+    // Comprobar estado de salida oficial (9 de noviembre a las 10:00 AM)
     const isLaunched = Date.now() >= TARGET_LAUNCH_TIMESTAMP;
     
     // Verificación criptográfica segura para acceso anticipado de administradores

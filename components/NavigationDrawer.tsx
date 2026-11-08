@@ -291,7 +291,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               Recreo
             </span>
             {[
-              { id: 'farmhand', label: 'El Huerto', icon: Sprout },
+              { id: 'farmhand', label: 'El Huerto', icon: Sprout, badge: 'Cerrado' },
               { id: 'party_idle', label: 'El Botellón', icon: Wine },
               { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
               { id: 'crash', label: 'Crash', icon: TrendingUp },
@@ -314,6 +314,11 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                   <div className="flex items-center gap-3">
                     <Icon className="w-4 h-4 text-foreground-subtle" />
                     <span className="text-sm font-sans">{g.label}</span>
+                    {g.badge && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-raised border border-border text-foreground-subtle">
+                        {g.badge}
+                      </span>
+                    )}
                   </div>
                   <ChevronRight className="w-4 h-4 text-foreground-subtle" />
                 </button>

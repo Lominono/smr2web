@@ -10,8 +10,8 @@ import { LaunchWelcomeSequence } from '@/components/LaunchWelcomeSequence';
 import { LaunchLoadingTransition } from '@/components/LaunchLoadingTransition';
 import { MobileNotice } from '@/components/MobileNotice';
 
-// Fecha oficial de apertura: 9 de noviembre de 2026 a las 08:35 AM (CET)
-export const TARGET_LAUNCH_TIMESTAMP = new Date('2026-11-09T08:35:00+01:00').getTime();
+// Fecha oficial de apertura: 9 de noviembre de 2026 a las 10:00 AM (CET)
+export const TARGET_LAUNCH_TIMESTAMP = new Date('2026-11-09T10:00:00+01:00').getTime();
 const LAUNCH_START_TIMESTAMP = new Date('2026-10-20T00:00:00+01:00').getTime();
 
 interface LaunchCountdownGateProps {
@@ -585,7 +585,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
         <div className="mb-10 sm:mb-14">
           <div className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/60 backdrop-blur-md px-3.5 py-1 text-[11px] font-mono text-neutral-400">
             <span className="w-1.5 h-1.5 rounded-full bg-neutral-500" />
-            <span>Apertura Oficial · 9 nov 2026 · 08:35</span>
+            <span>Apertura Oficial · 9 nov 2026 · 10:00</span>
           </div>
         </div>
 

@@ -450,6 +450,9 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
               <span className="flex items-center gap-1.5">
                 <Sprout className="w-3.5 h-3.5 text-emerald-400" />
                 <span>El Huerto SMR</span>
+                <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-surface border border-border text-foreground-subtle">
+                  Cerrado
+                </span>
               </span>
               <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
             </Button>
