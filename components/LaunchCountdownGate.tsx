@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { Eye, EyeOff, Loader2, ArrowRight, X, Terminal } from 'lucide-react';
 import { sound } from '@/lib/audio';
 import { PRELAUNCH_STORAGE_KEY } from '@/lib/prelaunchConstants';
-import { HaloBadge } from '@/components/ui/HaloBadge';
 import { LaunchWelcomeSequence } from '@/components/LaunchWelcomeSequence';
 import { LaunchLoadingTransition } from '@/components/LaunchLoadingTransition';
 import { MobileNotice } from '@/components/MobileNotice';
@@ -494,7 +493,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex flex-col justify-between bg-[#09090b] text-neutral-100 p-5 sm:p-8 md:p-12 select-none overflow-y-auto antialiased transition-all duration-400 ease-out ${
+      className={`fixed inset-0 z-[9999] flex flex-col justify-between bg-black text-white p-6 sm:p-10 md:p-14 select-none overflow-y-auto antialiased transition-all duration-500 ease-out ${
         isTransitioningToWelcome ? 'opacity-0 scale-[0.98]' : 'opacity-100 scale-100'
       }`}
     >
@@ -504,29 +503,27 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
       {showIntro && (
         <div
           onClick={handleSkipIntro}
-          className={`fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-[#09090b] p-6 cursor-pointer transition-opacity duration-500 ease-out ${
+          className={`fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-black p-6 cursor-pointer transition-opacity duration-500 ease-out ${
             introFading ? 'opacity-0 pointer-events-none' : 'opacity-100'
           }`}
         >
           <div className="flex flex-col items-center justify-center text-center space-y-4">
-            <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+            <div className="relative w-16 h-16 sm:w-20 sm:h-20">
               <Image
                 src="/logo.png"
                 alt="SMR2 Logo"
                 fill
-                sizes="96px"
-                className="object-contain"
+                sizes="80px"
+                className="object-contain brightness-95"
                 priority
               />
             </div>
 
-            <h1 className="text-5xl sm:text-7xl font-bold tracking-tight text-white">
-              SMR2
+            <h1 className="text-4xl sm:text-6xl font-light tracking-tight text-white">
+              2º SMR
             </h1>
 
-            <div className="w-8 h-px bg-neutral-800" />
-
-            <p className="text-xs font-mono tracking-widest uppercase text-neutral-500">
+            <p className="text-[11px] font-mono tracking-[0.2em] uppercase text-neutral-500">
               Aula: Ni puta idea
             </p>
           </div>
@@ -537,143 +534,108 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
       {/* 2. PANTALLA PRINCIPAL: CONTADOR ULTRA-MINIMALISTA             */}
       {/* ============================================================ */}
 
-      {/* Encabezado: Elegante con HaloBadge estilo Cult UI */}
+      {/* Encabezado minimalista estilo Apple */}
       <header className="w-full max-w-4xl mx-auto flex items-center justify-between relative z-10 select-none">
         <div
           onClick={handleLogoClick}
-          className="flex items-center gap-3 cursor-default active:opacity-90 transition-opacity"
-          title="2º SMR (5 clics para menú secreto)"
+          className="flex items-center gap-2.5 cursor-default active:opacity-75 transition-opacity"
+          title="2º SMR"
         >
-          <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 p-1.5 flex items-center justify-center shadow-md">
+          <div className="w-6 h-6 relative flex items-center justify-center">
             <Image
               src="/logo.png"
               alt="SMR2 Logo"
               width={24}
               height={24}
-              className="w-full h-full object-contain pointer-events-none"
+              className="w-full h-full object-contain pointer-events-none brightness-95"
               priority
             />
           </div>
-          <div>
-            <div className="text-xs font-semibold tracking-tight text-neutral-200">
-              2º SMR
-            </div>
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAulaClick();
-              }}
-              className="text-[10px] text-neutral-500 font-mono cursor-default hover:text-neutral-400"
-            >
-              Aula: Ni puta idea
-            </div>
-          </div>
+          <span className="text-xs font-semibold tracking-tight text-white/90">
+            2º SMR
+          </span>
         </div>
 
-        {/* Indicador de estado sobrio y minimalista */}
-        <div className="flex items-center gap-2 text-[10px] font-mono text-neutral-500">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span className="tracking-widest uppercase">
-            {isSimulated ? 'TEST · SIMULACIÓN' : 'SMR2 · CUENTA REGRESIVA'}
-          </span>
+        <div
+          onClick={handleAulaClick}
+          className="text-[11px] font-mono tracking-wider text-neutral-500 hover:text-neutral-300 cursor-default transition-colors"
+          title="Aula"
+        >
+          Aula: Ni puta idea
         </div>
       </header>
 
-      {/* Núcleo cronométrico tipográfico */}
+      {/* Núcleo cronométrico puramente minimalista */}
       <main className="w-full max-w-3xl mx-auto my-auto py-12 sm:py-20 flex flex-col items-center text-center relative z-10">
-        {/* Etiqueta editorial limpia */}
-        <div className="mb-10 sm:mb-14">
-          <div className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/60 backdrop-blur-md px-3.5 py-1 text-[11px] font-mono text-neutral-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-neutral-500" />
-            <span>Apertura Oficial · 9 nov 2026 · 10:08</span>
-          </div>
+        <div className="mb-8 sm:mb-14">
+          <p className="text-xs sm:text-sm font-mono tracking-[0.2em] uppercase text-neutral-400">
+            Apertura oficial · 9 de noviembre · 10:08
+          </p>
         </div>
 
         {/* Tipografía Monumental Suiza y minimalista */}
-        <div className="flex items-baseline justify-center gap-2 sm:gap-6 md:gap-8">
+        <div className="flex items-baseline justify-center gap-2 sm:gap-6 md:gap-8 select-none">
           {/* DÍAS */}
-          <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
-            <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none">
+          <div className="flex flex-col items-center min-w-[56px] sm:min-w-[88px] md:min-w-[110px]">
+            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-white tabular-nums leading-none">
               {displayedDays}
             </span>
-            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
+            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-3 sm:mt-4">
               días
             </span>
           </div>
 
-          <span className="font-mono text-2xl sm:text-5xl md:text-6xl font-extralight text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
+          <span className="text-2xl sm:text-5xl md:text-6xl font-thin text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
             :
           </span>
 
           {/* HORAS */}
-          <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
-            <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none">
+          <div className="flex flex-col items-center min-w-[56px] sm:min-w-[88px] md:min-w-[110px]">
+            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-white tabular-nums leading-none">
               {String(displayedHours).padStart(2, '0')}
             </span>
-            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
+            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-3 sm:mt-4">
               horas
             </span>
           </div>
 
-          <span className="font-mono text-2xl sm:text-5xl md:text-6xl font-extralight text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
+          <span className="text-2xl sm:text-5xl md:text-6xl font-thin text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
             :
           </span>
 
           {/* MINUTOS */}
-          <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
-            <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none">
+          <div className="flex flex-col items-center min-w-[56px] sm:min-w-[88px] md:min-w-[110px]">
+            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-white tabular-nums leading-none">
               {String(displayedMinutes).padStart(2, '0')}
             </span>
-            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
+            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-3 sm:mt-4">
               min
             </span>
           </div>
 
-          <span className="font-mono text-2xl sm:text-5xl md:text-6xl font-extralight text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
+          <span className="text-2xl sm:text-5xl md:text-6xl font-thin text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
             :
           </span>
 
-          {/* SEGUNDOS - Sólido y limpio sin saltos raros */}
-          <div className="flex flex-col items-center min-w-[60px] sm:min-w-[90px] md:min-w-[110px]">
-            <span className="font-mono text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tighter text-white tabular-nums leading-none select-none">
+          {/* SEGUNDOS */}
+          <div className="flex flex-col items-center min-w-[56px] sm:min-w-[88px] md:min-w-[110px]">
+            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-white tabular-nums leading-none select-none">
               {String(displayedSeconds).padStart(2, '0')}
             </span>
-            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-2 sm:mt-3">
+            <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-3 sm:mt-4">
               seg
             </span>
-          </div>
-        </div>
-
-        {/* Línea de progreso ultra-fina (hairline) */}
-        <div className="w-full max-w-sm mt-12 sm:mt-16 space-y-2">
-          <div className="w-full h-px bg-neutral-800">
-            <div
-              className="h-px bg-neutral-400 transition-all duration-300 ease-out"
-              style={{ width: `${isSimulated ? 99 : timeLeft.progressPercent}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] font-mono text-neutral-600">
-            <span>Inicio</span>
-            <span>{isSimulated ? '99%' : `${timeLeft.progressPercent}%`}</span>
-            <span>Apertura</span>
           </div>
         </div>
       </main>
 
       {/* Pie minimalista */}
-      <footer className="w-full max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 pt-4 border-t border-neutral-900 text-[11px] text-neutral-500 font-mono select-none">
-        <div>
-          Desarrollado por JuanFe y David
-        </div>
-        <div
-          onClick={handleAulaClick}
-          className="cursor-default"
-        >
-          Aula: Ni puta idea
-        </div>
+      <footer className="w-full max-w-4xl mx-auto flex items-center justify-between pt-4 text-[11px] text-neutral-600 font-mono select-none">
+        <div>JuanFe & David</div>
+        <div>2º SMR</div>
       </footer>
 
-      {/* Modal secreto del Easter Egg */}
+      {/* Modal secreto del Easter Egg con estética Apple Sheet */}
       {showModal && (
         <div
           role="dialog"
@@ -683,21 +645,18 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
             setPassword('');
             setErrorMessage(null);
           }}
-          className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-150"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm bg-neutral-950 border border-neutral-800 rounded-xl p-5 text-left font-mono space-y-3.5 shadow-2xl relative"
+            className="w-full max-w-sm bg-neutral-950/90 border border-white/10 rounded-2xl p-6 text-left font-sans space-y-4 shadow-2xl backdrop-blur-2xl"
           >
-            <div className="flex items-center justify-between pb-1 border-b border-neutral-900">
-              <div>
-                <h3 className="text-xs font-semibold text-neutral-200 tracking-tight flex items-center gap-1.5">
-                  <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>EASTER_EGG: BYPASS</span>
+            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-neutral-400" />
+                <h3 className="text-xs font-semibold tracking-tight text-white">
+                  Acceso anticipado
                 </h3>
-                <p className="text-[10px] text-neutral-500 mt-0.5">
-                  Puerta trasera activada. Clave maestra requerida.
-                </p>
               </div>
               <button
                 type="button"
@@ -706,14 +665,14 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
                   setPassword('');
                   setErrorMessage(null);
                 }}
-                className="text-neutral-500 hover:text-neutral-300 text-xs p-1 cursor-pointer transition-colors"
+                className="text-neutral-500 hover:text-white transition-colors p-1"
                 title="Cerrar (Esc)"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handlePasswordSubmit} className="space-y-3 pt-1">
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -722,15 +681,15 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
                     setPassword(e.target.value);
                     if (errorMessage) setErrorMessage(null);
                   }}
-                  placeholder="introduce_clave..."
+                  placeholder="Clave de acceso..."
                   autoFocus
                   disabled={isLoading}
-                  className="w-full text-xs font-mono bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 pr-9 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                  className="w-full text-xs font-mono bg-white/[0.05] border border-white/10 rounded-xl px-3.5 py-2.5 pr-10 text-white placeholder-neutral-500 focus:outline-none focus:border-white/30 transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 p-1 cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white p-1"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -738,27 +697,26 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
               </div>
 
               {errorMessage && (
-                <p className="text-[11px] text-red-400 font-mono">
+                <p className="text-xs text-red-400 font-sans">
                   {errorMessage}
                 </p>
               )}
 
-              <div className="flex items-center justify-between pt-1 text-[10px] text-neutral-500">
-                <span className="hidden sm:inline">Pulsa ENTER para verificar</span>
+              <div className="flex items-center justify-end pt-1">
                 <button
                   type="submit"
                   disabled={isLoading || !password.trim()}
-                  className="px-3 py-1.5 bg-neutral-100 hover:bg-white text-black text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  className="w-full py-2.5 bg-white hover:bg-neutral-200 text-black text-xs font-semibold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 disabled:opacity-40"
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       <span>Validando...</span>
                     </>
                   ) : (
                     <>
                       <span>Entrar</span>
-                      <ArrowRight className="w-3 h-3" />
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </>
                   )}
                 </button>

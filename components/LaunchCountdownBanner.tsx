@@ -55,8 +55,8 @@ export const LaunchCountdownBanner: React.FC<LaunchCountdownBannerProps> = ({ co
   // Versión compacta para AuthGate u otros espacios reducidos
   if (compact) {
     return (
-      <div className="rounded-lg bg-surface border border-border/70 px-3 py-1.5 flex items-center justify-between text-xs select-none">
-        <span className="text-[11px] text-foreground-muted font-mono">Apertura (9 nov, 10:08):</span>
+      <div className="rounded-xl bg-surface/70 border border-border/50 px-3.5 py-1.5 flex items-center justify-between text-xs select-none backdrop-blur-md">
+        <span className="text-[11px] text-foreground-muted font-mono tracking-tight">Apertura · 9 nov, 10:08</span>
         <div className="flex items-center gap-1 font-mono text-[11px] text-foreground tabular-nums">
           <span>{timeLeft.days}d</span>
           <span className="text-foreground-subtle">:</span>
@@ -73,24 +73,21 @@ export const LaunchCountdownBanner: React.FC<LaunchCountdownBannerProps> = ({ co
   return (
     <div
       aria-label="Cuenta regresiva para la apertura del portal"
-      className="mx-3 sm:mx-0 rounded-xl bg-surface border border-border/70 px-4 py-2.5 select-none flex flex-col sm:flex-row items-center justify-between gap-2"
+      className="mx-3 sm:mx-0 rounded-xl bg-surface/60 border border-border/50 px-4 py-2 select-none flex items-center justify-between gap-3 backdrop-blur-md"
     >
-      <div className="text-xs text-foreground-muted font-mono">
-        Apertura: <span className="text-foreground font-sans font-medium">9 de noviembre · 10:08</span> · Aula: Ni puta idea
+      <div className="flex items-center gap-2 text-xs text-foreground-muted font-mono">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
+        <span>Apertura oficial · 9 de noviembre · 10:08</span>
       </div>
 
       <div className="flex items-center gap-1.5 font-mono text-xs tabular-nums text-foreground">
-        <span className="font-semibold">{timeLeft.days}</span>
-        <span className="text-[10px] text-foreground-muted">d</span>
-        <span className="text-foreground-subtle mx-0.5">:</span>
-        <span className="font-semibold">{String(timeLeft.hours).padStart(2, '0')}</span>
-        <span className="text-[10px] text-foreground-muted">h</span>
-        <span className="text-foreground-subtle mx-0.5">:</span>
-        <span className="font-semibold">{String(timeLeft.minutes).padStart(2, '0')}</span>
-        <span className="text-[10px] text-foreground-muted">m</span>
-        <span className="text-foreground-subtle mx-0.5">:</span>
-        <span className="font-semibold text-accent">{String(timeLeft.seconds).padStart(2, '0')}</span>
-        <span className="text-[10px] text-foreground-muted">s</span>
+        <span>{timeLeft.days}d</span>
+        <span className="text-foreground-subtle">:</span>
+        <span>{String(timeLeft.hours).padStart(2, '0')}h</span>
+        <span className="text-foreground-subtle">:</span>
+        <span>{String(timeLeft.minutes).padStart(2, '0')}m</span>
+        <span className="text-foreground-subtle">:</span>
+        <span className="text-foreground font-semibold">{String(timeLeft.seconds).padStart(2, '0')}s</span>
       </div>
     </div>
   );
