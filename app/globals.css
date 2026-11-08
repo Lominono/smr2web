@@ -73,16 +73,16 @@ html.dark {
 }
 
 html.light {
-  --background: #fbfbfd;
+  --background: #f5f5f7;
   --surface: #ffffff;
-  --surface-raised: #f4f4f6;
-  --surface-hover: #ececef;
-  --border: #e2e2e8;
-  --border-subtle: #eeeeef;
+  --surface-raised: #fbfbfd;
+  --surface-hover: #ebebee;
+  --border: #d2d2d7;
+  --border-subtle: #e5e5ea;
   --border-focus: #0071e3;
-  --foreground: #111113;
-  --foreground-muted: #57575d;
-  --foreground-subtle: #7e7e86;
+  --foreground: #1d1d1f;
+  --foreground-muted: #6e6e73;
+  --foreground-subtle: #86868b;
   --accent: #0071e3;
   --accent-hover: #0077ed;
   --accent-foreground: #ffffff;
@@ -91,6 +91,122 @@ html.light {
   --danger-subtle: rgba(255, 59, 48, 0.1);
   --success: #34c759;
   --success-subtle: rgba(52, 199, 89, 0.1);
+}
+
+/* ==========================================================================
+   SISTEMA DE MODO CLARO ESTILO APPLE (High Contrast, Crisp SF Hierarchy)
+   ========================================================================== */
+html.light body {
+  background-color: #f5f5f7 !important;
+  color: #1d1d1f !important;
+}
+
+/* Superficies y Tarjetas */
+html.light .bg-\[\#09090b\],
+html.light .bg-\[\#0c0c0e\],
+html.light .bg-\[\#121215\],
+html.light .bg-surface {
+  background-color: #ffffff !important;
+  color: #1d1d1f !important;
+  border-color: #e5e5ea !important;
+}
+
+html.light .bg-neutral-900,
+html.light .bg-neutral-900\/20,
+html.light .bg-neutral-900\/30,
+html.light .bg-neutral-900\/40,
+html.light .bg-neutral-900\/50,
+html.light .bg-neutral-900\/60,
+html.light .bg-neutral-900\/70,
+html.light .bg-neutral-900\/80,
+html.light .bg-neutral-900\/90,
+html.light .bg-neutral-950,
+html.light .bg-neutral-950\/40,
+html.light .bg-neutral-950\/60,
+html.light .bg-neutral-950\/70,
+html.light .bg-neutral-950\/80 {
+  background-color: #f2f2f7 !important;
+  color: #1d1d1f !important;
+}
+
+/* Bordes en Modo Claro */
+html.light .border-neutral-800,
+html.light .border-neutral-800\/60,
+html.light .border-neutral-800\/70,
+html.light .border-neutral-800\/80,
+html.light .border-neutral-800\/90,
+html.light .border-neutral-700,
+html.light .divide-neutral-800\/70,
+html.light .divide-neutral-800\/80 {
+  border-color: #e5e5ea !important;
+}
+
+/* Jerarquía de Tipografía Apple en Modo Claro */
+html.light .text-white,
+html.light .text-neutral-100,
+html.light .text-neutral-200 {
+  color: #1d1d1f !important;
+}
+
+html.light .text-neutral-300,
+html.light .text-neutral-400 {
+  color: #6e6e73 !important;
+}
+
+html.light .text-neutral-500,
+html.light .text-neutral-600 {
+  color: #86868b !important;
+}
+
+/* Entradas de Formulario y Textareas */
+html.light input:not([type="checkbox"]):not([type="radio"]),
+html.light textarea {
+  background-color: #ffffff !important;
+  color: #1d1d1f !important;
+  border-color: #d2d2d7 !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #86868b !important;
+}
+
+html.light input:focus,
+html.light textarea:focus {
+  background-color: #ffffff !important;
+  border-color: #0071e3 !important;
+}
+
+/* Botones Principales (en modo claro invierten a negro mate con texto blanco) */
+html.light button.bg-white,
+html.light .bg-white.text-black,
+html.light .bg-white.text-neutral-950 {
+  background-color: #1d1d1f !important;
+  color: #ffffff !important;
+  border-color: #1d1d1f !important;
+}
+
+html.light button.bg-white:hover,
+html.light .bg-white.text-black:hover,
+html.light .bg-white.text-neutral-950:hover {
+  background-color: #333336 !important;
+  color: #ffffff !important;
+}
+
+/* Segmented Control Activo en Modo Claro */
+html.light .bg-neutral-800.text-white {
+  background-color: #ffffff !important;
+  color: #1d1d1f !important;
+  border-color: #d2d2d7 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Modales y Paneles Flotantes */
+html.light [role="dialog"] > div.bg-\[\#09090b\],
+html.light [role="dialog"] > div.bg-neutral-950 {
+  background-color: #ffffff !important;
+  border-color: #e5e5ea !important;
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.12) !important;
 }
 
 @theme inline {

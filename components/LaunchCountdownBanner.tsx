@@ -56,7 +56,7 @@ export const LaunchCountdownBanner: React.FC<LaunchCountdownBannerProps> = ({ co
   if (compact) {
     return (
       <div className="rounded-lg bg-surface border border-border/70 px-3 py-1.5 flex items-center justify-between text-xs select-none">
-        <span className="text-[11px] text-foreground-muted font-mono">Apertura (9 nov, 10:00):</span>
+        <span className="text-[11px] text-foreground-muted font-mono">Apertura (9 nov, 10:08):</span>
         <div className="flex items-center gap-1 font-mono text-[11px] text-foreground tabular-nums">
           <span>{timeLeft.days}d</span>
           <span className="text-foreground-subtle">:</span>
@@ -76,7 +76,7 @@ export const LaunchCountdownBanner: React.FC<LaunchCountdownBannerProps> = ({ co
       className="mx-3 sm:mx-0 rounded-xl bg-surface border border-border/70 px-4 py-2.5 select-none flex flex-col sm:flex-row items-center justify-between gap-2"
     >
       <div className="text-xs text-foreground-muted font-mono">
-        Apertura: <span className="text-foreground font-sans font-medium">9 de noviembre · 10:00</span> · Aula: Ni puta idea
+        Apertura: <span className="text-foreground font-sans font-medium">9 de noviembre · 10:08</span> · Aula: Ni puta idea
       </div>
 
       <div className="flex items-center gap-1.5 font-mono text-xs tabular-nums text-foreground">

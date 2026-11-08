@@ -131,30 +131,63 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
     throw new Error('Las contraseñas no coinciden. Por favor, asegúrate de escribir la misma en ambos campos.');
   }
 
+  // 2. Registro a través del servidor para activar la cuenta sin enviar correo de confirmación
+  let serverProfile: UserProfile | null = null;
+  try {
+    const regRes = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: cleanUsername,
+        email: cleanEmail,
+        password: params.password,
+      }),
+    });
+
+    const regData = await regRes.json();
+    if (!regRes.ok || !regData.success) {
+      throw new Error(regData.error || 'Error al crear la cuenta en el servidor.');
+    }
+
+    if (regData.user) {
+      serverProfile = regData.user;
+    }
+  } catch (apiErr: any) {
+    if (
+      apiErr.message?.includes('ya está en uso') ||
+      apiErr.message?.includes('ya está ocupado') ||
+      apiErr.message?.includes('Ya existe una cuenta')
+    ) {
+      throw apiErr;
+    }
+    console.warn('Registro por servidor falló, intentando alternativa directa:', apiErr);
+  }
+
   const hasSupabase = isSupabaseConfigured();
   const supabase = createClient();
 
-  // 2. Try Supabase if configured
+  if (serverProfile) {
+    // Iniciar sesión inmediatamente en el cliente Supabase para obtener token de sesión
+    if (hasSupabase && supabase) {
+      try {
+        await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: params.password,
+        });
+      } catch {}
+    }
+
+    saveUserSession(serverProfile, rememberMe);
+    return {
+      success: true,
+      requiresEmailConfirmation: false,
+      user: serverProfile,
+    };
+  }
+
+  // 3. Fallback directo si la API no estuviera disponible
   if (hasSupabase && supabase) {
     try {
-      // Check username uniqueness in profiles before calling auth.signUp
-      try {
-        const { data: existingUser } = await supabase
-          .from('profiles')
-          .select('id')
-          .ilike('username', cleanUsername)
-          .maybeSingle();
-
-        if (existingUser) {
-          throw new Error(`El nombre de usuario "${cleanUsername}" ya está en uso. Por favor, elige otro.`);
-        }
-      } catch (checkErr: any) {
-        if (checkErr.message?.includes('ya está en uso')) {
-          throw checkErr;
-        }
-      }
-
-      // Perform auth sign up
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password: params.password,
@@ -163,47 +196,13 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
             username: cleanUsername,
             accepted_terms: true,
             accepted_terms_at: new Date().toISOString(),
-            accepted_terms_version: '2.6',
           },
         },
       });
 
-      if (signUpError) {
-        throw signUpError;
-      }
-
-      // Check Supabase silent duplicate check (identities array empty)
-      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-        throw new Error('Ya existe una cuenta con este correo electrónico. Por favor, inicia sesión.');
-      }
+      if (signUpError) throw signUpError;
 
       if (data.user) {
-        const role: 'admin' | 'delegado' | 'student' = 'student';
-
-        // Upsert profile in Supabase
-        try {
-          await supabase.from('profiles').upsert(
-            [
-              {
-                id: data.user.id,
-                username: cleanUsername,
-                nombre: cleanUsername,
-                email: cleanEmail,
-                coins: 1000,
-                puntos_total: 1000,
-                biggest_win: 0,
-                streak_count: 1,
-                racha_actual: 1,
-                role,
-                rol: 'alumno',
-              },
-            ],
-            { onConflict: 'id' }
-          );
-        } catch (upErr) {
-          console.warn('Profile upsert note:', upErr);
-        }
-
         const profile: UserProfile = {
           id: data.user.id,
           username: cleanUsername,
@@ -211,22 +210,11 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
           coins: 1000,
           biggest_win: 0,
           streak_count: 1,
-          role,
+          role: 'student',
           created_at: new Date().toISOString(),
           auth_provider: 'supabase',
         };
 
-        // Iniciar sesión automáticamente sin esperar confirmación de correo
-        if (!data.session) {
-          try {
-            await supabase.auth.signInWithPassword({
-              email: cleanEmail,
-              password: params.password,
-            });
-          } catch {}
-        }
-
-        // Full session active inmediatamente
         saveUserSession(profile, rememberMe);
         return {
           success: true,
@@ -242,7 +230,7 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
       ) {
         throw supErr;
       }
-      console.warn('Supabase sign-up error, falling back to local storage:', supErr);
+      console.warn('Supabase sign-up fallback error:', supErr);
     }
   }
 
@@ -309,34 +297,54 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
           password,
         });
 
+        let activeSessionUser = data.user;
+
         if (signInError) {
-          if (
-            signInError.message.includes('Invalid login credentials') ||
-            signInError.message.includes('invalid_grant')
-          ) {
-            throw new Error('Correo o contraseña incorrectos. Por favor, compruébalos e inténtalo de nuevo.');
-          }
           if (signInError.message.includes('Email not confirmed')) {
-            throw new Error(
-              'Tu correo electrónico aún no ha sido confirmado. Revisa tu bandeja de entrada o spam para activar tu cuenta.'
-            );
+            // Auto-confirmar la cuenta en el servidor al vuelo sin pedir confirmación de correo
+            try {
+              const confRes = await fetch('/api/auth/confirm-legacy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: targetEmail }),
+              });
+              const confData = await confRes.json();
+              if (confData?.confirmed) {
+                const retry = await supabase.auth.signInWithPassword({
+                  email: targetEmail,
+                  password,
+                });
+                if (!retry.error && retry.data.user) {
+                  activeSessionUser = retry.data.user;
+                }
+              }
+            } catch {}
           }
-          throw signInError;
+
+          if (!activeSessionUser) {
+            if (
+              signInError.message.includes('Invalid login credentials') ||
+              signInError.message.includes('invalid_grant')
+            ) {
+              throw new Error('Correo o contraseña incorrectos. Por favor, compruébalos e inténtalo de nuevo.');
+            }
+            throw signInError;
+          }
         }
 
-        if (data.user) {
+        if (activeSessionUser) {
           // Fetch existing profile data
           const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', data.user.id)
+            .eq('id', activeSessionUser.id)
             .maybeSingle();
 
           const username =
             profileData?.username ||
             (profileData?.nombre ? String(profileData.nombre).toLowerCase().replace(/\s+/g, '_') : null) ||
-            data.user.user_metadata?.username ||
-            data.user.email?.split('@')[0] ||
+            activeSessionUser.user_metadata?.username ||
+            activeSessionUser.email?.split('@')[0] ||
             cleanIdentifier;
 
           const role: 'admin' | 'delegado' | 'student' =
@@ -345,10 +353,10 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
               : (profileData?.rol === 'delegado' || profileData?.role === 'delegado' ? 'delegado' : 'student');
 
           const profile: UserProfile = {
-            id: data.user.id,
+            id: activeSessionUser.id,
             username,
             full_name: profileData?.full_name || profileData?.nombre || undefined,
-            email: data.user.email || targetEmail,
+            email: activeSessionUser.email || targetEmail,
             coins: Number(profileData?.coins ?? profileData?.puntos_total ?? 1000),
             biggest_win: Number(profileData?.biggest_win ?? 0),
             streak_count: Number(profileData?.streak_count ?? profileData?.racha_actual ?? 1),

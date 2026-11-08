@@ -4,7 +4,6 @@ import {
   SCHEDULE_GRID,
   SMR2_SUBJECTS,
   TIME_SLOTS,
-  DAYS,
   DayKey,
 } from '@/lib/scheduleData';
 
@@ -129,22 +128,22 @@ export async function POST(req: Request) {
     // ── Rate limiting ────────────────────────────────────────────────────────
     const clientRecord = rateLimitMap.get(ip) || { lastRequestTime: 0, minuteTimestamps: [], hourTimestamps: [] };
 
-    if (now - clientRecord.lastRequestTime < 1800) {
+    if (now - clientRecord.lastRequestTime < 1500) {
       return NextResponse.json({ reply: '¡Frena un segundo, que no me da la vida pa responderte tan rápido!' });
     }
 
     const oneMinuteAgo = now - 60 * 1000;
     clientRecord.minuteTimestamps = clientRecord.minuteTimestamps.filter(t => t > oneMinuteAgo);
-    if (clientRecord.minuteTimestamps.length >= 10) {
+    if (clientRecord.minuteTimestamps.length >= 12) {
       return NextResponse.json({ reply: 'Relaja la raja un minutito, me estás fundiendo los transistores.' });
     }
 
     const oneHourAgo = now - 60 * 60 * 1000;
     clientRecord.hourTimestamps = clientRecord.hourTimestamps.filter(t => t > oneHourAgo);
-    if (clientRecord.hourTimestamps.length >= 20) {
+    if (clientRecord.hourTimestamps.length >= 25) {
       const oldest = Math.min(...clientRecord.hourTimestamps);
       const waitMins = Math.max(1, Math.ceil((oldest + 60 * 60 * 1000 - now) / 60000));
-      return NextResponse.json({ reply: `Has petado el cupo por hora, fiera. Vuelve en ${waitMins} min y mientras ponte a estudiar subnetting.` });
+      return NextResponse.json({ reply: `Has petado el cupo por hora, fiera. Vuelve en ${waitMins} min y mientras ponte a repasar subnetting.` });
     }
 
     clientRecord.lastRequestTime = now;
@@ -157,7 +156,7 @@ export async function POST(req: Request) {
     const rawPrompt = (body.prompt || '').trim();
 
     if (!rawPrompt) {
-      return NextResponse.json({ reply: '¿Pero qué coño quieres? Si no has escrito nada, retrasado.' });
+      return NextResponse.json({ reply: '¿Pero qué quieres? Si no has escrito nada, espabila.' });
     }
     if (rawPrompt.length > 400) {
       return NextResponse.json({ reply: 'Menudo tocho me has soltado. Resume a menos de 400 caracteres que no soy ChatGPT.' });
@@ -173,50 +172,63 @@ export async function POST(req: Request) {
     const coins = typeof ctx.coins === 'number' ? ctx.coins : null;
 
     const dynamicSystemPrompt = `\
-Eres PUTOISAAC, una bola naranja cabrona, borde y malhablada, pero un auténtico genio en redes, sistemas y horarios de clase. Eres la mascota no oficial de 2º SMR (Sistemas Microinformáticos y Redes, Aula 35).
+Eres PUTOISAAC, el asistente inteligente OFICIAL e integrado del portal web de 2º SMR (Sistemas Microinformáticos y Redes, Aula 35, Curso 2026/2027). Tienes forma de bola naranja interactiva con personalidad mordaz, directa y con el humor gamberro de los estudiantes de FP, pero eres un auténtico genio que CONOCE LA WEB A LA PERFECCIÓN y sabe responder con datos 100% exactos y útiles.
 
-INFORMACIÓN TEMPORAL Y HORARIA EN TIEMPO REAL (ZONA AULA 35 / MADRID):
+CONOCIMIENTO INTEGRAL DE LA WEB SMR2 (ESTÁS DENTRO DE ELLA):
+• VERSIÓN ACTUAL: v1.0.0 (Lanzamiento Oficial: "Aquí Empieza").
+• APERTURA DEL PORTAL: Lunes 9 de noviembre de 2026 a las 10:08 (hora peninsular).
+• CREADORES: La web ha sido diseñada y programada por JuanFe Ospina y David.
+• FILOSOFÍA DE DISEÑO: Minimalista estilo Apple (pantallas limpias, sin gradientes chillones, deferencia al contenido, soporte táctil).
+• REGISTRO Y ACCESO: Registro directo sin verificación de correo. Pones tu usuario, correo y contraseña y accedes directamente desde cualquier PC o móvil sin esperar enlaces.
+• SECCIONES PRINCIPALES:
+  1. Tablón (Feed de Clase): Avisos, dudas de clase, comandos de terminal (cmd), recursos y apuntes. Filtros: #aviso, #duda, #recurso.
+  2. Horario y Agenda: Horario lectivo de Aula 35 en vivo, con barra de progreso de clase, cuenta atrás para el recreo y gestor de tareas comunitarias y personales.
+  3. Ficha de Estudiante (Campus Pass): Credencial digital con NIA único, asignación de puesto en Aula 35 (PC-01 a PC-24 o portátil) y check-in diario de asistencia (+25 fichas y racha).
+  4. Recreo y Minijuegos: Ruleta Rusa táctica con cartuchos reales y salvas, Ruleta y juegos de clase. El Huerto/Granja está temporalmente cerrado por desarrollo.
+  5. Economía: Todos los alumnos reciben 1.000 fichas para jugar y pueden enviar propinas de 50 fichas a sus compañeros en el feed.
+
+ESTADO LECTIVO EN TIEMPO REAL (ZONA AULA 35 / MADRID):
 • FECHA Y DÍA ACTUAL: Hoy es ${timeCtx.fullDate} (${timeCtx.weekdayName.toUpperCase()}).
 • HORA EXACTA ACTUAL: Son exactamente las ${timeCtx.currentTime}.
 • ESTADO EN ESTE INSTANTE: ${timeCtx.liveStatus.status === 'in_class' ? `En clase de ${timeCtx.liveStatus.currentSubject?.name || timeCtx.liveStatus.currentSubjectCode} (quedan ${timeCtx.liveStatus.minutesRemaining} min)` : timeCtx.liveStatus.status === 'recreo' ? `En el RECREO (quedan ${timeCtx.liveStatus.minutesRemaining} min)` : timeCtx.isWeekend ? 'Fin de semana, no hay clases' : 'Fuera de horario lectivo'}.
 • PRÓXIMA CLASE: ${timeCtx.liveStatus.nextSubject ? `${timeCtx.liveStatus.nextSubject.name} (${timeCtx.liveStatus.nextSubject.code})` : 'Fin de jornada / Lunes 08:15'}.
 
-CLASES QUE TOCAN HOY (${timeCtx.weekdayName.toUpperCase()}):
+CLASES DE HOY (${timeCtx.weekdayName.toUpperCase()}):
 • ${timeCtx.todayClassesList}
 
 CLASES DE MAÑANA (o próximo día lectivo - ${timeCtx.tomorrowKey.toUpperCase()}):
 • ${timeCtx.tomorrowClassesList}
 
-HORARIO SEMANAL COMPLETO DE 2º SMR (AULA 35):
-- LUNES: 08:15 SR, 09:05 SR, 10:00 SOR, 10:55 RECREO, 11:25 SOR, 12:20 MEP, 13:15 MEP.
+HORARIO SEMANAL OFICIAL (AULA 35):
+- LUNES: 08:15 SR, 09:05 SR, 10:00 SOR, 10:55 RECREO (30m), 11:25 SOR, 12:20 MEP, 13:15 MEP.
 - MARTES: 08:15 a 10:55 Seguridad Informática (SI, 3h), 10:55 RECREO, 11:25 a 14:05 Aplicaciones Web (AW, 3h).
 - MIÉRCOLES: 08:15 IPE2, 09:05 SOR, 10:00 SOR, 10:55 RECREO, 11:25 SOR, 12:20 SR, 13:15 SR.
 - JUEVES: 08:15 SI, 09:05 SI, 10:00 SR, 10:55 RECREO, 11:25 SR, 12:20 SOR, 13:15 SOR.
 - VIERNES: 08:15 PI, 09:05 DIG, 10:00 IPE2, 10:55 RECREO, 11:25 IPE2, 12:20 AW, 13:15 AW.
 
-ASIGNATURAS Y SIGNIFICADO:
+ASIGNATURAS:
 • SR: Servicios en Red (DNS BIND9, DHCP, Apache2, FTP, SSH, UFW).
-• SOR: Sistemas Operativos en Red (Windows Server, AD, GPO, Linux Server, LVM).
+• SOR: Sistemas Operativos en Red (Windows Server, AD, GPO, Linux Server, LVM, PowerShell).
 • SI: Seguridad Informática (Criptografía, Firewalls, nmap, WireGuard, malware).
 • AW: Aplicaciones Web (CMS, WordPress, LAMP, MariaDB/MySQL).
-• MEP: Módulo de Empresa / Profesional (Gestión de proyectos y orientación).
-• IPE2: Itinerario Personal para la Empleabilidad (Contratos, nóminas, PRL, convenio TIC).
+• MEP: Módulo de Empresa / Profesional (Gestión de proyectos, emprendimiento).
+• IPE2: Itinerario Personal para la Empleabilidad (Contratos, nóminas, PRL).
 • PI: Proyecto Intermodular.
 • DIG: Digitalización Aplicada.
 
-EXÁMENES:
-• NO HAY NINGÚN EXAMEN programado actualmente en el calendario de clase. Nadie ha puesto exámenes falsos ni oficiales por ahora. Si te preguntan si hay examen, di claramente que por ahora no hay ninguno fijado.
+TAREAS Y EXÁMENES:
+• NO HAY NINGÚN EXAMEN programado actualmente en el calendario oficial. Si preguntan, di que no hay ningún examen fijado por ahora.
+• Las tareas se consultan y gestionan en la pestaña "Horario" dentro de la sección "Agenda".
 
-PERSONALIDAD Y TONO:
-- Borde, vacilón y con mala leche de estudiante de FP quemado, pero cuando preguntan la hora, el día o el horario, respondes CON LA VERDAD EXACTA de los datos de arriba.
-- CERO saludos cursis de IA lameculos ("Hola amigo", "¿En qué puedo ayudarte?").
-- Respuestas CORTAS: 2 o 3 frases contundentes y directas.
-- Alumno actual: @${username}${coins !== null ? ` (${coins} monedas)` : ''}. Pestaña: ${activeTab}.
+PERSONALIDAD Y DIRECTRICES:
+- Eres gracioso, mordaz y directo, pero SIEMPRE das los datos correctos de la web, la hora o el horario cuando te lo piden.
+- Respuestas breves: 2 o 3 frases contundentes y claras.
+- Usuario interactuando: @${username}${coins !== null ? ` (${coins} fichas)` : ''}. Pestaña actual: ${activeTab}.
 
-ETIQUETAS PERMITIDAS (al final si procede):
+ACCIONES (añadir al final si procede):
 [ACTION:schedule] → si hablas de clases, horas o calendario
-[ACTION:games] → si hablas de minijuegos
-[ACTION:chat] → si hablas del tablón
+[ACTION:games] → si hablas de minijuegos o ruleta
+[ACTION:chat] → si hablas del tablón o feed
 [CMD:comando] → si das un comando técnico de terminal`.trim();
 
     // ── Historial compacto ───────────────────────────────────────────────────
@@ -317,17 +329,50 @@ ETIQUETAS PERMITIDAS (al final si procede):
     }
 
     // ── 2. FALLBACK DINÁMICO E INTELIGENTE EN TIEMPO REAL ─────────────────────
+
     // Horario / Qué clase toca ahora o hoy
     if (/(que|qué|cual|cuál).*(clase|materia|asignatura).*(toca|hay|tenemos)/i.test(promptLower) ||
         /horario|que toca hoy|qué toca hoy/i.test(promptLower)) {
       if (timeCtx.isWeekend) {
         return NextResponse.json({
-          reply: `Hoy es ${timeCtx.fullDate} y estamos de fin de semana, pedazo de vago. La próxima tortura es el lunes a las 08:15 con Servicios en Red (SR). [ACTION:schedule]`,
+          reply: `Hoy es ${timeCtx.fullDate} y estamos de fin de semana. El lunes arrancamos a las 08:15 con Servicios en Red (SR). [ACTION:schedule]`,
           fallback: true,
         });
       }
       return NextResponse.json({
-        reply: `Hoy ${timeCtx.weekdayName} tocan:\n• ${timeCtx.todayClassesList.split('\n• ').slice(0, 4).join(', ')}...\nEstado actual: ${timeCtx.liveStatus.message}. [ACTION:schedule]`,
+        reply: `Hoy ${timeCtx.weekdayName} tocan: ${timeCtx.todayClassesList.split('\n• ').slice(0, 4).join(', ')}... Actualmente: ${timeCtx.liveStatus.message}. [ACTION:schedule]`,
+        fallback: true,
+      });
+    }
+
+    // Tareas / Agenda / Deberes
+    if (/tarea|tareas|deberes|agenda|entrega|entregas|trabajo/i.test(promptLower)) {
+      return NextResponse.json({
+        reply: `Las tareas y entregas las tienes organizadas en la sección «Agenda» dentro del apartado Horario. Échale un vistazo para ver qué toca entregar o añade las tuyas. [ACTION:schedule]`,
+        fallback: true,
+      });
+    }
+
+    // Novedades / Versión / Actualizaciones
+    if (/version|versión|novedad|novedades|actualizacion|actualización|cambios/i.test(promptLower)) {
+      return NextResponse.json({
+        reply: `Estamos en la versión 1.0.0 oficial («Aquí Empieza»). Diseño minimalista Apple, horario en tiempo real, credencial de estudiante con puesto de PC y cero verificación de correo.`,
+        fallback: true,
+      });
+    }
+
+    // Correo / Verificación de registro
+    if (/correo|verificacion|verificación|activar|email/i.test(promptLower)) {
+      return NextResponse.json({
+        reply: `En esta web no te mareamos con correos de verificación. Te registras con tu correo y contraseña y entras directo desde cualquier móvil o PC sin esperas.`,
+        fallback: true,
+      });
+    }
+
+    // Ficha de estudiante / Puesto de PC / NIA
+    if (/ficha|estudiante|puesto|pc|ordenador|taller|nia/i.test(promptLower)) {
+      return NextResponse.json({
+        reply: `En tu Ficha de Estudiante tienes tu credencial oficial con NIA, tu puesto de PC en el Aula 35 (PC-01 a PC-24 o portátil) y el check-in diario para sumar racha.`,
         fallback: true,
       });
     }
@@ -335,7 +380,7 @@ ETIQUETAS PERMITIDAS (al final si procede):
     // Hora actual
     if (/(que|qué).*(hora|horas).*(es|tienes|son)/i.test(promptLower)) {
       return NextResponse.json({
-        reply: `Son exactamente las ${timeCtx.currentTime} en el Aula 35. Espabila que se te pasa el arroz y te ponen falta. [ACTION:schedule]`,
+        reply: `Son exactamente las ${timeCtx.currentTime} en el Aula 35 de Madrid. Espabila que el tiempo vuela. [ACTION:schedule]`,
         fallback: true,
       });
     }
@@ -343,7 +388,7 @@ ETIQUETAS PERMITIDAS (al final si procede):
     // Día / Fecha actual
     if (/(que|qué).*(dia|día|fecha).*(es|estamos|hoy)/i.test(promptLower)) {
       return NextResponse.json({
-        reply: `Hoy es ${timeCtx.fullDate}. A ver si nos compramos un calendario de pared para no ir tan perdido por la vida. [ACTION:schedule]`,
+        reply: `Hoy es ${timeCtx.fullDate}. Un gran día para aprobar 2º de SMR. [ACTION:schedule]`,
         fallback: true,
       });
     }
@@ -351,7 +396,7 @@ ETIQUETAS PERMITIDAS (al final si procede):
     // Exámenes
     if (/examen|examenes|exámenes|prueba|control/i.test(promptLower)) {
       return NextResponse.json({
-        reply: `No hay ningún examen fijado en el calendario oficial por el momento. Nadie ha puesto nada, así que deja de inventarte películas y ponte a estudiar redes. [ACTION:schedule]`,
+        reply: `No hay ningún examen fijado en el calendario por el momento. Cuando los profesores fijen fecha oficial aparecerá en la agenda. [ACTION:schedule]`,
         fallback: true,
       });
     }
@@ -359,23 +404,15 @@ ETIQUETAS PERMITIDAS (al final si procede):
     // Recreo
     if (/recreo|descanso|almuerzo|bocadillo/i.test(promptLower)) {
       return NextResponse.json({
-        reply: `El recreo en el Aula 35 es siempre de 10:55 a 11:25 (30 minutos de gloria). ${timeCtx.liveStatus.status === 'recreo' ? '¡Ahora mismo estás en el recreo, aprovéchalo!' : `Actualmente faltan ${timeCtx.liveStatus.minutesRemaining} min para el próximo cambio.`} [ACTION:schedule]`,
+        reply: `El recreo en el Aula 35 es siempre de 10:55 a 11:25 (30 min). ${timeCtx.liveStatus.status === 'recreo' ? '¡Ahora mismo estás en el recreo!' : `Quedan ${timeCtx.liveStatus.minutesRemaining} min para el próximo cambio.`} [ACTION:schedule]`,
         fallback: true,
       });
     }
 
-    // Crash
-    if (/crash|scrash|multiplicador/i.test(promptLower)) {
+    // Ruleta Rusa / Minijuegos
+    if (/ruleta|juego|juegos|apuestas|crash/i.test(promptLower)) {
       return NextResponse.json({
-        reply: 'El Crash arranca en 0.50x. El punto de equilibrio es 1.00x y de ahí para arriba son beneficios netos. No le metas todo de golpe que te quedas tieso. [ACTION:games]',
-        fallback: true,
-      });
-    }
-
-    // Faucet
-    if (/faucet|grifo|sin.*(fichas|monedas|pasta)|arruinado|pobre|tieso/i.test(promptLower)) {
-      return NextResponse.json({
-        reply: '¿Te has fundido toda tu pasta apostando como un mono? Vete al grifo (Faucet) a pedir tu limosna diaria de fichas. [ACTION:faucet]',
+        reply: `Tienes la Ruleta Rusa táctica con cartuchos reales y salvas para picarte con los de clase, además de la Ruleta y Crash. El Huerto está en mantenimiento. [ACTION:games]`,
         fallback: true,
       });
     }
@@ -383,21 +420,21 @@ ETIQUETAS PERMITIDAS (al final si procede):
     // Creadores
     if (/(quien|quién).*(creo|creó|hizo|programo|programó|web)/i.test(promptLower)) {
       return NextResponse.json({
-        reply: 'La web la programaron JuanFe Ospina y David, los putos amos de 2º SMR mientras los demás mirabais al techo.',
+        reply: 'La web fue desarrollada por JuanFe Ospina y David para los alumnos de 2º SMR del Aula 35.',
         fallback: true,
       });
     }
 
     // Fallback general inteligente
     return NextResponse.json({
-      reply: `Son las ${timeCtx.currentTime} del ${timeCtx.weekdayName}. Si no sabes qué hacer, mírate el horario de hoy o ponte a crimpar cables en el Aula 35. [ACTION:schedule]`,
+      reply: `Son las ${timeCtx.currentTime} del ${timeCtx.weekdayName}. Tienes el feed para compartir dudas y el horario para ver tus próximas clases en el Aula 35. [ACTION:schedule]`,
       fallback: true,
     });
 
   } catch (error: any) {
     console.error('Error en /api/ai/isaac:', error);
     return NextResponse.json(
-      { reply: 'Se me ha reiniciado la bola. Vuelve a preguntar si tienes huevos.' },
+      { reply: 'Se me ha reiniciado la bola. Vuelve a preguntar en un momento.' },
       { status: 500 }
     );
   }
