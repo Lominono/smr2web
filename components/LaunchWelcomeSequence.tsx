@@ -78,14 +78,14 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
   return (
     <div
       onClick={handleUserTap}
-      className={`fixed inset-0 z-[9999] flex flex-col justify-between items-center bg-[#09090b] text-neutral-100 p-6 sm:p-10 select-none overflow-hidden transition-all duration-400 ease-out cursor-pointer antialiased ${
+      className={`fixed inset-0 z-[9999] flex flex-col justify-between items-center bg-[#f5f5f7] dark:bg-[#09090b] text-neutral-900 dark:text-neutral-100 p-6 sm:p-10 select-none overflow-hidden transition-all duration-500 ease-out cursor-pointer antialiased ${
         isExiting ? 'opacity-0 scale-95 blur-xs pointer-events-none' : 'animate-in fade-in duration-300'
       }`}
     >
       {/* 1. Encabezado sobrio y minimalista */}
       <header className="w-full max-w-2xl mx-auto flex items-center justify-between relative z-10 pt-2 select-none">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 p-1.5 flex items-center justify-center shadow-sm">
+          <div className="w-8 h-8 rounded-lg bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-1.5 flex items-center justify-center shadow-xs">
             <Image
               src="/logo.png"
               alt="SMR2 Logo"
@@ -96,7 +96,7 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
             />
           </div>
           <div>
-            <div className="text-xs font-semibold tracking-tight text-neutral-200">
+            <div className="text-xs font-semibold tracking-tight text-neutral-900 dark:text-neutral-200">
               2º SMR
             </div>
             <div className="text-[10px] text-neutral-500 font-mono">
@@ -106,7 +106,7 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
         </div>
 
         {/* Indicador de estado sobrio */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/60 backdrop-blur-md px-3 py-1 text-[10px] font-mono text-neutral-400">
+        <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 backdrop-blur-md px-3 py-1 text-[10px] font-mono text-neutral-600 dark:text-neutral-400">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           <span className="tracking-widest uppercase">Portal Activo</span>
         </div>
@@ -144,7 +144,7 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
       </main>
 
       {/* 3. Pie Editorial Minimalista */}
-      <footer className="w-full max-w-2xl mx-auto flex items-center justify-between pt-4 border-t border-neutral-900 text-[11px] text-neutral-500 font-mono select-none">
+      <footer className="w-full max-w-2xl mx-auto flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-900 text-[11px] text-neutral-500 font-mono select-none">
         <span>Desarrollado por JuanFe y David</span>
         <span className="text-neutral-600">Cargando sistema...</span>
       </footer>

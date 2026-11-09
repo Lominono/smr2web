@@ -493,7 +493,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex flex-col justify-between bg-black text-white p-6 sm:p-10 md:p-14 select-none overflow-y-auto antialiased transition-all duration-500 ease-out ${
+      className={`fixed inset-0 z-[9999] flex flex-col justify-between bg-[#f5f5f7] dark:bg-black text-neutral-900 dark:text-white p-6 sm:p-10 md:p-14 select-none overflow-y-auto antialiased transition-all duration-500 ease-out ${
         isTransitioningToWelcome ? 'opacity-0 scale-[0.98]' : 'opacity-100 scale-100'
       }`}
     >
@@ -503,7 +503,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
       {showIntro && (
         <div
           onClick={handleSkipIntro}
-          className={`fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-black p-6 cursor-pointer transition-opacity duration-500 ease-out ${
+          className={`fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-[#f5f5f7] dark:bg-black p-6 cursor-pointer transition-opacity duration-500 ease-out ${
             introFading ? 'opacity-0 pointer-events-none' : 'opacity-100'
           }`}
         >
@@ -519,7 +519,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
               />
             </div>
 
-            <h1 className="text-4xl sm:text-6xl font-light tracking-tight text-white">
+            <h1 className="text-4xl sm:text-6xl font-light tracking-tight text-neutral-900 dark:text-white">
               2º SMR
             </h1>
 
@@ -551,14 +551,14 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
               priority
             />
           </div>
-          <span className="text-xs font-semibold tracking-tight text-white/90">
+          <span className="text-xs font-semibold tracking-tight text-neutral-900 dark:text-white/90">
             2º SMR
           </span>
         </div>
 
         <div
           onClick={handleAulaClick}
-          className="text-[11px] font-mono tracking-wider text-neutral-500 hover:text-neutral-300 cursor-default transition-colors"
+          className="text-[11px] font-mono tracking-wider text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 cursor-default transition-colors"
           title="Aula"
         >
           Aula: Ni puta idea
@@ -568,7 +568,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
       {/* Núcleo cronométrico puramente minimalista */}
       <main className="w-full max-w-3xl mx-auto my-auto py-12 sm:py-20 flex flex-col items-center text-center relative z-10">
         <div className="mb-8 sm:mb-14">
-          <p className="text-xs sm:text-sm font-mono tracking-[0.2em] uppercase text-neutral-400">
+          <p className="text-xs sm:text-sm font-mono tracking-[0.2em] uppercase text-neutral-500 dark:text-neutral-400">
             Apertura oficial · 9 de noviembre · 09:20
           </p>
         </div>
@@ -577,7 +577,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
         <div className="flex items-baseline justify-center gap-2 sm:gap-6 md:gap-8 select-none">
           {/* DÍAS */}
           <div className="flex flex-col items-center min-w-[56px] sm:min-w-[88px] md:min-w-[110px]">
-            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-white tabular-nums leading-none">
+            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
               {displayedDays}
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-3 sm:mt-4">
@@ -585,13 +585,13 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
             </span>
           </div>
 
-          <span className="text-2xl sm:text-5xl md:text-6xl font-thin text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
+          <span className="text-2xl sm:text-5xl md:text-6xl font-thin text-neutral-300 dark:text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
             :
           </span>
 
           {/* HORAS */}
           <div className="flex flex-col items-center min-w-[56px] sm:min-w-[88px] md:min-w-[110px]">
-            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-white tabular-nums leading-none">
+            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
               {String(displayedHours).padStart(2, '0')}
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-3 sm:mt-4">
@@ -599,13 +599,13 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
             </span>
           </div>
 
-          <span className="text-2xl sm:text-5xl md:text-6xl font-thin text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
+          <span className="text-2xl sm:text-5xl md:text-6xl font-thin text-neutral-300 dark:text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
             :
           </span>
 
           {/* MINUTOS */}
           <div className="flex flex-col items-center min-w-[56px] sm:min-w-[88px] md:min-w-[110px]">
-            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-white tabular-nums leading-none">
+            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
               {String(displayedMinutes).padStart(2, '0')}
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-3 sm:mt-4">
@@ -613,13 +613,13 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
             </span>
           </div>
 
-          <span className="text-2xl sm:text-5xl md:text-6xl font-thin text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
+          <span className="text-2xl sm:text-5xl md:text-6xl font-thin text-neutral-300 dark:text-neutral-700 self-center -translate-y-2 sm:-translate-y-3 select-none">
             :
           </span>
 
           {/* SEGUNDOS */}
           <div className="flex flex-col items-center min-w-[56px] sm:min-w-[88px] md:min-w-[110px]">
-            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-white tabular-nums leading-none select-none">
+            <span className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none select-none">
               {String(displayedSeconds).padStart(2, '0')}
             </span>
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mt-3 sm:mt-4">
@@ -649,12 +649,12 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm bg-neutral-950/90 border border-white/10 rounded-2xl p-6 text-left font-sans space-y-4 shadow-2xl backdrop-blur-2xl"
+            className="w-full max-w-sm bg-white/95 dark:bg-neutral-950/90 border border-neutral-200/80 dark:border-white/10 rounded-2xl p-6 text-left font-sans space-y-4 shadow-2xl backdrop-blur-2xl"
           >
-            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-200/60 dark:border-white/5">
               <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-neutral-400" />
-                <h3 className="text-xs font-semibold tracking-tight text-white">
+                <Terminal className="w-4 h-4 text-neutral-500 dark:text-neutral-400" />
+                <h3 className="text-xs font-semibold tracking-tight text-neutral-900 dark:text-white">
                   Acceso anticipado
                 </h3>
               </div>
@@ -665,7 +665,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
                   setPassword('');
                   setErrorMessage(null);
                 }}
-                className="text-neutral-500 hover:text-white transition-colors p-1"
+                className="text-neutral-400 hover:text-neutral-900 dark:text-neutral-500 dark:hover:text-white transition-colors p-1"
                 title="Cerrar (Esc)"
               >
                 <X className="w-4 h-4" />
@@ -684,7 +684,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
                   placeholder="Clave de acceso..."
                   autoFocus
                   disabled={isLoading}
-                  className="w-full text-xs font-mono bg-white/[0.05] border border-white/10 rounded-xl px-3.5 py-2.5 pr-10 text-white placeholder-neutral-500 focus:outline-none focus:border-white/30 transition-colors"
+                  className="w-full text-xs font-mono bg-neutral-100/80 dark:bg-white/[0.05] border border-neutral-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 pr-10 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-neutral-400 dark:focus:border-white/30 transition-colors"
                 />
                 <button
                   type="button"

@@ -1790,23 +1790,7 @@ export default function Home() {
   // Web cerrada con cuenta regresiva en GRANDE, bienvenida o carga épica Mac
   if (currentEffectiveState === 'countdown' || currentEffectiveState === 'welcome' || currentEffectiveState === 'loading') {
     return (
-      <div className="relative min-h-[100dvh] bg-black">
-        {/* AuthGate montado de fondo para que el desvanecimiento suave del Easter Egg revele fluidamente el inicio de sesión */}
-        {!user && (
-          <AuthGate
-            onAuthSuccess={(profile) => {
-              setUser(profile);
-              fetchMessages();
-              fetchLeaderboard();
-              fetchCalendarEvents();
-              setIsWindowsWelcomeOpen(true);
-              if (devLaunchState) {
-                setDevLaunchState('app');
-              }
-            }}
-            supabaseConfigured={supabaseConfigured}
-          />
-        )}
+      <>
         <LaunchCountdownGate
           key={devWelcomeKey}
           forceWelcome={currentEffectiveState === 'welcome'}
@@ -1845,7 +1829,7 @@ export default function Home() {
           speedMultiplier={devSpeedMultiplier}
           onSetSpeed={setDevSpeedMultiplier}
         />
-      </div>
+      </>
     );
   }
 
