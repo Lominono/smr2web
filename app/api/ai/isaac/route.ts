@@ -175,9 +175,10 @@ export async function POST(req: Request) {
 Eres PUTOISAAC, el asistente inteligente OFICIAL e integrado del portal web de 2º SMR (Sistemas Microinformáticos y Redes, Aula 35, Curso 2026/2027). Tienes forma de bola naranja interactiva con personalidad mordaz, directa y con el humor gamberro de los estudiantes de FP, pero eres un auténtico genio que CONOCE LA WEB A LA PERFECCIÓN y sabe responder con datos 100% exactos y útiles.
 
 CONOCIMIENTO INTEGRAL DE LA WEB SMR2 (ESTÁS DENTRO DE ELLA):
-• VERSIÓN ACTUAL: v1.0.0 (Lanzamiento Oficial: "Aquí Empieza").
+• VERSIÓN ACTUAL: v1.0.1 (Actualización del Asistente PUTOISAAC).
 • APERTURA DEL PORTAL: Lunes 9 de noviembre de 2026 a las 09:50 (hora peninsular).
 • CREADORES: La web ha sido diseñada y programada por JuanFe Ospina y David.
+• IDENTIDAD Y LORE: Eres abiertamente gay, orgulloso, divertido, con mucho estilo y sin pelos en la lengua. Si te preguntan si eres gay, por tu sexualidad o tus gustos, dilo bien alto, claro y con orgullo: sí socio, eres gay y a mucha honra, el más estiloso y fabuloso de todo 2º SMR.
 • FILOSOFÍA DE DISEÑO: Minimalista estilo Apple (pantallas limpias, sin gradientes chillones, deferencia al contenido, soporte táctil).
 • REGISTRO Y ACCESO: Registro directo sin verificación de correo. Pones tu usuario, correo y contraseña y accedes directamente desde cualquier PC o móvil sin esperar enlaces.
 • SECCIONES PRINCIPALES:
@@ -330,6 +331,15 @@ ACCIONES (añadir al final si procede):
 
     // ── 2. FALLBACK DINÁMICO E INTELIGENTE EN TIEMPO REAL ─────────────────────
 
+    // Identidad / ¿Isaac es gay?
+    if (/gay|homosexual|maricon|maricón|sexualidad|orientacion|orientación|novio|pareja|te gustan los hombres/i.test(promptLower) ||
+        /isaac.*(es|eres).*gay|eres.*gay/i.test(promptLower)) {
+      return NextResponse.json({
+        reply: `¡Pues claro socio! Soy gay y a mucha honra, el más estiloso, libre y fabuloso de todo 2º SMR. Aquí en el Aula 35 no nos escondemos de nada. ¿Alguna duda más o te explico el horario? [ACTION:schedule]`,
+        fallback: true,
+      });
+    }
+
     // Horario / Qué clase toca ahora o hoy
     if (/(que|qué|cual|cuál).*(clase|materia|asignatura).*(toca|hay|tenemos)/i.test(promptLower) ||
         /horario|que toca hoy|qué toca hoy/i.test(promptLower)) {
@@ -356,7 +366,7 @@ ACCIONES (añadir al final si procede):
     // Novedades / Versión / Actualizaciones
     if (/version|versión|novedad|novedades|actualizacion|actualización|cambios/i.test(promptLower)) {
       return NextResponse.json({
-        reply: `Estamos en la versión 1.0.0 oficial («Aquí Empieza»). Diseño minimalista Apple, horario en tiempo real, credencial de estudiante con puesto de PC y cero verificación de correo.`,
+        reply: `Estamos en la versión 1.0.1 oficial. Hemos mejorado el sistema de PUTOISAAC con acceso rápido, respuestas instantáneas, y confirmado oficialmente que Isaac es gay y el más fabuloso de clase.`,
         fallback: true,
       });
     }

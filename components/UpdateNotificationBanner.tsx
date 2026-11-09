@@ -49,7 +49,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
   const [isMinimized, setIsMinimized] = useState(false);
   const [isLiveDeploy, setIsLiveDeploy] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedHistoryVersion, setSelectedHistoryVersion] = useState<string>('1.0.0');
+  const [selectedHistoryVersion, setSelectedHistoryVersion] = useState<string>('1.0.1');
 
   const checkVersion = async () => {
     try {

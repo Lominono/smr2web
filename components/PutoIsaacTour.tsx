@@ -63,6 +63,7 @@ const RANDOM_TIPS = [
   'El Crash arranca en 0.50x. Si eres un cagón cobras en 0.70x, pero el equilibrio es 1.00x. No seas ludópata. [ACTION:games]',
   'Ponte a estudiar subnetting que luego vienen los lloros en el examen de redes. [CMD:ipcalc 192.168.1.0/24]',
   'Si tus colegas compran Kebab Amigo a saco, el precio sube en directo para todos. [ACTION:investments]',
+  'Por si te quedaba alguna duda en clase: sí socio, soy gay y a mucha honra, el más estiloso de todo 2º SMR.',
   'Guarda siempre con Ctrl+S en los PCs del aula 35, que luego se va la luz y a llorar.',
   'En la Ruleta Rusa: si usas el Multímetro y sale salva, ¡dispárate a ti mismo para conservar el turno, espabila! [ACTION:games]',
   '¿Te has quedado sin fichas por apostar como un mono? Reclama en el grifo diario antes de llorar en el tablón. [ACTION:faucet]',
@@ -684,15 +685,31 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
     const norm = prompt.toLowerCase();
 
-    // 1. Filtro estricto de seguridad: Burlarse de quien pida claves o el Easter Egg
+    // 1. Lore / Identidad de Isaac: abiertamente gay y orgulloso
+    if (
+      norm.includes('gay') ||
+      norm.includes('homosexual') ||
+      norm.includes('maricon') ||
+      norm.includes('maricón') ||
+      norm.includes('sexualidad') ||
+      norm.includes('orientacion') ||
+      norm.includes('orientación') ||
+      norm.includes('novio')
+    ) {
+      const reply = '¡Pues claro socio! Soy gay y a mucha honra, el más estiloso, libre y fabuloso de todo 2º SMR. ¿Alguna duda más o te explico el horario de clase? [ACTION:schedule]';
+      setIdleMessage(reply);
+      setIsIdleChat(true);
+      startTypewriter(reply, `gay_${Date.now()}`);
+      return;
+    }
+
+    // 2. Filtro estricto de seguridad: Burlarse de quien pida claves o accesos privilegiados
     if (
       norm.includes('contraseña') ||
       norm.includes('clave') ||
       norm.includes('password') ||
       norm.includes('prelaunch') ||
-      norm.includes('easter egg') ||
-      norm.includes('secreto') ||
-      norm.includes('davidgay')
+      norm.includes('secreto')
     ) {
       const reply = '¿Qué te crees, que te voy a regalar los accesos del sistema por la cara? Espabila y búscate la vida, que para ser hacker hay que tener cerebro y no pedirlo todo masticado, pedazo de vago.';
       setIdleMessage(reply);
@@ -701,7 +718,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
       return;
     }
 
-    // 2. Comprobación estricta de cuota POR HORA antes de llamar a la IA
+    // 3. Comprobación estricta de cuota POR HORA antes de llamar a la IA
     const currentQuota = getHourlyQuotaInfo();
     if (currentQuota.isBlocked) {
       const quotaMsg = `Has fundido tu cupo de ${currentQuota.total} preguntas por hora, pesao. Vuelve en ${currentQuota.minutesUntilReset} min. Atiende a clase mientras tanto.`;
@@ -1084,11 +1101,42 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      executeAssistantPrompt('¿Cómo funciona el minijuego Crash?');
+                      executeAssistantPrompt('¿Qué clase toca ahora?');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-amber-400/40 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
+                  >
+                    ¿Qué clase toca?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      executeAssistantPrompt('¿Isaac es gay?');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 text-[10.5px] font-mono text-pink-300 hover:text-white transition-all cursor-pointer select-none active:scale-95 flex items-center gap-1"
+                  >
+                    <span>🌈</span>
+                    <span>¿Isaac es gay?</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      executeAssistantPrompt('¿Cuánto queda para el recreo?');
                     }}
                     className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
-                    Estrategia Crash 0.5x
+                    Recreo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      executeAssistantPrompt('¿Hay algún examen fijado?');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
+                  >
+                    ¿Hay exámenes?
                   </button>
                   <button
                     type="button"
@@ -1098,27 +1146,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                     }}
                     className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
-                    Objetos Ruleta
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      executeAssistantPrompt('¿Qué clase toca ahora?');
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
-                  >
-                    ¿Qué clase toca?
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      executeAssistantPrompt('Subnetting /27');
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
-                  >
-                    Subnetting /27
+                    Ruleta Rusa
                   </button>
                   <button
                     type="button"
@@ -1134,31 +1162,11 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      executeAssistantPrompt('Estoy sin fichas, ¿dónde pido monedas?');
+                      executeAssistantPrompt('Novedades versión 1.0.1');
                     }}
                     className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
-                    Estoy sin fichas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      executeAssistantPrompt('Ver ranking de la clase');
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
-                  >
-                    Ranking clase
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      executeAssistantPrompt('Novedades versión 2.9.0');
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
-                  >
-                    Novedades v2.9.0
+                    Novedades v1.0.1
                   </button>
                 </div>
               )}
@@ -1177,7 +1185,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                           ? `Recarga en ${hourlyQuota.minutesUntilReset} min...`
                           : cooldown > 0
                           ? `Espera ${cooldown}s...`
-                          : 'Escribe a PUTOISAAC o pide ayuda...'
+                          : 'Pregunta a PUTOISAAC (clases, recreo, exámenes)...'
                       }
                       disabled={isAiLoading || cooldown > 0 || hourlyQuota.isBlocked}
                       className="w-full text-[11px] bg-neutral-900/90 border border-neutral-700/70 rounded-lg px-2.5 py-1.5 pr-8 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-400/60 transition-colors disabled:opacity-50 font-sans"
