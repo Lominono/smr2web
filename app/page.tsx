@@ -1855,41 +1855,58 @@ export default function Home() {
       }
 
       if (user) {
-        if (willBeLiked) {
-          const { error: likeErr } = await supabase.from('chat_message_likes').upsert(
-            [
+        const dbUserId = isUUID(user.id) ? user.id : null;
+        if (dbUserId && user.username) {
+          try {
+            await supabase.from('profiles').upsert(
               {
-                message_id: messageId,
-                user_id: user.id,
+                id: dbUserId,
+                username: user.username,
+                nombre: user.username,
+                role: user.role || 'student',
               },
-            ],
-            { onConflict: 'message_id,user_id' }
-          );
+              { onConflict: 'id' }
+            );
+          } catch (_) {}
+        }
 
-          if (likeErr) {
-            await supabase.from('message_likes').upsert(
+        if (dbUserId) {
+          if (willBeLiked) {
+            const { error: likeErr } = await supabase.from('chat_message_likes').upsert(
               [
                 {
                   message_id: messageId,
-                  user_id: user.id,
+                  user_id: dbUserId,
                 },
               ],
               { onConflict: 'message_id,user_id' }
             );
-          }
-        } else {
-          const { error: delErr } = await supabase
-            .from('chat_message_likes')
-            .delete()
-            .eq('message_id', messageId)
-            .eq('user_id', user.id);
 
-          if (delErr) {
-            await supabase
-              .from('message_likes')
+            if (likeErr) {
+              await supabase.from('message_likes').upsert(
+                [
+                  {
+                    message_id: messageId,
+                    user_id: dbUserId,
+                  },
+                ],
+                { onConflict: 'message_id,user_id' }
+              );
+            }
+          } else {
+            const { error: delErr } = await supabase
+              .from('chat_message_likes')
               .delete()
               .eq('message_id', messageId)
-              .eq('user_id', user.id);
+              .eq('user_id', dbUserId);
+
+            if (delErr) {
+              await supabase
+                .from('message_likes')
+                .delete()
+                .eq('message_id', messageId)
+                .eq('user_id', dbUserId);
+            }
           }
         }
       }
@@ -2099,6 +2116,7 @@ export default function Home() {
                   onInspectUser={handleInspectStudent}
                   isRealtimeConnected={isRealtimeConnected}
                   composerRef={composerRef}
+                  onRefresh={fetchMessages}
                 />
               </div>
 

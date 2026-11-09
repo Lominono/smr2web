@@ -334,8 +334,10 @@ export interface BotellonState {
   levels: Record<string, number>;
   pendingVault: number;
   totalLifetimeProduced: number;
+  currentRunProduced?: number;
   afterPrestigeCount: number;
   afterSuspicionLevel?: number;
+  lastAfterTimestamp?: number;
   lastTickMs: number;
   currentZoneId?: string;
   purchasedPerks?: string[];
@@ -349,16 +351,37 @@ export interface AfterRiskStats {
   raidChancePct: number;
   confiscatePct: number;
   bribeCost: number;
+  wealthSurcharge: number;
 }
 
-export function getAfterRiskStats(suspicionLevel: number): AfterRiskStats {
+// Producción mínima requerida en la ronda actual para irse de After (escala exponencial para evitar spam de rebirth)
+export function getRequiredAfterProduction(afterCount: number): number {
+  if (afterCount <= 0) return 15000;
+  // After 0: 15.000 | After 1: 36.000 | After 2: 86.000 | After 3: 200.000 | After 4: 500.000...
+  return Math.floor(15000 * Math.pow(2.4, Math.min(8, afterCount)));
+}
+
+export function getAfterRiskStats(suspicionLevel: number, userCoins: number = 0): AfterRiskStats {
   const level = Math.max(0, Math.min(10, suspicionLevel || 0));
-  // Nivel 0 (Limpio): 10% probabilidad de redada, 15% confiscación
-  // Cada nivel adicional aumenta la probabilidad en +15% y la multa en +15% (máximo 95% y 90%)
-  const raidChancePct = Math.min(95, 10 + level * 15);
-  const confiscatePct = Math.min(90, 15 + level * 15);
-  const bribeCost = Math.max(80, level * 150);
-  return { level, raidChancePct, confiscatePct, bribeCost };
+  // Nivel 0 (Limpio): 15% probabilidad de redada, 20% confiscación
+  // Cada nivel subsiguiente aumenta la probabilidad en +15% y la multa en +15% (máx 95% y 90%)
+  const raidChancePct = Math.min(95, 15 + level * 15);
+  const confiscatePct = Math.min(90, 20 + level * 15);
+
+  // Escala de fianza / soborno:
+  // Base fija accesible para novatos (80 a 300 monedas)
+  const baseCost = 80 + level * 120;
+
+  // Impuesto progresivo a grandes fortunas para evitar que los ricos abusen de la fianza:
+  // Si tienes más de 10.000 monedas, la fianza cuesta entre el 4% y el 20% de tu saldo total
+  let wealthSurcharge = 0;
+  if (userCoins > 10000) {
+    const taxRate = Math.min(0.20, 0.04 + level * 0.035); // del 4% al 20% de su fortuna
+    wealthSurcharge = Math.floor(userCoins * taxRate);
+  }
+  const bribeCost = Math.max(baseCost, wealthSurcharge);
+
+  return { level, raidChancePct, confiscatePct, bribeCost, wealthSurcharge };
 }
 
 export const STORAGE_KEY_PREFIX = 'smr2_botellon_s2_';
@@ -444,6 +467,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   }));
   const [pendingVault, setPendingVault] = useState<number>(0);
   const [totalLifetimeProduced, setTotalLifetimeProduced] = useState<number>(0);
+  const [currentRunProduced, setCurrentRunProduced] = useState<number>(0);
+  const [lastAfterTimestamp, setLastAfterTimestamp] = useState<number>(0);
   const [afterPrestigeCount, setAfterPrestigeCount] = useState<number>(0);
   const [afterSuspicionLevel, setAfterSuspicionLevel] = useState<number>(0);
   const [afterCooldownSeconds, setAfterCooldownSeconds] = useState<number>(90);
@@ -537,8 +562,22 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     return sorted.find((r) => totalLifetimeProduced >= r.minProd) || PARTY_RANKS[0];
   }, [totalLifetimeProduced]);
 
-  // Multiplicador de prestigio After
-  const prestigeMultiplier = 1 + afterPrestigeCount * 0.5;
+  // Multiplicador de prestigio After (con rendimientos decrecientes para balancear el juego y evitar abusos)
+  const prestigeMultiplier = useMemo(() => {
+    if (afterPrestigeCount <= 0) return 1.0;
+    let mult = 1.0;
+    for (let i = 1; i <= afterPrestigeCount; i++) {
+      if (i === 1) mult += 0.40;
+      else if (i <= 3) mult += 0.25;
+      else if (i <= 6) mult += 0.15;
+      else mult += 0.08;
+    }
+    return Number(mult.toFixed(2));
+  }, [afterPrestigeCount]);
+
+  // Beca SMR de Impulso para Novatos: si tienes menos de 25.000 monedas, recibes x3.0 de velocidad permanente
+  const isUnderdog = userCoins < 25000;
+  const underdogMultiplier = isUnderdog ? 3.0 : 1.0;
 
   // Multiplicadores por perks y descuentos temporales
   const hasPerk = useCallback(
@@ -566,21 +605,23 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     return rawRate * activeZone.multiplier * rankBonusMult;
   }, [levels, activeZone.multiplier, rankBonusMult]);
 
-  // Tasa real con multiplicadores aplicados (Prestigio + Modo Fiesta Loca x3 - Resaca - Redada)
+  // Tasa real con multiplicadores aplicados (Prestigio + Beca Novatos x3 + Modo Fiesta Loca x3 - Resaca - Redada)
   const effectiveRatePerSecond = useMemo(() => {
     if (isProductionFrozen) return 0;
     const frenzyMult = isCrazyParty ? 3 : 1;
     const hangoverMult = isHungover ? 0.35 : 1.0;
-    return baseRatePerSecond * prestigeMultiplier * frenzyMult * hangoverMult;
-  }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, isProductionFrozen, isHungover]);
+    return baseRatePerSecond * prestigeMultiplier * frenzyMult * hangoverMult * underdogMultiplier;
+  }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, isProductionFrozen, isHungover, underdogMultiplier]);
 
   // Referencia actualizada del estado completo para evitar pérdida de propiedades al guardar
   const stateRef = useRef<BotellonState>({
     levels,
     pendingVault,
     totalLifetimeProduced,
+    currentRunProduced,
     afterPrestigeCount,
     afterSuspicionLevel,
+    lastAfterTimestamp,
     lastTickMs: Date.now(),
     currentZoneId,
     purchasedPerks,
@@ -594,8 +635,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       levels,
       pendingVault,
       totalLifetimeProduced,
+      currentRunProduced,
       afterPrestigeCount,
       afterSuspicionLevel,
+      lastAfterTimestamp,
       lastTickMs: Date.now(),
       currentZoneId,
       purchasedPerks,
@@ -607,8 +650,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     levels,
     pendingVault,
     totalLifetimeProduced,
+    currentRunProduced,
     afterPrestigeCount,
     afterSuspicionLevel,
+    lastAfterTimestamp,
     currentZoneId,
     purchasedPerks,
     totalDrinksTaken,
@@ -630,8 +675,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       setLevels(stateToApply.levels || {});
       setPendingVault(stateToApply.pendingVault || 0);
       setTotalLifetimeProduced(stateToApply.totalLifetimeProduced || 0);
+      setCurrentRunProduced(stateToApply.currentRunProduced ?? (stateToApply.totalLifetimeProduced || 0));
       setAfterPrestigeCount(stateToApply.afterPrestigeCount || 0);
       setAfterSuspicionLevel(stateToApply.afterSuspicionLevel || 0);
+      setLastAfterTimestamp(stateToApply.lastAfterTimestamp || 0);
       setCurrentZoneId(stateToApply.currentZoneId || 'parque');
       setPurchasedPerks(stateToApply.purchasedPerks || []);
       setTotalDrinksTaken(stateToApply.totalDrinksTaken || 0);
@@ -772,6 +819,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       const increment = (effectiveRatePerSecond * TICK_INTERVAL) / 1000;
       setPendingVault((prev) => prev + increment);
       setTotalLifetimeProduced((prev) => prev + increment);
+      setCurrentRunProduced((prev) => prev + increment);
     }, TICK_INTERVAL);
 
     return () => clearInterval(interval);
@@ -1239,6 +1287,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     const baseClick = Math.max(1, Math.floor(1 + baseRatePerSecond * 0.02));
     let clickPower = baseClick * prestigeMultiplier * drinkPowerMult;
 
+    // Beca de ayuda a novatos: cada trago manual da +15 fichas directas extra
+    if (isUnderdog) {
+      clickPower += 15;
+    }
+
     // Enchufe en barra perk: 12% probabilidad de Jackpot sorpresa
     let hasJackpotBonus = false;
     if (hasPerk('enchufe_barra') && Math.random() < 0.12) {
@@ -1249,6 +1302,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
     setPendingVault((prev) => prev + clickPower);
     setTotalLifetimeProduced((prev) => prev + clickPower);
+    setCurrentRunProduced((prev) => prev + clickPower);
     setTotalDrinksTaken((prev) => prev + 1);
     setHangoverLevel((prev) => Math.min(100, prev + 2.5));
 
@@ -1486,10 +1540,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     }
   };
 
-  // Acción: Revertir sospecha policial pagando fianza
+  // Acción: Revertir sospecha policial pagando fianza (escala proporcionalmente para las grandes fortunas)
   const handleRevertSuspicion = () => {
     if (afterSuspicionLevel <= 0) return;
-    const { bribeCost } = getAfterRiskStats(afterSuspicionLevel);
+    const { bribeCost } = getAfterRiskStats(afterSuspicionLevel, userCoins);
     if (userCoins < bribeCost) {
       sound.broke();
       alert(`Saldo insuficiente. Necesitas al menos ${bribeCost.toLocaleString()} monedas para pagar la fianza y limpiar tu historial policial.`);
@@ -1502,10 +1556,15 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     saveState({ afterSuspicionLevel: 0 }, true);
   };
 
-  // Requisitos para irse de After: al menos 15.000 producidas y suministros activos en esta ronda
-  const canPrestige =
-    totalLifetimeProduced >= 15000 &&
-    Object.values(levels).some((lvl) => lvl > 0);
+  // Requisitos escalonados para irse de After:
+  // 1. Debe haber alcanzado la producción requerida EN LA RONDA ACTUAL (evita reiniciar 10 veces en 10 segundos)
+  // 2. Debe tener suministros activos comprados
+  // 3. Debe respetar el tiempo de descanso de 3 minutos entre Afters
+  const requiredRunProd = getRequiredAfterProduction(afterPrestigeCount);
+  const afterCooldownRemainingMs = Math.max(0, 180000 - (Date.now() - (lastAfterTimestamp || 0)));
+  const isAfterOnCooldown = afterCooldownRemainingMs > 0;
+  const hasSupplies = Object.values(levels).some((lvl) => lvl > 0);
+  const canPrestige = currentRunProduced >= requiredRunProd && hasSupplies && !isAfterOnCooldown;
 
   const handleOpenAfterModal = () => {
     sound.tap();
@@ -1515,7 +1574,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const handleConfirmAfter = () => {
     if (!canPrestige) return;
 
-    const { raidChancePct, confiscatePct } = getAfterRiskStats(afterSuspicionLevel);
+    const { raidChancePct, confiscatePct } = getAfterRiskStats(afterSuspicionLevel, userCoins);
     const rolled = Math.random() * 100;
     const isPoliceRaid = rolled < raidChancePct;
 
@@ -1530,6 +1589,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     };
 
     const nextSuspicionLevel = Math.min(10, afterSuspicionLevel + 1);
+    const afterTimestamp = Date.now();
 
     if (isPoliceRaid) {
       // ¡REDADA POLICIAL EN EL AFTER!
@@ -1544,6 +1604,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       setLevels(resetLevels);
       setPendingVault(0);
       setHangoverLevel(0);
+      setCurrentRunProduced(0);
+      setLastAfterTimestamp(afterTimestamp);
       setAfterPrestigeCount((prev) => prev + 1);
       setAfterSuspicionLevel(nextSuspicionLevel);
       setAfterCooldownSeconds(90);
@@ -1562,6 +1624,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           levels: resetLevels,
           pendingVault: 0,
           hangoverLevel: 0,
+          currentRunProduced: 0,
+          lastAfterTimestamp: afterTimestamp,
           afterPrestigeCount: afterPrestigeCount + 1,
           afterSuspicionLevel: nextSuspicionLevel,
         },
@@ -1580,6 +1644,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       setLevels(resetLevels);
       setPendingVault(0);
       setHangoverLevel(0);
+      setCurrentRunProduced(0);
+      setLastAfterTimestamp(afterTimestamp);
       setAfterPrestigeCount((prev) => prev + 1);
       setAfterSuspicionLevel(nextSuspicionLevel);
       setAfterCooldownSeconds(90);
@@ -1598,6 +1664,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           levels: resetLevels,
           pendingVault: 0,
           hangoverLevel: 0,
+          currentRunProduced: 0,
+          lastAfterTimestamp: afterTimestamp,
           afterPrestigeCount: afterPrestigeCount + 1,
           afterSuspicionLevel: nextSuspicionLevel,
         },
@@ -1823,6 +1891,50 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       </div>
 
+      {/* Banner de Nivelación: Beca para Novatos o Vigilancia Fiscal para Ballenas */}
+      {isUnderdog ? (
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-emerald-500/10 to-transparent border border-blue-500/30 flex items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-foreground">Beca SMR para Nuevos Fiesteros</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30">
+                  x3.0 Velocidad + Bonus Click
+                </span>
+              </div>
+              <p className="text-[11px] text-foreground-muted truncate">
+                Ayuda de nivelación para recortar distancias con las grandes fortunas. Activa hasta las 25.000 monedas.
+              </p>
+            </div>
+          </div>
+          <span className="font-mono text-[11px] text-emerald-400 font-bold shrink-0 hidden sm:inline">
+            x3.0 Farmeo
+          </span>
+        </div>
+      ) : userCoins >= 1000000 ? (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+              <Crown className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-amber-200">Gran Fortuna de la Clase ({userCoins.toLocaleString()} monedas)</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-semibold border border-red-500/30">
+                  Vigilancia de Hacienda
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-300/80 truncate">
+                Las fianzas y las multas de redada en el After escalan proporcionalmente con tu fortuna total.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Cabecera y Resumen de la Fiesta */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Panel 1: En la saca (acumulado listo para cobrar) */}
@@ -1870,7 +1982,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             ) : (
               <>
                 <ArrowDownToLine className="w-4 h-4" />
-                <span>Canjear al Monedero (+{coinsToClaim.toLocaleString()} 🪙)</span>
+                <span>Canjear al Monedero (+{coinsToClaim.toLocaleString()} monedas)</span>
               </>
             )}
           </button>
@@ -2009,6 +2121,50 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       </div>
 
+      {/* Banner de Nivelación: Beca para Novatos o Vigilancia Fiscal para Ballenas */}
+      {isUnderdog ? (
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-emerald-500/10 to-transparent border border-blue-500/30 flex items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-foreground">Beca SMR para Nuevos Fiesteros</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30">
+                  x3.0 Velocidad + Bonus Click
+                </span>
+              </div>
+              <p className="text-[11px] text-foreground-muted truncate">
+                Ayuda de nivelación para recortar distancias con las grandes fortunas. Activa hasta las 25.000 monedas.
+              </p>
+            </div>
+          </div>
+          <span className="font-mono text-[11px] text-emerald-400 font-bold shrink-0 hidden sm:inline">
+            x3.0 Farmeo
+          </span>
+        </div>
+      ) : userCoins >= 1000000 ? (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+              <Crown className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-amber-200">Gran Fortuna de la Clase ({userCoins.toLocaleString()} monedas)</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-semibold border border-red-500/30">
+                  Vigilancia de Hacienda
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-300/80 truncate">
+                Las fianzas y las multas de redada en el After escalan proporcionalmente con tu fortuna total.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Feed de Noticias de la Fiesta en Vivo y Ecualizador de Ritmo */}
       <div className="p-3.5 rounded-2xl bg-surface-raised border border-border/60 flex items-center justify-between gap-3 text-xs shadow-2xs overflow-hidden">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -2116,62 +2272,90 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                 ))}
               </div>
 
-              {canPrestige && (
+              {totalLifetimeProduced >= 15000 && (
                 <button
                   type="button"
-                  onClick={handleOpenAfterModal}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition-all cursor-pointer active:scale-95"
+                  onClick={canPrestige ? handleOpenAfterModal : undefined}
+                  disabled={!canPrestige}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all active:scale-95 ${
+                    canPrestige
+                      ? 'bg-purple-500/15 text-purple-400 border-purple-500/30 hover:bg-purple-500/25 cursor-pointer'
+                      : 'bg-surface-raised text-foreground-muted border-border/60 cursor-not-allowed opacity-75'
+                  }`}
+                  title={
+                    isAfterOnCooldown
+                      ? `Espera ${Math.ceil(afterCooldownRemainingMs / 1000)}s para organizar otro After`
+                      : currentRunProduced < requiredRunProd
+                      ? `Necesitas producir ${Math.floor(currentRunProduced).toLocaleString()} / ${requiredRunProd.toLocaleString()} fichas en esta ronda`
+                      : 'Irse de After'
+                  }
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Irse de After (+50% bonus)</span>
-                  <span
-                    className={`ml-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
-                      afterSuspicionLevel === 0
-                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                        : afterSuspicionLevel <= 2
-                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
-                        : 'bg-red-500/15 text-red-400 border border-red-500/20 animate-pulse'
-                    }`}
-                  >
-                    Riesgo {getAfterRiskStats(afterSuspicionLevel).raidChancePct}%
+                  <span>
+                    {isAfterOnCooldown
+                      ? `After enfría (${Math.ceil(afterCooldownRemainingMs / 1000)}s)`
+                      : currentRunProduced < requiredRunProd
+                      ? `After: ${Math.floor(currentRunProduced).toLocaleString()} / ${requiredRunProd.toLocaleString()}`
+                      : 'Irse de After (+bonus)'}
                   </span>
+                  {canPrestige && (
+                    <span
+                      className={`ml-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
+                        afterSuspicionLevel === 0
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                          : afterSuspicionLevel <= 2
+                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                          : 'bg-red-500/15 text-red-400 border border-red-500/20 animate-pulse'
+                      }`}
+                    >
+                      Riesgo {getAfterRiskStats(afterSuspicionLevel, userCoins).raidChancePct}%
+                    </span>
+                  )}
                 </button>
               )}
             </div>
           </div>
 
           {/* Banner de Sospecha Policial del After con cuenta atrás y botón de reversión */}
-          {afterSuspicionLevel > 0 && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 shadow-xs">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
-                  <Siren className="w-4 h-4 animate-pulse" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-red-200">
-                      Sospecha Policial del After: Nivel {afterSuspicionLevel}
-                    </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-red-500/25 border border-red-500/40 text-red-300 font-semibold">
-                      {getAfterRiskStats(afterSuspicionLevel).raidChancePct}% Redada · {getAfterRiskStats(afterSuspicionLevel).confiscatePct}% Confiscación
-                    </span>
+          {afterSuspicionLevel > 0 && (() => {
+            const stats = getAfterRiskStats(afterSuspicionLevel, userCoins);
+            return (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 shadow-xs">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+                    <Siren className="w-4 h-4 animate-pulse" />
                   </div>
-                  <p className="text-[11px] text-red-300/80 leading-relaxed mt-0.5">
-                    La policía patrulla el After. Se enfría 1 nivel en <strong className="font-mono text-red-200">{afterCooldownSeconds}s</strong> o puedes revertir la sospecha pagando una fianza.
-                  </p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-red-200">
+                        Sospecha Policial del After: Nivel {afterSuspicionLevel}
+                      </span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-red-500/25 border border-red-500/40 text-red-300 font-semibold">
+                        {stats.raidChancePct}% Redada · {stats.confiscatePct}% Confiscación
+                      </span>
+                      {stats.wealthSurcharge > 0 && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
+                          Recargo a Gran Fortuna
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-red-300/80 leading-relaxed mt-0.5">
+                      La policía patrulla el After. Se enfría 1 nivel en <strong className="font-mono text-red-200">{afterCooldownSeconds}s</strong> o puedes revertir la sospecha pagando una fianza.
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={handleRevertSuspicion}
-                className="self-end sm:self-center px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shrink-0"
-              >
-                <Coins className="w-3.5 h-3.5 text-amber-300" />
-                <span>Revertir a 0% (-{getAfterRiskStats(afterSuspicionLevel).bribeCost} 🪙)</span>
-              </button>
-            </div>
-          )}
+                <button
+                  type="button"
+                  onClick={handleRevertSuspicion}
+                  className="self-end sm:self-center px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shrink-0"
+                >
+                  <Coins className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Revertir a 0% (-{stats.bribeCost.toLocaleString()} monedas)</span>
+                </button>
+              </div>
+            );
+          })()}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             {TIERS.map((tier) => {
@@ -2744,7 +2928,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       {/* Modal interactivo: Irse de After Clandestino & Riesgo Policial */}
       {showAfterModal && (() => {
-        const stats = getAfterRiskStats(afterSuspicionLevel);
+        const stats = getAfterRiskStats(afterSuspicionLevel, userCoins);
+        const coinsAtRisk = Math.floor(userCoins * (stats.confiscatePct / 100));
         return (
           <div
             role="dialog"
@@ -2784,11 +2969,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                     Bonus Permanente Obtenido
                   </span>
                   <div className="text-lg font-bold text-purple-400 font-mono">
-                    +50% Producción Global
+                    +{afterPrestigeCount === 0 ? '40%' : afterPrestigeCount <= 2 ? '25%' : '15%'} Producción Global
                   </div>
                 </div>
                 <div className="text-right font-mono text-xs text-foreground-muted">
-                  Multiplicador total: <strong className="text-foreground">x{(prestigeMultiplier + 0.5).toFixed(1)}</strong>
+                  Multiplicador total: <strong className="text-foreground">x{(prestigeMultiplier + (afterPrestigeCount === 0 ? 0.4 : afterPrestigeCount <= 2 ? 0.25 : 0.15)).toFixed(2)}</strong>
                 </div>
               </div>
 
@@ -2827,8 +3012,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                     />
                   </div>
                   <div className="flex justify-between text-[10px] font-mono text-foreground-subtle">
-                    <span>Nivel 0 (10%)</span>
-                    <span>Nivel 3 (55%)</span>
+                    <span>Nivel 0 (15%)</span>
+                    <span>Nivel 3 (60%)</span>
                     <span>Nivel 6+ (95%)</span>
                   </div>
                 </div>
@@ -2856,8 +3041,16 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   </div>
                 </div>
 
+                {/* Alerta de Gran Fortuna si tiene monedas millonarias */}
+                {coinsAtRisk > 0 && (
+                  <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-300 flex items-center justify-between">
+                    <span>Monedas en riesgo directo de tu monedero:</span>
+                    <strong className="font-mono text-red-400">-{coinsAtRisk.toLocaleString()} monedas</strong>
+                  </div>
+                )}
+
                 <p className="text-[11px] text-foreground-muted leading-relaxed">
-                  Cada vez que le das a irte de After, la policía te ficha más de cerca. La probabilidad de redada aumenta un <strong className="text-foreground">+15%</strong> y la multa requisada sube un <strong className="text-foreground">+15%</strong> para evitar abusos.
+                  Cada vez que le das a irte de After, la policía te ficha más de cerca. La probabilidad de redada sube un <strong className="text-foreground">+15%</strong> y la multa requisada sube un <strong className="text-foreground">+15%</strong>. Si eres millonario, te arriesgas a perder una tajada masiva de tu fortuna.
                 </p>
               </div>
 
@@ -2876,10 +3069,17 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   )}
                 </div>
 
+                {stats.wealthSurcharge > 0 && (
+                  <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-center justify-between">
+                    <span>Recargo de Fianza a Gran Fortuna:</span>
+                    <span className="font-mono font-bold">~{Math.round((stats.wealthSurcharge / userCoins) * 100)}% de tu saldo</span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between gap-3 text-xs">
                   <p className="text-[11px] text-foreground-muted">
                     {afterSuspicionLevel === 0
-                      ? 'Tu historial policial está limpio. La probabilidad de redada se encuentra en su mínimo (10%).'
+                      ? 'Tu historial policial está limpio. La probabilidad de redada se encuentra en su mínimo (15%).'
                       : 'Puedes esperar a que la policía baje la guardia con el tiempo o pagar una fianza para limpiar tu historial ahora mismo.'}
                   </p>
                   {afterSuspicionLevel > 0 && (
@@ -2891,7 +3091,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                       }}
                       className="px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-raised border border-border font-medium text-foreground hover:text-foreground text-xs whitespace-nowrap cursor-pointer transition-colors shrink-0 shadow-2xs"
                     >
-                      Pagar fianza (-{stats.bribeCost} 🪙)
+                      Pagar fianza (-{stats.bribeCost.toLocaleString()} monedas)
                     </button>
                   )}
                 </div>
@@ -2962,7 +3162,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <p className="text-xs text-foreground-muted leading-relaxed">
                 {afterRaidResult.type === 'raid'
                   ? `La patrulla intervino el local ilegalmente. Te aplicaron una sanción severa del ${afterRaidResult.confiscatePct}% sobre todos tus fondos disponibles.`
-                  : '¡Habéis despistado a la policía! La fiesta continuó sin incidentes y recibes tu +50% permanente de producción.'}
+                  : '¡Habéis despistado a la policía! La fiesta continuó sin incidentes y recibes tu bonus de producción.'}
               </p>
             </div>
 
@@ -2976,17 +3176,22 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                 {afterRaidResult.coinsLost > 0 && (
                   <div className="flex items-center justify-between text-red-400">
                     <span>Monedas requisadas del monedero:</span>
-                    <span className="font-bold">-{afterRaidResult.coinsLost.toLocaleString()} 🪙</span>
+                    <span className="font-bold">-{afterRaidResult.coinsLost.toLocaleString()} monedas</span>
+                  </div>
+                )}
+                {afterRaidResult.coinsLost >= 1000000 && (
+                  <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/40 text-[11px] text-red-200 font-sans">
+                    💥 <strong>¡GOLPE FISCAL A LA GRAN FORTUNA!</strong> La policía ha requisado más de 1 millón de monedas de tu fortuna acumulada.
                   </div>
                 )}
                 {afterRaidResult.vaultLost > 0 && (
                   <div className="flex items-center justify-between text-red-400">
                     <span>Fichas requisadas del bote:</span>
-                    <span className="font-bold">-{afterRaidResult.vaultLost.toLocaleString()} 🍸</span>
+                    <span className="font-bold">-{afterRaidResult.vaultLost.toLocaleString()} fichas</span>
                   </div>
                 )}
                 <div className="pt-2 border-t border-red-500/20 flex items-center justify-between text-foreground text-[11px] font-sans">
-                  <span>Bonus +50% aplicado:</span>
+                  <span>Bonus de producción:</span>
                   <span className="font-mono text-purple-400 font-bold">Activo</span>
                 </div>
               </div>
@@ -2994,11 +3199,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/25 space-y-1.5 font-mono text-xs">
                 <div className="flex items-center justify-between text-foreground">
                   <span>Bonus permanente sumado:</span>
-                  <span className="text-purple-400 font-bold">+50% farmeo</span>
+                  <span className="text-purple-400 font-bold">Farmeo mejorado</span>
                 </div>
                 <div className="flex items-center justify-between text-foreground">
                   <span>Nuevo multiplicador total:</span>
-                  <span className="text-foreground font-bold">x{prestigeMultiplier.toFixed(1)}</span>
+                  <span className="text-foreground font-bold">x{prestigeMultiplier.toFixed(2)}</span>
                 </div>
               </div>
             )}
@@ -3007,7 +3212,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             <div className="p-3 rounded-xl bg-surface-raised border border-border text-[11px] text-foreground-muted flex items-center justify-between gap-2">
               <span>Sospecha actual: <strong>Nivel {afterRaidResult.nextLevel}</strong></span>
               <span className="font-mono text-red-400 font-semibold">
-                {getAfterRiskStats(afterRaidResult.nextLevel).raidChancePct}% riesgo próximo
+                {getAfterRiskStats(afterRaidResult.nextLevel, userCoins).raidChancePct}% riesgo próximo
               </span>
             </div>
 
