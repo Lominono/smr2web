@@ -106,6 +106,66 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action, targetUserId, amount, banReason } = body;
 
+    // Acción global: Aplicar ciclo de Goteo Comunista a todas las ballenas (>100.000 monedas)
+    if (action === 'communist_drip_all') {
+      if (!isServerSupabaseConfigured()) {
+        return NextResponse.json({ success: false, error: 'Base de datos no configurada.' }, { status: 500 });
+      }
+      const client = createAdminClient();
+      if (!client) {
+        return NextResponse.json({ success: false, error: 'Cliente de base de datos no disponible.' }, { status: 500 });
+      }
+
+      const { data: whales, error: wErr } = await client
+        .from('profiles')
+        .select('id, username, coins')
+        .gte('coins', 100000);
+
+      if (wErr) {
+        return NextResponse.json({ success: false, error: wErr.message }, { status: 500 });
+      }
+
+      let totalCollected = 0;
+      let taxedCount = 0;
+
+      for (const whale of whales || []) {
+        const curCoins = Number(whale.coins || 0);
+        // Tasa progresiva: 1% para 100k, 2% para 1M, 3% para 10M, 4% para >50M
+        let rate = 0.01;
+        if (curCoins >= 50000000) rate = 0.04;
+        else if (curCoins >= 10000000) rate = 0.03;
+        else if (curCoins >= 1000000) rate = 0.02;
+
+        const taxAmount = Math.max(1000, Math.floor(curCoins * rate));
+        const newBalance = Math.max(0, curCoins - taxAmount);
+
+        await client.from('profiles').update({ coins: newBalance }).eq('id', whale.id);
+        totalCollected += taxAmount;
+        taxedCount++;
+      }
+
+      try {
+        await logEvent({
+          eventType: 'admin_action',
+          userId: authResult.user.id,
+          username: authResult.user.username,
+          req,
+          details: {
+            action: 'communist_drip_cycle',
+            taxed_whales_count: taxedCount,
+            total_collected: totalCollected,
+          },
+        });
+      } catch {}
+
+      return NextResponse.json({
+        success: true,
+        message: `Ciclo de Goteo Comunista ejecutado: Se recaudaron ${totalCollected.toLocaleString()} monedas de ${taxedCount} grandes fortunas para la caja de resistencia.`,
+        taxedCount,
+        totalCollected,
+      });
+    }
+
     if (!targetUserId) {
       return NextResponse.json(
         { success: false, error: 'targetUserId es requerido.' },
@@ -225,7 +285,34 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ success: true, message: 'Perfil de alumno actualizado correctamente.' });
         }
 
-        // 5. Eliminar usuario permanentemente
+        // 5. Restablecer Botellón (limpia progreso y resetea monedas a 1000)
+        else if (action === 'reset_botellon') {
+          await client
+            .from('profiles')
+            .update({
+              party_farm_data: {},
+              coins: 1000,
+            })
+            .eq('id', targetUserId);
+
+          try {
+            await logEvent({
+              eventType: 'admin_action',
+              userId: targetUserId,
+              username: targetUser.username,
+              req,
+              details: {
+                action: 'reset_botellon',
+                admin_id: authResult.user.id,
+                admin_username: authResult.user.username,
+              },
+            });
+          } catch {}
+
+          return NextResponse.json({ success: true, message: 'Botellón del alumno restablecido a valores iniciales.' });
+        }
+
+        // 6. Eliminar usuario permanentemente
         else if (action === 'delete_user') {
           await client.from('profiles').delete().eq('id', targetUserId);
 

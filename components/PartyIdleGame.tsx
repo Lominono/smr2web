@@ -19,6 +19,7 @@ import {
   ArrowDownToLine,
   Check,
   TrendingUp,
+  TrendingDown,
   MapPin,
   Award,
   Lock,
@@ -46,6 +47,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { BotellonInvestments } from '@/components/BotellonInvestments';
+import { PartyLiveScene, CharacterItem } from '@/components/PartyLiveScene';
 
 export interface PartyIdleGameProps {
   userCoins: number;
@@ -344,6 +346,9 @@ export interface BotellonState {
   totalDrinksTaken?: number;
   beerPongWins?: number;
   hangoverLevel?: number;
+  guardActiveUntilMs?: number;
+  lastCommunistDripMs?: number;
+  lastSubsidioClaimMs?: number;
 }
 
 export interface AfterRiskStats {
@@ -485,6 +490,22 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [purchasedPerks, setPurchasedPerks] = useState<string[]>([]);
   const [totalDrinksTaken, setTotalDrinksTaken] = useState<number>(0);
   const [beerPongWins, setBeerPongWins] = useState<number>(0);
+
+  // Estados de Goteo Comunista y Custodia del Alijo
+  const [guardActiveUntilMs, setGuardActiveUntilMs] = useState<number>(0);
+  const [lastSubsidioClaimMs, setLastSubsidioClaimMs] = useState<number>(0);
+  const [communistDripReport, setCommunistDripReport] = useState<{
+    coinsLost: number;
+    hours: number;
+  } | null>(null);
+
+  // Estado para la burbuja de habla de personajes interactivos
+  const [activeCharacterSpeech, setActiveCharacterSpeech] = useState<{
+    id: string;
+    name: string;
+    quote: string;
+    tierName: string;
+  } | null>(null);
 
   // Tutorial interactivo de primera visita
   const [showTutorial, setShowTutorial] = useState(false);
@@ -628,6 +649,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     totalDrinksTaken,
     beerPongWins,
     hangoverLevel,
+    guardActiveUntilMs,
+    lastSubsidioClaimMs,
   });
 
   useEffect(() => {
@@ -645,6 +668,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       totalDrinksTaken,
       beerPongWins,
       hangoverLevel,
+      guardActiveUntilMs,
+      lastSubsidioClaimMs,
     };
   }, [
     levels,
@@ -659,6 +684,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     totalDrinksTaken,
     beerPongWins,
     hangoverLevel,
+    guardActiveUntilMs,
+    lastSubsidioClaimMs,
   ]);
 
   // 1. Cargar estado inicial (localStorage primero para carga instantánea, luego Supabase Cloud)
@@ -685,6 +712,36 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       setBeerPongWins(stateToApply.beerPongWins || 0);
       if (typeof stateToApply.hangoverLevel === 'number') {
         setHangoverLevel(Math.min(100, Math.max(0, stateToApply.hangoverLevel)));
+      }
+      if (typeof stateToApply.guardActiveUntilMs === 'number') {
+        setGuardActiveUntilMs(stateToApply.guardActiveUntilMs);
+      }
+      if (typeof stateToApply.lastSubsidioClaimMs === 'number') {
+        setLastSubsidioClaimMs(stateToApply.lastSubsidioClaimMs);
+      }
+
+      // Comprobar Goteo Comunista para fortunas >= 100.000 monedas si el alijo no estaba custodiado
+      if (userCoins >= 100000 && stateToApply.lastTickMs && stateToApply.lastTickMs < now) {
+        const guardUntil = stateToApply.guardActiveUntilMs || 0;
+        if (guardUntil < now) {
+          const hoursUnguarded = Math.min(48, (now - Math.max(stateToApply.lastTickMs, guardUntil)) / 3600000);
+          if (hoursUnguarded >= 0.5) {
+            let hourlyRate = 0.005; // 0.5% por hora
+            if (userCoins >= 50000000) hourlyRate = 0.04;
+            else if (userCoins >= 10000000) hourlyRate = 0.025;
+            else if (userCoins >= 1000000) hourlyRate = 0.012;
+
+            const decayRate = 1 - Math.pow(1 - hourlyRate, hoursUnguarded);
+            const decayedCoins = Math.max(200, Math.floor(userCoins * decayRate));
+            if (decayedCoins > 0 && allowOfflineReport) {
+              onUpdateCoins(-decayedCoins);
+              setCommunistDripReport({
+                coinsLost: decayedCoins,
+                hours: Math.round(hoursUnguarded),
+              });
+            }
+          }
+        }
       }
 
       // Calcular farmeo offline con límite de horas del perk
@@ -1499,6 +1556,64 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     }, 600);
   };
 
+  // Acción: Interacción con personajes en vivo en la escena
+  const handleCharacterClick = (char: CharacterItem) => {
+    sound.toastClink();
+    const randomQuote = char.quotes[Math.floor(Math.random() * char.quotes.length)];
+    setActiveCharacterSpeech({
+      id: char.id,
+      name: char.name,
+      quote: randomQuote,
+      tierName: char.role,
+    });
+
+    const bonusFichas = 10;
+    setPendingVault((prev) => prev + bonusFichas);
+    setParticles((prev) => [
+      ...prev,
+      {
+        id: Date.now() + Math.random(),
+        text: `+${bonusFichas} fichas`,
+        x: (Math.random() - 0.5) * 60,
+        y: -30,
+      },
+    ]);
+  };
+
+  // Acción: Custodiar el alijo para grandes fortunas (blindaje de 8h contra Goteo Comunista)
+  const handleGuardStash = () => {
+    sound.toastClink();
+    const newGuard = Date.now() + 8 * 3600 * 1000;
+    setGuardActiveUntilMs(newGuard);
+    saveState({ guardActiveUntilMs: newGuard }, true);
+    confetti({
+      particleCount: 45,
+      spread: 60,
+      origin: { y: 0.6 },
+      colors: ['#10B981', '#3B82F6', '#F59E0B'],
+    });
+  };
+
+  // Acción: Reclamar subsidio social de la clase (para novatos <25.000 monedas)
+  const handleClaimSubsidio = () => {
+    if (userCoins >= 25000) return;
+    const now = Date.now();
+    const canClaim = now - (lastSubsidioClaimMs || 0) >= 3 * 3600 * 1000;
+    if (!canClaim) return;
+
+    sound.jackpot();
+    const bonus = 1200;
+    setLastSubsidioClaimMs(now);
+    onUpdateCoins(bonus);
+    saveState({ lastSubsidioClaimMs: now }, true);
+    confetti({
+      particleCount: 60,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#10B981', '#F59E0B'],
+    });
+  };
+
   // Acción: Meter las fichas acumuladas en la cartera real (Canje oficial: 5 fichas = 1 moneda real)
   const handleClaimVault = () => {
     if (isClaimingRef.current) return;
@@ -1891,47 +2006,86 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       </div>
 
-      {/* Banner de Nivelación: Beca para Novatos o Vigilancia Fiscal para Ballenas */}
-      {isUnderdog ? (
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-emerald-500/10 to-transparent border border-blue-500/30 flex items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in duration-200">
+      {/* Banner de Goteo Comunista & Custodia de Alijo (Grandes Fortunas) o Subsidio Proletario (Novatos) */}
+      {userCoins >= 100000 ? (
+        guardActiveUntilMs > Date.now() ? (
+          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                <Shield className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-foreground">Alijo Custodiado · Escudo Activo</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">
+                    {Math.ceil((guardActiveUntilMs - Date.now()) / 3600000)}h restantes
+                  </span>
+                </div>
+                <p className="text-[11px] text-foreground-muted">
+                  Tu fortuna está blindada contra la tasa de desgaste por inactividad y el Goteo Comunista.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleGuardStash}
+              className="px-3.5 py-1.5 rounded-xl bg-surface hover:bg-surface-hover border border-border text-foreground font-semibold text-xs cursor-pointer transition-colors shrink-0"
+            >
+              Renovar Guardia (+8h)
+            </button>
+          </div>
+        ) : (
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-amber-200">Goteo Comunista Inminente · Alijo sin Custodiar</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-semibold border border-red-500/30 animate-pulse">
+                    Tasa Proletaria Activa
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-300/80">
+                  Al superar 100.000 monedas, las fortunas ociosas gotean a la caja común si no se vigilan.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleGuardStash}
+              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs cursor-pointer transition-colors shrink-0 shadow-xs active:scale-95"
+            >
+              🛡️ Custodiar Alijo (Blindar 8 horas)
+            </button>
+          </div>
+        )
+      ) : isUnderdog && Date.now() - (lastSubsidioClaimMs || 0) >= 3 * 3600 * 1000 ? (
+        <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4" />
+              <Coins className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground">Beca SMR para Nuevos Fiesteros</span>
+                <span className="font-bold text-foreground">Subsidio Proletario de Clase</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30">
-                  x3.0 Velocidad + Bonus Click
+                  +1.200 Monedas
                 </span>
               </div>
               <p className="text-[11px] text-foreground-muted truncate">
-                Ayuda de nivelación para recortar distancias con las grandes fortunas. Activa hasta las 25.000 monedas.
+                Subvención social financiada por el Goteo Comunista de las ballenas. Reclamable cada 3 horas.
               </p>
             </div>
           </div>
-          <span className="font-mono text-[11px] text-emerald-400 font-bold shrink-0 hidden sm:inline">
-            x3.0 Farmeo
-          </span>
-        </div>
-      ) : userCoins >= 1000000 ? (
-        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs shadow-xs">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
-              <Crown className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-amber-200">Gran Fortuna de la Clase ({userCoins.toLocaleString()} monedas)</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-semibold border border-red-500/30">
-                  Vigilancia de Hacienda
-                </span>
-              </div>
-              <p className="text-[11px] text-amber-300/80 truncate">
-                Las fianzas y las multas de redada en el After escalan proporcionalmente con tu fortuna total.
-              </p>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={handleClaimSubsidio}
+            className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs cursor-pointer transition-colors shrink-0 active:scale-95"
+          >
+            Reclamar Subsidio
+          </button>
         </div>
       ) : null}
 
@@ -2121,47 +2275,86 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       </div>
 
-      {/* Banner de Nivelación: Beca para Novatos o Vigilancia Fiscal para Ballenas */}
-      {isUnderdog ? (
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-emerald-500/10 to-transparent border border-blue-500/30 flex items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in duration-200">
+      {/* Banner de Goteo Comunista & Custodia de Alijo (Grandes Fortunas) o Subsidio Proletario (Novatos) */}
+      {userCoins >= 100000 ? (
+        guardActiveUntilMs > Date.now() ? (
+          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                <Shield className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-foreground">Alijo Custodiado · Escudo Activo</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">
+                    {Math.ceil((guardActiveUntilMs - Date.now()) / 3600000)}h restantes
+                  </span>
+                </div>
+                <p className="text-[11px] text-foreground-muted">
+                  Tu fortuna está blindada contra la tasa de desgaste por inactividad y el Goteo Comunista.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleGuardStash}
+              className="px-3.5 py-1.5 rounded-xl bg-surface hover:bg-surface-hover border border-border text-foreground font-semibold text-xs cursor-pointer transition-colors shrink-0"
+            >
+              Renovar Guardia (+8h)
+            </button>
+          </div>
+        ) : (
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-amber-200">Goteo Comunista Inminente · Alijo sin Custodiar</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-semibold border border-red-500/30 animate-pulse">
+                    Tasa Proletaria Activa
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-300/80">
+                  Al superar 100.000 monedas, las fortunas ociosas gotean a la caja común si no se vigilan.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleGuardStash}
+              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs cursor-pointer transition-colors shrink-0 shadow-xs active:scale-95"
+            >
+              🛡️ Custodiar Alijo (Blindar 8 horas)
+            </button>
+          </div>
+        )
+      ) : isUnderdog && Date.now() - (lastSubsidioClaimMs || 0) >= 3 * 3600 * 1000 ? (
+        <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4" />
+              <Coins className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground">Beca SMR para Nuevos Fiesteros</span>
+                <span className="font-bold text-foreground">Subsidio Proletario de Clase</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30">
-                  x3.0 Velocidad + Bonus Click
+                  +1.200 Monedas
                 </span>
               </div>
               <p className="text-[11px] text-foreground-muted truncate">
-                Ayuda de nivelación para recortar distancias con las grandes fortunas. Activa hasta las 25.000 monedas.
+                Subvención social financiada por el Goteo Comunista de las ballenas. Reclamable cada 3 horas.
               </p>
             </div>
           </div>
-          <span className="font-mono text-[11px] text-emerald-400 font-bold shrink-0 hidden sm:inline">
-            x3.0 Farmeo
-          </span>
-        </div>
-      ) : userCoins >= 1000000 ? (
-        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs shadow-xs">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
-              <Crown className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-amber-200">Gran Fortuna de la Clase ({userCoins.toLocaleString()} monedas)</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-semibold border border-red-500/30">
-                  Vigilancia de Hacienda
-                </span>
-              </div>
-              <p className="text-[11px] text-amber-300/80 truncate">
-                Las fianzas y las multas de redada en el After escalan proporcionalmente con tu fortuna total.
-              </p>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={handleClaimSubsidio}
+            className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs cursor-pointer transition-colors shrink-0 active:scale-95"
+          >
+            Reclamar Subsidio
+          </button>
         </div>
       ) : null}
 
@@ -2200,6 +2393,15 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           })}
         </div>
       </div>
+
+      {/* Escena Viva de El Botellón: Personajes Interactivos Desbloqueables */}
+      <PartyLiveScene
+        levels={levels}
+        zoneName={activeZone.name}
+        onCharacterClick={handleCharacterClick}
+        activeSpeech={activeCharacterSpeech}
+        onCloseSpeech={() => setActiveCharacterSpeech(null)}
+      />
 
       {/* Pestañas de Progresión y Mecánicas del Botellón */}
       <div className="flex items-center p-1 rounded-2xl bg-surface-raised border border-border/70 overflow-x-auto scrollbar-none gap-1">
@@ -3222,6 +3424,51 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               className="w-full py-2.5 rounded-xl font-semibold text-xs text-background bg-foreground hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-sm"
             >
               {afterRaidResult.type === 'raid' ? 'Asumir sanción y continuar' : '¡Seguir la fiesta!'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Reporte de Goteo Comunista (Desgaste por Inactividad) */}
+      {communistDripReport && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in select-none"
+        >
+          <div className="w-full max-w-sm rounded-3xl bg-surface border border-red-500/40 p-5 space-y-4 shadow-2xl text-xs">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/15 text-red-400 border border-red-500/30 flex items-center justify-center mx-auto">
+              <TrendingDown className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-foreground">
+                Tasa de Solidaridad · Goteo Comunista
+              </h3>
+              <p className="text-xs text-foreground-muted">
+                Has estado {communistDripReport.hours}h desconectado con una gran fortuna (&gt;100k) sin custodiar tu alijo.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-surface-raised border border-border/70 text-center space-y-1">
+              <span className="text-[11px] font-mono text-foreground-muted">Aportación al Fondo Común de Clase:</span>
+              <div className="text-xl font-bold font-mono text-red-400">
+                -{communistDripReport.coinsLost.toLocaleString()} monedas
+              </div>
+              <p className="text-[10px] text-foreground-subtle">
+                Estas monedas se han repartido entre los alumnos con menos de 25k monedas para equilibrar la clase.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCommunistDripReport(null);
+                handleGuardStash();
+              }}
+              className="w-full py-2.5 rounded-xl bg-foreground text-background font-semibold text-xs cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-xs"
+            >
+              Entendido · Custodiar Alijo Ahora (8h)
             </button>
           </div>
         </div>

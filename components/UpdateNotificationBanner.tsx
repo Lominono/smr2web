@@ -146,12 +146,28 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
     };
   }, []);
 
-  const handleReload = () => {
+  const handleReload = async () => {
     sound.tap();
-    const v = updateDetails?.version || '1.0.0';
+    const v = updateDetails?.version || '1.2.0';
     try {
       localStorage.setItem('smr2_last_seen_version', v);
     } catch {}
+    if ('serviceWorker' in navigator) {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) {
+          await reg.update();
+        }
+      } catch {}
+    }
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        for (const k of keys) {
+          await caches.delete(k);
+        }
+      } catch {}
+    }
     window.location.reload();
   };
 
