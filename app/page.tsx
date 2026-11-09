@@ -693,24 +693,44 @@ export default function Home() {
   }, [fetchLeaderboard]);
 
   useEffect(() => {
-    // Comprobar estado de salida oficial (9 de noviembre a las 10:05 AM)
+    // Comprobar estado de salida oficial (9 de noviembre a las 09:50 AM)
     const isLaunched = Date.now() >= TARGET_LAUNCH_TIMESTAMP;
     const hasSeenWelcome =
       typeof window !== 'undefined' && localStorage.getItem('smr2_launch_welcome_seen') === 'true';
     
-    // Verificación criptográfica segura para acceso anticipado de administradores
-    let hasValidToken = false;
+    // Verificación criptográfica segura en el servidor para acceso anticipado de administradores
+    let hasValidTokenLocally = false;
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem('smr2_prelaunch_bypass'); // Invalida cualquier bypass inseguro anterior
+        localStorage.removeItem('smr2_prelaunch_bypass'); // Invalida cualquier bypass inseguro
         const storedToken = localStorage.getItem(PRELAUNCH_STORAGE_KEY);
-        if (storedToken && storedToken.includes('.') && storedToken.length > 20) {
-          hasValidToken = true;
+        if (storedToken && storedToken.includes('.') && storedToken.length > 30) {
+          hasValidTokenLocally = true;
+          // Validación criptográfica con el servidor para impedir tokens falsificados
+          fetch('/api/prelaunch/verify', {
+            headers: { Authorization: `Bearer ${storedToken}` },
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data?.valid) {
+                setIsSiteUnlocked(true);
+              } else {
+                localStorage.removeItem(PRELAUNCH_STORAGE_KEY);
+                if (!isLaunched) {
+                  setIsSiteUnlocked(false);
+                }
+              }
+            })
+            .catch(() => {
+              if (!isLaunched) {
+                setIsSiteUnlocked(false);
+              }
+            });
         }
       } catch {}
     }
     // Si ya se abrió el portal, solo se da por desbloqueado si ya vio la secuencia de apertura
-    setIsSiteUnlocked((isLaunched && hasSeenWelcome) || hasValidToken);
+    setIsSiteUnlocked(isLaunched ? hasSeenWelcome : hasValidTokenLocally);
 
     // 0. Forzar reseteo absoluto de datos locales si la época de reinicio no se ha aplicado
     const wasWiped = checkAndEnforceSystemWipe();
@@ -1822,32 +1842,34 @@ export default function Home() {
             }
           }}
         />
-        <LaunchDevToolbar
-          isAdmin={isAdmin}
-          onAdminAuthSuccess={() => setIsAdmin(true)}
-          onLockAdmin={handleLockAdmin}
-          currentState={currentEffectiveState}
-          onSetState={setDevLaunchState}
-          onTestCountdown={(secs) => {
-            setDevLaunchState('countdown');
-            setTimeout(() => {
-              if (typeof window !== 'undefined' && (window as any).smr2?.testCountdown) {
-                (window as any).smr2.testCountdown(secs);
-              }
-            }, 60);
-          }}
-          onReplayWelcome={() => {
-            setDevLaunchState('welcome');
-            setDevWelcomeKey((k) => k + 1);
-            setTimeout(() => {
-              if (typeof window !== 'undefined' && (window as any).smr2?.replayWelcome) {
-                (window as any).smr2.replayWelcome();
-              }
-            }, 60);
-          }}
-          speedMultiplier={devSpeedMultiplier}
-          onSetSpeed={setDevSpeedMultiplier}
-        />
+        {isAdmin && (
+          <LaunchDevToolbar
+            isAdmin={isAdmin}
+            onAdminAuthSuccess={() => setIsAdmin(true)}
+            onLockAdmin={handleLockAdmin}
+            currentState={currentEffectiveState}
+            onSetState={setDevLaunchState}
+            onTestCountdown={(secs) => {
+              setDevLaunchState('countdown');
+              setTimeout(() => {
+                if (typeof window !== 'undefined' && (window as any).smr2?.testCountdown) {
+                  (window as any).smr2.testCountdown(secs);
+                }
+              }, 60);
+            }}
+            onReplayWelcome={() => {
+              setDevLaunchState('welcome');
+              setDevWelcomeKey((k) => k + 1);
+              setTimeout(() => {
+                if (typeof window !== 'undefined' && (window as any).smr2?.replayWelcome) {
+                  (window as any).smr2.replayWelcome();
+                }
+              }, 60);
+            }}
+            speedMultiplier={devSpeedMultiplier}
+            onSetSpeed={setDevSpeedMultiplier}
+          />
+        )}
       </>
     );
   }
@@ -1870,32 +1892,34 @@ export default function Home() {
           }}
           supabaseConfigured={supabaseConfigured}
         />
-        <LaunchDevToolbar
-          isAdmin={isAdmin}
-          onAdminAuthSuccess={() => setIsAdmin(true)}
-          onLockAdmin={handleLockAdmin}
-          currentState={currentEffectiveState}
-          onSetState={setDevLaunchState}
-          onTestCountdown={(secs) => {
-            setDevLaunchState('countdown');
-            setTimeout(() => {
-              if (typeof window !== 'undefined' && (window as any).smr2?.testCountdown) {
-                (window as any).smr2.testCountdown(secs);
-              }
-            }, 60);
-          }}
-          onReplayWelcome={() => {
-            setDevLaunchState('welcome');
-            setDevWelcomeKey((k) => k + 1);
-            setTimeout(() => {
-              if (typeof window !== 'undefined' && (window as any).smr2?.replayWelcome) {
-                (window as any).smr2.replayWelcome();
-              }
-            }, 60);
-          }}
-          speedMultiplier={devSpeedMultiplier}
-          onSetSpeed={setDevSpeedMultiplier}
-        />
+        {isAdmin && (
+          <LaunchDevToolbar
+            isAdmin={isAdmin}
+            onAdminAuthSuccess={() => setIsAdmin(true)}
+            onLockAdmin={handleLockAdmin}
+            currentState={currentEffectiveState}
+            onSetState={setDevLaunchState}
+            onTestCountdown={(secs) => {
+              setDevLaunchState('countdown');
+              setTimeout(() => {
+                if (typeof window !== 'undefined' && (window as any).smr2?.testCountdown) {
+                  (window as any).smr2.testCountdown(secs);
+                }
+              }, 60);
+            }}
+            onReplayWelcome={() => {
+              setDevLaunchState('welcome');
+              setDevWelcomeKey((k) => k + 1);
+              setTimeout(() => {
+                if (typeof window !== 'undefined' && (window as any).smr2?.replayWelcome) {
+                  (window as any).smr2.replayWelcome();
+                }
+              }, 60);
+            }}
+            speedMultiplier={devSpeedMultiplier}
+            onSetSpeed={setDevSpeedMultiplier}
+          />
+        )}
       </>
     );
   }
@@ -2411,32 +2435,34 @@ export default function Home() {
         </div>
       </footer>
       {/* Developer Debug & Design Toolbar */}
-      <LaunchDevToolbar
-        isAdmin={isAdmin}
-        onAdminAuthSuccess={() => setIsAdmin(true)}
-        onLockAdmin={handleLockAdmin}
-        currentState={currentEffectiveState}
-        onSetState={setDevLaunchState}
-        onTestCountdown={(secs) => {
-          setDevLaunchState('countdown');
-          setTimeout(() => {
-            if (typeof window !== 'undefined' && (window as any).smr2?.testCountdown) {
-              (window as any).smr2.testCountdown(secs);
-            }
-          }, 60);
-        }}
-        onReplayWelcome={() => {
-          setDevLaunchState('welcome');
-          setDevWelcomeKey((k) => k + 1);
-          setTimeout(() => {
-            if (typeof window !== 'undefined' && (window as any).smr2?.replayWelcome) {
-              (window as any).smr2.replayWelcome();
-            }
-          }, 60);
-        }}
-        speedMultiplier={devSpeedMultiplier}
-        onSetSpeed={setDevSpeedMultiplier}
-      />
+      {isAdmin && (
+        <LaunchDevToolbar
+          isAdmin={isAdmin}
+          onAdminAuthSuccess={() => setIsAdmin(true)}
+          onLockAdmin={handleLockAdmin}
+          currentState={currentEffectiveState}
+          onSetState={setDevLaunchState}
+          onTestCountdown={(secs) => {
+            setDevLaunchState('countdown');
+            setTimeout(() => {
+              if (typeof window !== 'undefined' && (window as any).smr2?.testCountdown) {
+                (window as any).smr2.testCountdown(secs);
+              }
+            }, 60);
+          }}
+          onReplayWelcome={() => {
+            setDevLaunchState('welcome');
+            setDevWelcomeKey((k) => k + 1);
+            setTimeout(() => {
+              if (typeof window !== 'undefined' && (window as any).smr2?.replayWelcome) {
+                (window as any).smr2.replayWelcome();
+              }
+            }, 60);
+          }}
+          speedMultiplier={devSpeedMultiplier}
+          onSetSpeed={setDevSpeedMultiplier}
+        />
+      )}
       {/* Aviso exclusivo para usuarios móviles */}
       <MobileNotice />
     </div>

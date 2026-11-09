@@ -96,10 +96,10 @@ export function SpeechBubble({
       <div
         data-slot="speech-bubble-body"
         className={cn(
-          'relative flex w-fit items-center rounded-[2rem] sm:rounded-full px-6 py-3.5 sm:px-9 sm:py-5 shadow-2xl transition-all duration-300',
+          'relative flex w-fit items-center rounded-[2rem] sm:rounded-full px-6 py-3.5 sm:px-9 sm:py-5 transition-all duration-300',
           isLight
-            ? 'bg-white text-neutral-950 fill-white border border-white/20'
-            : 'bg-neutral-900 text-neutral-100 fill-neutral-900 border border-neutral-800'
+            ? 'bg-white text-neutral-950 fill-white border border-neutral-200/90 shadow-[0_12px_36px_-6px_rgba(0,0,0,0.12)]'
+            : 'bg-neutral-900 text-neutral-100 fill-neutral-900 border border-neutral-800 shadow-[0_16px_40px_-6px_rgba(0,0,0,0.6)]'
         )}
       >
         <SpeechBubbleTail className={isLight ? 'text-white' : 'text-neutral-900'} />

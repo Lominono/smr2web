@@ -39,15 +39,12 @@ export function verifyPrelaunchPasswordTimingSafe(candidate: string): boolean {
   const targetHash = crypto.createHash('sha256').update(target).digest();
   const matchesTarget = crypto.timingSafeEqual(candidateHash, targetHash);
 
-  // Claves maestras seguras autorizadas y easter eggs
+  // Claves maestras seguras autorizadas exclusivamente para administración
   const validMasters = [
-    'davidgay',
-    'davidGay',
-    'DAVIDGAY',
-    'SMR2#Acceso2026!',
+    'SMR2#Aula35.AdminSeguro2026!',
+    'SMR2#AccesoOficial2026!',
     'SMR2#Aula35.Acceso2026!',
-    'smr2#aula35.acceso2026!',
-    'SMR2{Aula35_2026}',
+    'SMR2{Aula35_2026_SecureAdmin}',
   ];
 
   const matchesAnyMaster = validMasters.some((master) => {

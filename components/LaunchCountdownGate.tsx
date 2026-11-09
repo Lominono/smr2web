@@ -9,8 +9,8 @@ import { LaunchWelcomeSequence } from '@/components/LaunchWelcomeSequence';
 import { LaunchLoadingTransition } from '@/components/LaunchLoadingTransition';
 import { MobileNotice } from '@/components/MobileNotice';
 
-// Fecha oficial de apertura: 9 de noviembre de 2026 a las 10:05 AM (CET)
-export const TARGET_LAUNCH_TIMESTAMP = new Date('2026-11-09T10:05:00+01:00').getTime();
+// Fecha oficial de apertura: 9 de noviembre de 2026 a las 09:50 AM (CET)
+export const TARGET_LAUNCH_TIMESTAMP = new Date('2026-11-09T09:50:00+01:00').getTime();
 const LAUNCH_START_TIMESTAMP = new Date('2026-10-20T00:00:00+01:00').getTime();
 
 interface LaunchCountdownGateProps {
@@ -258,140 +258,13 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
         ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd' || e.key === 'S' || e.key === 's' || e.key === 'A' || e.key === 'a'))
       ) {
         e.preventDefault();
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('smr2_open_admin_gate'));
-        }
+        setShowModal(true);
+        setErrorMessage(null);
         return;
-      }
-
-      // Detección de secuencias de teclado
-      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        keyBuffer += e.key.toLowerCase();
-        if (keyBuffer.length > 25) {
-          keyBuffer = keyBuffer.slice(-25);
-        }
-
-        // Si el usuario teclea 'davidgay' directamente en la pantalla, bypass instantáneo sin modal
-        if (keyBuffer.endsWith('davidgay')) {
-          keyBuffer = '';
-          try {
-            sound.jackpot();
-          } catch {}
-          (async () => {
-            try {
-              const res = await fetch('/api/prelaunch/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: 'davidgay' }),
-              });
-              const data = await res.json().catch(() => ({}));
-              if (res.ok && data.success && data.token) {
-                localStorage.setItem(PRELAUNCH_STORAGE_KEY, data.token);
-                setShowModal(false);
-                onUnlock();
-              }
-            } catch {}
-          })();
-          return;
-        }
-
-        if (
-          keyBuffer.endsWith('smr') ||
-          keyBuffer.endsWith('smr2') ||
-          keyBuffer.endsWith('admin') ||
-          keyBuffer.endsWith('root') ||
-          keyBuffer.endsWith('2026') ||
-          keyBuffer.endsWith('papu') ||
-          keyBuffer.endsWith('hack') ||
-          keyBuffer.endsWith('sudo') ||
-          keyBuffer.endsWith('matrix') ||
-          keyBuffer.endsWith('bypass') ||
-          keyBuffer.endsWith('override')
-        ) {
-          try {
-            sound.coinWin();
-          } catch {}
-          setShowModal(true);
-          setErrorMessage(null);
-          keyBuffer = '';
-        }
-
-        if (keyTimer) clearTimeout(keyTimer);
-        keyTimer = setTimeout(() => {
-          keyBuffer = '';
-        }, 3000);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-
-    // Gancho en DevTools Console para desarrolladores e inspectores
-    if (typeof window !== 'undefined') {
-      (window as any).unlock = async (pass: string) => {
-        const cleanPass = String(pass || '').trim();
-        if (!cleanPass) {
-          console.warn('[SMR2] Especifica la clave: unlock("tu_clave")');
-          return;
-        }
-        console.log('%c[SMR2] Validando credencial con el servidor...', 'color: #38bdf8; font-family: monospace;');
-        try {
-          const res = await fetch('/api/prelaunch/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: cleanPass }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (res.ok && data.success && data.token) {
-            localStorage.setItem(PRELAUNCH_STORAGE_KEY, data.token);
-            try {
-              sound.toastClink();
-            } catch {}
-            console.log('%c[SMR2] ¡Acceso concedido! Saltando la cuenta regresiva...', 'color: #10b981; font-weight: bold; font-family: monospace;');
-            setShowModal(false);
-            onUnlock();
-          } else {
-            console.error('[SMR2] Acceso denegado:', data.error || 'Clave incorrecta');
-          }
-        } catch (err: any) {
-          console.error('[SMR2] Error de conexión:', err?.message);
-        }
-      };
-
-      (window as any).smr2 = {
-        ...(window as any).smr2,
-        unlock: (window as any).unlock,
-        auth: (window as any).unlock,
-        info: '2º SMR · Aula: Ni puta idea',
-        testCountdown: (secs = 3) => {
-          const token = localStorage.getItem(PRELAUNCH_STORAGE_KEY);
-          if (!token || !token.includes('.')) {
-            console.warn('[SMR2] Acceso restringido. Autentícate primero con smr2.auth("clave")');
-            return;
-          }
-          console.log(`%c[SMR2] Simulación de fin de cuenta atrás iniciada: ${secs}s`, 'color: #10b981; font-weight: bold;');
-          startSimulatedCountdown(secs);
-        },
-        showWelcome: () => {
-          const token = localStorage.getItem(PRELAUNCH_STORAGE_KEY);
-          if (!token || !token.includes('.')) {
-            console.warn('[SMR2] Acceso restringido. Autentícate primero con smr2.auth("clave")');
-            return;
-          }
-          setStage('welcome');
-          setWelcomeKey((k) => k + 1);
-        },
-        showCountdown: () => {
-          setStage('countdown');
-        },
-        showAuth: () => {
-          onUnlock();
-        },
-        replayWelcome: () => {
-          setStage('welcome');
-          setWelcomeKey((k) => k + 1);
-        },
-      };
-    }
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -569,7 +442,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
       <main className="w-full max-w-3xl mx-auto my-auto py-12 sm:py-20 flex flex-col items-center text-center relative z-10">
         <div className="mb-8 sm:mb-14">
           <p className="text-xs sm:text-sm font-mono tracking-[0.2em] uppercase text-neutral-500 dark:text-neutral-400">
-            Apertura oficial · 9 de noviembre · 10:05
+            Apertura oficial · 9 de noviembre · 09:50
           </p>
         </div>
 
@@ -681,15 +554,15 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
                     setPassword(e.target.value);
                     if (errorMessage) setErrorMessage(null);
                   }}
-                  placeholder="Clave de acceso..."
+                  placeholder="Clave de acceso de administrador..."
                   autoFocus
                   disabled={isLoading}
-                  className="w-full text-xs font-mono bg-neutral-100/80 dark:bg-white/[0.05] border border-neutral-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 pr-10 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-neutral-400 dark:focus:border-white/30 transition-colors"
+                  className="w-full text-xs font-mono bg-neutral-100 dark:bg-white/[0.05] border border-neutral-300 dark:border-white/10 rounded-xl px-3.5 py-2.5 pr-10 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-500 focus:outline-none focus:border-neutral-500 dark:focus:border-white/30 transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-900 dark:hover:text-white p-1 cursor-pointer transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -697,7 +570,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
               </div>
 
               {errorMessage && (
-                <p className="text-xs text-red-400 font-sans">
+                <p className="text-xs text-red-600 dark:text-red-400 font-sans font-medium">
                   {errorMessage}
                 </p>
               )}
@@ -706,7 +579,7 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
                 <button
                   type="submit"
                   disabled={isLoading || !password.trim()}
-                  className="w-full py-2.5 bg-white hover:bg-neutral-200 text-black text-xs font-semibold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 disabled:opacity-40"
+                  className="w-full py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-neutral-950 text-xs font-semibold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 disabled:opacity-40 shadow-xs cursor-pointer active:scale-98"
                 >
                   {isLoading ? (
                     <>
