@@ -21,7 +21,7 @@ export const RussianRouletteGame: React.FC<RussianRouletteGameProps> = ({
   onOpenAuth,
   onUpdateCoins,
 }) => {
-  const [activeTab, setActiveTab] = useState<'tactical' | 'multiplayer'>('tactical');
+  const [activeTab, setActiveTab] = useState<'tactical' | 'multiplayer'>('multiplayer');
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
 
   const handleRoomCreated = (room: RRRoom) => {
@@ -80,6 +80,25 @@ export const RussianRouletteGame: React.FC<RussianRouletteGameProps> = ({
               type="button"
               onClick={() => {
                 sound.tap();
+                setActiveTab('multiplayer');
+              }}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'multiplayer'
+                  ? 'bg-foreground text-background shadow-xs'
+                  : 'text-foreground-muted hover:text-foreground'
+              }`}
+            >
+              <Users className="w-4 h-4 text-amber-500" />
+              <span>Apuestas PvP (Entre Alumnos)</span>
+              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-500 font-bold hidden sm:inline">
+                DUELOS
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.tap();
                 setActiveTab('tactical');
               }}
               className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
@@ -89,26 +108,7 @@ export const RussianRouletteGame: React.FC<RussianRouletteGameProps> = ({
               }`}
             >
               <Flame className="w-4 h-4 text-red-500" />
-              <span>Duelo Táctico (Buckshot)</span>
-              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-red-500/15 text-red-500 font-bold hidden sm:inline">
-                POPULAR
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                sound.tap();
-                setActiveTab('multiplayer');
-              }}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'multiplayer'
-                  ? 'bg-foreground text-background shadow-xs'
-                  : 'text-foreground-muted hover:text-foreground'
-              }`}
-            >
-              <Users className="w-4 h-4 text-cyan-400" />
-              <span>Salas Multijugador (PvP)</span>
+              <span>Práctica Solo (Vs IA)</span>
             </button>
           </div>
         </div>

@@ -1,17 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
+  BottleWine,
+  GlassWater,
   Wine,
-  Sparkles,
-  Volume2,
-  Lock,
-  Crown,
-  Check,
+  CupSoda,
+  Radio,
   Flame,
-  Award,
-  Users,
-  MessageCircle,
+  Crown,
+  Lock,
+  Volume2,
+  Sparkles,
+  Zap,
+  Activity,
+  Layers,
+  ArrowUpRight,
+  Shield,
+  CheckCircle2,
 } from 'lucide-react';
 
 export interface CharacterItem {
@@ -19,12 +25,12 @@ export interface CharacterItem {
   tierId: string;
   name: string;
   role: string;
-  avatarEmoji: string;
   badge: string;
   color: string;
   unlocked: boolean;
   level: number;
   quotes: string[];
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 interface PartyLiveSceneProps {
@@ -44,56 +50,56 @@ export const PARTY_CHARACTERS_DATA: Omit<CharacterItem, 'unlocked' | 'level'>[] 
   {
     id: 'toni_litronas',
     tierId: 'litronas',
-    name: 'Toni "El Litronero"',
+    name: 'Toni',
     role: 'Colega de los bancos',
-    avatarEmoji: '🍻',
     badge: 'LITRONAS',
-    color: '#10B981', // emerald
+    color: '#10B981',
+    icon: BottleWine,
     quotes: [
-      '¡Pasa la litrona fresca, que esto calienta más que la GPU de pruebas!',
-      'Un par de tragos y apruebo Redes y Seguridad con la gorra.',
-      'Aquí sentado en el banco con los chavales no se piensa en los exámenes.',
-      'Dos litronas más y montamos un clúster ad-hoc en los bancos del parque.',
+      'Pásame la litrona fría, que esto calienta más que la GPU del aula.',
+      'Un par de tragos y apruebo Redes y Seguridad sin abrir el libro.',
+      'Aquí sentado en el banco se piensa mejor que en cualquier oficina.',
+      'Dos litronas más y montamos un clúster ad-hoc en la plaza.',
     ],
   },
   {
     id: 'santi_barman',
     tierId: 'hielos',
-    name: 'Santi "El Barman"',
+    name: 'Santi',
     role: 'Guardián del Hielo',
-    avatarEmoji: '🧊',
     badge: 'HIELOS',
-    color: '#06B6D4', // cyan
+    color: '#06B6D4',
+    icon: GlassWater,
     quotes: [
-      '¡Tengo hielo para toda la noche, aquí no se calienta ni un trago!',
-      'Vaso de 500ml de plástico americano, la verdadera ingeniería del aula.',
+      'Tengo cubitos para toda la noche, aquí no se calienta ni una copa.',
+      'Vaso de 500ml de plástico, la auténtica ingeniería de aula.',
       '¿Alguien tiene mechero o le meto al tapón con los dientes?',
-      'Calimocho en su proporción óptima: 50% Don Simón, 50% refresco.',
+      'Calimocho en su proporción óptima: 50% vino y 50% refresco.',
     ],
   },
   {
     id: 'pareja_chupitos',
     tierId: 'chupitos',
-    name: 'Los Chupiteros',
-    role: 'Ronda de Disparos',
-    avatarEmoji: '🎯',
+    name: 'Chupiteros',
+    role: 'Ronda de Tequila',
     badge: 'CHUPITOS',
-    color: '#F59E0B', // amber
+    color: '#F59E0B',
+    icon: Zap,
     quotes: [
       '¡Arriba, abajo, al centro y pal aprobado general de 2º SMR!',
       '¡Tequila con limón! El que tire la sal paga la siguiente fianza.',
-      '¡Jäger helado directo al pecho, vamos chavales que la noche empieza!',
-      'Un chupito por cada módulo que saquemos sin ir a recuperación.',
+      '¡Jäger helado directo al pecho, que la noche apenas empieza!',
+      'Un chupito por cada módulo que aprobemos en la primera convocatoria.',
     ],
   },
   {
     id: 'mesa_mezclas',
     tierId: 'botellas',
-    name: 'El Rincón del Ron',
-    role: 'Logística de Mezclas',
-    avatarEmoji: '🍹',
+    name: 'El Alijo',
+    role: 'Mesa de Mezclas',
     badge: 'BOTELLAS',
-    color: '#EC4899', // pink
+    color: '#EC4899',
+    icon: CupSoda,
     quotes: [
       'Nevera azul de camping al 100% de capacidad operativa.',
       'Esto sí que es balanceo de carga y alta disponibilidad de cubatas.',
@@ -104,46 +110,46 @@ export const PARTY_CHARACTERS_DATA: Omit<CharacterItem, 'unlocked' | 'level'>[] 
   {
     id: 'dj_isaac',
     tierId: 'altavoz',
-    name: 'DJ Aula 35',
+    name: 'DJ Isaac',
     role: 'Sonido y Graves',
-    avatarEmoji: '🎧',
     badge: 'ALTAVOZ',
-    color: '#8B5CF6', // purple
+    color: '#8B5CF6',
+    icon: Radio,
     quotes: [
       '¡Tirando graves a 140 BPM para los chavales de 2º SMR!',
       '¡Que suba el subidón que este botellón revienta la plaza entera!',
       'Esta sesión va dedicada al recreo de las once en punto.',
-      'Reguetón clásico y electrónica sin cortes ni anuncios de Spotify.',
+      'Reguetón clásico y electrónica sin cortes ni anuncios.',
     ],
   },
   {
     id: 'pandilla_fiesta',
     tierId: 'barra_libre',
-    name: 'La Pandilla en la Pista',
-    role: 'El Desfase Colectivo',
-    avatarEmoji: '🎉',
+    name: 'Pandilla',
+    role: 'Pista y Desfase',
     badge: 'BARRA LIBRE',
-    color: '#EAB308', // yellow
+    color: '#EAB308',
+    icon: Flame,
     quotes: [
       '¡Hoy no se duerme, que mañana no tenemos guardia de taller!',
       '¡Barra libre hasta que salga el sol por encima del instituto!',
-      '¡Estamos en el prime histórico de la clase!',
-      '¡Coro en el centro de la pista con los vasos bien arriba!',
+      '¡Estamos en el prime histórico de toda la clase!',
+      '¡Coro en el centro de la plaza con los vasos bien arriba!',
     ],
   },
   {
     id: 'portero_vip',
     tierId: 'vip',
-    name: 'El Reservado VIP',
-    role: 'Control y Bengalas',
-    avatarEmoji: '👑',
-    badge: 'RESERVADO VIP',
-    color: '#F43F5E', // rose
+    name: 'Zona VIP',
+    role: 'Portero & Champán',
+    badge: 'RESERVADO',
+    color: '#F43F5E',
+    icon: Crown,
     quotes: [
-      'Solo entran alumnos con credencial de administrador o fortuna millonaria.',
+      'Solo entran alumnos con credencial de administrador o fortuna legendaria.',
       'Bengalas de champán encendidas para los reyes del ranking.',
       'Zona reservada blindada con TLS 1.3 y cordón de terciopelo.',
-      'Champán francés helado y copas de cristal para la élite.',
+      'Champán francés helado y copas de cristal para la élite de clase.',
     ],
   },
 ];
@@ -167,60 +173,60 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
   const unlockedCount = characters.filter((c) => c.unlocked).length;
 
   return (
-    <div className="relative rounded-3xl bg-surface-raised border border-border/80 p-4 sm:p-5 shadow-sm space-y-4 overflow-hidden">
-      {/* Fondo ambiental sutil con degradado */}
-      <div className="absolute inset-0 bg-gradient-to-b from-accent/5 via-transparent to-transparent pointer-events-none" />
-
-      {/* Cabecera de la Escena */}
-      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-3">
+    <section
+      aria-label="Escena en directo del botellón"
+      className="relative rounded-2xl bg-neutral-900/40 dark:bg-neutral-950/60 border border-neutral-300/80 dark:border-neutral-800/80 p-4 sm:p-5 shadow-xs space-y-4 select-none font-sans"
+    >
+      {/* Cabecera Técnica de la Escena (Estilo Command Deck) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-neutral-200 dark:border-neutral-800/70">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-accent/10 text-accent flex items-center justify-center font-bold text-xs border border-accent/20">
-            <Users className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-foreground tracking-tight">
-                La Plaza en Directo · {zoneName}
-              </h3>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
-                {unlockedCount}/7 Personajes Activos
-              </span>
-            </div>
-            <p className="text-[11px] text-foreground-muted">
-              Conforme mejoras tus suministros, se unen nuevos personajes a tu fiesta. ¡Haz clic en ellos!
-            </p>
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-bold tracking-tight text-neutral-900 dark:text-neutral-100 uppercase">
+              PLAZA EN VIVO · {zoneName}
+            </span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 border border-neutral-300 dark:border-neutral-800 font-semibold">
+              {unlockedCount}/7 PRESENTES
+            </span>
           </div>
         </div>
 
-        <div className="text-[11px] font-mono text-foreground-subtle text-left sm:text-right">
-          Toca a un personaje para hablar con él (+10 fichas)
+        <div className="flex items-center gap-3 text-[11px] text-neutral-500 dark:text-neutral-400 font-mono">
+          <span>Haz clic en un personaje para interactuar (+10 fichas)</span>
         </div>
       </div>
 
-      {/* Burbuja de Diálogo Activa Emergente */}
+      {/* Diálogo emergente con estilo cómic editorial suizo */}
       {activeSpeech && (
-        <div className="relative z-20 p-3.5 rounded-2xl bg-surface border border-accent/40 shadow-lg flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-start gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-xl bg-accent/20 text-accent flex items-center justify-center shrink-0 mt-0.5">
-              <MessageCircle className="w-3.5 h-3.5" />
+        <div
+          role="region"
+          aria-live="polite"
+          className="relative p-3.5 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 shadow-md flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150"
+        >
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white flex items-center justify-center font-bold font-mono text-xs shrink-0 border border-neutral-200 dark:border-neutral-700">
+              {activeSpeech.name.slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-foreground">{activeSpeech.name}</span>
-                <span className="text-[10px] font-mono text-foreground-muted font-normal">
-                  ({activeSpeech.tierName})
+              <div className="flex items-center gap-2 font-mono">
+                <span className="text-xs font-bold text-neutral-900 dark:text-white">
+                  @{activeSpeech.name}
                 </span>
-                <span className="text-[10px] font-mono text-emerald-400 font-semibold">+10 fichas</span>
+                <span className="text-[10px] text-neutral-500">[{activeSpeech.tierName}]</span>
+                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  +10 fichas
+                </span>
               </div>
-              <p className="text-xs text-foreground font-medium mt-0.5 italic">
+              <p className="text-xs text-neutral-700 dark:text-neutral-300 mt-1 leading-relaxed">
                 &ldquo;{activeSpeech.quote}&rdquo;
               </p>
             </div>
           </div>
+
           <button
             type="button"
             onClick={onCloseSpeech}
-            className="text-foreground-muted hover:text-foreground p-1 cursor-pointer transition-colors shrink-0"
+            className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-1 cursor-pointer transition-colors"
             title="Cerrar diálogo"
           >
             ✕
@@ -228,26 +234,34 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
         </div>
       )}
 
-      {/* Grid de Personajes de la Escena */}
-      <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
+      {/* Cuadrícula de Estaciones de Personajes (Anti-AI Minimalist Stage) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
         {characters.map((char) => {
+          const Icon = char.icon;
           const isSpeaking = activeSpeech?.id === char.id;
 
           if (!char.unlocked) {
             return (
               <div
                 key={char.id}
-                className="group relative flex flex-col items-center justify-center p-3 rounded-2xl bg-surface/40 border border-border/40 border-dashed text-center space-y-2 opacity-50 hover:opacity-75 transition-opacity"
-                title={`Mejora ${char.badge} a Nivel 1 para desbloquear a este personaje`}
+                className="group relative flex flex-col items-center justify-between p-3 rounded-xl bg-neutral-100/50 dark:bg-neutral-900/30 border border-dashed border-neutral-300/80 dark:border-neutral-800 text-center min-h-[120px] opacity-40 transition-opacity hover:opacity-60"
+                title={`Mejora ${char.badge} para invitar a este personaje`}
               >
-                <div className="w-12 h-12 rounded-2xl bg-surface-raised border border-border/40 flex items-center justify-center text-xl grayscale filter">
-                  <Lock className="w-4 h-4 text-foreground-subtle" />
+                <div className="w-full flex justify-end">
+                  <Lock className="w-3 h-3 text-neutral-400 dark:text-neutral-600" />
                 </div>
-                <div className="space-y-0.5 w-full">
-                  <div className="text-[11px] font-medium text-foreground-subtle truncate">
-                    {char.badge}
+
+                <div className="w-9 h-9 rounded-lg bg-neutral-200/50 dark:bg-neutral-800/40 flex items-center justify-center text-neutral-400 dark:text-neutral-600">
+                  <Icon className="w-4 h-4" />
+                </div>
+
+                <div className="w-full space-y-0.5">
+                  <div className="text-[10px] font-mono font-medium text-neutral-400 dark:text-neutral-500 uppercase truncate">
+                    {char.name}
                   </div>
-                  <div className="text-[9px] font-mono text-foreground-subtle">Bloqueado</div>
+                  <div className="text-[9px] font-mono text-neutral-400 dark:text-neutral-600">
+                    Bloqueado
+                  </div>
                 </div>
               </div>
             );
@@ -258,48 +272,38 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
               key={char.id}
               type="button"
               onClick={() => onCharacterClick(char)}
-              className={`group relative flex flex-col items-center justify-center p-3 rounded-2xl bg-surface border transition-all cursor-pointer active:scale-95 text-center space-y-1.5 shadow-2xs hover:shadow-xs hover:border-accent/40 ${
+              className={`group relative flex flex-col items-center justify-between p-3 rounded-xl border text-center min-h-[120px] transition-all cursor-pointer active:scale-95 touch-manipulation ${
                 isSpeaking
-                  ? 'border-accent bg-accent/5 ring-2 ring-accent/30'
-                  : 'border-border/70 hover:bg-surface-raised'
+                  ? 'bg-neutral-100 dark:bg-neutral-900 border-neutral-900 dark:border-white shadow-xs ring-1 ring-neutral-900 dark:ring-white'
+                  : 'bg-white dark:bg-neutral-900/90 border-neutral-200 dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 shadow-2xs'
               }`}
             >
-              {/* Indicador de Nivel */}
-              <span className="absolute top-1.5 right-1.5 text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-surface-raised text-foreground font-semibold border border-border/60">
-                Nv.{char.level}
-              </span>
-
-              {/* Avatar con Animación Suave */}
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-xs transition-transform group-hover:scale-110 group-active:scale-95 duration-200"
-                style={{
-                  backgroundColor: `${char.color}15`,
-                  borderColor: `${char.color}40`,
-                  borderWidth: '1px',
-                }}
-              >
-                <span>{char.avatarEmoji}</span>
+              {/* Nivel en formato Tabular Mono */}
+              <div className="w-full flex items-center justify-between">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[9px] font-mono font-bold text-neutral-500 dark:text-neutral-400 px-1 py-0.2 rounded bg-neutral-100 dark:bg-neutral-800">
+                  NV.{char.level.toString().padStart(2, '0')}
+                </span>
               </div>
 
-              {/* Nombre y Rol */}
-              <div className="space-y-0.5 w-full min-w-0">
-                <div className="text-[11px] font-bold text-foreground truncate group-hover:text-accent transition-colors">
-                  {char.name.split(' ')[0]}
+              {/* Icono Vectorial con Círculo de Alto Contraste */}
+              <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 flex items-center justify-center group-hover:scale-105 transition-transform border border-neutral-200 dark:border-neutral-700/60">
+                <Icon className="w-4 h-4" />
+              </div>
+
+              {/* Nombre y Especialidad */}
+              <div className="w-full space-y-0.5">
+                <div className="text-[11px] font-bold text-neutral-900 dark:text-neutral-100 truncate">
+                  {char.name}
                 </div>
-                <div className="text-[9px] font-mono text-foreground-muted truncate">
+                <div className="text-[9px] font-mono text-neutral-500 truncate leading-tight">
                   {char.role}
                 </div>
-              </div>
-
-              {/* Punto de actividad online */}
-              <div className="flex items-center gap-1 pt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[9px] font-mono text-emerald-400 font-medium">En vivo</span>
               </div>
             </button>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 };

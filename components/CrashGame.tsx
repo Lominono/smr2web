@@ -532,26 +532,40 @@ export const CrashGame: React.FC<CrashGameProps> = ({
               <Coins className="w-4 h-4 text-amber-500" />
               <span>Apuesta:</span>
             </span>
-            <span className="text-amber-500 font-bold">{bet.toLocaleString()} fichas</span>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={5}
+                max={userCoins > 0 ? userCoins : 1000000}
+                disabled={gameState === 'running'}
+                value={bet || ''}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setBet(isNaN(val) ? 0 : Math.max(0, Math.min(userCoins > 0 ? userCoins : 1000000, val)));
+                }}
+                className="w-24 px-2 py-0.5 rounded-lg bg-surface border border-border text-right text-xs font-mono font-bold text-amber-500 focus:outline-none focus:border-border-focus"
+              />
+              <span className="text-foreground-subtle text-[11px]">fichas</span>
+            </div>
           </div>
 
           {/* Presets row */}
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-            {[10, 25, 50, 100, 250].map((amt) => (
+            {[25, 50, 100, 250, 500, 1000].map((amt) => (
               <button
                 key={amt}
                 disabled={gameState === 'running'}
                 onClick={() => {
-                  setBet(amt);
+                  setBet(Math.min(userCoins > 0 ? userCoins : amt, amt));
                   sound.tap();
                 }}
-                className={`flex-1 min-h-[42px] px-2.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation disabled:opacity-40 ${
+                className={`flex-1 min-h-[38px] px-2 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation disabled:opacity-40 ${
                   bet === amt
                     ? 'bg-foreground text-background font-black shadow-xs'
                     : 'text-foreground-muted hover:text-foreground bg-surface border border-border'
                 }`}
               >
-                {amt}
+                {amt >= 1000 ? `${amt / 1000}k` : amt}
               </button>
             ))}
           </div>
@@ -562,11 +576,11 @@ export const CrashGame: React.FC<CrashGameProps> = ({
               type="button"
               disabled={gameState === 'running'}
               onClick={() => {
-                setBet((prev) => Math.max(10, Math.floor(prev / 2)));
+                setBet((prev) => Math.max(5, Math.floor(prev / 2)));
                 sound.tap();
               }}
               title="Dividir apuesta entre 2"
-              className="min-h-[40px] px-2 py-1 rounded-lg text-xs font-mono font-bold text-foreground-muted hover:text-foreground bg-surface border border-border active:scale-95 touch-manipulation cursor-pointer disabled:opacity-40"
+              className="min-h-[38px] px-2 py-1 rounded-lg text-xs font-mono font-bold text-foreground-muted hover:text-foreground bg-surface border border-border active:scale-95 touch-manipulation cursor-pointer disabled:opacity-40"
             >
               ½ Mitad
             </button>
@@ -574,11 +588,11 @@ export const CrashGame: React.FC<CrashGameProps> = ({
               type="button"
               disabled={gameState === 'running'}
               onClick={() => {
-                setBet((prev) => Math.min(Math.min(userCoins, 500), prev * 2));
+                setBet((prev) => Math.min(userCoins > 0 ? userCoins : prev * 2, (prev || 25) * 2));
                 sound.tap();
               }}
               title="Duplicar apuesta"
-              className="min-h-[40px] px-2 py-1 rounded-lg text-xs font-mono font-bold text-foreground-muted hover:text-foreground bg-surface border border-border active:scale-95 touch-manipulation cursor-pointer disabled:opacity-40"
+              className="min-h-[38px] px-2 py-1 rounded-lg text-xs font-mono font-bold text-foreground-muted hover:text-foreground bg-surface border border-border active:scale-95 touch-manipulation cursor-pointer disabled:opacity-40"
             >
               2× Doble
             </button>
@@ -586,16 +600,16 @@ export const CrashGame: React.FC<CrashGameProps> = ({
               type="button"
               disabled={gameState === 'running'}
               onClick={() => {
-                setBet(Math.min(userCoins > 0 ? userCoins : 100, 500));
-                sound.tap();
+                setBet(userCoins > 0 ? userCoins : 100);
+                sound.coinWin();
               }}
-              className={`min-h-[40px] px-2 py-1 rounded-lg text-xs font-mono font-black transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation disabled:opacity-40 ${
-                bet >= 500 || bet === userCoins
+              className={`min-h-[38px] px-2 py-1 rounded-lg text-xs font-mono font-black transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation disabled:opacity-40 ${
+                bet === userCoins && userCoins > 0
                   ? 'bg-amber-500 text-black shadow-xs'
                   : 'text-amber-500 bg-amber-500/10 border border-amber-500/25'
               }`}
             >
-              MÁX
+              MÁX (All-In)
             </button>
           </div>
         </div>

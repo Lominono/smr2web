@@ -590,7 +590,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
           <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-surface-raised border border-border">
             <span className="text-xs font-mono text-foreground-muted pl-1 shrink-0 font-medium">Ficha:</span>
             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-              {[5, 10, 25, 50, 100, 250].map((val) => (
+              {[5, 10, 25, 50, 100, 250, 500, 1000].map((val) => (
                 <button
                   key={val}
                   type="button"

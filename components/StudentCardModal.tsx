@@ -19,6 +19,7 @@ import {
   User,
   Send,
   IdCard,
+  Swords,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { sound } from '@/lib/audio';
@@ -39,6 +40,7 @@ interface StudentCardModalProps {
   inspectedUser?: Partial<UserProfile> | null;
   onUpdateUser?: (updated: UserProfile) => void;
   onTipUser?: (username: string, amount: number) => void;
+  onChallengeUser?: (targetUsername: string) => void;
 }
 
 export const StudentCardModal: React.FC<StudentCardModalProps> = ({
@@ -48,6 +50,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
   inspectedUser,
   onUpdateUser,
   onTipUser,
+  onChallengeUser,
 }) => {
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -479,6 +482,20 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>{tipSent ? '¡50 fichas enviadas!' : 'Enviar 50 fichas'}</span>
+                    </button>
+                  )}
+
+                  {user && onChallengeUser && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.tap();
+                        onChallengeUser(displayUsername);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-xs text-red-300 transition-colors flex items-center gap-1.5 cursor-pointer font-mono font-medium"
+                    >
+                      <Swords className="w-3.5 h-3.5 text-red-400" />
+                      <span>⚔️ Retar a Duelo 1v1</span>
                     </button>
                   )}
                 </div>

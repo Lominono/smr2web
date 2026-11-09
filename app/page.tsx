@@ -2491,6 +2491,11 @@ export default function Home() {
           fetchLeaderboard();
         }}
         onTipUser={handleTipUser}
+        onChallengeUser={(targetUsername) => {
+          setIsStudentCardOpen(false);
+          setInspectedStudent(null);
+          setActiveView('russian_roulette');
+        }}
       />
 
       <CookieBanner
