@@ -285,11 +285,31 @@ export default function Home() {
     if (!supabase) return;
 
     try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      // 1. Obtener datos desde API con privilegios de servidor (garantiza student_number y ficha)
+      let data: any = null;
+      try {
+        const res = await fetch(`/api/user/profile?id=${encodeURIComponent(userId)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.success && json?.user) {
+            data = json.user;
+          }
+        }
+      } catch {}
+
+      // 2. Consulta directa a Supabase si falta información
+      if (supabase && (!data || !data.student_number)) {
+        try {
+          const { data: dbData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+          if (dbData) {
+            data = { ...data, ...dbData };
+          }
+        } catch {}
+      }
 
       if (data) {
         const rawUsername = data.username || (data.nombre ? String(data.nombre).toLowerCase().replace(/\s+/g, '_') : `user_${data.id?.slice(0, 5)}`);
@@ -675,7 +695,7 @@ export default function Home() {
   }, [fetchLeaderboard]);
 
   useEffect(() => {
-    // Comprobar estado de salida oficial (9 de noviembre a las 09:20 AM)
+    // Comprobar estado de salida oficial (9 de noviembre a las 10:05 AM)
     const isLaunched = Date.now() >= TARGET_LAUNCH_TIMESTAMP;
     const hasSeenWelcome =
       typeof window !== 'undefined' && localStorage.getItem('smr2_launch_welcome_seen') === 'true';
@@ -1838,8 +1858,9 @@ export default function Home() {
     return (
       <>
         <AuthGate
-          onAuthSuccess={(profile) => {
+          onAuthSuccess={async (profile) => {
             setUser(profile);
+            await fetchUserProfile(profile.id, profile.email);
             fetchMessages();
             fetchLeaderboard();
             fetchCalendarEvents();
@@ -2172,8 +2193,9 @@ export default function Home() {
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
-        onAuthSuccess={(newProfile) => {
+        onAuthSuccess={async (newProfile) => {
           setUser(newProfile);
+          await fetchUserProfile(newProfile.id, newProfile.email);
           fetchMessages();
           fetchLeaderboard();
           fetchCalendarEvents();

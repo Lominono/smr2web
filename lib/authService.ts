@@ -333,12 +333,30 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
         }
 
         if (activeSessionUser) {
-          // Fetch existing profile data
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', activeSessionUser.id)
-            .maybeSingle();
+          // Fetch existing profile data (server endpoint + Supabase client)
+          let profileData: any = null;
+          try {
+            const profRes = await fetch(`/api/user/profile?id=${encodeURIComponent(activeSessionUser.id)}`);
+            if (profRes.ok) {
+              const profJson = await profRes.json();
+              if (profJson?.success && profJson?.user) {
+                profileData = profJson.user;
+              }
+            }
+          } catch {}
+
+          if (!profileData || !profileData.student_number) {
+            try {
+              const { data: dbData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', activeSessionUser.id)
+                .maybeSingle();
+              if (dbData) {
+                profileData = { ...profileData, ...dbData };
+              }
+            } catch {}
+          }
 
           const username =
             profileData?.username ||
@@ -356,10 +374,17 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
             id: activeSessionUser.id,
             username,
             full_name: profileData?.full_name || profileData?.nombre || undefined,
+            student_number: profileData?.student_number || undefined,
+            pc_seat: profileData?.pc_seat || undefined,
+            avatar_color: profileData?.avatar_color || 'emerald',
             email: activeSessionUser.email || targetEmail,
             coins: Number(profileData?.coins ?? profileData?.puntos_total ?? 1000),
             biggest_win: Number(profileData?.biggest_win ?? 0),
             streak_count: Number(profileData?.streak_count ?? profileData?.racha_actual ?? 1),
+            games_played: Number(profileData?.games_played ?? 0),
+            games_won: Number(profileData?.games_won ?? 0),
+            sound_enabled: profileData?.sound_enabled ?? true,
+            notifications_enabled: profileData?.notifications_enabled ?? true,
             last_claim_date: profileData?.last_claim_date || undefined,
             role,
             created_at: profileData?.created_at,
@@ -555,7 +580,7 @@ export async function saveStudentIdentification(
     } catch {}
   }
 
-  // 3. Guaranteed session update
+  // 3. Guaranteed session and local storage update
   const current = getUserSession();
   const guaranteedUser: UserProfile = {
     id: userId,
@@ -569,6 +594,23 @@ export async function saveStudentIdentification(
     student_number: cleanNumber,
   };
   saveUserSession(guaranteedUser, true);
+
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('smr2_local_db_users');
+      if (stored) {
+        const accounts: any[] = JSON.parse(stored);
+        const idx = accounts.findIndex(
+          (a) => a.id === userId || a.username?.toLowerCase() === current?.username?.toLowerCase()
+        );
+        if (idx >= 0) {
+          accounts[idx].full_name = cleanName;
+          accounts[idx].student_number = cleanNumber;
+          localStorage.setItem('smr2_local_db_users', JSON.stringify(accounts));
+        }
+      }
+    } catch {}
+  }
 
   return { success: true, user: guaranteedUser };
 }
