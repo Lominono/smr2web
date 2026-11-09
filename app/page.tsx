@@ -796,10 +796,19 @@ export default function Home() {
         if (authUser) {
           fetchUserProfile(authUser.id, authUser.email).finally(() => setAuthLoading(false));
         } else {
+          // Si Supabase client no tiene token en memoria, asegurar que la sesión persistente de caché se mantenga
+          const cached = getUserSession();
+          if (cached) {
+            setUser(cached);
+          }
           setAuthLoading(false);
         }
       })
       .catch(() => {
+        const cached = getUserSession();
+        if (cached) {
+          setUser(cached);
+        }
         setAuthLoading(false);
       });
 
@@ -808,8 +817,22 @@ export default function Home() {
         await fetchUserProfile(session.user.id, session.user.email);
         setAuthLoading(false);
       } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        clearUserSession();
+        // Solo limpiar la sesión si el usuario solicitó cerrar sesión manualmente
+        const isManualLogout =
+          typeof window !== 'undefined' && sessionStorage.getItem('smr2_manual_logout') === 'true';
+        if (isManualLogout) {
+          try {
+            sessionStorage.removeItem('smr2_manual_logout');
+          } catch {}
+          setUser(null);
+          clearUserSession();
+        } else {
+          // Mantener la sesión activa para que el alumno nunca tenga que volver a iniciar sesión
+          const cached = getUserSession();
+          if (cached) {
+            setUser(cached);
+          }
+        }
         setAuthLoading(false);
       }
     });

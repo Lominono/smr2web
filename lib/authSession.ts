@@ -79,26 +79,30 @@ async function legacyUnsaltedHash(password: string): Promise<string> {
  * and dual-saves to localStorage for maximum resilience.
  */
 export function saveUserSession(user: UserProfile, remember: boolean = true): void {
-  const days = remember ? 365 : 30;
+  // Persistencia de 730 días (2 años) para que los alumnos nunca tengan que volver a iniciar sesión
+  const days = 730;
   const safeUser: UserProfile = {
     ...user,
     id: ensureUUID(user.id),
   };
 
-  // 1. Save in cookie (accessible to client and sent in headers)
-  setJsonCookie<UserProfile>(COOKIE_SESSION, safeUser, { days });
-  setCookie(COOKIE_REMEMBER, remember ? 'true' : 'false', { days });
+  // 1. Guardar en cookie persistente accesible por cliente y servidor
+  setJsonCookie<UserProfile>(COOKIE_SESSION, safeUser, { days, path: '/', sameSite: 'Lax' });
+  setCookie(COOKIE_REMEMBER, 'true', { days, path: '/', sameSite: 'Lax' });
 
-  // 2. Remember last username/email identifier for convenience
+  // 2. Recordar último usuario/correo
   if (safeUser.username || safeUser.email) {
-    setCookie(COOKIE_LAST_USER, safeUser.email || safeUser.username, { days: 365 });
+    setCookie(COOKIE_LAST_USER, safeUser.email || safeUser.username, { days, path: '/', sameSite: 'Lax' });
   }
 
-  // 3. LocalStorage backup
+  // 3. Backup redundante e indestructible en LocalStorage
   try {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_USER_BACKUP, JSON.stringify(safeUser));
-      localStorage.setItem(COOKIE_REMEMBER, remember ? 'true' : 'false');
+      localStorage.setItem(COOKIE_REMEMBER, 'true');
+      if (safeUser.email) localStorage.setItem('smr2_last_email', safeUser.email);
+      if (safeUser.username) localStorage.setItem('smr2_last_username', safeUser.username);
+      if (safeUser.id) localStorage.setItem('smr2_saved_user_id', safeUser.id);
     }
   } catch (err) {
     console.warn('Could not save user session to localStorage:', err);
@@ -106,21 +110,27 @@ export function saveUserSession(user: UserProfile, remember: boolean = true): vo
 }
 
 /**
- * Retrieves the active user session.
+ * Retrieves the active user session with automatic dual-layer healing.
  * Checks cookie first; if missing, falls back to localStorage and re-syncs to cookie.
- * Automatically migrates any legacy non-UUID format to RFC 4122 v4 UUIDs.
+ * If cookie was present but localStorage was cleared, re-syncs to localStorage.
+ * Automatically migrates any legacy format to RFC 4122 v4 UUIDs.
  */
 export function getUserSession(): UserProfile | null {
   // 1. Try reading from cookie
   const cookieUser = getJsonCookie<UserProfile>(COOKIE_SESSION);
-  if (cookieUser && cookieUser.id && cookieUser.username) {
+  if (cookieUser && cookieUser.id && (cookieUser.username || cookieUser.email)) {
     if (!isUUID(cookieUser.id)) {
       cookieUser.id = ensureUUID(cookieUser.id);
-      saveUserSession(cookieUser);
     }
     if (cookieUser.coins === undefined || cookieUser.coins === null) {
       cookieUser.coins = 1000;
     }
+    // Auto-heal localStorage backup if missing
+    try {
+      if (typeof window !== 'undefined' && !localStorage.getItem(STORAGE_USER_BACKUP)) {
+        localStorage.setItem(STORAGE_USER_BACKUP, JSON.stringify(cookieUser));
+      }
+    } catch {}
     return cookieUser;
   }
 
@@ -130,16 +140,16 @@ export function getUserSession(): UserProfile | null {
       const stored = localStorage.getItem(STORAGE_USER_BACKUP);
       if (stored) {
         const parsed = JSON.parse(stored) as UserProfile;
-        if (parsed && parsed.id && parsed.username) {
+        if (parsed && parsed.id && (parsed.username || parsed.email)) {
           if (!isUUID(parsed.id)) {
             parsed.id = ensureUUID(parsed.id);
           }
           if (parsed.coins === undefined || parsed.coins === null) {
             parsed.coins = 1000;
           }
-          // Re-sync back to cookie so both are in harmony
-          const remember = localStorage.getItem(COOKIE_REMEMBER) !== 'false';
-          setJsonCookie<UserProfile>(COOKIE_SESSION, parsed, { days: remember ? 365 : 30 });
+          // Re-sync back to cookie with 2-year lifespan so both are in permanent harmony
+          setJsonCookie<UserProfile>(COOKIE_SESSION, parsed, { days: 730, path: '/', sameSite: 'Lax' });
+          setCookie(COOKIE_REMEMBER, 'true', { days: 730, path: '/', sameSite: 'Lax' });
           return parsed;
         }
       }
@@ -308,8 +318,8 @@ export function getLastUserIdentifier(): string {
  * Checks whether "remember me" was previously enabled
  */
 export function getRememberMePreference(): boolean {
-  const val = getCookie(COOKIE_REMEMBER);
-  return val === null ? true : val === 'true';
+  // Siempre recordar la sesión por defecto para evitar inicios de sesión repetitivos
+  return true;
 }
 
 // =========================================================================

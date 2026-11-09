@@ -133,6 +133,7 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
 
   // 2. Registro a través del servidor para activar la cuenta sin enviar correo de confirmación
   let serverProfile: UserProfile | null = null;
+  let serverSession: any = null;
   try {
     const regRes = await fetch('/api/auth/register', {
       method: 'POST',
@@ -151,6 +152,7 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
 
     if (regData.user) {
       serverProfile = regData.user;
+      serverSession = regData.session;
     }
   } catch (apiErr: any) {
     if (
@@ -169,15 +171,24 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
   if (serverProfile) {
     // Iniciar sesión inmediatamente en el cliente Supabase para obtener token de sesión
     if (hasSupabase && supabase) {
-      try {
-        await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password: params.password,
-        });
-      } catch {}
+      if (serverSession?.access_token && serverSession?.refresh_token) {
+        try {
+          await supabase.auth.setSession({
+            access_token: serverSession.access_token,
+            refresh_token: serverSession.refresh_token,
+          });
+        } catch {}
+      } else {
+        try {
+          await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password: params.password,
+          });
+        } catch {}
+      }
     }
 
-    saveUserSession(serverProfile, rememberMe);
+    saveUserSession(serverProfile, true);
     return {
       success: true,
       requiresEmailConfirmation: false,
@@ -300,17 +311,27 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
     const loginData = await loginRes.json();
 
     if (loginRes.ok && loginData.success && loginData.user) {
-      // Sincronizar también la sesión en el cliente Supabase del navegador para que Realtime funcione
-      if (hasSupabase && supabase && loginData.targetEmail) {
-        try {
-          await supabase.auth.signInWithPassword({
-            email: loginData.targetEmail,
-            password,
-          });
-        } catch {}
+      // Sincronizar también la sesión en el cliente Supabase del navegador para que Realtime y Auth persistan
+      if (hasSupabase && supabase) {
+        if (loginData.session?.access_token && loginData.session?.refresh_token) {
+          try {
+            await supabase.auth.setSession({
+              access_token: loginData.session.access_token,
+              refresh_token: loginData.session.refresh_token,
+            });
+          } catch {}
+        } else if (loginData.targetEmail) {
+          try {
+            await supabase.auth.signInWithPassword({
+              email: loginData.targetEmail,
+              password,
+            });
+          } catch {}
+        }
       }
 
-      saveUserSession(loginData.user, rememberMe);
+      // Recordar SIEMPRE la sesión de forma permanente
+      saveUserSession(loginData.user, true);
       resetFailedLoginAttempts();
       return { success: true, user: loginData.user };
     }
@@ -511,6 +532,13 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
  * Signs the user out completely from both Supabase and local session
  */
 export async function logoutAccount(): Promise<void> {
+  // Marcar explícitamente que el usuario cerró sesión voluntariamente
+  try {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('smr2_manual_logout', 'true');
+    }
+  } catch {}
+
   clearUserSession();
   const supabase = createClient();
   if (supabase) {

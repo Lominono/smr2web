@@ -148,6 +148,18 @@ export async function POST(req: NextRequest) {
           console.warn('Error al insertar perfil en Supabase:', profileErr);
         }
 
+        // 4. Iniciar sesión automáticamente en el servidor para generar tokens persistentes
+        let sessionData: any = null;
+        try {
+          const { data: signData } = await adminClient.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (signData?.session) {
+            sessionData = signData.session;
+          }
+        } catch {}
+
         return NextResponse.json({
           success: true,
           user: {
@@ -161,6 +173,7 @@ export async function POST(req: NextRequest) {
             created_at: new Date().toISOString(),
             auth_provider: 'supabase',
           },
+          session: sessionData,
         });
       }
     }

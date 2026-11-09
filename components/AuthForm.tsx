@@ -426,7 +426,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
               onChange={(e) => setRememberMe(e.target.checked)}
               className="w-4 h-4 rounded-md border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white accent-neutral-900 dark:accent-white cursor-pointer"
             />
-            <span>Recordar sesión en este equipo</span>
+            <span>Recordar sesión para siempre en este equipo</span>
           </label>
         </div>
 
