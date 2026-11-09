@@ -31,9 +31,7 @@ export async function GET(req: NextRequest) {
         try {
           let query = client
             .from('profiles')
-            .select(
-              'id, username, full_name, student_number, pc_seat, coins, biggest_win, streak_count, avatar_color, role, created_at, games_played, games_won'
-            );
+            .select('*');
 
           if (rawId && isUUID(rawId)) {
             query = query.eq('id', rawId);

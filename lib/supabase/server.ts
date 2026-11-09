@@ -6,8 +6,8 @@ import { cookies } from 'next/headers';
  * Checks whether Supabase environment variables are real, valid credentials
  */
 export function isServerSupabaseConfigured(): boolean {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)?.trim();
 
   if (!supabaseUrl || !key) {
     return false;
@@ -30,8 +30,8 @@ export function isServerSupabaseConfigured(): boolean {
  */
 export async function createClient() {
   const cookieStore = await cookies();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
   if (!supabaseUrl || !supabaseAnonKey || !isServerSupabaseConfigured()) {
     return null;
@@ -64,10 +64,10 @@ export function createAdminClient() {
     return null;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  let serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim();
+  let serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!serviceKey || serviceKey.includes('SENSITIVE') || serviceKey.includes('placeholder') || serviceKey.length < 20) {
-    serviceKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    serviceKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY)?.trim();
   }
 
   return createSupabaseAdminClient(supabaseUrl, serviceKey!, {

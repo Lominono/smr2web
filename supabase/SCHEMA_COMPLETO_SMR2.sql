@@ -23,9 +23,23 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Asegurar columnas si la tabla ya existía
 ALTER TABLE public.profiles 
   ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS full_name TEXT,
+  ADD COLUMN IF NOT EXISTS student_number TEXT,
+  ADD COLUMN IF NOT EXISTS pc_seat TEXT DEFAULT 'PC-01',
+  ADD COLUMN IF NOT EXISTS avatar_color TEXT DEFAULT 'emerald',
+  ADD COLUMN IF NOT EXISTS games_played INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS games_won INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS sound_enabled BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT true,
   ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'student' CHECK (role IN ('student', 'delegado', 'admin')),
   ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 1,
-  ADD COLUMN IF NOT EXISTS last_claim_date TIMESTAMP WITH TIME ZONE;
+  ADD COLUMN IF NOT EXISTS last_claim_date TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS last_spin_date TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS last_rescue_date TIMESTAMP WITH TIME ZONE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_student_number 
+  ON public.profiles (student_number) 
+  WHERE student_number IS NOT NULL AND student_number <> '';
 
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON public.profiles(username);
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);

@@ -203,6 +203,25 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
       if (signUpError) throw signUpError;
 
       if (data.user) {
+        // Asegurar que el perfil quede guardado en la tabla profiles de Supabase
+        try {
+          await supabase.from('profiles').upsert(
+            {
+              id: data.user.id,
+              username: cleanUsername,
+              email: data.user.email || cleanEmail,
+              coins: 1000,
+              biggest_win: 0,
+              streak_count: 1,
+              role: 'student',
+              created_at: new Date().toISOString(),
+            },
+            { onConflict: 'id' }
+          );
+        } catch (dbErr) {
+          console.warn('Upsert en profiles directo falló:', dbErr);
+        }
+
         const profile: UserProfile = {
           id: data.user.id,
           username: cleanUsername,
@@ -269,6 +288,52 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
 
   const hasSupabase = isSupabaseConfigured();
   const supabase = createClient();
+
+  // 1. Intentar inicio de sesión autoritativo en el servidor con conexión directa a la base de datos Supabase
+  try {
+    const loginRes = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: cleanIdentifier, password }),
+    });
+
+    const loginData = await loginRes.json();
+
+    if (loginRes.ok && loginData.success && loginData.user) {
+      // Sincronizar también la sesión en el cliente Supabase del navegador para que Realtime funcione
+      if (hasSupabase && supabase && loginData.targetEmail) {
+        try {
+          await supabase.auth.signInWithPassword({
+            email: loginData.targetEmail,
+            password,
+          });
+        } catch {}
+      }
+
+      saveUserSession(loginData.user, rememberMe);
+      resetFailedLoginAttempts();
+      return { success: true, user: loginData.user };
+    }
+
+    // Si el servidor devolvió un error de credenciales explícito de Supabase
+    if (loginRes.status === 401 || loginRes.status === 404) {
+      const fail = recordFailedLoginAttempt();
+      if (fail.locked) {
+        throw new Error('Límite de 5 intentos fallidos alcanzado. Por seguridad, la cuenta está bloqueada temporalmente durante 30 segundos.');
+      }
+      throw new Error(loginData.error || 'Correo o contraseña incorrectos. Por favor, compruébalos e inténtalo de nuevo.');
+    }
+  } catch (apiErr: any) {
+    if (
+      apiErr.message?.includes('Correo o contraseña') ||
+      apiErr.message?.includes('No se ha encontrado') ||
+      apiErr.message?.includes('bloqueada') ||
+      apiErr.message?.includes('intentos')
+    ) {
+      throw apiErr;
+    }
+    console.warn('API /api/auth/login no disponible, intentando cliente directo:', apiErr);
+  }
 
   if (hasSupabase && supabase) {
     let targetEmail: string | null = cleanIdentifier.includes('@') ? cleanIdentifier.toLowerCase() : null;

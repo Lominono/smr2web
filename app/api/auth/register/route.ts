@@ -46,22 +46,77 @@ export async function POST(req: NextRequest) {
         } catch {}
 
         // 2. Crear usuario directamente mediante Admin API con email_confirm = true
-        // Esto GARANTIZA que NO se envía ningún correo de verificación y la cuenta queda activa al 100%
-        const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true, // <-- Activado al instante sin enviar ningún email de verificación
-          user_metadata: {
-            username,
-            accepted_terms: true,
-            accepted_terms_at: new Date().toISOString(),
-          },
-        });
+        // Si el cliente no tiene Service Role, recurrir a signUp estándar de Supabase
+        let userId: string | null = null;
+        let authErrorMsg: string | null = null;
 
-        if (authError) {
+        try {
+          const { data: authData, error: adminAuthError } = await adminClient.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true, // Activado al instante sin enviar ningún email de verificación
+            user_metadata: {
+              username,
+              accepted_terms: true,
+              accepted_terms_at: new Date().toISOString(),
+            },
+          });
+
+          if (!adminAuthError && authData?.user) {
+            userId = authData.user.id;
+          } else if (adminAuthError) {
+            authErrorMsg = adminAuthError.message;
+          }
+        } catch (e: any) {
+          authErrorMsg = e?.message;
+        }
+
+        // Fallback si auth.admin no está disponible (ej: credencial anon)
+        if (!userId) {
+          try {
+            const { data: signUpData, error: signUpError } = await adminClient.auth.signUp({
+              email,
+              password,
+              options: {
+                data: {
+                  username,
+                  accepted_terms: true,
+                  accepted_terms_at: new Date().toISOString(),
+                },
+              },
+            });
+
+            if (signUpError) {
+              if (
+                signUpError.message.includes('already registered') ||
+                signUpError.message.includes('already exists')
+              ) {
+                return NextResponse.json(
+                  { success: false, error: 'Ya existe una cuenta con este correo electrónico. Inicia sesión directamente.' },
+                  { status: 409 }
+                );
+              }
+              return NextResponse.json(
+                { success: false, error: signUpError.message },
+                { status: 400 }
+              );
+            }
+
+            if (signUpData?.user) {
+              userId = signUpData.user.id;
+            }
+          } catch (e: any) {
+            return NextResponse.json(
+              { success: false, error: e?.message || authErrorMsg || 'Error al crear la cuenta en Supabase.' },
+              { status: 400 }
+            );
+          }
+        }
+
+        if (!userId) {
           if (
-            authError.message.includes('already registered') ||
-            authError.message.includes('already exists')
+            authErrorMsg?.includes('already registered') ||
+            authErrorMsg?.includes('already exists')
           ) {
             return NextResponse.json(
               { success: false, error: 'Ya existe una cuenta con este correo electrónico. Inicia sesión directamente.' },
@@ -69,28 +124,22 @@ export async function POST(req: NextRequest) {
             );
           }
           return NextResponse.json(
-            { success: false, error: authError.message },
+            { success: false, error: authErrorMsg || 'No se pudo crear el usuario en Supabase.' },
             { status: 400 }
           );
         }
 
-        const userId = authData.user.id;
-
-        // 3. Crear el perfil del alumno en la tabla profiles
+        // 3. Crear el perfil del alumno en la tabla public.profiles de Supabase
         try {
           await adminClient.from('profiles').upsert(
             {
               id: userId,
               username,
-              nombre: username,
               email,
               coins: 1000,
-              puntos_total: 1000,
               biggest_win: 0,
               streak_count: 1,
-              racha_actual: 1,
               role: 'student',
-              rol: 'alumno',
               created_at: new Date().toISOString(),
             },
             { onConflict: 'id' }

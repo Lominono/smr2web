@@ -8,8 +8,8 @@ let browserClientInstance: SupabaseClient | null = null;
  * (not missing or holding placeholder example values).
  */
 export function isSupabaseConfigured(): boolean {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return false;
@@ -37,8 +37,8 @@ export function createClient(): SupabaseClient | null {
     return null;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim();
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim();
 
   if (!browserClientInstance) {
     browserClientInstance = createBrowserClient(supabaseUrl, supabaseAnonKey, {
