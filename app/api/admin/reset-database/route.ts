@@ -8,11 +8,11 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const wipeUsers = body?.wipeUsers === true;
+    // Por defecto en reset para el lanzamiento, limpiar todos los usuarios y perfiles salvo que se indique lo contrario
+    const wipeUsers = body?.wipeUsers !== false;
     const providedKey = (body?.adminKey || req.headers.get('x-admin-key') || '').trim();
 
     const authorizedMasterKeys = [
-      'davidgay',
       process.env.ADMIN_PASSWORD,
       process.env.ADMIN_ACCESS_CODE,
       'SMR2#Aula35.Acceso2026!',

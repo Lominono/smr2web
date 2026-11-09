@@ -247,7 +247,7 @@ export function clearUserSession(): void {
   } catch {}
 }
 
-export const SYSTEM_WIPE_EPOCH = 'smr2_wipe_epoch_launch_20261109_official_v1_zero_users';
+export const SYSTEM_WIPE_EPOCH = 'smr2_wipe_epoch_launch_20261109_v2_zero_users_spotless_clean';
 
 /**
  * Destructively wipes ALL client-side data:

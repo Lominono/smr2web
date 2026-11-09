@@ -735,6 +735,10 @@ export default function Home() {
     // 0. Forzar reseteo absoluto de datos locales si la época de reinicio no se ha aplicado
     const wasWiped = checkAndEnforceSystemWipe();
     if (wasWiped) {
+      setUser(null);
+      setChatMessages([]);
+      setLeaderboard([]);
+      setAuthLoading(false);
       try {
         const sb = createClient();
         if (sb) sb.auth.signOut().catch(() => {});

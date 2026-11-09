@@ -26,8 +26,8 @@ const env = {
   ...loadEnvFile('.env.pulled.local'),
 };
 
-const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL || env.SUPABASE_URL;
-const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.argv[2] || process.env.NEXT_PUBLIC_SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || env.SUPABASE_URL;
+const serviceKey = process.argv[3] || process.env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 console.log('Connecting to Supabase at:', supabaseUrl);
 console.log('Using key length:', serviceKey ? serviceKey.length : 0);

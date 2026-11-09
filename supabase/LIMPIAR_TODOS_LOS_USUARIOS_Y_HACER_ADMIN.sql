@@ -2,45 +2,34 @@
 -- SMR2 WEB · LIMPIAR TODOS LOS USUARIOS Y ASIGNAR ADMINISTRADOR
 -- ==============================================================
 -- Ejecuta este script en el SQL Editor de tu panel de Supabase:
--- https://supabase.com/dashboard/project/_/sql
+-- https://supabase.com/dashboard/project/ehzekojovbxdkcmfbugc/sql/new
 -- ==============================================================
 
 BEGIN;
 
--- 1. Eliminar datos asociados a partidas, turnos, transacciones y chat
-DELETE FROM public.chat_messages;
-DELETE FROM public.balance_transactions;
-DELETE FROM public.event_logs;
-DELETE FROM public.rr_turns;
-DELETE FROM public.rr_games;
-DELETE FROM public.rr_room_players;
-DELETE FROM public.rr_rooms;
-DELETE FROM public.calendar_events WHERE is_personal = true;
+-- 1. Vaciar auth.users y perfiles
+TRUNCATE auth.users CASCADE;
+TRUNCATE TABLE public.profiles CASCADE;
 
--- 2. Eliminar todas las cuentas y perfiles de alumnos
-DELETE FROM public.profiles;
-
--- 3. Si utilizas el sistema de autenticación de Supabase (Email/Password),
--- vaciar también auth.users para que las cuentas queden 100% limpias:
-DELETE FROM auth.users;
-
--- 4. Aviso de confirmación
-INSERT INTO public.chat_messages (username, text, created_at)
-VALUES (
-  'Sistema SMR2',
-  'Base de datos limpiada con éxito. Ya puedes registrar tu cuenta y acceder como administrador.',
-  now()
-);
+-- 2. Vaciar feed, transacciones y partidas
+TRUNCATE TABLE public.chat_messages CASCADE;
+TRUNCATE TABLE public.transactions CASCADE;
+TRUNCATE TABLE public.investments CASCADE;
+TRUNCATE TABLE public.calendar_events CASCADE;
+TRUNCATE TABLE public.balance_transactions CASCADE;
+TRUNCATE TABLE public.rr_turns CASCADE;
+TRUNCATE TABLE public.rr_games CASCADE;
+TRUNCATE TABLE public.rr_room_players CASCADE;
+TRUNCATE TABLE public.rr_rooms CASCADE;
 
 COMMIT;
 
 -- ==============================================================
--- DESPUÉS DE EJECUTAR ESTO:
--- ==============================================================
--- 1. Entra a tu web y crea/inicia sesión con tu nuevo usuario.
--- 2. Asigna el rol de administrador directamente por SQL en la base de datos:
--- UPDATE public.profiles
--- SET role = 'admin', coins = 50000
--- WHERE username = 'tu_usuario';
--- (Por seguridad ya no se permite auto-otorgar rol de admin desde la interfaz web)
+-- INSTRUCCIONES PARA TU CUENTA DE ADMINISTRADOR:
+-- 1. Entra a la web una vez lanzada y regístrate con tu correo y contraseña.
+-- 2. Luego ejecuta esta consulta en el SQL Editor para otorgarte el rol de admin:
+--
+--    UPDATE public.profiles
+--    SET role = 'admin', coins = 50000
+--    WHERE email = 'tu_correo@ejemplo.com' OR username = 'tu_usuario';
 -- ==============================================================
