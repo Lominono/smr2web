@@ -359,29 +359,41 @@ export interface AfterRiskStats {
   wealthSurcharge: number;
 }
 
-// Producción mínima requerida en la ronda actual para irse de After (escala exponencial para evitar spam de rebirth)
+// Producción mínima requerida en la ronda actual para irse de After (escala progresiva real para evitar abusos de ballenas)
 export function getRequiredAfterProduction(afterCount: number): number {
   if (afterCount <= 0) return 15000;
-  // After 0: 15.000 | After 1: 36.000 | After 2: 86.000 | After 3: 200.000 | After 4: 500.000...
-  return Math.floor(15000 * Math.pow(2.4, Math.min(8, afterCount)));
+  if (afterCount <= 4) {
+    return Math.floor(15000 * Math.pow(2.5, afterCount));
+  }
+  // Escala continua para Afters altos (hasta >200M requeridos en Afters avanzados)
+  return Math.floor(15000 * Math.pow(2.5, 4) * Math.pow(1.75, Math.min(10, afterCount - 4)));
+}
+
+// Coste progresivo para contratar seguridad privada y custodiar el alijo (evita acumulación gratuita infinita)
+export function getGuardCost(userCoins: number): number {
+  if (userCoins < 50000) return 0; // Novatos gratis
+  if (userCoins < 500000) return Math.floor(userCoins * 0.015); // 1.5%
+  if (userCoins < 5000000) return Math.floor(userCoins * 0.025); // 2.5%
+  if (userCoins < 50000000) return Math.floor(userCoins * 0.04); // 4.0%
+  return Math.floor(userCoins * 0.06); // 6.0% para las mega fortunas (>50M)
 }
 
 export function getAfterRiskStats(suspicionLevel: number, userCoins: number = 0): AfterRiskStats {
   const level = Math.max(0, Math.min(10, suspicionLevel || 0));
-  // Nivel 0 (Limpio): 15% probabilidad de redada, 20% confiscación
+  // Nivel 0 (Limpio): 20% probabilidad de redada, 25% confiscación
   // Cada nivel subsiguiente aumenta la probabilidad en +15% y la multa en +15% (máx 95% y 90%)
-  const raidChancePct = Math.min(95, 15 + level * 15);
-  const confiscatePct = Math.min(90, 20 + level * 15);
+  const raidChancePct = Math.min(95, 20 + level * 15);
+  const confiscatePct = Math.min(90, 25 + level * 15);
 
   // Escala de fianza / soborno:
-  // Base fija accesible para novatos (80 a 300 monedas)
-  const baseCost = 80 + level * 120;
+  // Base fija accesible para novatos (100 a 400 monedas)
+  const baseCost = 100 + level * 150;
 
   // Impuesto progresivo a grandes fortunas para evitar que los ricos abusen de la fianza:
-  // Si tienes más de 10.000 monedas, la fianza cuesta entre el 4% y el 20% de tu saldo total
+  // Si tienes más de 20.000 monedas, la fianza cuesta entre el 6% y el 35% de tu saldo total
   let wealthSurcharge = 0;
-  if (userCoins > 10000) {
-    const taxRate = Math.min(0.20, 0.04 + level * 0.035); // del 4% al 20% de su fortuna
+  if (userCoins > 20000) {
+    const taxRate = Math.min(0.35, 0.06 + level * 0.045); // del 6% al 35% de su fortuna
     wealthSurcharge = Math.floor(userCoins * taxRate);
   }
   const bribeCost = Math.max(baseCost, wealthSurcharge);
@@ -583,22 +595,23 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     return sorted.find((r) => totalLifetimeProduced >= r.minProd) || PARTY_RANKS[0];
   }, [totalLifetimeProduced]);
 
-  // Multiplicador de prestigio After (con rendimientos decrecientes para balancear el juego y evitar abusos)
+  // Multiplicador de prestigio After (con rendimientos fuertemente decrecientes para balancear el juego y evitar monopolios)
   const prestigeMultiplier = useMemo(() => {
     if (afterPrestigeCount <= 0) return 1.0;
     let mult = 1.0;
     for (let i = 1; i <= afterPrestigeCount; i++) {
-      if (i === 1) mult += 0.40;
-      else if (i <= 3) mult += 0.25;
-      else if (i <= 6) mult += 0.15;
-      else mult += 0.08;
+      if (i === 1) mult += 0.35;
+      else if (i <= 3) mult += 0.20;
+      else if (i <= 6) mult += 0.12;
+      else if (i <= 10) mult += 0.06;
+      else mult += 0.02; // Rendimiento mínimo para Afters masivos
     }
-    return Number(mult.toFixed(2));
+    return Math.min(6.0, Number(mult.toFixed(2))); // Límite de seguridad de x6.0 para mantener competitiva la tabla
   }, [afterPrestigeCount]);
 
-  // Beca SMR de Impulso para Novatos: si tienes menos de 25.000 monedas, recibes x3.0 de velocidad permanente
-  const isUnderdog = userCoins < 25000;
-  const underdogMultiplier = isUnderdog ? 3.0 : 1.0;
+  // Beca SMR de Impulso para Novatos: si tienes menos de 50.000 monedas, recibes x4.0 de velocidad permanente
+  const isUnderdog = userCoins < 50000;
+  const underdogMultiplier = isUnderdog ? 4.0 : 1.0;
 
   // Multiplicadores por perks y descuentos temporales
   const hasPerk = useCallback(
@@ -726,13 +739,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         if (guardUntil < now) {
           const hoursUnguarded = Math.min(48, (now - Math.max(stateToApply.lastTickMs, guardUntil)) / 3600000);
           if (hoursUnguarded >= 0.5) {
-            let hourlyRate = 0.005; // 0.5% por hora
-            if (userCoins >= 50000000) hourlyRate = 0.04;
-            else if (userCoins >= 10000000) hourlyRate = 0.025;
-            else if (userCoins >= 1000000) hourlyRate = 0.012;
+            let hourlyRate = 0.01; // 1% por hora para fortunas >100k
+            if (userCoins >= 50000000) hourlyRate = 0.07; // 7% por hora para megafortunas (>50M)
+            else if (userCoins >= 10000000) hourlyRate = 0.045; // 4.5% por hora (>10M)
+            else if (userCoins >= 1000000) hourlyRate = 0.025; // 2.5% por hora (>1M)
 
             const decayRate = 1 - Math.pow(1 - hourlyRate, hoursUnguarded);
-            const decayedCoins = Math.max(200, Math.floor(userCoins * decayRate));
+            const decayedCoins = Math.max(500, Math.floor(userCoins * decayRate));
             if (decayedCoins > 0 && allowOfflineReport) {
               onUpdateCoins(-decayedCoins);
               setCommunistDripReport({
@@ -1580,10 +1593,16 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     ]);
   };
 
-  // Acción: Custodiar el alijo para grandes fortunas (blindaje de 8h contra Goteo Comunista)
+  // Acción: Custodiar el alijo para grandes fortunas (servicio de seguridad privada de 6h con tasa progresiva)
   const handleGuardStash = () => {
+    const cost = getGuardCost(userCoins);
+    if (userCoins < cost) return;
+
     sound.toastClink();
-    const newGuard = Date.now() + 8 * 3600 * 1000;
+    if (cost > 0) {
+      onUpdateCoins(-cost);
+    }
+    const newGuard = Date.now() + 6 * 3600 * 1000;
     setGuardActiveUntilMs(newGuard);
     saveState({ guardActiveUntilMs: newGuard }, true);
     confetti({
@@ -1594,15 +1613,16 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     });
   };
 
-  // Acción: Reclamar subsidio social de la clase (para novatos <25.000 monedas)
+  // Acción: Reclamar subsidio social de la clase (para novatos <50.000 monedas financiado por tasas a ballenas)
   const handleClaimSubsidio = () => {
-    if (userCoins >= 25000) return;
+    if (userCoins >= 50000) return;
     const now = Date.now();
-    const canClaim = now - (lastSubsidioClaimMs || 0) >= 3 * 3600 * 1000;
+    const canClaim = now - (lastSubsidioClaimMs || 0) >= 2 * 3600 * 1000;
     if (!canClaim) return;
 
     sound.jackpot();
-    const bonus = 1200;
+    // Subsidio dinámico: escala según lo necesitado que esté el alumno (de 3.500 a 15.000 monedas)
+    const bonus = Math.min(15000, Math.max(3500, Math.floor((50000 - userCoins) * 0.25)));
     setLastSubsidioClaimMs(now);
     onUpdateCoins(bonus);
     saveState({ lastSubsidioClaimMs: now }, true);
@@ -1703,11 +1723,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       vip: 0,
     };
 
-    const nextSuspicionLevel = Math.min(10, afterSuspicionLevel + 1);
     const afterTimestamp = Date.now();
 
     if (isPoliceRaid) {
-      // ¡REDADA POLICIAL EN EL AFTER!
+      // ¡REDADA POLICIAL EN EL AFTER! FIESTA CLAUSURADA
       sound.broke();
       const coinsLost = Math.floor(userCoins * (confiscatePct / 100));
       const vaultLost = Math.floor(pendingVault * (confiscatePct / 100));
@@ -1716,14 +1735,16 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         onUpdateCoins(-coinsLost);
       }
 
+      const raidNextSuspicion = Math.min(10, afterSuspicionLevel + 2); // Redada sube +2 de sospecha inmediata
+
       setLevels(resetLevels);
       setPendingVault(0);
       setHangoverLevel(0);
       setCurrentRunProduced(0);
       setLastAfterTimestamp(afterTimestamp);
-      setAfterPrestigeCount((prev) => prev + 1);
-      setAfterSuspicionLevel(nextSuspicionLevel);
-      setAfterCooldownSeconds(90);
+      // CASTIGO ANTI-ABUSO: En redada policial NO se concede el prestigio de After (la fiesta fue desmantelada)
+      setAfterSuspicionLevel(raidNextSuspicion);
+      setAfterCooldownSeconds(150); // 2.5 min de espera por operativo policial
 
       setAfterRaidResult({
         type: 'raid',
@@ -1731,7 +1752,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         confiscatePct,
         coinsLost,
         vaultLost,
-        nextLevel: nextSuspicionLevel,
+        nextLevel: raidNextSuspicion,
       });
 
       saveState(
@@ -1741,8 +1762,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           hangoverLevel: 0,
           currentRunProduced: 0,
           lastAfterTimestamp: afterTimestamp,
-          afterPrestigeCount: afterPrestigeCount + 1,
-          afterSuspicionLevel: nextSuspicionLevel,
+          afterSuspicionLevel: raidNextSuspicion,
         },
         true
       );
@@ -1756,13 +1776,15 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         onUpdateCoins(leftoverCoins);
       }
 
+      const successNextSuspicion = Math.min(10, afterSuspicionLevel + 1);
+
       setLevels(resetLevels);
       setPendingVault(0);
       setHangoverLevel(0);
       setCurrentRunProduced(0);
       setLastAfterTimestamp(afterTimestamp);
       setAfterPrestigeCount((prev) => prev + 1);
-      setAfterSuspicionLevel(nextSuspicionLevel);
+      setAfterSuspicionLevel(successNextSuspicion);
       setAfterCooldownSeconds(90);
 
       setAfterRaidResult({
@@ -1771,7 +1793,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         confiscatePct,
         coinsLost: 0,
         vaultLost: 0,
-        nextLevel: nextSuspicionLevel,
+        nextLevel: successNextSuspicion,
       });
 
       saveState(
@@ -1782,7 +1804,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           currentRunProduced: 0,
           lastAfterTimestamp: afterTimestamp,
           afterPrestigeCount: afterPrestigeCount + 1,
-          afterSuspicionLevel: nextSuspicionLevel,
+          afterSuspicionLevel: successNextSuspicion,
         },
         true
       );
@@ -2016,13 +2038,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-foreground">Alijo Custodiado · Escudo Activo</span>
+                  <span className="font-bold text-foreground">Alijo Custodiado · Seguridad Activa</span>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">
                     {Math.ceil((guardActiveUntilMs - Date.now()) / 3600000)}h restantes
                   </span>
                 </div>
                 <p className="text-[11px] text-foreground-muted">
-                  Tu fortuna está blindada contra la tasa de desgaste por inactividad y el Goteo Comunista.
+                  Tu fortuna está protegida temporalmente contra el Goteo Comunista. Renovar seguridad cuesta una tasa proporcional a tu alijo.
                 </p>
               </div>
             </div>
@@ -2031,7 +2053,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               onClick={handleGuardStash}
               className="px-3.5 py-1.5 rounded-xl bg-surface hover:bg-surface-hover border border-border text-foreground font-semibold text-xs cursor-pointer transition-colors shrink-0"
             >
-              Renovar Guardia (+8h)
+              Renovar (+6h) {getGuardCost(userCoins) > 0 ? `· -${getGuardCost(userCoins).toLocaleString()}` : '· Gratis'}
             </button>
           </div>
         ) : (
@@ -2042,13 +2064,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-amber-200">Goteo Comunista Inminente · Alijo sin Custodiar</span>
+                  <span className="font-bold text-amber-200">Goteo Comunista Inminente · Alijo Desprotegido</span>
                   <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-semibold border border-red-500/30 animate-pulse">
                     Tasa Proletaria Activa
                   </span>
                 </div>
                 <p className="text-[11px] text-amber-300/80">
-                  Al superar 100.000 monedas, las fortunas ociosas gotean a la caja común si no se vigilan.
+                  Las fortunas ociosas sin seguridad privada gotean automáticamente al Fondo Común para financiar a los alumnos novatos.
                 </p>
               </div>
             </div>
@@ -2057,11 +2079,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               onClick={handleGuardStash}
               className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs cursor-pointer transition-colors shrink-0 shadow-xs active:scale-95"
             >
-              🛡️ Custodiar Alijo (Blindar 8 horas)
+              🛡️ Contratar Seguridad (+6h) {getGuardCost(userCoins) > 0 ? `· -${getGuardCost(userCoins).toLocaleString()} monedas` : '· Gratis'}
             </button>
           </div>
         )
-      ) : isUnderdog && Date.now() - (lastSubsidioClaimMs || 0) >= 3 * 3600 * 1000 ? (
+      ) : isUnderdog && Date.now() - (lastSubsidioClaimMs || 0) >= 2 * 3600 * 1000 ? (
         <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
@@ -2069,13 +2091,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground">Subsidio Proletario de Clase</span>
+                <span className="font-bold text-foreground">Fondo Social Proletario de Clase</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30">
-                  +1.200 Monedas
+                  +{Math.min(15000, Math.max(3500, Math.floor((50000 - userCoins) * 0.25))).toLocaleString()} Monedas
                 </span>
               </div>
               <p className="text-[11px] text-foreground-muted truncate">
-                Subvención social financiada por el Goteo Comunista de las ballenas. Reclamable cada 3 horas.
+                Subvención social para impulsar a los alumnos novatos financiada por las tasas y el Goteo Comunista de las ballenas.
               </p>
             </div>
           </div>

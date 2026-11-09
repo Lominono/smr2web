@@ -130,18 +130,41 @@ export async function POST(req: NextRequest) {
 
       for (const whale of whales || []) {
         const curCoins = Number(whale.coins || 0);
-        // Tasa progresiva: 1% para 100k, 2% para 1M, 3% para 10M, 4% para >50M
-        let rate = 0.01;
-        if (curCoins >= 50000000) rate = 0.04;
-        else if (curCoins >= 10000000) rate = 0.03;
-        else if (curCoins >= 1000000) rate = 0.02;
+        // Tasa progresiva para ballenas: 2% (100k), 3.5% (1M), 5.5% (10M), 8% (>50M)
+        let rate = 0.02;
+        if (curCoins >= 50000000) rate = 0.08;
+        else if (curCoins >= 10000000) rate = 0.055;
+        else if (curCoins >= 1000000) rate = 0.035;
 
-        const taxAmount = Math.max(1000, Math.floor(curCoins * rate));
+        const taxAmount = Math.max(1500, Math.floor(curCoins * rate));
         const newBalance = Math.max(0, curCoins - taxAmount);
 
         await client.from('profiles').update({ coins: newBalance }).eq('id', whale.id);
         totalCollected += taxAmount;
         taxedCount++;
+      }
+
+      // 2. Redistribuir equitativamente la recaudación entre alumnos con menos de 25.000 monedas
+      let distributedCount = 0;
+      let totalDistributed = 0;
+      if (totalCollected > 0) {
+        const { data: underdogs } = await client
+          .from('profiles')
+          .select('id, username, coins')
+          .lt('coins', 25000);
+
+        if (underdogs && underdogs.length > 0) {
+          const payoutPerStudent = Math.min(15000, Math.max(1000, Math.floor(totalCollected / underdogs.length)));
+          for (const underdog of underdogs) {
+            const currentBalance = Number(underdog.coins || 0);
+            await client
+              .from('profiles')
+              .update({ coins: currentBalance + payoutPerStudent })
+              .eq('id', underdog.id);
+            distributedCount++;
+            totalDistributed += payoutPerStudent;
+          }
+        }
       }
 
       try {
@@ -154,15 +177,19 @@ export async function POST(req: NextRequest) {
             action: 'communist_drip_cycle',
             taxed_whales_count: taxedCount,
             total_collected: totalCollected,
+            underdogs_helped: distributedCount,
+            total_distributed: totalDistributed,
           },
         });
       } catch {}
 
       return NextResponse.json({
         success: true,
-        message: `Ciclo de Goteo Comunista ejecutado: Se recaudaron ${totalCollected.toLocaleString()} monedas de ${taxedCount} grandes fortunas para la caja de resistencia.`,
+        message: `Ciclo de Goteo Comunista ejecutado: Se recaudaron ${totalCollected.toLocaleString()} monedas de ${taxedCount} grandes fortunas y se repartieron ${totalDistributed.toLocaleString()} monedas entre ${distributedCount} alumnos novatos.`,
         taxedCount,
         totalCollected,
+        distributedCount,
+        totalDistributed,
       });
     }
 
