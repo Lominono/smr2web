@@ -48,12 +48,12 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
     // 2. Aparece segunda burbuja
     const t2 = setTimeout(() => {
       setStep(2);
-    }, 1200 * pace);
+    }, 1100 * pace);
 
     // 3. Avance 100% automático y fluido a la pantalla de carga (sin botones ni prompts)
     const t3 = setTimeout(() => {
       advanceToLoading();
-    }, 3400 * pace);
+    }, 3100 * pace);
 
     return () => {
       clearTimeout(t1);
@@ -119,7 +119,7 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-400">
             <SpeechBubble variant="light">
               <TextAnimate
-                text="¡2º SMR ya está en línea!"
+                text="¡Bienvenidos a 2º SMR!"
                 type="calmInUp"
                 delay={0.05}
                 animate={true}
@@ -133,7 +133,7 @@ export const LaunchWelcomeSequence: React.FC<LaunchWelcomeSequenceProps> = ({
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-400">
             <SpeechBubble variant="dark">
               <TextAnimate
-                text="Estamos felices de que podáis usar esta web."
+                text="El portal ya es vuestro."
                 type="shiftInUp"
                 delay={0.05}
                 animate={true}

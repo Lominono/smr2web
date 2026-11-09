@@ -136,7 +136,7 @@ export const LaunchLoadingTransition: React.FC<LaunchLoadingTransitionProps> = (
           <div className="mt-7 sm:mt-9 space-y-3 flex flex-col items-center w-full">
             <div className="min-h-[26px] flex items-center justify-center">
               <TextAnimate
-                text="Espere un momento, entrando al registro..."
+                text="Entrando al portal de 2º SMR..."
                 type="calmInUp"
                 delay={0.05}
                 animate={true}

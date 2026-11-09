@@ -1827,8 +1827,14 @@ export default function Home() {
     );
   }
 
+  const isPostLaunchFirstVisit =
+    !isSiteUnlocked &&
+    Date.now() >= TARGET_LAUNCH_TIMESTAMP &&
+    typeof window !== 'undefined' &&
+    localStorage.getItem('smr2_launch_welcome_seen') !== 'true';
+
   const currentEffectiveState: DevLaunchState =
-    devLaunchState ?? (!isSiteUnlocked ? 'countdown' : !user ? 'auth' : 'app');
+    devLaunchState ?? (!isSiteUnlocked ? (isPostLaunchFirstVisit ? 'welcome' : 'countdown') : !user ? 'auth' : 'app');
 
   // Web cerrada con cuenta regresiva en GRANDE, bienvenida o carga épica Mac
   if (currentEffectiveState === 'countdown' || currentEffectiveState === 'welcome' || currentEffectiveState === 'loading') {

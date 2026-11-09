@@ -55,9 +55,38 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
   forceLoading = false,
   speedMultiplier = 1,
 }) => {
-  const [stage, setStage] = useState<'countdown' | 'welcome' | 'loading'>(
-    forceLoading ? 'loading' : forceWelcome ? 'welcome' : 'countdown'
-  );
+  const initialTime = calculateTime();
+
+  // Comprobar si el usuario ya vio la bienvenida en su navegador
+  const getHasSeenWelcome = () => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem('smr2_launch_welcome_seen') === 'true';
+    } catch {
+      return false;
+    }
+  };
+
+  // REGLA FUNDAMENTAL:
+  // 1. Si el contador sigue existiendo (!initialTime.isCompleted) -> SIEMPRE 'countdown'. NUNCA bienvenida prematura.
+  // 2. Si el contador ya se acabó (initialTime.isCompleted) y es la primera vez que entran (!hasSeenWelcome) -> 'welcome' directo para que aprecien las animaciones.
+  // 3. Si ya la vieron -> se desbloquea directamente.
+  const determineInitialStage = (): 'countdown' | 'welcome' | 'loading' => {
+    if (forceLoading) return 'loading';
+    if (forceWelcome) return 'welcome';
+
+    if (!initialTime.isCompleted) {
+      return 'countdown';
+    }
+
+    if (!getHasSeenWelcome()) {
+      return 'welcome';
+    }
+
+    return 'countdown';
+  };
+
+  const [stage, setStage] = useState<'countdown' | 'welcome' | 'loading'>(determineInitialStage);
   const [welcomeKey, setWelcomeKey] = useState(0);
   const [simulatedRemaining, setSimulatedRemaining] = useState<number | null>(null);
 
@@ -65,7 +94,6 @@ export const LaunchCountdownGate: React.FC<LaunchCountdownGateProps> = ({
   const [mounted, setMounted] = useState(false);
 
   // Animación inicial sobria: solo si la cuenta atrás existe y no ha concluido
-  const initialTime = calculateTime();
   const [showIntro, setShowIntro] = useState<boolean>(!initialTime.isCompleted && !forceWelcome && !forceLoading);
   const [introFading, setIntroFading] = useState<boolean>(false);
   const introTimerRef = useRef<NodeJS.Timeout | null>(null);
