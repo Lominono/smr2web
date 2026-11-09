@@ -20,10 +20,33 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 ALTER TABLE public.profiles 
+  ADD COLUMN IF NOT EXISTS username TEXT,
   ADD COLUMN IF NOT EXISTS email TEXT,
-  ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'student' CHECK (role IN ('student', 'delegado', 'admin')),
+  ADD COLUMN IF NOT EXISTS full_name TEXT,
+  ADD COLUMN IF NOT EXISTS student_number TEXT,
+  ADD COLUMN IF NOT EXISTS coins BIGINT DEFAULT 1000,
+  ADD COLUMN IF NOT EXISTS biggest_win BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS pc_seat TEXT DEFAULT 'PC-01',
+  ADD COLUMN IF NOT EXISTS avatar_color TEXT DEFAULT 'emerald',
+  ADD COLUMN IF NOT EXISTS party_farm_data JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS games_played INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS games_won INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS sound_enabled BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS ban_reason TEXT,
+  ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'student',
   ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 1,
-  ADD COLUMN IF NOT EXISTS last_claim_date TIMESTAMP WITH TIME ZONE;
+  ADD COLUMN IF NOT EXISTS last_claim_date TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS last_spin_date TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS last_rescue_date TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
+
+UPDATE public.profiles SET coins = 1000 WHERE coins IS NULL;
+UPDATE public.profiles SET biggest_win = 0 WHERE biggest_win IS NULL;
+UPDATE public.profiles SET streak_count = 1 WHERE streak_count IS NULL;
+UPDATE public.profiles SET role = 'student' WHERE role IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON public.profiles(username);
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
