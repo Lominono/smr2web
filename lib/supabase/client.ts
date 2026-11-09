@@ -43,7 +43,7 @@ export function createClient(): SupabaseClient | null {
   if (!browserClientInstance) {
     browserClientInstance = createBrowserClient(supabaseUrl, supabaseAnonKey, {
       cookieOptions: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year cookie persistence
+        maxAge: 60 * 60 * 24 * 730, // 2 years permanent session persistence
         sameSite: 'lax',
         path: '/',
       },

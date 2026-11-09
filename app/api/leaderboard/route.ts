@@ -16,7 +16,9 @@ export async function GET() {
           .order('coins', { ascending: false });
 
         if (!error && data) {
-          const entries: LeaderboardEntry[] = data.map((p: any) => ({
+          const entries: LeaderboardEntry[] = data
+            .filter((p: any) => !p.is_banned)
+            .map((p: any) => ({
             id: p.id,
             username: p.username,
             full_name: p.full_name || undefined,
