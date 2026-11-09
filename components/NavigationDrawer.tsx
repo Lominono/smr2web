@@ -31,6 +31,7 @@ import {
   Terminal,
   IdCard,
   MonitorDown,
+  ShoppingBag,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -286,6 +287,30 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 </span>
               </button>
             )}
+          </div>
+
+          {/* Tienda VIP */}
+          <div className="space-y-1">
+            <span className="px-2 text-xs font-medium text-amber-400 font-mono">
+              Economía y Estatus
+            </span>
+            <button
+              type="button"
+              onClick={() => handleNavigate('shop')}
+              className={`w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium transition-all cursor-pointer border active:scale-[0.98] touch-manipulation ${
+                activeView === 'shop'
+                  ? 'bg-amber-400 text-black font-bold border-amber-400 shadow-xs'
+                  : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShoppingBag className="w-4 h-4 text-amber-400" />
+                <span className="text-sm font-sans font-semibold">Tienda Exclusiva</span>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300">
+                13M
+              </span>
+            </button>
           </div>
 
           {/* Recreo & Juegos */}

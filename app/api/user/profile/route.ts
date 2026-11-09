@@ -58,6 +58,10 @@ export async function GET(req: NextRequest) {
                 created_at: data.created_at,
                 games_played: Number(data.games_played ?? 0),
                 games_won: Number(data.games_won ?? 0),
+                items_comprados: Array.isArray(data.items_comprados) ? data.items_comprados : [],
+                banner_estilo: data.banner_estilo || undefined,
+                titulo_personalizado: data.titulo_personalizado || undefined,
+                frase: data.frase || undefined,
               },
             });
           }

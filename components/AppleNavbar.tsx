@@ -18,6 +18,7 @@ import {
   Terminal,
   IdCard,
   MonitorDown,
+  ShoppingBag,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
@@ -202,6 +203,19 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             >
               <Wine className="w-3.5 h-3.5 text-accent" />
               <span>El Botellón</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectTab('shop')}
+              className={`flex items-center gap-1.5 px-3.5 py-1 text-xs font-medium rounded-full transition-all cursor-pointer ${
+                activeTab === 'shop'
+                  ? 'bg-amber-400 text-black font-bold shadow-xs'
+                  : 'text-amber-400/90 hover:text-amber-300'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>Tienda</span>
             </button>
 
             <button

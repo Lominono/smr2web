@@ -33,6 +33,7 @@ import { WindowsWelcomeModal } from '@/components/WindowsWelcomeModal';
 import { PutoIsaacTour } from '@/components/PutoIsaacTour';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
 import { StudentCardModal } from '@/components/StudentCardModal';
+import { VipShopView } from '@/components/VipShopView';
 import { OnlineUsersModal } from '@/components/OnlineUsersModal';
 import { PushNotificationModal } from '@/components/PushNotificationModal';
 import { FeedbackModal } from '@/components/FeedbackModal';
@@ -65,12 +66,14 @@ import {
   Zap,
   Wine,
   Sprout,
+  ShoppingBag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 type ViewMode =
   | 'feed'
   | 'calendar'
+  | 'shop'
   | 'russian_roulette'
   | 'crash'
   | 'mines'
@@ -337,6 +340,10 @@ export default function Home() {
           avatar_color: data.avatar_color || data.color_acento || 'emerald',
           games_played: Number(data.games_played ?? 0),
           games_won: Number(data.games_won ?? 0),
+          items_comprados: Array.isArray(data.items_comprados) ? data.items_comprados : [],
+          banner_estilo: data.banner_estilo || undefined,
+          titulo_personalizado: data.titulo_personalizado || undefined,
+          frase: data.frase || undefined,
           sound_enabled: soundEnabled,
           notifications_enabled: notificationsEnabled,
           created_at: data.created_at,
@@ -2109,6 +2116,7 @@ export default function Home() {
                   onOpenRussianRoulette={() => setActiveView('russian_roulette')}
                   onOpenPartyIdle={() => setActiveView('party_idle')}
                   onOpenFarmhand={() => setActiveView('farmhand')}
+                  onOpenShop={() => setActiveView('shop')}
                   onUpdateCoins={handleUpdateCoins}
                 />
               </div>
@@ -2139,6 +2147,8 @@ export default function Home() {
                       ? 'Horario lectivo y entregas'
                       : activeView === 'russian_roulette'
                       ? 'Ruleta Rusa'
+                      : activeView === 'shop'
+                      ? 'Tienda Exclusiva SMR2 (13M)'
                       : 'Recreo Arcade'}
                   </span>
                   <span className="text-[11px] text-foreground-subtle hidden sm:inline">
@@ -2151,6 +2161,7 @@ export default function Home() {
               {activeView !== 'calendar' && (
                 <div className="flex items-center p-1 rounded-full bg-surface-raised border border-border/70 overflow-x-auto scrollbar-none gap-0.5">
                   {[
+                    { id: 'shop', label: 'Tienda 13M', icon: ShoppingBag },
                     { id: 'farmhand', label: 'El Huerto', icon: Sprout },
                     { id: 'party_idle', label: 'El Botellón', icon: Wine },
                     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },
@@ -2185,7 +2196,15 @@ export default function Home() {
 
             {/* Active Component */}
             <div className="animate-in fade-in duration-150">
-              {activeView === 'farmhand' ? (
+              {activeView === 'shop' ? (
+                <VipShopView
+                  currentUser={user}
+                  onOpenAuth={() => setIsAuthOpen(true)}
+                  onUpdateUser={(updated) => setUser(updated)}
+                  onNavigateToPartyIdle={() => setActiveView('party_idle')}
+                  onBackToFeed={() => setActiveView('feed')}
+                />
+              ) : activeView === 'farmhand' ? (
                 <FarmhandGame
                   userCoins={user ? user.coins : 200}
                   userId={user?.id}

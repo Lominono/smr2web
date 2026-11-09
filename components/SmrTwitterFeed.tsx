@@ -24,6 +24,7 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
+  Crown,
 } from 'lucide-react';
 import { ChatMessage, UserProfile, ChatComment } from '@/lib/types';
 import { sound } from '@/lib/audio';
@@ -1167,6 +1168,19 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                           msg.user_id === 'ed922205-b961-487c-a13b-93b5ab7a5faf') && (
                           <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30 text-amber-300 shrink-0">
                             admin
+                          </span>
+                        )}
+
+                        {(msg.user_id === 'ed922205-b961-487c-a13b-93b5ab7a5faf' ||
+                          (currentUser?.id === msg.user_id &&
+                            (currentUser?.banner_estilo ||
+                              currentUser?.items_comprados?.includes('banner_vip_13m')))) && (
+                          <span
+                            title="Propietario del Banner Exclusivo 13M"
+                            className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-md bg-amber-400/15 border border-amber-400/40 text-amber-300 shrink-0 flex items-center gap-1"
+                          >
+                            <Crown className="w-3 h-3 text-amber-400" />
+                            <span>13M</span>
                           </span>
                         )}
 

@@ -43,6 +43,7 @@ interface DesktopWidgetsProps {
   onOpenRussianRoulette?: () => void;
   onOpenPartyIdle?: () => void;
   onOpenFarmhand?: () => void;
+  onOpenShop?: () => void;
   onUpdateCoins?: (delta: number) => void;
   onlineUsers?: OnlineUser[];
   onOpenOnlineUsers?: () => void;
@@ -57,6 +58,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
   onOpenFaucet,
   onOpenPartyIdle,
   onOpenFarmhand,
+  onOpenShop,
   onUpdateCoins,
   onlineUsers = [],
   onOpenOnlineUsers,
@@ -455,6 +457,23 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
                 </span>
               </span>
               <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
+            </Button>
+          )}
+          {onOpenShop && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full justify-between rounded-lg h-8 text-xs font-semibold bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20"
+              onClick={() => {
+                sound.tap();
+                onOpenShop();
+              }}
+            >
+              <span className="flex items-center gap-1.5">
+                <Crown className="w-3.5 h-3.5 text-amber-400" />
+                <span>Tienda VIP (Banner 13M)</span>
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-amber-400/80" />
             </Button>
           )}
         </div>

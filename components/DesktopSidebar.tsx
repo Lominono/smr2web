@@ -21,6 +21,7 @@ import {
   Terminal,
   IdCard,
   MonitorDown,
+  ShoppingBag,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -67,6 +68,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   const navItems: { id: string; label: string; icon: any; badge?: string }[] = [
     { id: 'feed', label: 'Feed de clase', icon: MessageSquare },
     { id: 'calendar', label: 'Horario y tareas', icon: Calendar },
+    { id: 'shop', label: 'Tienda VIP', icon: ShoppingBag, badge: '13M' },
     { id: 'farmhand', label: 'El Huerto', icon: Sprout, badge: 'Cerrado' },
     { id: 'party_idle', label: 'El Botellón', icon: Wine },
     { id: 'russian_roulette', label: 'Ruleta Rusa', icon: Zap },

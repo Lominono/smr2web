@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { sound } from '@/lib/audio';
+import { BANNER_PRESETS } from './VipShopView';
 import {
   getCurrentScheduleStatus,
   SCHEDULE_GRID,
@@ -210,6 +211,17 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
       ? 'Delegado'
       : 'Estudiante 2º SMR';
 
+  const hasVipBanner = Boolean(
+    (displayUser?.banner_estilo && displayUser.banner_estilo !== 'cuadricula') ||
+    displayUser?.items_comprados?.includes('banner_vip_13m') ||
+    displayUser?.titulo_personalizado
+  );
+  const bannerPreset =
+    BANNER_PRESETS.find((p) => p.id === displayUser?.banner_estilo) || BANNER_PRESETS[0];
+  const isCustomImageBanner = Boolean(
+    displayUser?.banner_estilo && displayUser.banner_estilo.startsWith('http')
+  );
+
   return createPortal(
     <div
       role="dialog"
@@ -283,6 +295,52 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
 
         {/* Contenido con scroll */}
         <div className="flex-1 p-5 sm:p-6 overflow-y-auto space-y-5 select-text">
+          {/* BANNER VIP PERSONALIZADO DE 13 MILLONES */}
+          {hasVipBanner && (
+            <div
+              className={`rounded-2xl overflow-hidden border ${bannerPreset.border} ${bannerPreset.glow} p-4 sm:p-5 text-white relative shadow-xl animate-in fade-in duration-300`}
+              style={
+                isCustomImageBanner && displayUser.banner_estilo
+                  ? {
+                      backgroundImage: `url(${displayUser.banner_estilo})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }
+                  : undefined
+              }
+            >
+              {!isCustomImageBanner && (
+                <div className={`absolute inset-0 ${bannerPreset.gradient} opacity-95`} />
+              )}
+              <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px]" />
+
+              <div className="relative z-10 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border ${bannerPreset.badgeBg} uppercase tracking-wider`}
+                  >
+                    {isCustomImageBanner ? '🖼️ CUSTOM BANNER' : bannerPreset.badge}
+                  </span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-black/60 text-amber-300 border border-amber-400/40 flex items-center gap-1 shadow-sm">
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    <span>13M VIP</span>
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="text-base sm:text-lg font-black tracking-tight drop-shadow-md text-white">
+                    {displayUser.titulo_personalizado || '👑 Magnate del Botellón'}
+                  </h3>
+                  {displayUser.frase && (
+                    <p className="text-xs italic text-neutral-200 drop-shadow-sm mt-0.5 line-clamp-2">
+                      «{displayUser.frase}»
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ============================================================== */}
           {/* TARJETA DIGITAL ESTILO APPLE PASS / WALLET                     */}
           {/* ============================================================== */}

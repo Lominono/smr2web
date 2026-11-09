@@ -21,6 +21,10 @@ export interface UserProfile {
   last_rescue_date?: string;
   is_banned?: boolean;
   ban_reason?: string;
+  items_comprados?: string[];
+  banner_estilo?: string;
+  titulo_personalizado?: string;
+  frase?: string;
 }
 
 export interface OnlineUser {
@@ -33,6 +37,9 @@ export interface OnlineUser {
   role?: string;
   coins?: number;
   current_view?: string;
+  banner_estilo?: string;
+  titulo_personalizado?: string;
+  items_comprados?: string[];
   online_at: string;
   last_ping: number;
   is_current_user?: boolean;
