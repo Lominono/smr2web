@@ -708,8 +708,9 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                  <span className="font-semibold text-foreground">
-                    {asset.price.toFixed(2)} 🪙
+                  <span className="font-semibold text-foreground flex items-center gap-1">
+                    {asset.price.toFixed(2)}
+                    <Coins className="w-3 h-3 text-amber-400" />
                   </span>
                   <span className={`text-[10px] ${isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
                     {isUp ? '+' : ''}{asset.change24h.toFixed(1)}%
@@ -734,7 +735,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               <span className="text-foreground truncate">
                 <strong>@{recentLiveNotification.username}</strong>{' '}
                 {recentLiveNotification.type === 'buy' ? 'compró' : 'vendió'}{' '}
-                {recentLiveNotification.coins.toLocaleString()} 🪙 de ${recentLiveNotification.ticker}
+                {recentLiveNotification.coins.toLocaleString()} monedas de ${recentLiveNotification.ticker}
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -790,7 +791,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div
-                className={`font-mono font-bold text-2xl tracking-tight transition-all duration-300 rounded-lg px-2 py-0.5 -mx-2 inline-block ${
+                className={`font-mono font-bold text-2xl tracking-tight transition-all duration-300 rounded-lg px-2 py-0.5 -mx-2 inline-flex items-center gap-1.5 ${
                   priceFlash === 'up'
                     ? 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 animate-price-up'
                     : priceFlash === 'down'
@@ -798,8 +799,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                     : 'text-foreground border border-transparent'
                 }`}
               >
-                {activeAsset.price.toFixed(2)}{' '}
-                <span className="text-xs font-normal text-foreground-subtle">🪙</span>
+                <span>{activeAsset.price.toFixed(2)}</span>
+                <span className="text-xs font-normal text-foreground-subtle">monedas</span>
               </div>
               <div className="flex items-center justify-end gap-1 font-mono text-xs">
                 <span className={`font-semibold ${isPriceUp ? 'text-emerald-500' : 'text-rose-500'}`}>
@@ -828,7 +829,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
             <div className="text-xs font-mono min-h-[1.25rem]">
               {hoveredPoint ? (
                 <span className="text-foreground flex items-center gap-1.5">
-                  <span className="font-bold">{hoveredPoint.price.toFixed(2)} 🪙</span>
+                  <span className="font-bold">{hoveredPoint.price.toFixed(2)} monedas</span>
                   <span className="text-foreground-subtle">({hoveredPoint.time})</span>
                   {hoveredPoint.player && (
                     <span className="text-foreground-muted font-sans font-medium text-[11px]">
@@ -1054,7 +1055,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 <span>{tradeMode === 'buy' ? 'Monedas a invertir' : 'Acciones a vender'}</span>
                 <span className="font-mono text-[11px]">
                   {tradeMode === 'buy'
-                    ? `Saldo: ${userCoins.toLocaleString()} 🪙`
+                    ? `Saldo: ${userCoins.toLocaleString()} monedas`
                     : `Tienes: ${currentHolding.shares.toFixed(2)} acc.`}
                 </span>
               </div>
@@ -1145,16 +1146,16 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 <>
                   <div className="flex items-center justify-between">
                     <span>Importe bruto:</span>
-                    <span className="font-mono text-foreground">{estimatedCoins.gross} 🪙</span>
+                    <span className="font-mono text-foreground">{estimatedCoins.gross} monedas</span>
                   </div>
                   <div className="flex items-center justify-between text-foreground-subtle text-[11px]">
                     <span>Comisión para tesorería (2%):</span>
-                    <span className="font-mono">-{estimatedCoins.fee} 🪙</span>
+                    <span className="font-mono">-{estimatedCoins.fee} monedas</span>
                   </div>
                   <div className="flex items-center justify-between pt-1 border-t border-border/40 font-medium text-foreground">
                     <span>Recibirás neto:</span>
                     <span className="font-mono text-emerald-500 font-bold">
-                      +{estimatedCoins.net} 🪙
+                      +{estimatedCoins.net} monedas
                     </span>
                   </div>
                 </>
@@ -1196,7 +1197,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               </div>
               <div>
                 <span className="text-foreground-subtle block text-[10px]">Valor</span>
-                <span className="font-semibold text-foreground">{currentHolding.currentValue} 🪙</span>
+                <span className="font-semibold text-foreground">{currentHolding.currentValue} monedas</span>
               </div>
               <div>
                 <span className="text-foreground-subtle block text-[10px]">Rendimiento</span>
@@ -1312,7 +1313,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
 
                         <div className="text-right font-mono text-[11px]">
                           <span className={`font-semibold ${isBuy ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            {isBuy ? '+' : '-'}{tx.coins_amount.toLocaleString()} 🪙
+                            {isBuy ? '+' : '-'}{tx.coins_amount.toLocaleString()} monedas
                           </span>
                           <span className="text-[10px] text-foreground-subtle block">
                             {tx.shares_amount.toFixed(2)} acc.
@@ -1364,7 +1365,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                           {sh.ownership_percentage}%
                         </span>
                         <span className="text-[10px] text-foreground-subtle block">
-                          ~{sh.position_value.toLocaleString()} 🪙
+                          ~{sh.position_value.toLocaleString()} monedas
                         </span>
                       </div>
                     </div>
@@ -1388,7 +1389,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                     <span>Caja Fuerte / Tesorería</span>
                   </div>
                   <div className="font-mono font-bold text-sm text-foreground">
-                    {(companyFinancials?.treasury_balance ?? 5000).toLocaleString()} 🪙
+                    {(companyFinancials?.treasury_balance ?? 5000).toLocaleString()} monedas
                   </div>
                   <p className="text-[10px] text-foreground-subtle">Comisiones y beneficios retenidos</p>
                 </div>
@@ -1399,7 +1400,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                     <span>Ingresos Generados</span>
                   </div>
                   <div className="font-mono font-bold text-sm text-emerald-500">
-                    +{(companyFinancials?.total_revenue_generated ?? 0).toLocaleString()} 🪙
+                    +{(companyFinancials?.total_revenue_generated ?? 0).toLocaleString()} monedas
                   </div>
                   <p className="text-[10px] text-foreground-subtle">Facturación operativa total</p>
                 </div>
@@ -1410,7 +1411,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                     <span>Rake del Casino</span>
                   </div>
                   <div className="font-mono font-bold text-sm text-foreground">
-                    {(companyFinancials?.arcade_rake_accumulated ?? 0).toLocaleString()} 🪙
+                    {(companyFinancials?.arcade_rake_accumulated ?? 0).toLocaleString()} monedas
                   </div>
                   <p className="text-[10px] text-foreground-subtle">2% aportado por minijuegos</p>
                 </div>
@@ -1421,7 +1422,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                     <span>Valor Liquidativo (NAV)</span>
                   </div>
                   <div className="font-mono font-bold text-sm text-foreground">
-                    {(companyFinancials?.nav_per_share ?? 10.0).toFixed(2)} 🪙/acc
+                    {(companyFinancials?.nav_per_share ?? 10.0).toFixed(2)} monedas/acc
                   </div>
                   <p className="text-[10px] text-foreground-subtle">Respaldo real en activos</p>
                 </div>

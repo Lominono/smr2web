@@ -103,7 +103,10 @@ html.light body {
 
 /* Superficies y Tarjetas */
 html.light .bg-\[\#09090b\],
+html.light .bg-\[\#09090c\],
 html.light .bg-\[\#0c0c0e\],
+html.light .bg-\[\#0c0c10\],
+html.light .bg-\[\#0a0a0d\],
 html.light .bg-\[\#121215\],
 html.light .bg-surface {
   background-color: #ffffff !important;

@@ -335,12 +335,30 @@ export interface BotellonState {
   pendingVault: number;
   totalLifetimeProduced: number;
   afterPrestigeCount: number;
+  afterSuspicionLevel?: number;
   lastTickMs: number;
   currentZoneId?: string;
   purchasedPerks?: string[];
   totalDrinksTaken?: number;
   beerPongWins?: number;
   hangoverLevel?: number;
+}
+
+export interface AfterRiskStats {
+  level: number;
+  raidChancePct: number;
+  confiscatePct: number;
+  bribeCost: number;
+}
+
+export function getAfterRiskStats(suspicionLevel: number): AfterRiskStats {
+  const level = Math.max(0, Math.min(10, suspicionLevel || 0));
+  // Nivel 0 (Limpio): 10% probabilidad de redada, 15% confiscación
+  // Cada nivel adicional aumenta la probabilidad en +15% y la multa en +15% (máximo 95% y 90%)
+  const raidChancePct = Math.min(95, 10 + level * 15);
+  const confiscatePct = Math.min(90, 15 + level * 15);
+  const bribeCost = Math.max(80, level * 150);
+  return { level, raidChancePct, confiscatePct, bribeCost };
 }
 
 export const STORAGE_KEY_PREFIX = 'smr2_botellon_s2_';
@@ -427,6 +445,17 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [pendingVault, setPendingVault] = useState<number>(0);
   const [totalLifetimeProduced, setTotalLifetimeProduced] = useState<number>(0);
   const [afterPrestigeCount, setAfterPrestigeCount] = useState<number>(0);
+  const [afterSuspicionLevel, setAfterSuspicionLevel] = useState<number>(0);
+  const [afterCooldownSeconds, setAfterCooldownSeconds] = useState<number>(90);
+  const [showAfterModal, setShowAfterModal] = useState<boolean>(false);
+  const [afterRaidResult, setAfterRaidResult] = useState<{
+    type: 'success' | 'raid';
+    raidChancePct: number;
+    confiscatePct: number;
+    coinsLost: number;
+    vaultLost: number;
+    nextLevel: number;
+  } | null>(null);
   const [currentZoneId, setCurrentZoneId] = useState<string>('parque');
   const [purchasedPerks, setPurchasedPerks] = useState<string[]>([]);
   const [totalDrinksTaken, setTotalDrinksTaken] = useState<number>(0);
@@ -551,6 +580,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     pendingVault,
     totalLifetimeProduced,
     afterPrestigeCount,
+    afterSuspicionLevel,
     lastTickMs: Date.now(),
     currentZoneId,
     purchasedPerks,
@@ -565,6 +595,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       pendingVault,
       totalLifetimeProduced,
       afterPrestigeCount,
+      afterSuspicionLevel,
       lastTickMs: Date.now(),
       currentZoneId,
       purchasedPerks,
@@ -577,6 +608,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     pendingVault,
     totalLifetimeProduced,
     afterPrestigeCount,
+    afterSuspicionLevel,
     currentZoneId,
     purchasedPerks,
     totalDrinksTaken,
@@ -599,6 +631,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       setPendingVault(stateToApply.pendingVault || 0);
       setTotalLifetimeProduced(stateToApply.totalLifetimeProduced || 0);
       setAfterPrestigeCount(stateToApply.afterPrestigeCount || 0);
+      setAfterSuspicionLevel(stateToApply.afterSuspicionLevel || 0);
       setCurrentZoneId(stateToApply.currentZoneId || 'parque');
       setPurchasedPerks(stateToApply.purchasedPerks || []);
       setTotalDrinksTaken(stateToApply.totalDrinksTaken || 0);
@@ -797,9 +830,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       if (policeAlert || productionFrozenUntilMs > now || pendingVault < 80) return;
       if (activeZone.policeRisk <= 0) return;
 
-      // Probabilidad ajustada por zona y volumen del bote
+      // Probabilidad ajustada por zona, volumen del bote y sospecha policial del After
       const vaultFactor = Math.min(2.0, pendingVault / 400);
-      const raidChance = activeZone.policeRisk * 0.28 * vaultFactor;
+      const afterSuspicionFactor = 1 + afterSuspicionLevel * 0.2;
+      const raidChance = activeZone.policeRisk * 0.28 * vaultFactor * afterSuspicionFactor;
 
       if (Math.random() < raidChance) {
         sound.whoosh();
@@ -860,6 +894,26 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     }, 1000);
     return () => clearInterval(cooldownTimer);
   }, [waterCooldown]);
+
+  // 5.4 Descenso natural de la sospecha policial acumulada por irse de After (se enfría 1 nivel cada 90s)
+  useEffect(() => {
+    if (afterSuspicionLevel <= 0) return;
+    const suspicionTimer = setInterval(() => {
+      setAfterCooldownSeconds((sec) => {
+        if (sec <= 1) {
+          setAfterSuspicionLevel((lvl) => {
+            const nextLvl = Math.max(0, lvl - 1);
+            saveState({ afterSuspicionLevel: nextLvl });
+            return nextLvl;
+          });
+          return 90;
+        }
+        return sec - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(suspicionTimer);
+  }, [afterSuspicionLevel, saveState]);
 
   // Cooldown del minijuego del Vaso Misterioso
   useEffect(() => {
@@ -1432,23 +1486,38 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     }
   };
 
-  // Acción: El After (Prestigio)
-  const canPrestige = totalLifetimeProduced >= 15000;
-  const handleAfterPrestige = () => {
+  // Acción: Revertir sospecha policial pagando fianza
+  const handleRevertSuspicion = () => {
+    if (afterSuspicionLevel <= 0) return;
+    const { bribeCost } = getAfterRiskStats(afterSuspicionLevel);
+    if (userCoins < bribeCost) {
+      sound.broke();
+      alert(`Saldo insuficiente. Necesitas al menos ${bribeCost.toLocaleString()} monedas para pagar la fianza y limpiar tu historial policial.`);
+      return;
+    }
+    sound.coinWin();
+    onUpdateCoins(-bribeCost);
+    setAfterSuspicionLevel(0);
+    setAfterCooldownSeconds(90);
+    saveState({ afterSuspicionLevel: 0 }, true);
+  };
+
+  // Requisitos para irse de After: al menos 15.000 producidas y suministros activos en esta ronda
+  const canPrestige =
+    totalLifetimeProduced >= 15000 &&
+    Object.values(levels).some((lvl) => lvl > 0);
+
+  const handleOpenAfterModal = () => {
+    sound.tap();
+    setShowAfterModal(true);
+  };
+
+  const handleConfirmAfter = () => {
     if (!canPrestige) return;
 
-    const confirm = window.confirm(
-      '¿Quieres irte de After? Reiniciarás las bebidas compradas a cambio de un +50% permanente de producción en toda tu fiesta.'
-    );
-    if (!confirm) return;
-
-    sound.coinWin();
-    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-
-    const leftoverCoins = Math.floor(pendingVault / 5);
-    if (leftoverCoins > 0) {
-      onUpdateCoins(leftoverCoins);
-    }
+    const { raidChancePct, confiscatePct } = getAfterRiskStats(afterSuspicionLevel);
+    const rolled = Math.random() * 100;
+    const isPoliceRaid = rolled < raidChancePct;
 
     const resetLevels = {
       litronas: 0,
@@ -1460,20 +1529,83 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       vip: 0,
     };
 
-    setLevels(resetLevels);
-    setPendingVault(0);
-    setHangoverLevel(0);
-    setAfterPrestigeCount((prev) => prev + 1);
+    const nextSuspicionLevel = Math.min(10, afterSuspicionLevel + 1);
 
-    saveState(
-      {
-        levels: resetLevels,
-        pendingVault: 0,
-        hangoverLevel: 0,
-        afterPrestigeCount: afterPrestigeCount + 1,
-      },
-      true
-    );
+    if (isPoliceRaid) {
+      // ¡REDADA POLICIAL EN EL AFTER!
+      sound.broke();
+      const coinsLost = Math.floor(userCoins * (confiscatePct / 100));
+      const vaultLost = Math.floor(pendingVault * (confiscatePct / 100));
+
+      if (coinsLost > 0) {
+        onUpdateCoins(-coinsLost);
+      }
+
+      setLevels(resetLevels);
+      setPendingVault(0);
+      setHangoverLevel(0);
+      setAfterPrestigeCount((prev) => prev + 1);
+      setAfterSuspicionLevel(nextSuspicionLevel);
+      setAfterCooldownSeconds(90);
+
+      setAfterRaidResult({
+        type: 'raid',
+        raidChancePct,
+        confiscatePct,
+        coinsLost,
+        vaultLost,
+        nextLevel: nextSuspicionLevel,
+      });
+
+      saveState(
+        {
+          levels: resetLevels,
+          pendingVault: 0,
+          hangoverLevel: 0,
+          afterPrestigeCount: afterPrestigeCount + 1,
+          afterSuspicionLevel: nextSuspicionLevel,
+        },
+        true
+      );
+    } else {
+      // ¡ÉXITO EN EL AFTER!
+      sound.coinWin();
+      confetti({ particleCount: 160, spread: 85, origin: { y: 0.6 } });
+
+      const leftoverCoins = Math.floor(pendingVault / 5);
+      if (leftoverCoins > 0) {
+        onUpdateCoins(leftoverCoins);
+      }
+
+      setLevels(resetLevels);
+      setPendingVault(0);
+      setHangoverLevel(0);
+      setAfterPrestigeCount((prev) => prev + 1);
+      setAfterSuspicionLevel(nextSuspicionLevel);
+      setAfterCooldownSeconds(90);
+
+      setAfterRaidResult({
+        type: 'success',
+        raidChancePct,
+        confiscatePct,
+        coinsLost: 0,
+        vaultLost: 0,
+        nextLevel: nextSuspicionLevel,
+      });
+
+      saveState(
+        {
+          levels: resetLevels,
+          pendingVault: 0,
+          hangoverLevel: 0,
+          afterPrestigeCount: afterPrestigeCount + 1,
+          afterSuspicionLevel: nextSuspicionLevel,
+        },
+        true
+      );
+    }
+
+    setShowAfterModal(false);
   };
 
   const roundedVault = Math.floor(pendingVault);
@@ -1987,15 +2119,59 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               {canPrestige && (
                 <button
                   type="button"
-                  onClick={handleAfterPrestige}
+                  onClick={handleOpenAfterModal}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition-all cursor-pointer active:scale-95"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Irse de After (+50% bonus)</span>
+                  <span
+                    className={`ml-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
+                      afterSuspicionLevel === 0
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                        : afterSuspicionLevel <= 2
+                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                        : 'bg-red-500/15 text-red-400 border border-red-500/20 animate-pulse'
+                    }`}
+                  >
+                    Riesgo {getAfterRiskStats(afterSuspicionLevel).raidChancePct}%
+                  </span>
                 </button>
               )}
             </div>
           </div>
+
+          {/* Banner de Sospecha Policial del After con cuenta atrás y botón de reversión */}
+          {afterSuspicionLevel > 0 && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+                  <Siren className="w-4 h-4 animate-pulse" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-red-200">
+                      Sospecha Policial del After: Nivel {afterSuspicionLevel}
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-red-500/25 border border-red-500/40 text-red-300 font-semibold">
+                      {getAfterRiskStats(afterSuspicionLevel).raidChancePct}% Redada · {getAfterRiskStats(afterSuspicionLevel).confiscatePct}% Confiscación
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-red-300/80 leading-relaxed mt-0.5">
+                    La policía patrulla el After. Se enfría 1 nivel en <strong className="font-mono text-red-200">{afterCooldownSeconds}s</strong> o puedes revertir la sospecha pagando una fianza.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRevertSuspicion}
+                className="self-end sm:self-center px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shrink-0"
+              >
+                <Coins className="w-3.5 h-3.5 text-amber-300" />
+                <span>Revertir a 0% (-{getAfterRiskStats(afterSuspicionLevel).bribeCost} 🪙)</span>
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             {TIERS.map((tier) => {
@@ -2562,6 +2738,286 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal interactivo: Irse de After Clandestino & Riesgo Policial */}
+      {showAfterModal && (() => {
+        const stats = getAfterRiskStats(afterSuspicionLevel);
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200"
+          >
+            <div className="fixed inset-0" onClick={() => setShowAfterModal(false)} />
+            <div className="relative z-10 w-full max-w-lg rounded-3xl bg-surface border border-border shadow-2xl overflow-hidden p-5 sm:p-6 space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-border/70">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                    <RotateCcw className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-foreground tracking-tight">
+                      El After Clandestino
+                    </h3>
+                    <p className="text-xs text-foreground-muted">
+                      Prestigio de la fiesta con riesgo de redada policial
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAfterModal(false)}
+                  className="p-1.5 rounded-lg text-foreground-subtle hover:text-foreground hover:bg-surface-raised cursor-pointer transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Multiplicador y Beneficio */}
+              <div className="p-3.5 rounded-2xl bg-surface-raised border border-border/70 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-mono uppercase text-foreground-muted block">
+                    Bonus Permanente Obtenido
+                  </span>
+                  <div className="text-lg font-bold text-purple-400 font-mono">
+                    +50% Producción Global
+                  </div>
+                </div>
+                <div className="text-right font-mono text-xs text-foreground-muted">
+                  Multiplicador total: <strong className="text-foreground">x{(prestigeMultiplier + 0.5).toFixed(1)}</strong>
+                </div>
+              </div>
+
+              {/* Panel de Riesgo Policial Progresivo */}
+              <div className="p-4 rounded-2xl bg-surface-raised/60 border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Siren className={`w-4 h-4 ${stats.level > 0 ? 'text-red-400 animate-pulse' : 'text-foreground-muted'}`} />
+                    <span className="text-xs font-bold text-foreground">
+                      Nivel de Sospecha Policial: Nivel {stats.level}
+                    </span>
+                  </div>
+                  <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                    stats.level === 0
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      : stats.level <= 2
+                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                      : 'bg-red-500/15 text-red-400 border border-red-500/30'
+                  }`}>
+                    {stats.raidChancePct}% Probabilidad
+                  </span>
+                </div>
+
+                {/* Barra de progreso de sospecha */}
+                <div className="space-y-1">
+                  <div className="w-full h-2 rounded-full bg-surface border border-border/70 overflow-hidden flex">
+                    <div
+                      className={`h-full transition-all duration-300 rounded-full ${
+                        stats.level === 0
+                          ? 'bg-emerald-500'
+                          : stats.level <= 2
+                          ? 'bg-amber-500'
+                          : 'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.min(100, (stats.level / 6) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono text-foreground-subtle">
+                    <span>Nivel 0 (10%)</span>
+                    <span>Nivel 3 (55%)</span>
+                    <span>Nivel 6+ (95%)</span>
+                  </div>
+                </div>
+
+                {/* Métricas clave: Probabilidad de redada y Porcentaje requisado */}
+                <div className="grid grid-cols-2 gap-2 pt-1 font-mono">
+                  <div className="p-2.5 rounded-xl bg-surface border border-border text-center space-y-0.5">
+                    <span className="text-[10px] uppercase text-foreground-muted block font-sans">
+                      Probabilidad de Redada
+                    </span>
+                    <span className={`text-base font-bold ${
+                      stats.raidChancePct > 50 ? 'text-red-400' : stats.raidChancePct > 20 ? 'text-amber-400' : 'text-emerald-400'
+                    }`}>
+                      {stats.raidChancePct}%
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-surface border border-border text-center space-y-0.5">
+                    <span className="text-[10px] uppercase text-foreground-muted block font-sans">
+                      Multa si te pillan
+                    </span>
+                    <span className="text-base font-bold text-red-400">
+                      -{stats.confiscatePct}%
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-foreground-muted leading-relaxed">
+                  Cada vez que le das a irte de After, la policía te ficha más de cerca. La probabilidad de redada aumenta un <strong className="text-foreground">+15%</strong> y la multa requisada sube un <strong className="text-foreground">+15%</strong> para evitar abusos.
+                </p>
+              </div>
+
+              {/* Sección de Reversión de la sospecha */}
+              <div className="p-3.5 rounded-2xl bg-surface-raised/40 border border-border/70 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-accent" />
+                    <span>Reversión de Sospecha</span>
+                  </span>
+                  {afterSuspicionLevel > 0 && (
+                    <span className="text-[11px] font-mono text-foreground-muted flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>Enfría 1 nivel en {afterCooldownSeconds}s</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <p className="text-[11px] text-foreground-muted">
+                    {afterSuspicionLevel === 0
+                      ? 'Tu historial policial está limpio. La probabilidad de redada se encuentra en su mínimo (10%).'
+                      : 'Puedes esperar a que la policía baje la guardia con el tiempo o pagar una fianza para limpiar tu historial ahora mismo.'}
+                  </p>
+                  {afterSuspicionLevel > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleRevertSuspicion();
+                        setShowAfterModal(false);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-raised border border-border font-medium text-foreground hover:text-foreground text-xs whitespace-nowrap cursor-pointer transition-colors shrink-0 shadow-2xs"
+                    >
+                      Pagar fianza (-{stats.bribeCost} 🪙)
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex items-center gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowAfterModal(false)}
+                  className="flex-1 py-2.5 rounded-xl font-medium text-xs text-foreground bg-surface-raised hover:bg-surface border border-border transition-colors cursor-pointer"
+                >
+                  Seguir en la fiesta
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmAfter}
+                  className={`flex-1 py-2.5 rounded-xl font-semibold text-xs text-white transition-all cursor-pointer shadow-sm active:scale-95 flex items-center justify-center gap-1.5 ${
+                    stats.raidChancePct >= 70
+                      ? 'bg-red-600 hover:bg-red-500'
+                      : stats.raidChancePct >= 40
+                      ? 'bg-amber-600 hover:bg-amber-500'
+                      : 'bg-purple-600 hover:bg-purple-500'
+                  }`}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>¡Vámonos de After! ({stats.raidChancePct}% riesgo)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Modal de Resultado: Redada Policial o After Exitoso */}
+      {afterRaidResult && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200"
+        >
+          <div className="fixed inset-0" onClick={() => setAfterRaidResult(null)} />
+          <div className={`relative z-10 w-full max-w-md rounded-3xl bg-surface border shadow-2xl overflow-hidden p-5 sm:p-6 space-y-4 ${
+            afterRaidResult.type === 'raid' ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-purple-500/50 ring-2 ring-purple-500/20'
+          }`}>
+            <div className="text-center space-y-2">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
+                afterRaidResult.type === 'raid'
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/40 animate-bounce'
+                  : 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
+              }`}>
+                {afterRaidResult.type === 'raid' ? (
+                  <Siren className="w-6 h-6" />
+                ) : (
+                  <Sparkles className="w-6 h-6" />
+                )}
+              </div>
+
+              <h3 className={`text-base font-bold tracking-tight ${
+                afterRaidResult.type === 'raid' ? 'text-red-400' : 'text-purple-400'
+              }`}>
+                {afterRaidResult.type === 'raid'
+                  ? '¡REDADA POLICIAL EN EL AFTER!'
+                  : '¡AFTER CLANDESTINO COMPLETADO!'}
+              </h3>
+
+              <p className="text-xs text-foreground-muted leading-relaxed">
+                {afterRaidResult.type === 'raid'
+                  ? `La patrulla intervino el local ilegalmente. Te aplicaron una sanción severa del ${afterRaidResult.confiscatePct}% sobre todos tus fondos disponibles.`
+                  : '¡Habéis despistado a la policía! La fiesta continuó sin incidentes y recibes tu +50% permanente de producción.'}
+              </p>
+            </div>
+
+            {/* Desglose de Pérdidas / Ganancias */}
+            {afterRaidResult.type === 'raid' ? (
+              <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 space-y-2 font-mono text-xs">
+                <div className="flex items-center justify-between text-red-300">
+                  <span>Multa confiscada:</span>
+                  <span className="font-bold">-{afterRaidResult.confiscatePct}%</span>
+                </div>
+                {afterRaidResult.coinsLost > 0 && (
+                  <div className="flex items-center justify-between text-red-400">
+                    <span>Monedas requisadas del monedero:</span>
+                    <span className="font-bold">-{afterRaidResult.coinsLost.toLocaleString()} 🪙</span>
+                  </div>
+                )}
+                {afterRaidResult.vaultLost > 0 && (
+                  <div className="flex items-center justify-between text-red-400">
+                    <span>Fichas requisadas del bote:</span>
+                    <span className="font-bold">-{afterRaidResult.vaultLost.toLocaleString()} 🍸</span>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-red-500/20 flex items-center justify-between text-foreground text-[11px] font-sans">
+                  <span>Bonus +50% aplicado:</span>
+                  <span className="font-mono text-purple-400 font-bold">Activo</span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/25 space-y-1.5 font-mono text-xs">
+                <div className="flex items-center justify-between text-foreground">
+                  <span>Bonus permanente sumado:</span>
+                  <span className="text-purple-400 font-bold">+50% farmeo</span>
+                </div>
+                <div className="flex items-center justify-between text-foreground">
+                  <span>Nuevo multiplicador total:</span>
+                  <span className="text-foreground font-bold">x{prestigeMultiplier.toFixed(1)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Aviso de sospecha para el siguiente After */}
+            <div className="p-3 rounded-xl bg-surface-raised border border-border text-[11px] text-foreground-muted flex items-center justify-between gap-2">
+              <span>Sospecha actual: <strong>Nivel {afterRaidResult.nextLevel}</strong></span>
+              <span className="font-mono text-red-400 font-semibold">
+                {getAfterRiskStats(afterRaidResult.nextLevel).raidChancePct}% riesgo próximo
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setAfterRaidResult(null)}
+              className="w-full py-2.5 rounded-xl font-semibold text-xs text-background bg-foreground hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-sm"
+            >
+              {afterRaidResult.type === 'raid' ? 'Asumir sanción y continuar' : '¡Seguir la fiesta!'}
+            </button>
           </div>
         </div>
       )}

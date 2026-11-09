@@ -264,7 +264,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              title: `${postTag === 'examen' ? '📝 Examen 2º SMR' : '📢 Aviso de clase'}: @${currentUser.username}`,
+              title: `${postTag === 'examen' ? 'Examen 2º SMR' : 'Aviso de clase'}: @${currentUser.username}`,
               body: trimmed,
               tag: postTag || 'Aviso',
               url: '/',
