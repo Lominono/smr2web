@@ -60,6 +60,13 @@ interface AdminUser {
 export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [adminUser, setAdminUser] = useState<any>(null);
+  const [accountInfo, setAccountInfo] = useState<{
+    isAuthenticated: boolean;
+    id?: string;
+    username?: string;
+    role?: string;
+    isAdmin?: boolean;
+  } | null>(null);
   const [viewMode, setViewMode] = useState<'dashboard' | 'terminal'>('dashboard');
 
   // Dashboard Data State
@@ -117,6 +124,9 @@ export default function AdminPage() {
         const res = await fetch('/api/admin/verify');
         const data = await res.json();
         if (isMounted) {
+          if (data?.account) {
+            setAccountInfo(data.account);
+          }
           if (res.ok && data.authorized) {
             setIsAdmin(true);
             setAdminUser(data.user);
@@ -537,7 +547,7 @@ export default function AdminPage() {
 
   // Pantalla de acceso denegado / Login con PIN de Administrador
   if (!isAdmin) {
-    return <AdminLoginGate onAuthSuccess={() => setIsAdmin(true)} />;
+    return <AdminLoginGate account={accountInfo} onAuthSuccess={() => setIsAdmin(true)} />;
   }
 
   // ==============================================================
@@ -1207,9 +1217,24 @@ export default function AdminPage() {
 }
 
 /**
- * Componente de desbloqueo con clave o token maestro
+ * Componente de seguridad: Gateway de acceso administrativo con doble factor
+ * 1. Exige estar autenticado con la cuenta oficial de administrador (@juanfe).
+ * 2. Si no es admin, bloquea totalmente la interfaz sin mostrar formulario de contraseña.
+ * 3. Si es admin, exige elevar privilegios introduciendo la contraseña de cuenta o clave maestra.
  */
-function AdminLoginGate({ onAuthSuccess }: { onAuthSuccess: () => void }) {
+function AdminLoginGate({
+  account,
+  onAuthSuccess,
+}: {
+  account: {
+    isAuthenticated: boolean;
+    id?: string;
+    username?: string;
+    role?: string;
+    isAdmin?: boolean;
+  } | null;
+  onAuthSuccess: () => void;
+}) {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1232,7 +1257,7 @@ function AdminLoginGate({ onAuthSuccess }: { onAuthSuccess: () => void }) {
         sound.toastClink();
         onAuthSuccess();
       } else {
-        setError(data.error || 'Clave de administración incorrecta.');
+        setError(data.error || 'Contraseña de administrador incorrecta.');
       }
     } catch {
       setError('Error de comunicación con el gateway de seguridad.');
@@ -1243,42 +1268,123 @@ function AdminLoginGate({ onAuthSuccess }: { onAuthSuccess: () => void }) {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center p-4 font-mono antialiased">
-      <div className="w-full max-w-sm p-6 rounded-2xl bg-neutral-900/70 border border-neutral-800 shadow-2xl space-y-4">
-        <div className="flex items-center gap-2.5 text-xs text-neutral-400">
-          <Lock className="w-4 h-4 text-emerald-400" />
-          <span className="font-bold text-white uppercase tracking-wider">SMR2 · Gateway de Seguridad</span>
+      <div className="w-full max-w-sm p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800 shadow-2xl space-y-4">
+        {/* Encabezado común */}
+        <div className="flex items-center justify-between text-xs pb-3 border-b border-neutral-800/80">
+          <div className="flex items-center gap-2 text-neutral-400">
+            <Lock className="w-4 h-4 text-emerald-400" />
+            <span className="font-bold text-white uppercase tracking-wider text-[11px]">SMR2 · Gateway Root</span>
+          </div>
+          <span className="text-[10px] text-neutral-500 font-mono">Aula 35</span>
         </div>
 
-        <p className="text-xs text-neutral-500">
-          Introduce la clave maestra de administrador para acceder a las herramientas de aula.
-        </p>
+        {/* CASO 1: Cargando estado de la cuenta */}
+        {account === null && (
+          <div className="py-8 flex flex-col items-center justify-center gap-2 text-xs text-neutral-500">
+            <RefreshCw className="w-4 h-4 animate-spin text-neutral-400" />
+            <span>Verificando identidad de sesión...</span>
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Clave de administrador..."
-            className="w-full px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-            autoFocus
-          />
+        {/* CASO 2: Visitante no autenticado en el portal */}
+        {account !== null && !account.isAuthenticated && (
+          <div className="space-y-4 text-center py-2">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-950/40 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white">Sesión no iniciada</h2>
+              <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                Para acceder a las herramientas de administración debes iniciar sesión previamente con la cuenta oficial en el portal.
+              </p>
+            </div>
+            <Link
+              href="/"
+              className="w-full py-2.5 rounded-xl bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            >
+              Iniciar Sesión en el Portal
+            </Link>
+          </div>
+        )}
 
-          {error && <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-500/30 text-[11px] text-red-300">{error}</div>}
+        {/* CASO 3: Usuario autenticado pero NO es administrador (es un alumno o delegado) */}
+        {account !== null && account.isAuthenticated && !account.isAdmin && (
+          <div className="space-y-4 text-center py-2">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-red-950/40 border border-red-500/30 flex items-center justify-center text-red-400">
+              <Ban className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-red-400 uppercase tracking-wider">Acceso Denegado</h2>
+              <p className="text-xs text-neutral-300 mt-1.5 leading-relaxed">
+                Has iniciado sesión como <span className="text-white font-mono font-bold">@{account.username}</span>, pero este perfil tiene rango de <span className="text-amber-300 font-semibold">{account.role || 'alumno'}</span>.
+              </p>
+              <p className="text-[11px] text-neutral-500 mt-2 leading-relaxed">
+                Este panel está restringido exclusivamente a la cuenta oficial de administración (<span className="text-neutral-400 font-mono">@juanfe</span>). Conocer la clave maestra no otorga acceso a cuentas no autorizadas.
+              </p>
+            </div>
+            <Link
+              href="/"
+              className="w-full py-2.5 rounded-xl border border-neutral-800 bg-neutral-900 text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer"
+            >
+              ← Volver al Portal de Alumnos
+            </Link>
+          </div>
+        )}
 
-          <button
-            type="submit"
-            disabled={isLoading || !password.trim()}
-            className="w-full py-2.5 rounded-xl bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-colors cursor-pointer disabled:opacity-40"
-          >
-            {isLoading ? 'Verificando...' : 'Acceder al Panel Root'}
-          </button>
-        </form>
+        {/* CASO 4: Usuario autenticado y es ADMINISTRADOR oficial (@juanfe) -> Formulario de elevación (SUDO) */}
+        {account !== null && account.isAuthenticated && account.isAdmin && (
+          <div className="space-y-3.5">
+            <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <Crown className="w-4 h-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                  <span className="truncate">@{account.username}</span>
+                  <span className="px-1 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
+                    ADMIN
+                  </span>
+                </div>
+                <div className="text-[10px] text-neutral-400">Identidad confirmada en base de datos</div>
+              </div>
+            </div>
+
+            <p className="text-xs text-neutral-400 leading-relaxed">
+              Introduce tu contraseña de cuenta o clave maestra para elevar privilegios y desbloquear las herramientas root.
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Contraseña de administrador..."
+                className="w-full px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
+                autoFocus
+              />
+
+              {error && (
+                <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-500/30 text-[11px] text-red-300 leading-relaxed">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading || !password.trim()}
+                className="w-full py-2.5 rounded-xl bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-colors cursor-pointer disabled:opacity-40"
+              >
+                {isLoading ? 'Verificando autorización...' : 'Desbloquear Panel Root'}
+              </button>
+            </form>
+          </div>
+        )}
 
         <div className="pt-2 border-t border-neutral-800/80 flex items-center justify-between text-[11px] text-neutral-500">
           <Link href="/" className="hover:text-white transition-colors">
             ← Volver al portal
           </Link>
-          <span>Aula 35</span>
+          <span className="font-mono text-[10px]">Protección Anti-Intrusión</span>
         </div>
       </div>
     </div>

@@ -82,121 +82,118 @@ export interface AdminAuthResult {
 
 /**
  * Valida de forma estricta en el lado del servidor si la petición proviene de un administrador legítimo.
- * 1. Comprueba el token firmado HttpOnly `smr2_admin_token`.
- * 2. Comprueba la sesión autenticada en Supabase y verifica el rol en la tabla `profiles`.
- * NUNCA confía en cookies de cliente no firmadas para otorgar permisos administrativos.
+ * 
+ * Reglas de seguridad:
+ * 1. El token `smr2_admin_token` DEBE existir y ser criptográficamente válido.
+ * 2. El `userId` del token DEBE ser un UUID real en Supabase.
+ * 3. En la base de datos `public.profiles`, el rol DEBE ser estrictamente 'admin'.
+ * 4. La cuenta no debe estar suspendida (`is_banned = false`).
+ * 
+ * NUNCA otorga privilegios administrativos si no se cumplen todas las condiciones.
  */
 export async function verifyAdminSession(req?: Request): Promise<AdminAuthResult> {
   const cookieStore = await cookies();
 
-  // 1. Verificación del token de administrador firmado (HttpOnly)
+  // 1. Verificación obligatoria del token de sesión administrativa (HttpOnly)
   const adminTokenCookie = cookieStore.get(COOKIE_ADMIN_TOKEN);
-  if (adminTokenCookie?.value) {
-    const verifiedPayload = verifyAdminToken(adminTokenCookie.value);
-    if (verifiedPayload) {
-      // Si Supabase está disponible y el usuario tiene UUID, verificar que no esté baneado
-      if (isServerSupabaseConfigured() && isUUID(verifiedPayload.userId)) {
-        try {
-          const adminClient = createAdminClient();
-          if (adminClient) {
-            const { data: profile } = await adminClient
-              .from('profiles')
-              .select('id, username, email, role, coins, biggest_win, is_banned')
-              .eq('id', verifiedPayload.userId)
-              .maybeSingle();
-
-            if (profile?.is_banned) {
-              return {
-                authorized: false,
-                user: null,
-                status: 403,
-                error: 'Cuenta suspendida por la administración.',
-              };
-            }
-          }
-        } catch {}
-      }
-
-      return {
-        authorized: true,
-        status: 200,
-        user: {
-          id: verifiedPayload.userId,
-          username: verifiedPayload.username,
-          role: 'admin',
-          coins: 1000,
-          biggest_win: 0,
-        },
-      };
-    }
+  if (!adminTokenCookie?.value) {
+    return {
+      authorized: false,
+      user: null,
+      status: 401,
+      error: 'Sesión administrativa no iniciada o bloqueada por inactividad.',
+    };
   }
 
-  // 2. Verificación de la sesión de Supabase Auth
+  const verifiedPayload = verifyAdminToken(adminTokenCookie.value);
+  if (!verifiedPayload) {
+    return {
+      authorized: false,
+      user: null,
+      status: 401,
+      error: 'Token administrativo inválido, alterado o expirado.',
+    };
+  }
+
+  // 2. El usuario debe tener un UUID válido registrado en Supabase
+  if (!isUUID(verifiedPayload.userId)) {
+    return {
+      authorized: false,
+      user: null,
+      status: 403,
+      error: 'Acceso denegado: La sesión no está vinculada a una cuenta de usuario verificada.',
+    };
+  }
+
+  // 3. Verificación autoritativa directa contra la base de datos Supabase
   if (isServerSupabaseConfigured()) {
     try {
-      const supabase = await createClient();
-      if (supabase) {
-        const {
-          data: { user: authUser },
-          error: authError,
-        } = await supabase.auth.getUser();
+      const adminClient = createAdminClient();
+      if (adminClient) {
+        const { data: profile, error: dbError } = await adminClient
+          .from('profiles')
+          .select('id, username, email, full_name, student_number, role, coins, biggest_win, is_banned')
+          .eq('id', verifiedPayload.userId)
+          .maybeSingle();
 
-        if (authUser && !authError) {
-          const adminClient = createAdminClient();
-          const client = adminClient || supabase;
-          const { data: profile } = await client
-            .from('profiles')
-            .select('id, username, email, role, coins, biggest_win, is_banned')
-            .eq('id', authUser.id)
-            .single();
-
-          if (profile) {
-            if (profile.is_banned) {
-              return {
-                authorized: false,
-                user: null,
-                status: 403,
-                error: 'Cuenta suspendida por un administrador.',
-              };
-            }
-            if (profile.role === 'admin' || profile.role === 'delegado') {
-              return {
-                authorized: true,
-                status: 200,
-                user: {
-                  id: profile.id,
-                  username: profile.username,
-                  email: profile.email || authUser.email,
-                  coins: Number(profile.coins),
-                  biggest_win: Number(profile.biggest_win),
-                  role: profile.role,
-                },
-              };
-            }
-            return {
-              authorized: false,
-              user: null,
-              status: 403,
-              error: 'Acceso denegado: Se requiere rol de administrador.',
-            };
-          }
+        if (dbError || !profile) {
+          return {
+            authorized: false,
+            user: null,
+            status: 403,
+            error: 'Cuenta de administrador no encontrada en la base de datos.',
+          };
         }
+
+        if (profile.is_banned) {
+          return {
+            authorized: false,
+            user: null,
+            status: 403,
+            error: 'Cuenta suspendida por la administración.',
+          };
+        }
+
+        // SEGURIDAD ESTRICTA: El rol en la base de datos DEBE ser 'admin'
+        if (profile.role !== 'admin') {
+          return {
+            authorized: false,
+            user: null,
+            status: 403,
+            error: `Acceso denegado: El usuario @${profile.username} tiene rol de '${profile.role}'. Solo los administradores oficiales pueden operar este panel.`,
+          };
+        }
+
+        return {
+          authorized: true,
+          status: 200,
+          user: {
+            id: profile.id,
+            username: profile.username,
+            email: profile.email,
+            full_name: profile.full_name,
+            student_number: profile.student_number,
+            coins: Number(profile.coins ?? 1000),
+            biggest_win: Number(profile.biggest_win ?? 0),
+            role: 'admin',
+          },
+        };
       }
     } catch (err) {
-      console.warn('[ADMIN_AUTH_WARN] Supabase check failed:', err);
+      console.warn('[ADMIN_AUTH_CHECK_FAIL]', err);
     }
   }
 
   return {
     authorized: false,
     user: null,
-    status: 401,
-    error: 'Acceso restringido: Inicia sesión con la clave de administrador.',
+    status: 403,
+    error: 'No se pudo verificar el rango de administrador contra la base de datos.',
   };
 }
 
 /**
- * Helper para verificar la sesión de un usuario normal en el servidor
+ * Helper para verificar la sesión del usuario actualmente conectado en el portal (Supabase o cookie)
  */
 export async function verifyUserSession(): Promise<{
   authenticated: boolean;
@@ -204,6 +201,7 @@ export async function verifyUserSession(): Promise<{
 }> {
   const cookieStore = await cookies();
 
+  // 1. Primero comprobar sesión activa en Supabase Auth
   if (isServerSupabaseConfigured()) {
     try {
       const supabase = await createClient();
@@ -211,6 +209,7 @@ export async function verifyUserSession(): Promise<{
         const {
           data: { user: authUser },
         } = await supabase.auth.getUser();
+
         if (authUser) {
           const adminClient = createAdminClient();
           const client = adminClient || supabase;
@@ -218,7 +217,7 @@ export async function verifyUserSession(): Promise<{
             .from('profiles')
             .select('*')
             .eq('id', authUser.id)
-            .single();
+            .maybeSingle();
 
           if (profile) {
             return {
@@ -227,6 +226,8 @@ export async function verifyUserSession(): Promise<{
                 id: profile.id,
                 username: profile.username,
                 email: profile.email || authUser.email,
+                full_name: profile.full_name,
+                student_number: profile.student_number,
                 coins: Number(profile.coins),
                 biggest_win: Number(profile.biggest_win),
                 role: profile.role || 'student',
@@ -239,6 +240,7 @@ export async function verifyUserSession(): Promise<{
     } catch {}
   }
 
+  // 2. Comprobar sesión de portal local / cookie
   const sessionCookie = cookieStore.get(COOKIE_SESSION);
   if (sessionCookie?.value) {
     try {
@@ -250,6 +252,31 @@ export async function verifyUserSession(): Promise<{
       }
       const user = JSON.parse(raw) as UserProfile;
       if (user && user.id && user.username) {
+        // Si hay Supabase disponible, asegurar que el rol no fue modificado en cliente
+        if (isServerSupabaseConfigured() && isUUID(user.id)) {
+          try {
+            const adminClient = createAdminClient();
+            if (adminClient) {
+              const { data: p } = await adminClient
+                .from('profiles')
+                .select('id, username, email, role, full_name, student_number, is_banned')
+                .eq('id', user.id)
+                .maybeSingle();
+
+              if (p) {
+                return {
+                  authenticated: true,
+                  user: {
+                    ...user,
+                    role: p.role || 'student',
+                    is_banned: p.is_banned,
+                  },
+                };
+              }
+            }
+          } catch {}
+        }
+
         return { authenticated: true, user };
       }
     } catch {}

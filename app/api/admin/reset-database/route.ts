@@ -15,9 +15,7 @@ export async function POST(req: NextRequest) {
     const authorizedMasterKeys = [
       process.env.ADMIN_PASSWORD,
       process.env.ADMIN_ACCESS_CODE,
-      'SMR2#Aula35.Acceso2026!',
-      'SMR2{Aula35_2026}',
-      'SMR2{SMR2#Aula35.Acceso2026!}',
+      process.env.ADMIN_SECRET_KEY,
     ]
       .filter(Boolean)
       .map((k) => String(k).trim().toLowerCase());

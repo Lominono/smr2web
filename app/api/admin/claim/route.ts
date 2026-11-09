@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { createAdminClient, createClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { isUUID } from '@/lib/uuid';
-import { COOKIE_SESSION } from '@/lib/authSession';
-import { signAdminToken, COOKIE_ADMIN_TOKEN } from '@/lib/adminAuth';
-import { UserProfile } from '@/lib/types';
+import { signAdminToken, COOKIE_ADMIN_TOKEN, verifyUserSession } from '@/lib/adminAuth';
 import { logEvent, extractClientMeta } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -17,28 +14,18 @@ interface RateLimitState {
 }
 const failedAttemptsMap = new Map<string, RateLimitState>();
 
-const MAX_ATTEMPTS = 12;
-const LOCKOUT_MS = 5 * 60 * 1000; // 5 minutos de bloqueo
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutos de bloqueo tras 5 intentos erróneos
 
-// Claves maestras autorizadas (Variables de entorno + CTF forensics + fallback de seguridad)
-const BASE_ADMIN_KEYS = [
-  'davidgay',
+// Claves maestras autorizadas (Variables de entorno + fallback seguro)
+const MASTER_ADMIN_KEYS = [
   process.env.ADMIN_PASSWORD,
   process.env.ADMIN_ACCESS_CODE,
-  'SMR2#Aula35.Acceso2026!',
-  'SMR2{Aula35_2026}',
-  'SMR2{SMR2#Aula35.Acceso2026!}',
+  process.env.ADMIN_SECRET_KEY,
+  'SMR2#RootAdmin.Aula35!2026',
 ]
   .filter(Boolean)
   .map((k) => String(k).trim());
-
-const VALID_ADMIN_KEYS = Array.from(
-  new Set([
-    ...BASE_ADMIN_KEYS,
-    ...BASE_ADMIN_KEYS.map((k) => k.toLowerCase()),
-    ...BASE_ADMIN_KEYS.map((k) => k.toUpperCase()),
-  ])
-);
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,29 +39,138 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `Acceso bloqueado por seguridad tras varios intentos erróneos. Espera ${remainingMinutes} minuto(s).`,
+          error: `Acceso bloqueado por seguridad tras varios intentos fallidos. Espera ${remainingMinutes} minuto(s).`,
         },
         { status: 429 }
+      );
+    }
+
+    // 2. Comprobar que el usuario tenga una sesión real activa en la plataforma
+    const sessionInfo = await verifyUserSession();
+    if (!sessionInfo.authenticated || !sessionInfo.user || !isUUID(sessionInfo.user.id)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Debes iniciar sesión previamente con tu cuenta de administrador en el portal antes de acceder a este panel.',
+        },
+        { status: 401 }
+      );
+    }
+
+    const currentUserId = sessionInfo.user.id;
+
+    // 3. Comprobar autoritativamente en la base de datos Supabase que la cuenta tiene rol 'admin'
+    if (!isServerSupabaseConfigured()) {
+      return NextResponse.json(
+        { success: false, error: 'Servicio de base de datos no configurado.' },
+        { status: 503 }
+      );
+    }
+
+    const adminClient = createAdminClient();
+    if (!adminClient) {
+      return NextResponse.json(
+        { success: false, error: 'No se pudo conectar con la base de datos.' },
+        { status: 500 }
+      );
+    }
+
+    const { data: profile, error: profileErr } = await adminClient
+      .from('profiles')
+      .select('id, username, email, full_name, student_number, role, is_banned')
+      .eq('id', currentUserId)
+      .maybeSingle();
+
+    if (profileErr || !profile) {
+      return NextResponse.json(
+        { success: false, error: 'Cuenta de usuario no encontrada en la base de datos.' },
+        { status: 404 }
+      );
+    }
+
+    if (profile.is_banned) {
+      return NextResponse.json(
+        { success: false, error: 'Esta cuenta ha sido suspendida por la administración.' },
+        { status: 403 }
+      );
+    }
+
+    // CONTROL DE ACCESO ESTRICTO:
+    // Solo las cuentas que tienen role = 'admin' en la base de datos pueden desbloquear el panel
+    if (profile.role !== 'admin') {
+      try {
+        await logEvent({
+          eventType: 'admin_action',
+          userId: profile.id,
+          username: profile.username,
+          ipAddress: ip,
+          req,
+          details: {
+            action: 'unauthorized_admin_panel_claim_attempt',
+            user_role: profile.role,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch {}
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Acceso denegado: La cuenta @${profile.username} tiene rango '${profile.role}'. Solo el administrador oficial (@juanfe) tiene permisos para acceder a este panel.`,
+        },
+        { status: 403 }
       );
     }
 
     const body = await req.json().catch(() => ({}));
     const rawCode = String(body?.code || '').trim();
 
-    // 2. Validación estricta y segura contra ataques de temporización
-    const isValid =
-      rawCode.length > 0 &&
-      VALID_ADMIN_KEYS.some((expected) => {
-        if (rawCode.length !== expected.length) return false;
-        try {
-          return crypto.timingSafeEqual(Buffer.from(rawCode), Buffer.from(expected));
-        } catch {
-          return rawCode === expected;
-        }
-      });
+    if (!rawCode) {
+      return NextResponse.json(
+        { success: false, error: 'Por favor, introduce tu contraseña de administrador.' },
+        { status: 400 }
+      );
+    }
 
-    if (!isValid) {
-      // Registrar intento fallido
+    // 4. Validación de contraseña:
+    // Acepta la clave maestra del servidor O la contraseña de la propia cuenta en Supabase Auth
+    let isPasswordValid = false;
+
+    // A) Comprobación contra claves maestras del servidor (timing-safe)
+    for (const expectedKey of MASTER_ADMIN_KEYS) {
+      if (rawCode.length === expectedKey.length) {
+        try {
+          if (crypto.timingSafeEqual(Buffer.from(rawCode), Buffer.from(expectedKey))) {
+            isPasswordValid = true;
+            break;
+          }
+        } catch {
+          if (rawCode === expectedKey) {
+            isPasswordValid = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // B) Comprobación contra la contraseña real de la cuenta de Supabase Auth
+    if (!isPasswordValid && profile.email) {
+      try {
+        const client = await createClient();
+        if (client) {
+          const { data: authTry, error: authTryErr } = await client.auth.signInWithPassword({
+            email: profile.email,
+            password: rawCode,
+          });
+          if (!authTryErr && authTry.user) {
+            isPasswordValid = true;
+          }
+        }
+      } catch {}
+    }
+
+    // Si la contraseña es incorrecta:
+    if (!isPasswordValid) {
       const currentAttempts = (rateLimit?.count || 0) + 1;
       const isLocked = currentAttempts >= MAX_ATTEMPTS;
       failedAttemptsMap.set(ip, {
@@ -85,10 +181,12 @@ export async function POST(req: NextRequest) {
       try {
         await logEvent({
           eventType: 'admin_action',
+          userId: profile.id,
+          username: profile.username,
           ipAddress: ip,
           req,
           details: {
-            action: 'admin_login_failed',
+            action: 'admin_unlock_failed_password',
             attempt: currentAttempts,
             is_locked: isLocked,
             timestamp: new Date().toISOString(),
@@ -96,14 +194,10 @@ export async function POST(req: NextRequest) {
         });
       } catch {}
 
-      const remainingAttempts = MAX_ATTEMPTS - currentAttempts;
-      const lowerTry = rawCode.toLowerCase();
-      const isWarm = lowerTry.includes('2026') || lowerTry.includes('aula') || lowerTry.includes('papu') || lowerTry.includes('smr2');
-      const hintText = isWarm ? ' (Pista del kernel: Algunos términos coinciden pero la sintaxis o codificación es errónea).' : '';
-
+      const remainingAttempts = Math.max(0, MAX_ATTEMPTS - currentAttempts);
       const errorMessage = isLocked
-        ? 'Has superado el límite de intentos. El acceso ha sido bloqueado temporalmente durante 5 minutos.'
-        : `Clave de administración incorrecta${hintText}. Intentos restantes: ${remainingAttempts}.`;
+        ? 'Has superado el límite de intentos permitidos. El acceso al panel ha sido bloqueado temporalmente durante 15 minutos.'
+        : `Contraseña de administrador incorrecta. Te quedan ${remainingAttempts} intento(s) antes del bloqueo de seguridad.`;
 
       return NextResponse.json(
         {
@@ -114,91 +208,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Si la clave es correcta, reiniciar contador de fallos para esta IP
+    // Si la clave es correcta: reiniciar contador de fallos
     failedAttemptsMap.delete(ip);
 
-    const cookieStore = await cookies();
-    let currentUser: UserProfile | null = null;
-
-    // 3. Obtener usuario de la sesión activa si existe
-    const sessionCookie = cookieStore.get(COOKIE_SESSION);
-    if (sessionCookie?.value) {
-      try {
-        let raw = sessionCookie.value;
-        if (raw.includes('%')) {
-          try {
-            raw = decodeURIComponent(raw);
-          } catch {}
-        }
-        currentUser = JSON.parse(raw) as UserProfile;
-      } catch {}
-    }
-
-    // 4. Comprobar usuario de Supabase Auth
-    let supabaseUserId: string | null = null;
-    if (isServerSupabaseConfigured()) {
-      try {
-        const supabase = await createClient();
-        if (supabase) {
-          const {
-            data: { user: authUser },
-          } = await supabase.auth.getUser();
-
-          if (authUser) {
-            supabaseUserId = authUser.id;
-            if (!currentUser) {
-              const defaultName = (authUser.email?.split('@')[0] || 'admin').toLowerCase();
-              currentUser = {
-                id: authUser.id,
-                username: authUser.user_metadata?.username || defaultName,
-                email: authUser.email,
-                role: 'admin',
-                coins: 1000,
-                biggest_win: 0,
-                created_at: new Date().toISOString(),
-              };
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[ADMIN_CLAIM] Supabase auth warning:', err);
-      }
-    }
-
-    // 5. Usuario por defecto si no había sesión previa
-    if (!currentUser) {
-      currentUser = {
-        id: 'admin_' + Math.random().toString(36).substring(2, 9),
-        username: 'admin',
-        email: 'admin@smr2.edu',
-        role: 'admin',
-        coins: 1000,
-        biggest_win: 0,
-        created_at: new Date().toISOString(),
-        auth_provider: 'local',
-      };
-    }
-
-    // 6. Seguridad estricta: NO modificar el rol en la base de datos ni promover usuarios.
-    // Los permisos de administrador se gestionan exclusivamente desde la base de datos Supabase.
-
-    // 7. Generar token de acceso al terminal CTF / Easter Egg
+    // 5. Generar token criptográfico firmado HMAC-SHA256 vinculado a este administrador específico
     const adminToken = signAdminToken({
-      userId: currentUser.id,
-      username: currentUser.username,
+      userId: profile.id,
+      username: profile.username,
       role: 'admin',
     });
 
-    // 8. Registrar log de intento de terminal
+    // 6. Registrar en el log de auditoría
     try {
       await logEvent({
         eventType: 'admin_action',
-        userId: currentUser.id,
-        username: currentUser.username,
+        userId: profile.id,
+        username: profile.username,
         ipAddress: ip,
         req,
         details: {
-          action: 'terminal_easter_egg_unlocked',
+          action: 'admin_panel_unlocked_success',
           timestamp: new Date().toISOString(),
         },
       });
@@ -206,17 +235,24 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
-      user: currentUser,
-      message: 'Terminal desbloqueado correctamente.',
+      user: {
+        id: profile.id,
+        username: profile.username,
+        email: profile.email,
+        full_name: profile.full_name,
+        student_number: profile.student_number,
+        role: 'admin',
+      },
+      message: 'Panel de administración desbloqueado correctamente.',
     });
 
-    // 9. Guardar cookie HttpOnly para el entorno de terminal / Easter Egg
+    // 7. Establecer cookie HttpOnly con SameSite estricto
     response.cookies.set(COOKIE_ADMIN_TOKEN, adminToken, {
       path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 2 * 60 * 60, // 2 horas
+      maxAge: 2 * 60 * 60, // 2 horas de validez
     });
 
     return response;
