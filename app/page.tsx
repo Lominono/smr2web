@@ -432,10 +432,25 @@ export default function Home() {
             markTableMissing('chat_messages');
           }
         } else if (data && data.length > 0) {
+          const commentsCountMap: Record<string, number> = {};
+          try {
+            const { data: comments } = await supabase
+              .from('chat_message_comments')
+              .select('id, message_id');
+            if (comments) {
+              comments.forEach((c: any) => {
+                if (c.message_id) {
+                  commentsCountMap[c.message_id] = (commentsCountMap[c.message_id] || 0) + 1;
+                }
+              });
+            }
+          } catch (_) {}
+
           setChatMessages(
             data.map((m: any) => ({
               ...m,
               likes_count: Number(m.likes_count || 0),
+              comments_count: commentsCountMap[m.id] ?? Number(m.comments_count || 0),
               is_liked_by_me: myLikedMessageIds.has(m.id),
               created_at: m.created_at,
             }))
@@ -1007,6 +1022,35 @@ export default function Home() {
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'chat_message_comments' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newComment = payload.new as any;
+            if (newComment?.message_id) {
+              setChatMessages((prev) =>
+                prev.map((m) =>
+                  m.id === newComment.message_id
+                    ? { ...m, comments_count: (m.comments_count || 0) + 1 }
+                    : m
+                )
+              );
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const oldComment = payload.old as any;
+            if (oldComment?.message_id) {
+              setChatMessages((prev) =>
+                prev.map((m) =>
+                  m.id === oldComment.message_id
+                    ? { ...m, comments_count: Math.max(0, (m.comments_count || 1) - 1) }
+                    : m
+                )
+              );
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'announcements' },
         (payload) => {
           const ann = payload.new as any;
@@ -1543,6 +1587,23 @@ export default function Home() {
           bc.postMessage({ type: 'NEW_CHAT_MESSAGE', message: confirmedMsg });
           bc.close();
         } catch (_) {}
+
+        // Difusión Web Push en segundo plano para avisos y exámenes de clase fuera de la web
+        if (pinned || tag?.toLowerCase() === 'aviso' || tag?.toLowerCase() === 'examen') {
+          try {
+            fetch('/api/notifications/broadcast', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: `${tag?.toLowerCase() === 'examen' ? '📝 Examen 2º SMR' : '📢 Aviso 2º SMR'}: @${user.username}`,
+                body: text.replace(/^\[#.*?\]\s*/, ''),
+                tag: tag || 'Aviso',
+                url: '/',
+                authorUsername: user.username,
+              }),
+            }).catch(() => {});
+          } catch (_) {}
+        }
       }
     } catch (err: any) {
       console.warn('Error general al enviar mensaje:', err);

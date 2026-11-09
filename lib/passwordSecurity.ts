@@ -4,7 +4,7 @@
  */
 
 export interface PasswordCriteria {
-  minLength: boolean; // Al menos 8 caracteres
+  minLength: boolean; // Al menos 6 caracteres
   hasUppercase: boolean; // Al menos una mayúscula (A-Z)
   hasLowercase: boolean; // Al menos una minúscula (a-z)
   hasNumber: boolean; // Al menos un dígito numérico (0-9)
@@ -22,39 +22,18 @@ export interface PasswordSecurityReport {
   criteria: PasswordCriteria;
 }
 
-// Lista de contraseñas débiles comúnmente usadas en entornos escolares/IT
+// Lista de contraseñas excesivamente obvias
 const COMMON_WEAK_PASSWORDS = new Set([
   '123456',
-  '12345678',
-  '123456789',
   'password',
   'contraseña',
   'contrasena',
   'qwerty',
-  'qwertyuiop',
-  'admin',
-  'admin123',
-  'admin1234',
-  'smr2024',
-  'smr2025',
-  'smr2026',
-  'informatica',
-  'alumnado',
-  'estudiante',
-  'clase123',
-  'asir123',
-  'daw1234',
-  'dam1234',
-  'iloveyou',
-  'welcome',
-  'temporal',
-  'password123',
-  '111111',
-  '000000',
 ]);
 
 /**
- * Evalúa la robustez y seguridad de una contraseña
+ * Evalúa la robustez de una contraseña.
+ * Criterio de validez práctico: Mínimo 6 caracteres (estándar de Supabase).
  */
 export function validatePasswordSecurity(
   password: string,
@@ -66,7 +45,7 @@ export function validatePasswordSecurity(
   const emailPrefix = email ? email.split('@')[0].trim().toLowerCase() : '';
 
   const criteria: PasswordCriteria = {
-    minLength: trimmed.length >= 8,
+    minLength: trimmed.length >= 6,
     hasUppercase: /[A-Z]/.test(trimmed),
     hasLowercase: /[a-z]/.test(trimmed),
     hasNumber: /[0-9]/.test(trimmed),
@@ -75,14 +54,13 @@ export function validatePasswordSecurity(
     notMatchingUsername: true,
   };
 
-  // Comprobar que no coincida ni contenga el nombre de usuario o prefijo del correo
-  if (cleanUsername && cleanUsername.length >= 3) {
-    if (trimmed.toLowerCase().includes(cleanUsername)) {
+  if (cleanUsername && cleanUsername.length >= 4) {
+    if (trimmed.toLowerCase() === cleanUsername) {
       criteria.notMatchingUsername = false;
     }
   }
-  if (emailPrefix && emailPrefix.length >= 3) {
-    if (trimmed.toLowerCase().includes(emailPrefix)) {
+  if (emailPrefix && emailPrefix.length >= 4) {
+    if (trimmed.toLowerCase() === emailPrefix) {
       criteria.notMatchingUsername = false;
     }
   }
@@ -90,34 +68,18 @@ export function validatePasswordSecurity(
   const errors: string[] = [];
 
   if (!criteria.minLength) {
-    errors.push('Debe tener al menos 8 caracteres.');
-  }
-  if (!criteria.hasLowercase || !criteria.hasUppercase) {
-    errors.push('Debe combinar letras mayúsculas y minúsculas.');
-  }
-  if (!criteria.hasNumber) {
-    errors.push('Debe incluir al menos un número (0-9).');
-  }
-  if (!criteria.hasSpecial) {
-    errors.push('Debe incluir al menos un símbolo especial (@, $, !, %, etc.).');
+    errors.push('Debe tener al menos 6 caracteres.');
   }
   if (!criteria.notTrivial) {
-    errors.push('La contraseña es demasiado predecible o común. Elige una más original.');
-  }
-  if (!criteria.notMatchingUsername) {
-    errors.push('La contraseña no debe incluir tu nombre de usuario ni tu correo.');
+    errors.push('La contraseña es demasiado común.');
   }
 
-  // Puntuación del 0 al 4
+  // Puntuación del 0 al 4 para el indicador visual
   let score = 0;
-  if (criteria.minLength) score += 1;
-  if (criteria.hasUppercase && criteria.hasLowercase) score += 1;
-  if (criteria.hasNumber) score += 1;
-  if (criteria.hasSpecial) score += 1;
-
-  if (!criteria.notTrivial || !criteria.notMatchingUsername) {
-    score = Math.min(score, 1);
-  }
+  if (trimmed.length >= 6) score += 1;
+  if (trimmed.length >= 8 && ((criteria.hasUppercase && criteria.hasLowercase) || criteria.hasNumber)) score += 1;
+  if (criteria.hasUppercase && criteria.hasLowercase && criteria.hasNumber) score += 1;
+  if (criteria.hasSpecial || trimmed.length >= 12) score += 1;
 
   let strengthLabel: PasswordSecurityReport['strengthLabel'] = 'Muy débil';
   let strengthColor = 'bg-red-500';
@@ -131,21 +93,17 @@ export function validatePasswordSecurity(
   } else if (score === 3) {
     strengthLabel = 'Fuerte';
     strengthColor = 'bg-emerald-500';
-  } else if (score === 4) {
+  } else if (score >= 4) {
     strengthLabel = 'Muy segura';
     strengthColor = 'bg-green-500';
   }
 
-  // Se considera válida si tiene al menos 8 caracteres, combina mayús/minús/número o símbolo y no es trivial
-  const valid =
-    criteria.minLength &&
-    criteria.notTrivial &&
-    criteria.notMatchingUsername &&
-    ((criteria.hasUppercase && criteria.hasLowercase && criteria.hasNumber) || score >= 3);
+  // Válida si tiene al menos 6 caracteres
+  const valid = criteria.minLength;
 
   return {
     valid,
-    score,
+    score: Math.min(4, Math.max(0, score)),
     strengthLabel,
     strengthColor,
     errors,

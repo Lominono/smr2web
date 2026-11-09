@@ -93,9 +93,9 @@ export async function checkUsernameAvailability(
         .from('profiles')
         .select('id')
         .ilike('username', clean)
-        .maybeSingle();
+        .limit(1);
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         return { available: false, message: `El apodo "${clean}" ya está ocupado.` };
       }
     } catch {
@@ -145,7 +145,7 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
       }),
     });
 
-    const regData = await regRes.json();
+    const regData = await regRes.json().catch(() => ({}));
     if (!regRes.ok || !regData.success) {
       throw new Error(regData.error || 'Error al crear la cuenta en el servidor.');
     }
@@ -156,13 +156,13 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
     }
   } catch (apiErr: any) {
     if (
-      apiErr.message?.includes('ya está en uso') ||
-      apiErr.message?.includes('ya está ocupado') ||
-      apiErr.message?.includes('Ya existe una cuenta')
+      apiErr.message &&
+      !apiErr.message.includes('Failed to fetch') &&
+      !apiErr.message.includes('NetworkError')
     ) {
       throw apiErr;
     }
-    console.warn('Registro por servidor falló, intentando alternativa directa:', apiErr);
+    console.warn('Registro por servidor no disponible, intentando alternativa directa:', apiErr);
   }
 
   const hasSupabase = isSupabaseConfigured();
@@ -308,7 +308,7 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
       body: JSON.stringify({ identifier: cleanIdentifier, password }),
     });
 
-    const loginData = await loginRes.json();
+    const loginData = await loginRes.json().catch(() => ({}));
 
     if (loginRes.ok && loginData.success && loginData.user) {
       // Sincronizar también la sesión en el cliente Supabase del navegador para que Realtime y Auth persistan
@@ -336,20 +336,20 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
       return { success: true, user: loginData.user };
     }
 
-    // Si el servidor devolvió un error de credenciales explícito de Supabase
-    if (loginRes.status === 401 || loginRes.status === 404) {
-      const fail = recordFailedLoginAttempt();
-      if (fail.locked) {
-        throw new Error('Límite de 5 intentos fallidos alcanzado. Por seguridad, la cuenta está bloqueada temporalmente durante 30 segundos.');
+    if (!loginRes.ok) {
+      if (loginRes.status === 401 || loginRes.status === 404) {
+        const fail = recordFailedLoginAttempt();
+        if (fail.locked) {
+          throw new Error('Límite de 5 intentos fallidos alcanzado. Por seguridad, la cuenta está bloqueada temporalmente durante 30 segundos.');
+        }
       }
       throw new Error(loginData.error || 'Correo o contraseña incorrectos. Por favor, compruébalos e inténtalo de nuevo.');
     }
   } catch (apiErr: any) {
     if (
-      apiErr.message?.includes('Correo o contraseña') ||
-      apiErr.message?.includes('No se ha encontrado') ||
-      apiErr.message?.includes('bloqueada') ||
-      apiErr.message?.includes('intentos')
+      apiErr.message &&
+      !apiErr.message.includes('Failed to fetch') &&
+      !apiErr.message.includes('NetworkError')
     ) {
       throw apiErr;
     }

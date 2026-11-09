@@ -38,7 +38,9 @@ self.addEventListener('push', (event) => {
     icon: payload.icon || '/logo.png',
     badge: payload.badge || '/logo.png',
     tag: payload.tag || 'smr2-notice',
-    vibrate: [100, 50, 100],
+    vibrate: [200, 100, 200, 100, 250],
+    requireInteraction: true, // Mantiene la notificación visible en escritorio hasta que el usuario interactúe
+    renotify: true,
     data: payload.data || { url: '/' },
     actions: [
       { action: 'open', title: 'Abrir portal' },

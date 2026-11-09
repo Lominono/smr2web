@@ -49,10 +49,20 @@ export interface ChatMessage {
   multiplier?: number;
   game?: 'angry' | 'crash' | 'mines' | 'roulette';
   likes_count?: number;
+  comments_count?: number;
   is_liked_by_me?: boolean;
   tag?: string;
   reply_to_username?: string;
   pinned?: boolean;
+}
+
+export interface ChatComment {
+  id: string;
+  message_id: string;
+  user_id?: string;
+  username: string;
+  text: string;
+  created_at: string;
 }
 
 export interface Announcement {

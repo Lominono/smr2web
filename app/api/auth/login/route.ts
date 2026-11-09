@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { UserProfile } from '@/lib/types';
+import { signAdminToken } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,18 +35,22 @@ export async function POST(req: NextRequest) {
 
     let targetEmail: string | null = rawIdentifier.includes('@') ? rawIdentifier.toLowerCase() : null;
 
-    // Si el usuario introdujo un nombre de usuario, buscar su correo en la tabla public.profiles de Supabase
+    // Si el usuario introdujo un nombre de usuario o NIA, buscar su correo en la tabla public.profiles de Supabase
     if (!targetEmail) {
       const cleanUsername = rawIdentifier.toLowerCase().replace(/^@/, '');
       try {
-        const { data: pData, error: pError } = await adminClient
+        const { data: pList, error: pError } = await adminClient
           .from('profiles')
-          .select('id, email, username')
-          .ilike('username', cleanUsername)
-          .maybeSingle();
+          .select('id, email, username, nombre, student_number, created_at')
+          .or(`username.ilike.${cleanUsername},nombre.ilike.${cleanUsername},student_number.eq.${cleanUsername}`)
+          .order('created_at', { ascending: false });
 
-        if (pData?.email) {
-          targetEmail = pData.email;
+        if (!pError && pList && pList.length > 0) {
+          // Tomar el perfil que tenga email válido registrado
+          const matched = pList.find((p) => p.email && p.email.includes('@'));
+          if (matched?.email) {
+            targetEmail = matched.email.toLowerCase();
+          }
         }
       } catch (lookupErr) {
         console.warn('Error al buscar usuario en profiles:', lookupErr);
@@ -56,7 +61,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `No se ha encontrado ninguna cuenta con el usuario "${rawIdentifier}". Por favor, comprueba que esté bien escrito o regístrate.`,
+          error: `No se ha encontrado ninguna cuenta con el usuario o correo "${rawIdentifier}". Por favor, comprueba que esté bien escrito o regístrate.`,
         },
         { status: 404 }
       );
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
       password,
     });
 
-    // Auto-confirmar el correo si el proyecto tiene confirmación de email activada
+    // Auto-confirmar el correo si el proyecto tiene confirmación de email pendiente
     if (signInError && signInError.message.includes('Email not confirmed')) {
       try {
         const { data: usersData } = await adminClient.auth.admin.listUsers();
@@ -142,11 +147,14 @@ export async function POST(req: NextRequest) {
             {
               id: userId,
               username: defaultUsername,
+              nombre: defaultUsername,
+              full_name: defaultUsername,
               email: targetEmail,
               coins: 1000,
               biggest_win: 0,
               streak_count: 1,
               role: 'student',
+              rol: 'alumno',
               created_at: new Date().toISOString(),
             },
             { onConflict: 'id' }
@@ -168,16 +176,16 @@ export async function POST(req: NextRequest) {
       targetEmail.split('@')[0];
 
     const role: 'admin' | 'delegado' | 'student' =
-      profileRow?.role === 'admin'
+      profileRow?.role === 'admin' || profileRow?.rol === 'admin'
         ? 'admin'
-        : profileRow?.role === 'delegado'
+        : profileRow?.role === 'delegado' || profileRow?.rol === 'delegado'
         ? 'delegado'
         : 'student';
 
     const userProfile: UserProfile = {
       id: userId,
       username,
-      full_name: profileRow?.full_name || undefined,
+      full_name: profileRow?.full_name || profileRow?.nombre || undefined,
       student_number: profileRow?.student_number || undefined,
       pc_seat: profileRow?.pc_seat || undefined,
       email: targetEmail,
@@ -195,12 +203,44 @@ export async function POST(req: NextRequest) {
       auth_provider: 'supabase',
     };
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: userProfile,
       session: signInData.session,
       targetEmail,
     });
+
+    // Configurar cookies con persistencia de 2 años (63072000 segundos)
+    const cookieOptions = {
+      path: '/',
+      sameSite: 'lax' as const,
+      maxAge: 60 * 60 * 24 * 730,
+      secure: process.env.NODE_ENV === 'production',
+    };
+
+    response.cookies.set('smr2_user_session', JSON.stringify(userProfile), cookieOptions);
+    response.cookies.set('smr2_remember_me', 'true', cookieOptions);
+    response.cookies.set('smr2_last_user', targetEmail, cookieOptions);
+
+    // Si es administrador, firmar y asignar el token HttpOnly de administración
+    if (role === 'admin') {
+      try {
+        const adminToken = signAdminToken({
+          userId: userProfile.id,
+          username: userProfile.username,
+          role: 'admin',
+        });
+        response.cookies.set('smr2_admin_token', adminToken, {
+          ...cookieOptions,
+          httpOnly: true,
+          maxAge: 60 * 60 * 24 * 7,
+        });
+      } catch (err) {
+        console.warn('No se pudo firmar el token de admin:', err);
+      }
+    }
+
+    return response;
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error?.message || 'Error interno del servidor durante el inicio de sesión.' },

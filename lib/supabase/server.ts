@@ -2,12 +2,20 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
+const FALLBACK_SUPABASE_URL = 'https://ehzekojovbxdkcmfbugc.supabase.co';
+const FALLBACK_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoemVrb2pvdmJ4ZGtjbWZidWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzODkzMTQsImV4cCI6MjEwNDk2NTMxNH0.1NscprWIKsOCCXP_InWiPZNT_m36KeToY4TcCpAhWvQ';
+
 /**
  * Checks whether Supabase environment variables are real, valid credentials
  */
 export function isServerSupabaseConfigured(): boolean {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)?.trim();
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL)?.trim();
+  const key = (
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    FALLBACK_SUPABASE_ANON_KEY
+  )?.trim();
 
   if (!supabaseUrl || !key) {
     return false;
@@ -30,8 +38,8 @@ export function isServerSupabaseConfigured(): boolean {
  */
 export async function createClient() {
   const cookieStore = await cookies();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL)?.trim();
+  const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY)?.trim();
 
   if (!supabaseUrl || !supabaseAnonKey || !isServerSupabaseConfigured()) {
     return null;
@@ -64,10 +72,19 @@ export function createAdminClient() {
     return null;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim();
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL).trim();
   let serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!serviceKey || serviceKey.includes('SENSITIVE') || serviceKey.includes('placeholder') || serviceKey.length < 20) {
-    serviceKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY)?.trim();
+  if (
+    !serviceKey ||
+    serviceKey.includes('SENSITIVE') ||
+    serviceKey.includes('placeholder') ||
+    serviceKey.length < 20
+  ) {
+    serviceKey = (
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_ANON_KEY ||
+      FALLBACK_SUPABASE_ANON_KEY
+    )?.trim();
   }
 
   return createSupabaseAdminClient(supabaseUrl, serviceKey!, {
@@ -77,4 +94,3 @@ export function createAdminClient() {
     },
   });
 }
-

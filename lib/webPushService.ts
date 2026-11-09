@@ -167,7 +167,8 @@ export async function sendTestNotification(): Promise<boolean> {
         icon: '/logo.png',
         badge: '/logo.png',
         tag: 'smr2-test',
-        vibrate: [100, 50, 100],
+        vibrate: [200, 100, 200],
+        requireInteraction: true,
       } as any);
       return true;
     } else {

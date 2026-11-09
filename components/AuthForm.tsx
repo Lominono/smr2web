@@ -98,19 +98,49 @@ export const AuthForm: React.FC<AuthFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
-    try {
-      if (mode === 'register') {
-        if (!acceptedTerms) {
-          setError('Debes leer y aceptar el Aviso Legal, Condiciones y Política de Privacidad para poder registrarte.');
-          setLoading(false);
-          return;
-        }
+    if (mode === 'register') {
+      const cleanUser = username.trim().toLowerCase().replace(/[-\s]+/g, '_');
+      const cleanMail = email.trim().toLowerCase();
 
+      if (!cleanUser) {
+        setError('Por favor, introduce un nombre de usuario.');
+        return;
+      }
+      if (cleanUser.length < 3) {
+        setError('El nombre de usuario debe tener al menos 3 caracteres.');
+        return;
+      }
+      if (!/^[a-z0-9_]+$/.test(cleanUser)) {
+        setError('El nombre de usuario solo puede contener letras (a-z), números (0-9) y guiones bajos (_).');
+        return;
+      }
+      if (!cleanMail) {
+        setError('Por favor, introduce tu correo electrónico.');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanMail)) {
+        setError('Por favor, introduce un correo electrónico válido (ej: alumno@ejemplo.com).');
+        return;
+      }
+      if (!password || password.length < 6) {
+        setError('La contraseña debe tener al menos 6 caracteres.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Las contraseñas no coinciden. Por favor, asegúrate de escribir la misma en ambos campos.');
+        return;
+      }
+      if (!acceptedTerms) {
+        setError('Debes leer y aceptar el Aviso Legal, Condiciones y Política de Privacidad para poder registrarte.');
+        return;
+      }
+
+      setLoading(true);
+      try {
         const result = await registerAccount({
-          username,
-          email,
+          username: cleanUser,
+          email: cleanMail,
           password,
           confirmPassword,
           rememberMe,
@@ -120,9 +150,26 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         if (result.user) {
           onSuccess(result.user);
         }
-      } else {
+      } catch (err: any) {
+        setError(translateAuthError(err));
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      const cleanId = identifier.trim();
+      if (!cleanId) {
+        setError('Por favor, introduce tu correo electrónico o tu nombre de usuario.');
+        return;
+      }
+      if (!password) {
+        setError('Por favor, introduce tu contraseña.');
+        return;
+      }
+
+      setLoading(true);
+      try {
         const result = await loginAccount({
-          identifier,
+          identifier: cleanId,
           password,
           rememberMe,
         });
@@ -130,11 +177,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         if (result.user) {
           onSuccess(result.user);
         }
+      } catch (err: any) {
+        setError(translateAuthError(err));
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      setError(translateAuthError(err));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -252,9 +299,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  minLength={8}
+                  minLength={6}
                   autoComplete="new-password"
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 6 caracteres"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full min-h-[44px] pl-10 pr-11 py-2.5 rounded-xl bg-white dark:bg-neutral-900/70 border border-neutral-300 dark:border-neutral-800 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 transition-colors focus:outline-none focus:border-neutral-900 dark:focus:border-neutral-400 focus:bg-white dark:focus:bg-neutral-900 touch-manipulation"
@@ -303,9 +350,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                   </div>
 
                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-neutral-500 dark:text-neutral-400 pt-0.5">
-                    <div className={`flex items-center gap-1 ${passReport.criteria.minLength ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
-                      <span>{passReport.criteria.minLength ? '✓' : '•'}</span>
-                      <span>Mín. 8 caracteres</span>
+                    <div className={`flex items-center gap-1 ${password.length >= 6 ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
+                      <span>{password.length >= 6 ? '✓' : '•'}</span>
+                      <span>Mín. 6 caracteres</span>
                     </div>
                     <div className={`flex items-center gap-1 ${passReport.criteria.hasUppercase && passReport.criteria.hasLowercase ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
                       <span>{passReport.criteria.hasUppercase && passReport.criteria.hasLowercase ? '✓' : '•'}</span>
@@ -317,7 +364,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                     </div>
                     <div className={`flex items-center gap-1 ${passReport.criteria.hasSpecial ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
                       <span>{passReport.criteria.hasSpecial ? '✓' : '•'}</span>
-                      <span>Al menos 1 símbolo</span>
+                      <span>Símbolo (opcional)</span>
                     </div>
                   </div>
                 </div>
@@ -475,12 +522,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 
           <button
             type="submit"
-            disabled={
-              loading ||
-              (mode === 'register' &&
-                (!acceptedTerms || passwordsMismatch || (passReport !== null && !passReport.valid)))
-            }
-            className="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-neutral-900 hover:bg-black text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-neutral-950 font-semibold text-xs transition-all active:scale-[0.98] cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation flex items-center justify-center gap-2"
+            disabled={loading}
+            className="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-neutral-900 hover:bg-black text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-neutral-950 font-semibold text-xs transition-all active:scale-[0.98] cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation flex items-center justify-center gap-2"
           >
             {loading && (
               <span className="w-3.5 h-3.5 border-2 border-white dark:border-neutral-950 border-t-transparent rounded-full animate-spin" />
