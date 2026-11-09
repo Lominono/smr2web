@@ -32,6 +32,7 @@ import {
   Sparkles,
   Terminal,
   IdCard,
+  MonitorDown,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -74,6 +75,7 @@ interface UserSettingsModalProps {
   onOpenWindowsWelcome?: () => void;
   onOpenIsaacTour?: () => void;
   onOpenStudentCard?: () => void;
+  onOpenInstall?: () => void;
 }
 
 const AVATAR_COLORS = [
@@ -101,6 +103,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   onOpenWindowsWelcome,
   onOpenIsaacTour,
   onOpenStudentCard,
+  onOpenInstall,
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'agenda' | 'stats' | 'preferences' | 'security'>('profile');
 
@@ -1165,6 +1168,38 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                   {rememberMe ? 'Activada' : 'Desactivada'}
                 </Button>
               </div>
+
+              {/* Desktop App Installation */}
+              {onOpenInstall && (
+                <div className="p-3.5 rounded-xl bg-neutral-50 dark:bg-neutral-900/40 border border-neutral-200 dark:border-neutral-800 flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <MonitorDown className="w-4 h-4 text-sky-500" />
+                      <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+                        Aplicación de Escritorio
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-semibold">
+                        PC / Mac
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-neutral-500">
+                      Instala SMR2 como aplicación nativa en Windows, macOS o Linux sin barras del navegador.
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-lg text-xs"
+                    onClick={() => {
+                      sound.tap();
+                      onOpenInstall();
+                    }}
+                  >
+                    Instalar
+                  </Button>
+                </div>
+              )}
 
               {/* Windows Easter Egg */}
               {onOpenWindowsWelcome && (

@@ -17,6 +17,7 @@ import {
   Wine,
   Terminal,
   IdCard,
+  MonitorDown,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
@@ -39,6 +40,7 @@ interface AppleNavbarProps {
   onSelectTab?: (tab: string) => void;
   onlineCount?: number;
   onOpenOnlineUsers?: () => void;
+  onOpenInstall?: () => void;
 }
 
 export const AppleNavbar: React.FC<AppleNavbarProps> = ({
@@ -58,6 +60,7 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
   onSelectTab,
   onlineCount,
   onOpenOnlineUsers,
+  onOpenInstall,
 }) => {
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
 
@@ -242,6 +245,20 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
             <Trophy className="w-3.5 h-3.5 text-amber-500" />
             <span className="font-medium">Top</span>
           </button>
+
+          {/* Desktop App Install Button */}
+          {onOpenInstall && (
+            <button
+              type="button"
+              onClick={onOpenInstall}
+              title="Instalar aplicación de escritorio"
+              aria-label="Instalar aplicación de escritorio"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 h-8 rounded-lg bg-surface-raised hover:bg-surface-hover border border-border/70 text-xs text-foreground-muted hover:text-foreground transition-all cursor-pointer active:scale-95 touch-manipulation group"
+            >
+              <MonitorDown className="w-3.5 h-3.5 text-sky-400 group-hover:scale-110 transition-transform" />
+              <span className="font-medium hidden md:inline">Instalar App</span>
+            </button>
+          )}
 
           {/* User Status / Coins */}
           {user ? (

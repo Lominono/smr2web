@@ -36,10 +36,12 @@ import { StudentCardModal } from '@/components/StudentCardModal';
 import { OnlineUsersModal } from '@/components/OnlineUsersModal';
 import { PushNotificationModal } from '@/components/PushNotificationModal';
 import { FeedbackModal } from '@/components/FeedbackModal';
+import { DesktopInstallModal } from '@/components/DesktopInstallModal';
 import { RealtimeToast, RealtimeNotification } from '@/components/RealtimeToast';
 import { UserProfile, ChatMessage, LeaderboardEntry, CalendarEvent } from '@/lib/types';
 import { useRealtimePresence } from '@/lib/presenceService';
 import { registerServiceWorker } from '@/lib/webPushService';
+import { initDesktopInstallListeners } from '@/lib/desktopInstallService';
 import { sound } from '@/lib/audio';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
@@ -97,6 +99,7 @@ export default function Home() {
   const [isOnlineUsersOpen, setIsOnlineUsersOpen] = useState(false);
   const [isPushModalOpen, setIsPushModalOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isDesktopInstallOpen, setIsDesktopInstallOpen] = useState(false);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -1086,9 +1089,10 @@ export default function Home() {
     };
   }, []);
 
-  // Registrar Service Worker para notificaciones push en segundo plano
+  // Registrar Service Worker para notificaciones push en segundo plano e instalación PWA
   useEffect(() => {
     registerServiceWorker();
+    initDesktopInstallListeners();
   }, []);
 
   // Realtime subscription for current user's coins balance
@@ -1921,6 +1925,7 @@ export default function Home() {
         onSelectTab={(tab) => setActiveView(tab as ViewMode)}
         onlineCount={onlineCount}
         onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
+        onOpenInstall={() => setIsDesktopInstallOpen(true)}
       />
 
       {/* 2. Main Workspace Layout */}
@@ -1943,6 +1948,7 @@ export default function Home() {
                   onOpenAuth={() => setIsAuthOpen(true)}
                   onOpenFeedback={() => setIsFeedbackOpen(true)}
                   onOpenStudentCard={() => setIsStudentCardOpen(true)}
+                  onOpenInstall={() => setIsDesktopInstallOpen(true)}
                   onlineCount={onlineCount}
                   onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
                   onFocusComposer={() => {
@@ -2170,6 +2176,7 @@ export default function Home() {
         onSignOut={handleSignOut}
         onlineCount={onlineCount}
         onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
+        onOpenInstall={() => setIsDesktopInstallOpen(true)}
       />
 
       {/* 6. Modals */}
@@ -2222,6 +2229,12 @@ export default function Home() {
         onOpenWindowsWelcome={() => setIsWindowsWelcomeOpen(true)}
         onOpenIsaacTour={() => setIsIsaacTourOpen(true)}
         onOpenStudentCard={() => setIsStudentCardOpen(true)}
+        onOpenInstall={() => setIsDesktopInstallOpen(true)}
+      />
+
+      <DesktopInstallModal
+        isOpen={isDesktopInstallOpen}
+        onClose={() => setIsDesktopInstallOpen(false)}
       />
 
       <WindowsWelcomeModal

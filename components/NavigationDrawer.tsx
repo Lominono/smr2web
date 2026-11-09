@@ -30,6 +30,7 @@ import {
   Sparkles,
   Terminal,
   IdCard,
+  MonitorDown,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -56,6 +57,7 @@ interface NavigationDrawerProps {
   onlineCount?: number;
   onOpenOnlineUsers?: () => void;
   onOpenStudentCard?: () => void;
+  onOpenInstall?: () => void;
 }
 
 export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
@@ -76,6 +78,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
   onlineCount,
   onOpenOnlineUsers,
   onOpenStudentCard,
+  onOpenInstall,
 }) => {
   const [liveStatus, setLiveStatus] = useState(() => getCurrentScheduleStatus());
 
@@ -469,6 +472,25 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               </div>
               <ChevronRight className="w-4 h-4 text-foreground-subtle" />
             </button>
+
+            {onOpenInstall && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenInstall();
+                }}
+                className="w-full min-h-[44px] flex items-center justify-between px-3 py-2.5 rounded-[var(--radius)] text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
+              >
+                <div className="flex items-center gap-3">
+                  <MonitorDown className="w-4 h-4 text-sky-400" />
+                  <span className="text-sm font-sans">Instalar en escritorio</span>
+                </div>
+                <Badge variant="default" size="sm">
+                  PC / Mac
+                </Badge>
+              </button>
+            )}
 
             <button
               type="button"

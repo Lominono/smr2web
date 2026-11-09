@@ -8,6 +8,11 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// Pass-through fetch handler para cumplir con los requisitos PWA y permitir instalación en escritorio
+self.addEventListener('fetch', (event) => {
+  // Manejo estándar de peticiones
+});
+
 // Recepción de notificaciones push del sistema cuando el usuario está fuera de la web
 self.addEventListener('push', (event) => {
   let payload = {

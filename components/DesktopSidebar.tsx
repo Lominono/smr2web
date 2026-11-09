@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Terminal,
   IdCard,
+  MonitorDown,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { getUserRank } from '@/lib/economy';
@@ -41,6 +42,7 @@ interface DesktopSidebarProps {
   onlineCount?: number;
   onOpenOnlineUsers?: () => void;
   onOpenStudentCard?: () => void;
+  onOpenInstall?: () => void;
 }
 
 export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
@@ -58,6 +60,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onlineCount,
   onOpenOnlineUsers,
   onOpenStudentCard,
+  onOpenInstall,
 }) => {
   const rank = currentUser ? getUserRank(currentUser.coins) : null;
 
@@ -193,6 +196,25 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 <AlertCircle className="w-4 h-4 text-foreground-subtle" />
                 <span>Incidencias</span>
               </div>
+            </button>
+          )}
+
+          {onOpenInstall && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.tap();
+                onOpenInstall();
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-sky-400 bg-sky-500/10 hover:bg-sky-500/15 border border-sky-500/20 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center gap-2.5">
+                <MonitorDown className="w-4 h-4 text-sky-400 group-hover:scale-110 transition-transform" />
+                <span className="font-semibold">App de escritorio</span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 font-mono font-medium">
+                PC / Mac
+              </span>
             </button>
           )}
 
