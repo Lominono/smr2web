@@ -675,8 +675,10 @@ export default function Home() {
   }, [fetchLeaderboard]);
 
   useEffect(() => {
-    // Comprobar estado de salida oficial (9 de noviembre a las 10:00 AM)
+    // Comprobar estado de salida oficial (9 de noviembre a las 09:20 AM)
     const isLaunched = Date.now() >= TARGET_LAUNCH_TIMESTAMP;
+    const hasSeenWelcome =
+      typeof window !== 'undefined' && localStorage.getItem('smr2_launch_welcome_seen') === 'true';
     
     // Verificación criptográfica segura para acceso anticipado de administradores
     let hasValidToken = false;
@@ -689,7 +691,8 @@ export default function Home() {
         }
       } catch {}
     }
-    setIsSiteUnlocked(isLaunched || hasValidToken);
+    // Si ya se abrió el portal, solo se da por desbloqueado si ya vio la secuencia de apertura
+    setIsSiteUnlocked((isLaunched && hasSeenWelcome) || hasValidToken);
 
     // 0. Forzar reseteo absoluto de datos locales si la época de reinicio no se ha aplicado
     const wasWiped = checkAndEnforceSystemWipe();
@@ -1787,7 +1790,23 @@ export default function Home() {
   // Web cerrada con cuenta regresiva en GRANDE, bienvenida o carga épica Mac
   if (currentEffectiveState === 'countdown' || currentEffectiveState === 'welcome' || currentEffectiveState === 'loading') {
     return (
-      <>
+      <div className="relative min-h-[100dvh] bg-black">
+        {/* AuthGate montado de fondo para que el desvanecimiento suave del Easter Egg revele fluidamente el inicio de sesión */}
+        {!user && (
+          <AuthGate
+            onAuthSuccess={(profile) => {
+              setUser(profile);
+              fetchMessages();
+              fetchLeaderboard();
+              fetchCalendarEvents();
+              setIsWindowsWelcomeOpen(true);
+              if (devLaunchState) {
+                setDevLaunchState('app');
+              }
+            }}
+            supabaseConfigured={supabaseConfigured}
+          />
+        )}
         <LaunchCountdownGate
           key={devWelcomeKey}
           forceWelcome={currentEffectiveState === 'welcome'}
@@ -1826,7 +1845,7 @@ export default function Home() {
           speedMultiplier={devSpeedMultiplier}
           onSetSpeed={setDevSpeedMultiplier}
         />
-      </>
+      </div>
     );
   }
 
