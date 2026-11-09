@@ -463,17 +463,17 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
             <Button
               variant="secondary"
               size="sm"
-              className="w-full justify-between rounded-lg h-8 text-xs font-semibold bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20"
+              className="w-full justify-between rounded-lg h-8 text-xs font-medium bg-surface-raised hover:bg-surface-hover border border-border text-foreground transition-colors"
               onClick={() => {
                 sound.tap();
                 onOpenShop();
               }}
             >
               <span className="flex items-center gap-1.5">
-                <Crown className="w-3.5 h-3.5 text-amber-400" />
-                <span>Tienda VIP (Banner 13M)</span>
+                <Crown className="w-3.5 h-3.5 text-foreground-muted" />
+                <span>Tienda: Banner 13M</span>
               </span>
-              <ChevronRight className="w-3.5 h-3.5 text-amber-400/80" />
+              <ChevronRight className="w-3.5 h-3.5 text-foreground-subtle" />
             </Button>
           )}
         </div>

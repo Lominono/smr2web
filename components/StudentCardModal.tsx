@@ -319,7 +319,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                   <span
                     className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border ${bannerPreset.badgeBg} uppercase tracking-wider`}
                   >
-                    {isCustomImageBanner ? '🖼️ CUSTOM BANNER' : bannerPreset.badge}
+                    {isCustomImageBanner ? 'CUSTOM BANNER' : bannerPreset.badge}
                   </span>
                   <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-black/60 text-amber-300 border border-amber-400/40 flex items-center gap-1 shadow-sm">
                     <Sparkles className="w-3 h-3 text-amber-400" />
@@ -328,8 +328,8 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                 </div>
 
                 <div>
-                  <h3 className="text-base sm:text-lg font-black tracking-tight drop-shadow-md text-white">
-                    {displayUser.titulo_personalizado || '👑 Magnate del Botellón'}
+                  <h3 className="text-base sm:text-lg font-bold tracking-tight drop-shadow-md text-white">
+                    {displayUser.titulo_personalizado || 'Magnate del Botellón'}
                   </h3>
                   {displayUser.frase && (
                     <p className="text-xs italic text-neutral-200 drop-shadow-sm mt-0.5 line-clamp-2">

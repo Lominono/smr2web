@@ -3,32 +3,36 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import {
+  ChevronLeft,
+  Coins,
   ShoppingBag,
   Crown,
-  Sparkles,
-  Coins,
-  Check,
-  Wine,
-  ArrowRight,
-  Palette,
-  Image as ImageIcon,
+  Terminal,
   Flame,
+  Shield,
+  Sparkles,
+  Image as ImageIcon,
+  Check,
   CheckCircle2,
   AlertCircle,
-  ExternalLink,
-  ChevronLeft,
+  Wine,
+  ArrowRight,
+  Lock,
+  Sliders,
+  Layers,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import confetti from 'canvas-confetti';
 import { createClient } from '@/lib/supabase/client';
 
-export const BANNER_PRICE = 13_000_000; // 13 Millones de fichas
+export const BANNER_PRICE = 13_000_000;
 
 export interface BannerPreset {
   id: string;
   name: string;
   desc: string;
+  iconType: 'Crown' | 'Terminal' | 'Flame' | 'Shield' | 'Sparkles' | 'ImageIcon';
   gradient: string;
   border: string;
   badge: string;
@@ -40,69 +44,75 @@ export interface BannerPreset {
 export const BANNER_PRESETS: BannerPreset[] = [
   {
     id: 'gold_luxury',
-    name: 'Oro Puro & Diamante VIP',
-    desc: 'Efecto de oro brillante reflectante con corona nobiliaria y destellos.',
-    gradient: 'bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-700',
-    border: 'border-amber-400/80',
-    badge: '👑 ORO VIP',
-    textColor: 'text-amber-950',
-    badgeBg: 'bg-black/30 text-amber-200 border-amber-300/40',
-    glow: 'shadow-[0_0_30px_rgba(251,191,36,0.3)]',
+    name: 'Obsidian & Oro',
+    desc: 'Negro obsidiana con destellos dorados y heráldica nobiliaria.',
+    iconType: 'Crown',
+    gradient: 'bg-gradient-to-r from-neutral-900 via-amber-950/70 to-neutral-900',
+    border: 'border-amber-500/40',
+    badge: 'OBSIDIAN GOLD',
+    textColor: 'text-amber-200',
+    badgeBg: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    glow: 'shadow-xs',
   },
   {
     id: 'cyberpunk_neon',
-    name: 'Cyberpunk Neón Aula 35',
-    desc: 'Resplandor cian, magenta y violeta retrofuturista de alta tensión.',
-    gradient: 'bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-500',
-    border: 'border-pink-500/80',
-    badge: '⚡ CYBERPUNK',
-    textColor: 'text-white',
-    badgeBg: 'bg-black/40 text-cyan-300 border-cyan-400/40',
-    glow: 'shadow-[0_0_30px_rgba(236,72,153,0.3)]',
+    name: 'Linear Cyber',
+    desc: 'Grafito industrial con acentos cian e índigo de alta precisión.',
+    iconType: 'Terminal',
+    gradient: 'bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900',
+    border: 'border-cyan-500/40',
+    badge: 'LINEAR CYBER',
+    textColor: 'text-cyan-200',
+    badgeBg: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+    glow: 'shadow-xs',
   },
   {
     id: 'matrix_terminal',
-    name: 'Matrix Terminal Hacker',
-    desc: 'Estilo terminal root de consola Linux con verde fósforo.',
-    gradient: 'bg-gradient-to-r from-black via-emerald-950 to-black',
-    border: 'border-emerald-500/80',
-    badge: '💻 ROOT 0x00',
+    name: 'Terminal Root',
+    desc: 'Consola monocromática con tipografía de sistema y verde esmeralda.',
+    iconType: 'Terminal',
+    gradient: 'bg-gradient-to-r from-neutral-950 via-emerald-950/60 to-neutral-950',
+    border: 'border-emerald-500/40',
+    badge: 'ROOT SYSTEM',
     textColor: 'text-emerald-300',
-    badgeBg: 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50',
-    glow: 'shadow-[0_0_30px_rgba(16,185,129,0.3)]',
+    badgeBg: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    glow: 'shadow-xs',
   },
   {
     id: 'sunset_synth',
-    name: 'Atardecer Synthwave 80s',
-    desc: 'Púrpura retro, magenta eléctrico y sol naranja de California.',
-    gradient: 'bg-gradient-to-r from-purple-900 via-rose-600 to-amber-500',
-    border: 'border-rose-400/80',
-    badge: '🌅 SYNTHWAVE',
-    textColor: 'text-white',
-    badgeBg: 'bg-black/40 text-rose-200 border-rose-400/40',
-    glow: 'shadow-[0_0_30px_rgba(244,63,94,0.3)]',
+    name: 'Terracotta Sunset',
+    desc: 'Degradado cálido crepuscular con toques de cobre y bermellón.',
+    iconType: 'Flame',
+    gradient: 'bg-gradient-to-r from-stone-900 via-rose-950/70 to-stone-900',
+    border: 'border-rose-500/40',
+    badge: 'TERRACOTTA',
+    textColor: 'text-rose-200',
+    badgeBg: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+    glow: 'shadow-xs',
   },
   {
     id: 'amethyst_galaxy',
-    name: 'Amatista Cósmica',
-    desc: 'Nebulosa púrpura profunda con partículas estelares brillantes.',
-    gradient: 'bg-gradient-to-r from-indigo-950 via-purple-800 to-violet-900',
-    border: 'border-purple-400/80',
-    badge: '🔮 CÓSMICO',
-    textColor: 'text-purple-100',
-    badgeBg: 'bg-black/40 text-purple-300 border-purple-400/40',
-    glow: 'shadow-[0_0_30px_rgba(168,85,247,0.3)]',
+    name: 'Cosmic Iris',
+    desc: 'Violeta profundo y noche estelar de contraste equilibrado.',
+    iconType: 'Sparkles',
+    gradient: 'bg-gradient-to-r from-zinc-950 via-purple-950/60 to-zinc-950',
+    border: 'border-purple-500/40',
+    badge: 'COSMIC IRIS',
+    textColor: 'text-purple-200',
+    badgeBg: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+    glow: 'shadow-xs',
   },
   {
     id: 'custom_image',
-    name: 'Imagen Personalizada por URL',
-    desc: 'Introduce cualquier enlace directo de imagen (HTTPS) como fondo.',
-    gradient: 'bg-neutral-900',
-    border: 'border-neutral-500',
-    badge: '🖼️ CUSTOM URL',
-    textColor: 'text-white',
-    badgeBg: 'bg-black/60 text-neutral-200 border-neutral-400/40',
-    glow: 'shadow-[0_0_30px_rgba(255,255,255,0.15)]',
+    name: 'Imagen Externa (URL)',
+    desc: 'Fondo personalizado mediante enlace HTTPS directo (PNG, JPG, WebP).',
+    iconType: 'ImageIcon',
+    gradient: 'bg-surface-raised',
+    border: 'border-border',
+    badge: 'CUSTOM IMAGE',
+    textColor: 'text-foreground',
+    badgeBg: 'bg-black/60 text-white border-white/20',
+    glow: 'shadow-xs',
   },
 ];
 
@@ -131,15 +141,14 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
     Boolean(currentUser?.banner_estilo && currentUser.banner_estilo !== 'cuadricula') ||
     currentUser?.role === 'admin';
 
-  // Estados del editor de personalización
   const [selectedStyle, setSelectedStyle] = useState<string>(
     currentUser?.banner_estilo || 'gold_luxury'
   );
   const [customTitle, setCustomTitle] = useState<string>(
-    currentUser?.titulo_personalizado || '👑 Magnate del Botellón'
+    currentUser?.titulo_personalizado || 'Magnate del Botellón'
   );
   const [customQuote, setCustomQuote] = useState<string>(
-    currentUser?.frase || 'El dinero no da la felicidad, pero compra este banner.'
+    currentUser?.frase || 'Construyendo el aula más rápida del instituto.'
   );
   const [customImageUrl, setCustomImageUrl] = useState<string>(
     currentUser?.banner_estilo?.startsWith('http') ? currentUser.banner_estilo : ''
@@ -166,14 +175,14 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
     if (!canAfford) {
       sound.broke();
       setErrorMessage(
-        `Te faltan ${(BANNER_PRICE - userCoins).toLocaleString('es-ES')} monedas. ¡Ve al Botellón a farmear!`
+        `Faltan ${(BANNER_PRICE - userCoins).toLocaleString('es-ES')} fichas para adquirir este artículo.`
       );
       return;
     }
 
     if (
       !window.confirm(
-        '¿Deseas gastar 13.000.000 de monedas para comprar el Banner de Perfil Legendario Personalizable?'
+        'Confirmar compra: ¿Deseas adquirir el Banner Personalizado de Perfil por 13.000.000 fichas?'
       )
     ) {
       return;
@@ -187,10 +196,9 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
       const nextCoins = userCoins - BANNER_PRICE;
       const nextItems = Array.from(new Set([...itemsComprados, 'banner_vip_13m']));
       const defaultStyle = 'gold_luxury';
-      const defaultTitle = customTitle.trim() || '👑 Magnate del Botellón';
-      const defaultQuote = customQuote.trim() || 'El dinero no da la felicidad, pero compra este banner.';
+      const defaultTitle = customTitle.trim() || 'Magnate del Botellón';
+      const defaultQuote = customQuote.trim() || 'Construyendo el aula más rápida del instituto.';
 
-      // Actualizar en Supabase
       const supabase = createClient();
       if (supabase && currentUser.id) {
         await supabase
@@ -204,12 +212,11 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
           })
           .eq('id', currentUser.id);
 
-        // Publicar anuncio en el feed de la clase sobre la compra millonaria
         try {
           await supabase.from('chat_messages').insert([
             {
               username: 'SMR2',
-              text: `👑 ¡ATENCIÓN AULA 35! @${currentUser.username} acaba de comprar el legendario BANNER DE PERFIL PERSONALIZADO por 13.000.000 de monedas. ¡Hay un nuevo magnate en la clase!`,
+              text: `Aviso oficial: @${currentUser.username} ha adquirido el Banner de Perfil en la Tienda Oficial por 13.000.000 fichas.`,
               tag: 'aviso',
               pinned: false,
             },
@@ -217,7 +224,6 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
         } catch (_) {}
       }
 
-      // Actualizar usuario en cliente
       const updatedProfile: UserProfile = {
         ...currentUser,
         coins: nextCoins,
@@ -230,18 +236,17 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
       onUpdateUser(updatedProfile);
       sound.coinWin();
 
-      // Confeti de celebración
       try {
         confetti({
-          particleCount: 150,
-          spread: 90,
+          particleCount: 100,
+          spread: 70,
           origin: { y: 0.6 },
-          colors: ['#f59e0b', '#ec4899', '#06b6d4', '#10b981', '#8b5cf6'],
+          colors: ['#0071e3', '#f59e0b', '#10b981'],
         });
       } catch (_) {}
     } catch (err: any) {
       console.error('Error al comprar banner:', err);
-      setErrorMessage(err?.message || 'Error al procesar la compra.');
+      setErrorMessage(err?.message || 'Error al procesar la transacción.');
     } finally {
       setIsBuying(false);
     }
@@ -260,7 +265,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
           ? customImageUrl.trim()
           : selectedStyle;
 
-      const finalTitle = customTitle.trim() || '👑 Magnate del Botellón';
+      const finalTitle = customTitle.trim() || 'Magnate del Botellón';
       const finalQuote = customQuote.trim();
 
       const supabase = createClient();
@@ -288,15 +293,33 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
       console.error('Error guardando personalización:', err);
-      setErrorMessage(err?.message || 'No se pudieron guardar los cambios.');
+      setErrorMessage(err?.message || 'Error al guardar la configuración.');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const renderPresetIcon = (iconType: string) => {
+    switch (iconType) {
+      case 'Crown':
+        return <Crown className="w-4 h-4" />;
+      case 'Terminal':
+        return <Terminal className="w-4 h-4" />;
+      case 'Flame':
+        return <Flame className="w-4 h-4" />;
+      case 'Shield':
+        return <Shield className="w-4 h-4" />;
+      case 'Sparkles':
+        return <Sparkles className="w-4 h-4" />;
+      case 'ImageIcon':
+      default:
+        return <ImageIcon className="w-4 h-4" />;
+    }
+  };
+
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6 pb-12 font-sans select-none">
-      {/* Botón Volver y Cabecera de la Tienda */}
+    <div className="w-full max-w-4xl mx-auto space-y-6 pb-12 font-sans select-none text-foreground transition-colors">
+      {/* 1. Barra de Navegación y Saldo de Fichas */}
       <div className="flex items-center justify-between gap-4">
         <button
           type="button"
@@ -304,41 +327,37 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
             sound.tap();
             onBackToFeed();
           }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 cursor-pointer transition-all active:scale-95"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-raised border border-border text-xs text-foreground-muted hover:text-foreground hover:bg-surface-hover cursor-pointer transition-all active:scale-95"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>Volver al Feed</span>
         </button>
 
-        {/* Saldo de fichas */}
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-neutral-900/90 border border-neutral-800 shadow-sm font-mono text-xs">
-          <Coins className="w-4 h-4 text-amber-400" />
-          <span className="text-neutral-400">Tus Fichas:</span>
-          <span className="font-bold text-white text-sm">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-raised border border-border font-mono text-xs shadow-2xs">
+          <Coins className="w-3.5 h-3.5 text-foreground-muted" />
+          <span className="text-foreground-subtle hidden sm:inline">Saldo:</span>
+          <span className="font-semibold text-foreground tabular-nums">
             {userCoins.toLocaleString('es-ES')}
           </span>
+          <span className="text-[10px] text-foreground-subtle">fichas</span>
         </div>
       </div>
 
-      {/* Hero Banner de la Tienda */}
-      <div className="relative rounded-3xl overflow-hidden border border-amber-500/30 bg-gradient-to-br from-neutral-950 via-[#121008] to-neutral-950 p-6 sm:p-8 shadow-2xl">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-lg">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-mono font-semibold">
-              <Crown className="w-3.5 h-3.5 text-amber-400" />
-              <span>BOUTIQUE DE LUJO · AULA 35</span>
+      {/* 2. Cabecera Minimalista Anti-AI */}
+      <div className="rounded-2xl border border-border bg-surface p-6 sm:p-7 shadow-xs space-y-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider text-foreground-muted">
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>Tienda Oficial · Aula 35</span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
-              <span>Tienda Exclusiva SMR2</span>
-              <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+              Catálogo de Personalización
             </h1>
 
-            <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed">
-              El lugar donde los magnates del Botellón gastan sus millones en artículos de
-              estatus legendario. Personaliza tu presencia oficial en el instituto.
+            <p className="text-xs text-foreground-muted max-w-xl leading-relaxed">
+              Artículos permanentes para personalizar tu presencia en el portal y tu ficha de estudiante.
             </p>
           </div>
 
@@ -348,81 +367,76 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
               sound.tap();
               onNavigateToPartyIdle();
             }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700/80 text-xs font-semibold text-neutral-200 transition-all cursor-pointer active:scale-95 shadow-md shrink-0"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-raised hover:bg-surface-hover border border-border text-xs font-medium text-foreground-muted hover:text-foreground transition-all cursor-pointer active:scale-95 shrink-0"
           >
-            <Wine className="w-4 h-4 text-rose-400" />
-            <div className="text-left">
-              <span className="block text-[10px] text-neutral-400 uppercase font-mono">
-                ¿Necesitas dinero?
-              </span>
-              <span>Farmear en el Botellón</span>
-            </div>
-            <ArrowRight className="w-3.5 h-3.5 ml-1 text-neutral-400" />
+            <Wine className="w-3.5 h-3.5 text-foreground-muted" />
+            <span>El Botellón</span>
+            <ArrowRight className="w-3.5 h-3.5 text-foreground-subtle" />
           </button>
         </div>
       </div>
 
-      {/* Producto Estrella: Banner de Perfil Personalizado */}
-      <div className="rounded-3xl border border-neutral-800 bg-[#0c0c10] p-6 sm:p-8 space-y-6 shadow-xl relative overflow-hidden">
+      {/* 3. Ficha de Producto: Banner de Perfil Personalizado */}
+      <div className="rounded-2xl border border-border bg-surface p-6 sm:p-7 space-y-6 shadow-xs">
         {/* Cabecera del producto */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800/80 pb-5">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-border/80 pb-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold">
-                👑 OBJETO LEGENDARIO
+              <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-surface-raised border border-border text-foreground font-medium">
+                <Crown className="w-3 h-3 text-foreground-muted" />
+                <span>Edición Limitada</span>
               </span>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-neutral-800 text-neutral-400">
-                EDICIÓN PERMANENTE
+              <span className="text-[11px] font-mono text-foreground-subtle">
+                Permanente
               </span>
             </div>
 
-            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-              <span>Banner de Perfil Personalizado</span>
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
+              Banner de Perfil Personalizado
             </h2>
 
-            <p className="text-xs text-neutral-400 max-w-xl leading-relaxed">
-              Aparece en la cabecera de tu Ficha Oficial de Estudiante y destaca en todo el
-              portal. Puedes personalizar el fondo con temas neón, oro, synthwave o tu propia imagen,
-              más tu título y eslogan nobiliario.
+            <p className="text-xs text-foreground-muted max-w-xl leading-relaxed">
+              Sustituye la cabecera estándar de tu credencial digital y destaca en el portal. Permite seleccionar estilos predefinidos o una imagen propia por URL, título honorífico y eslogan.
             </p>
           </div>
 
-          <div className="flex flex-col items-start sm:items-end shrink-0">
-            <span className="text-[11px] font-mono text-neutral-500 uppercase">Precio oficial</span>
-            <span className="text-2xl sm:text-3xl font-extrabold text-amber-400 font-mono tracking-tight flex items-center gap-1.5">
-              <span>13.000.000</span>
-              <span className="text-base text-amber-500">🪙</span>
+          <div className="flex flex-col items-start sm:items-end shrink-0 font-mono">
+            <span className="text-[10px] uppercase text-foreground-subtle tracking-wider">
+              Precio fijo
             </span>
-            <span className="text-[11px] text-neutral-500 font-mono">13 Millones de fichas</span>
+            <div className="flex items-center gap-1.5 text-xl sm:text-2xl font-semibold text-foreground tabular-nums">
+              <Coins className="w-4 h-4 text-foreground-muted" />
+              <span>13.000.000</span>
+            </div>
+            <span className="text-[11px] text-foreground-subtle">13 Millones de fichas</span>
           </div>
         </div>
 
-        {/* Estado del usuario: Propietario vs No Propietario */}
+        {/* 4. Panel de Propietario vs Panel de Compra */}
         {isOwner ? (
           <div className="space-y-6">
-            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
-              <div className="flex items-center gap-2">
-                <Crown className="w-4 h-4 text-amber-400" />
-                <span>¡Ya posees este artículo! Personaliza tu banner a continuación:</span>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-surface-raised border border-border text-xs">
+              <div className="flex items-center gap-2 text-foreground font-medium">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span>Artículo desbloqueado en tu cuenta</span>
               </div>
-              <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-[10px] font-mono">
-                PROPIETARIO VIP
+              <span className="px-2 py-0.5 rounded-md bg-surface border border-border text-[11px] font-mono text-foreground-muted">
+                Configuración activa
               </span>
             </div>
 
-            {/* VISTA PREVIA EN TIEMPO REAL */}
+            {/* VISTA PREVIA MINIMALISTA ANTI-AI */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-mono text-neutral-400">
+              <div className="flex items-center justify-between text-xs font-mono text-foreground-muted">
                 <span className="flex items-center gap-1.5">
-                  <Palette className="w-3.5 h-3.5 text-neutral-400" />
-                  <span>Vista previa de tu Ficha Oficial</span>
+                  <Sliders className="w-3.5 h-3.5" />
+                  <span>Previsualización de la tarjeta</span>
                 </span>
-                <span className="text-[11px] text-neutral-500">Actualización en vivo</span>
+                <span className="text-[11px] text-foreground-subtle">En tiempo real</span>
               </div>
 
-              {/* Contenedor del banner simulado */}
               <div
-                className={`relative rounded-2xl overflow-hidden border ${currentPreset.border} ${currentPreset.glow} p-5 sm:p-6 transition-all duration-300`}
+                className={`relative rounded-xl overflow-hidden border ${currentPreset.border} p-5 sm:p-6 transition-all duration-200 select-text`}
                 style={
                   selectedStyle === 'custom_image' && customImageUrl.trim()
                     ? {
@@ -433,47 +447,53 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                     : undefined
                 }
               >
-                {/* Fondo con gradiente si no es imagen */}
+                {/* Capa de fondo si no es imagen */}
                 {(selectedStyle !== 'custom_image' || !customImageUrl.trim()) && (
                   <div className={`absolute inset-0 ${currentPreset.gradient} opacity-95`} />
                 )}
 
-                {/* Sombra de superposición para legibilidad */}
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
+                {/* Sombra de viñeta para legibilidad tipográfica */}
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-[0.5px]" />
 
-                <div className="relative z-10 flex flex-col justify-between min-h-[140px] text-white">
+                <div className="relative z-10 flex flex-col justify-between min-h-[130px] text-white space-y-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span
-                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border ${currentPreset.badgeBg} uppercase tracking-wider inline-block mb-1`}
-                      >
-                        {currentPreset.badge}
-                      </span>
-                      <h3 className="text-lg sm:text-xl font-black tracking-tight drop-shadow-md">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded border ${currentPreset.badgeBg} uppercase tracking-wider`}
+                        >
+                          {currentPreset.badge}
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-black/50 text-neutral-300 border border-white/10">
+                          13M Tier
+                        </span>
+                      </div>
+
+                      <h3 className="text-base sm:text-lg font-bold tracking-tight text-white pt-1">
                         {customTitle || 'Título Personalizado'}
                       </h3>
                       <p className="text-xs font-mono text-neutral-300">
-                        @{currentUser?.username || 'tu_usuario'} · 2º SMR Aula 35
+                        @{currentUser?.username || 'usuario'} · 2º SMR Aula 35
                       </p>
                     </div>
 
-                    <div className="w-10 h-10 rounded-xl bg-black/50 border border-white/20 p-2 flex items-center justify-center shrink-0 shadow-lg">
+                    <div className="w-8 h-8 rounded-lg bg-black/50 border border-white/20 p-1.5 flex items-center justify-center shrink-0">
                       <Image
                         src="/logo.png"
                         alt="Logo"
-                        width={28}
-                        height={28}
+                        width={20}
+                        height={20}
                         className="object-contain"
                       />
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between gap-3">
-                    <p className="text-xs text-neutral-200 italic font-sans max-w-md truncate">
-                      «{customQuote || 'Tu eslogan o frase aquí...'}»
+                  <div className="pt-2.5 border-t border-white/15 flex items-center justify-between gap-3 text-xs text-neutral-300">
+                    <p className="italic truncate font-sans max-w-md">
+                      «{customQuote || 'Cita de perfil personalizada...'}»
                     </p>
-                    <span className="text-[10px] font-mono bg-black/50 px-2 py-0.5 rounded text-amber-300 border border-amber-400/30 shrink-0">
-                      13M VIP
+                    <span className="text-[10px] font-mono text-neutral-400 shrink-0">
+                      Aula 35
                     </span>
                   </div>
                 </div>
@@ -481,13 +501,13 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
             </div>
 
             {/* SELECTOR DE ESTILOS */}
-            <div className="space-y-3 pt-2">
-              <label className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5 font-mono">
-                <Palette className="w-3.5 h-3.5 text-amber-400" />
-                <span>1. Elige tu estilo visual exclusivo:</span>
+            <div className="space-y-3 pt-1">
+              <label className="text-xs font-mono font-medium text-foreground flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-foreground-muted" />
+                <span>1. Estilo de fondo:</span>
               </label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                 {BANNER_PRESETS.map((preset) => {
                   const isSelected = selectedStyle === preset.id;
                   return (
@@ -498,23 +518,22 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                         sound.tap();
                         setSelectedStyle(preset.id);
                       }}
-                      className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden group active:scale-95 ${
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative active:scale-98 ${
                         isSelected
-                          ? `${preset.border} bg-neutral-900/90 shadow-md ring-2 ring-amber-400/50`
-                          : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900 hover:border-neutral-700'
+                          ? 'border-foreground bg-surface-raised shadow-xs ring-1 ring-foreground/20'
+                          : 'border-border bg-surface hover:bg-surface-raised hover:border-border-focus/50'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-xs text-white tracking-tight">
-                          {preset.name}
-                        </span>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                          {renderPresetIcon(preset.iconType)}
+                          <span>{preset.name}</span>
+                        </div>
                         {isSelected && (
-                          <span className="w-4 h-4 rounded-full bg-amber-400 text-black flex items-center justify-center">
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          </span>
+                          <Check className="w-3.5 h-3.5 text-foreground shrink-0" />
                         )}
                       </div>
-                      <p className="text-[11px] text-neutral-400 leading-snug line-clamp-2">
+                      <p className="text-[11px] text-foreground-muted leading-relaxed line-clamp-2">
                         {preset.desc}
                       </p>
                     </button>
@@ -523,67 +542,67 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
               </div>
             </div>
 
-            {/* ENTRADA DE IMAGEN PERSONALIZADA (SI SE SELECCIONA CUSTOM_IMAGE) */}
+            {/* CAMPO DE URL SI ES IMAGEN EXTERNA */}
             {selectedStyle === 'custom_image' && (
-              <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2 animate-in fade-in duration-200">
-                <label className="text-xs font-mono font-medium text-neutral-300 flex items-center gap-1.5">
-                  <ImageIcon className="w-3.5 h-3.5 text-sky-400" />
+              <div className="p-3.5 rounded-xl bg-surface-raised border border-border space-y-1.5 animate-in fade-in duration-150">
+                <label className="text-xs font-mono font-medium text-foreground flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-foreground-muted" />
                   <span>URL directa de la imagen (HTTPS):</span>
                 </label>
                 <input
                   type="url"
                   value={customImageUrl}
                   onChange={(e) => setCustomImageUrl(e.target.value)}
-                  placeholder="https://ejemplo.com/tu-fondo-favorito.jpg"
-                  className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-neutral-500 outline-none focus:border-amber-400 transition-colors font-mono"
+                  placeholder="https://images.unsplash.com/... o enlace directo .png / .jpg"
+                  className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-foreground-subtle outline-none focus:border-border-focus transition-colors font-mono"
                 />
-                <p className="text-[10px] text-neutral-500">
-                  Usa enlaces directos que terminen en .jpg, .png o .webp (p. ej. Imgur, Unsplash).
-                </p>
+                <span className="text-[10px] text-foreground-subtle block font-mono">
+                  Formatos recomendados: JPG, PNG o WebP en relación horizontal.
+                </span>
               </div>
             )}
 
-            {/* CAMPOS DE TEXTO PERSONALIZADO */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-medium text-neutral-300">
-                  2. Título o cargo personalizado (máx. 35 letras):
+            {/* CAMPOS DE TEXTO */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              <div className="space-y-1">
+                <label className="text-xs font-mono font-medium text-foreground">
+                  2. Título o cargo personalizado:
                 </label>
                 <input
                   type="text"
                   maxLength={35}
                   value={customTitle}
                   onChange={(e) => setCustomTitle(e.target.value)}
-                  placeholder="ej. Don Juanfe / Máster de Redes"
-                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-neutral-500 outline-none focus:border-amber-400 transition-colors"
+                  placeholder="ej. Don Juanfe / Administrador de Redes"
+                  className="w-full bg-surface-raised border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-foreground-subtle outline-none focus:border-border-focus transition-colors"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-medium text-neutral-300">
-                  3. Frase o eslogan nobiliario (máx. 70 letras):
+              <div className="space-y-1">
+                <label className="text-xs font-mono font-medium text-foreground">
+                  3. Frase o cita breve:
                 </label>
                 <input
                   type="text"
                   maxLength={70}
                   value={customQuote}
                   onChange={(e) => setCustomQuote(e.target.value)}
-                  placeholder="ej. El ping más bajo del instituto."
-                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-neutral-500 outline-none focus:border-amber-400 transition-colors"
+                  placeholder="ej. Todo bajo control en el Aula 35."
+                  className="w-full bg-surface-raised border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-foreground-subtle outline-none focus:border-border-focus transition-colors"
                 />
               </div>
             </div>
 
-            {/* BOTÓN GUARDAR PERSONALIZACIÓN */}
-            <div className="flex items-center justify-between pt-2 border-t border-neutral-800/80">
+            {/* BOTÓN GUARDAR CONFIGURACIÓN */}
+            <div className="flex items-center justify-between pt-2 border-t border-border">
               {saveSuccess ? (
-                <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold font-mono animate-in fade-in">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>¡Banner guardado y activo en tu ficha!</span>
+                <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-medium font-mono animate-in fade-in">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Configuración guardada correctamente</span>
                 </div>
               ) : (
-                <span className="text-[11px] text-neutral-500 font-mono">
-                  Los cambios son inmediatos y visibles para toda la clase.
+                <span className="text-[11px] text-foreground-subtle font-mono">
+                  Visible en tu carnet y para compañeros que consulten tu ficha.
                 </span>
               )}
 
@@ -591,123 +610,114 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                 type="button"
                 onClick={handleSaveCustomization}
                 disabled={isSaving}
-                className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50 shadow-md flex items-center gap-1.5 ml-auto"
+                className="px-4 py-2 rounded-xl bg-foreground text-background font-medium text-xs hover:opacity-90 transition-all active:scale-95 cursor-pointer disabled:opacity-40 flex items-center gap-1.5 ml-auto shadow-2xs"
               >
                 {isSaving ? (
-                  <span className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  <span className="w-3 h-3 border-2 border-background border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <Check className="w-4 h-4 stroke-[2.5]" />
+                  <Check className="w-3.5 h-3.5" />
                 )}
-                <span>Guardar Personalización</span>
+                <span>Guardar cambios</span>
               </button>
             </div>
           </div>
         ) : (
-          /* SECCIÓN DE COMPRA (CUANDO NO LO TIENE) */
-          <div className="space-y-6">
-            {/* Barra de progreso hacia los 13 Millones */}
-            <div className="p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-2">
+          /* SECCIÓN DE ADQUISICIÓN */
+          <div className="space-y-5">
+            {/* Barra de progreso limpia y minimalista */}
+            <div className="p-4 rounded-xl bg-surface-raised border border-border space-y-2.5">
               <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-neutral-400">Progreso hacia los 13M:</span>
-                <span className="font-bold text-amber-400">
+                <span className="text-foreground-muted">Progreso hacia 13.000.000:</span>
+                <span className="font-semibold text-foreground tabular-nums">
                   {progressPercent.toFixed(1)}% ({userCoins.toLocaleString('es-ES')} / 13.000.000)
                 </span>
               </div>
 
-              <div className="w-full h-3 rounded-full bg-neutral-950 border border-neutral-800 overflow-hidden p-0.5">
+              <div className="w-full h-2 rounded-full bg-surface border border-border overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-yellow-300 transition-all duration-500 shadow-sm"
+                  className="h-full rounded-full bg-foreground transition-all duration-300"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
 
               {!canAfford && (
-                <p className="text-[11px] text-neutral-400 pt-1 leading-relaxed">
-                  💡 ¿Te faltan monedas? Consigue millones rápidamente invirtiendo en el juego del{' '}
+                <div className="flex items-center justify-between pt-0.5 text-[11px] text-foreground-subtle">
+                  <span>
+                    Faltan {(BANNER_PRICE - userCoins).toLocaleString('es-ES')} fichas.
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
                       sound.tap();
                       onNavigateToPartyIdle();
                     }}
-                    className="text-amber-400 underline underline-offset-2 hover:text-amber-300 cursor-pointer font-semibold"
+                    className="text-foreground underline underline-offset-2 hover:opacity-80 cursor-pointer font-medium"
                   >
-                    Botellón
+                    Abrir El Botellón
                   </button>
-                  .
-                </p>
+                </div>
               )}
             </div>
 
-            {/* Vista previa de muestra */}
-            <div className="space-y-1.5 opacity-90">
-              <span className="text-[11px] font-mono text-neutral-400">
-                Así se verá cuando lo desbloquees:
+            {/* Muestra de la tarjeta */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-mono text-foreground-subtle">
+                Aspecto tras la adquisición:
               </span>
-              <div className="rounded-2xl border border-amber-400/80 bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-700 p-5 shadow-[0_0_25px_rgba(251,191,36,0.25)] relative overflow-hidden text-amber-950">
-                <div className="relative z-10 flex items-start justify-between">
-                  <div>
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-black/30 text-amber-200 border border-amber-300/40 uppercase tracking-wider inline-block mb-1">
-                      👑 ORO VIP
+              <div className="rounded-xl border border-border bg-gradient-to-r from-neutral-900 via-amber-950/70 to-neutral-900 p-4 text-white">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-black/40 text-amber-200 border border-amber-300/30 uppercase inline-block mb-1">
+                      OBSIDIAN GOLD
                     </span>
-                    <h3 className="text-lg font-black tracking-tight text-black">
-                      👑 Magnate del Botellón
+                    <h3 className="text-sm font-semibold tracking-tight text-white">
+                      Magnate del Botellón
                     </h3>
-                    <p className="text-xs font-mono text-amber-900 font-bold">
-                      @{currentUser?.username || 'tu_usuario'} · 2º SMR Aula 35
+                    <p className="text-[11px] font-mono text-neutral-300">
+                      @{currentUser?.username || 'usuario'} · 2º SMR Aula 35
                     </p>
                   </div>
-                  <div className="w-9 h-9 rounded-xl bg-black/40 border border-black/30 p-2 flex items-center justify-center">
-                    <Crown className="w-5 h-5 text-amber-300" />
-                  </div>
+                  <Crown className="w-4 h-4 text-amber-400" />
                 </div>
               </div>
             </div>
 
-            {/* Feedback de error si lo hay */}
             {errorMessage && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-danger-subtle border border-danger/30 text-danger text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
-            {/* Botón de compra */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-neutral-800">
-              <div className="text-xs text-neutral-400 font-mono">
-                {canAfford ? (
-                  <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
-                    <Check className="w-4 h-4" />
-                    <span>¡Tienes saldo suficiente para comprar este estatus legendario!</span>
-                  </span>
-                ) : (
-                  <span>
-                    Te faltan{' '}
-                    <strong className="text-white font-bold">
-                      {(BANNER_PRICE - userCoins).toLocaleString('es-ES')}
-                    </strong>{' '}
-                    fichas para adquirirlo.
-                  </span>
-                )}
-              </div>
+            {/* Botón de compra minimalista */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-border">
+              <span className="text-xs text-foreground-muted font-mono">
+                {canAfford
+                  ? 'Saldo suficiente para adquirir este artículo.'
+                  : `Requiere ${(BANNER_PRICE - userCoins).toLocaleString('es-ES')} fichas adicionales.`}
+              </span>
 
               <button
                 type="button"
                 onClick={handleBuyBanner}
                 disabled={!canAfford || isBuying}
-                className={`w-full sm:w-auto px-6 py-3 rounded-2xl font-extrabold text-xs transition-all active:scale-95 cursor-pointer shadow-lg flex items-center justify-center gap-2 ${
+                className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-medium text-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 shadow-xs ${
                   canAfford
-                    ? 'bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-black hover:brightness-110 shadow-amber-500/20'
-                    : 'bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-700/50'
+                    ? 'bg-foreground text-background hover:opacity-90'
+                    : 'bg-surface-raised text-foreground-subtle border border-border cursor-not-allowed opacity-50'
                 }`}
               >
                 {isBuying ? (
-                  <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  <span className="w-3.5 h-3.5 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                ) : canAfford ? (
+                  <Crown className="w-3.5 h-3.5" />
                 ) : (
-                  <Crown className="w-4 h-4" />
+                  <Lock className="w-3.5 h-3.5" />
                 )}
                 <span>
-                  {canAfford ? 'Comprar por 13.000.000 🪙' : '13.000.000 🪙 Requeridos'}
+                  {canAfford
+                    ? 'Adquirir por 13.000.000 fichas'
+                    : '13.000.000 fichas requeridas'}
                 </span>
               </button>
             </div>

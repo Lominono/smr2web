@@ -210,8 +210,8 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
               onClick={() => onSelectTab('shop')}
               className={`flex items-center gap-1.5 px-3.5 py-1 text-xs font-medium rounded-full transition-all cursor-pointer ${
                 activeTab === 'shop'
-                  ? 'bg-amber-400 text-black font-bold shadow-xs'
-                  : 'text-amber-400/90 hover:text-amber-300'
+                  ? 'bg-foreground text-background font-semibold shadow-xs'
+                  : 'text-foreground-muted hover:text-foreground'
               }`}
             >
               <ShoppingBag className="w-3.5 h-3.5" />

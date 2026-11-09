@@ -2148,7 +2148,7 @@ export default function Home() {
                       : activeView === 'russian_roulette'
                       ? 'Ruleta Rusa'
                       : activeView === 'shop'
-                      ? 'Tienda Exclusiva SMR2 (13M)'
+                      ? 'Tienda de Perfil'
                       : 'Recreo Arcade'}
                   </span>
                   <span className="text-[11px] text-foreground-subtle hidden sm:inline">
