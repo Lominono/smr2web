@@ -1366,17 +1366,32 @@ export default function Home() {
       return updated.sort((a, b) => (b.coins ?? 0) - (a.coins ?? 0));
     });
 
-    const supabase = createClient();
-    if (supabase && isUUID(user.id)) {
-      try {
-        await supabase
-          .from('profiles')
-          .update({ coins: nextCoins, biggest_win: nextBiggestWin })
-          .eq('id', user.id);
-      } catch (err) {
-        console.warn('Could not sync coins to Supabase:', err);
-      }
-    }
+    // Sincronización autoritativa y segura a través del servidor
+    try {
+      fetch('/api/user/balance/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delta, claimType: 'game' }),
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.success && typeof data.coins === 'number') {
+              setUser((curr) =>
+                curr
+                  ? {
+                      ...curr,
+                      coins: data.coins,
+                      biggest_win: data.biggestWin ?? curr.biggest_win,
+                    }
+                  : null
+              );
+              updateSessionCoins(data.coins, data.biggestWin);
+            }
+          }
+        })
+        .catch(() => {});
+    } catch {}
   };
 
   const handleClaimCoins = async (
@@ -1435,22 +1450,36 @@ export default function Home() {
       return prev;
     });
 
-    const supabase = createClient();
-    if (supabase && isUUID(user.id)) {
-      try {
-        const updatePayload: Record<string, any> = { coins: nextCoins };
-        if (claimType === 'daily') {
-          updatePayload.streak_count = nextStreakVal;
-          updatePayload.last_claim_date = nowIso;
-        }
-        await supabase
-          .from('profiles')
-          .update(updatePayload)
-          .eq('id', user.id);
-      } catch (err) {
-        console.warn('Could not sync streak/coins to Supabase:', err);
-      }
-    }
+    // Sincronización autoritativa y segura de recompensas a través del servidor
+    try {
+      fetch('/api/user/balance/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          delta: amount,
+          claimType,
+          newStreak: nextStreakVal,
+        }),
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.success && typeof data.coins === 'number') {
+              setUser((curr) =>
+                curr
+                  ? {
+                      ...curr,
+                      coins: data.coins,
+                      streak_count: data.streakCount ?? curr.streak_count,
+                    }
+                  : null
+              );
+              updateSessionCoins(data.coins, undefined, data.streakCount);
+            }
+          }
+        })
+        .catch(() => {});
+    } catch {}
   };
 
   const handleSendMessage = async (text: string, tag?: string, pinned?: boolean) => {

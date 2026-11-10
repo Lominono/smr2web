@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     const serverSession = await verifyUserSession();
-    const user: UserProfile | null = serverSession.user || clientUser;
+    const user: UserProfile | null = serverSession.user;
 
     // Timeout can be triggered by server ping or any room participant
     const dummyUser: UserProfile = user || {

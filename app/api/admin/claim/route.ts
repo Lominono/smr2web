@@ -17,12 +17,11 @@ const failedAttemptsMap = new Map<string, RateLimitState>();
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutos de bloqueo tras 5 intentos erróneos
 
-// Claves maestras autorizadas (Variables de entorno + fallback seguro)
+// Claves maestras autorizadas (Estrictamente desde variables de entorno del servidor)
 const MASTER_ADMIN_KEYS = [
   process.env.ADMIN_PASSWORD,
   process.env.ADMIN_ACCESS_CODE,
   process.env.ADMIN_SECRET_KEY,
-  'SMR2#RootAdmin.Aula35!2026',
 ]
   .filter(Boolean)
   .map((k) => String(k).trim());

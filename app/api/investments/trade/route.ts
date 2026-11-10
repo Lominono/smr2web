@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
+import { verifyUserSession } from '@/lib/adminAuth';
 import { COOKIE_SESSION } from '@/lib/authSession';
 import { UserProfile } from '@/lib/types';
 
@@ -38,24 +39,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Identificar al usuario desde la cookie de sesión o el cuerpo de la petición
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get(COOKIE_SESSION);
-    let sessionUser: UserProfile | null = null;
-
-    if (sessionCookie?.value) {
-      try {
-        let raw = sessionCookie.value;
-        if (raw.includes('%')) {
-          try { raw = decodeURIComponent(raw); } catch {}
-        }
-        sessionUser = JSON.parse(raw);
-      } catch {}
+    // Identificar y autenticar al usuario de forma estricta desde el servidor
+    const serverSession = await verifyUserSession();
+    if (!serverSession.authenticated || !serverSession.user || !isUUID(serverSession.user.id)) {
+      return NextResponse.json(
+        { success: false, error: 'Debes iniciar sesión con tu cuenta para comprar o vender acciones.' },
+        { status: 401 }
+      );
     }
 
-    const effectiveUsername = sessionUser?.username || reqUsername || 'Alumno';
-    let effectiveUserId = sessionUser?.id || reqUserId || null;
-    let resolvedUserId: string | null = isUUID(effectiveUserId) ? effectiveUserId : null;
+    const effectiveUsername = serverSession.user.username;
+    const effectiveUserId = serverSession.user.id;
+    let resolvedUserId: string = effectiveUserId;
 
     if (!isServerSupabaseConfigured()) {
       return NextResponse.json({

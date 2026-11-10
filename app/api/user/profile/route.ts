@@ -94,13 +94,18 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await verifyUserSession();
-    const body = await req.json();
-    const { userId, newUsername, avatarColor, soundEnabled, fullName, studentNumber, notificationsEnabled } = body;
-
-    const targetUserId = session.user?.id || userId;
-    if (!targetUserId) {
-      return NextResponse.json({ success: false, error: 'No autenticado.' }, { status: 401 });
+    if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
+      return NextResponse.json(
+        { success: false, error: 'Acceso no autorizado. Inicia sesión para modificar tu perfil.' },
+        { status: 401 }
+      );
     }
+
+    const body = await req.json();
+    const { newUsername, avatarColor, soundEnabled, fullName, studentNumber, notificationsEnabled } = body;
+
+    // Solo se permite actualizar el perfil del usuario autenticado en la sesión (previene manipulación IDOR)
+    const targetUserId = session.user.id;
 
     const cleanUsername = newUsername?.trim().toLowerCase().replace(/\s+/g, '_');
     if (cleanUsername && cleanUsername.length < 3) {
@@ -204,12 +209,26 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const session = await verifyUserSession();
+    if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
+      return NextResponse.json(
+        { success: false, error: 'Acceso no autorizado. Inicia sesión para actualizar tu contraseña.' },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const { userId, newPassword } = body;
 
-    const targetUserId = session.user?.id || userId;
-    if (!targetUserId) {
-      return NextResponse.json({ success: false, error: 'No autenticado.' }, { status: 401 });
+    // Solo un administrador oficial puede cambiar la contraseña de otra cuenta
+    let targetUserId = session.user.id;
+    if (userId && userId !== session.user.id) {
+      if (session.user.role !== 'admin') {
+        return NextResponse.json(
+          { success: false, error: 'Acceso denegado: No tienes permisos para modificar la contraseña de otro usuario.' },
+          { status: 403 }
+        );
+      }
+      targetUserId = userId;
     }
 
     const passCheck = validatePasswordSecurity(newPassword, session.user?.username, session.user?.email);

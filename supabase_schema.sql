@@ -73,7 +73,7 @@ BEGIN
     new.email,
     1000,
     0,
-    CASE WHEN COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)) = 'admin' THEN 'admin' ELSE 'student' END,
+    'student',
     'emerald'
   )
   ON CONFLICT (id) DO UPDATE SET
@@ -86,6 +86,30 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Trigger inmutable de seguridad: Bloquea intentos cliente de escalada a 'admin' o desbaneo
+CREATE OR REPLACE FUNCTION public.protect_profile_security_fields()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Si la consulta es invocada por un cliente anónimo o usuario autenticado regular
+  IF current_setting('request.jwt.claim.role', true) IN ('anon', 'authenticated') THEN
+    -- Prohibir estrictamente modificar el rol a través del cliente
+    IF NEW.role IS DISTINCT FROM OLD.role THEN
+      RAISE EXCEPTION 'Operación denegada por seguridad: No tienes permisos para alterar tu rango de usuario.';
+    END IF;
+    -- Prohibir auto-desbaneo
+    IF NEW.is_banned IS DISTINCT FROM OLD.is_banned THEN
+      RAISE EXCEPTION 'Operación denegada por seguridad: No tienes permisos para alterar el estado de suspensión de cuenta.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_protect_profile_security_fields ON public.profiles;
+CREATE TRIGGER tr_protect_profile_security_fields
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.protect_profile_security_fields();
 
 -- 3. TABLA DE MENSAJES DE CHAT REALES
 CREATE TABLE IF NOT EXISTS public.chat_messages (
@@ -259,16 +283,21 @@ END $$;
 -- Creación segura y protegida de políticas RLS
 DO $$
 BEGIN
-  -- PROFILES
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Lectura pública de perfiles') THEN
-    CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Creación de perfiles') THEN
-    CREATE POLICY "Creación de perfiles" ON public.profiles FOR INSERT WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Actualizar saldo de usuario') THEN
-    CREATE POLICY "Actualizar saldo de usuario" ON public.profiles FOR UPDATE USING (true);
-  END IF;
+  -- PROFILES (BLINDADO: Solo el propio usuario autenticado o service_role)
+  DROP POLICY IF EXISTS "Actualizar saldo de usuario" ON public.profiles;
+  DROP POLICY IF EXISTS "Lectura pública de perfiles" ON public.profiles;
+  DROP POLICY IF EXISTS "Creación de perfiles" ON public.profiles;
+  DROP POLICY IF EXISTS "Usuarios pueden actualizar su propio perfil" ON public.profiles;
+
+  CREATE POLICY "Lectura pública de perfiles" ON public.profiles FOR SELECT USING (true);
+  CREATE POLICY "Creación de perfiles" ON public.profiles FOR INSERT WITH CHECK (
+    auth.role() = 'service_role' OR auth.uid() = id
+  );
+  CREATE POLICY "Usuarios pueden actualizar su propio perfil" ON public.profiles FOR UPDATE USING (
+    auth.role() = 'service_role' OR auth.uid() = id
+  ) WITH CHECK (
+    auth.role() = 'service_role' OR auth.uid() = id
+  );
 
   -- CHAT MESSAGES
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'chat_messages' AND policyname = 'Lectura pública de chat') THEN
@@ -281,27 +310,35 @@ BEGIN
     CREATE POLICY "Actualizar likes de chat" ON public.chat_messages FOR UPDATE USING (true);
   END IF;
 
-  -- CALENDAR EVENTS
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'calendar_events' AND policyname = 'Lectura pública de eventos') THEN
-    CREATE POLICY "Lectura pública de eventos" ON public.calendar_events FOR SELECT USING (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'calendar_events' AND policyname = 'Creación de eventos') THEN
-    CREATE POLICY "Creación de eventos" ON public.calendar_events FOR INSERT WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'calendar_events' AND policyname = 'Modificación de eventos') THEN
-    CREATE POLICY "Modificación de eventos" ON public.calendar_events FOR UPDATE USING (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'calendar_events' AND policyname = 'Borrado de eventos') THEN
-    CREATE POLICY "Borrado de eventos" ON public.calendar_events FOR DELETE USING (true);
-  END IF;
+  -- CALENDAR EVENTS (BLINDADO: Solo admins y delegados pueden crear, editar o borrar)
+  DROP POLICY IF EXISTS "Lectura pública de eventos" ON public.calendar_events;
+  DROP POLICY IF EXISTS "Creación de eventos" ON public.calendar_events;
+  DROP POLICY IF EXISTS "Modificación de eventos" ON public.calendar_events;
+  DROP POLICY IF EXISTS "Borrado de eventos" ON public.calendar_events;
 
-  -- APP UPDATES
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'app_updates' AND policyname = 'Lectura pública de actualizaciones') THEN
-    CREATE POLICY "Lectura pública de actualizaciones" ON public.app_updates FOR SELECT USING (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'app_updates' AND policyname = 'Creación de actualizaciones') THEN
-    CREATE POLICY "Creación de actualizaciones" ON public.app_updates FOR INSERT WITH CHECK (true);
-  END IF;
+  CREATE POLICY "Lectura pública de eventos" ON public.calendar_events FOR SELECT USING (true);
+  CREATE POLICY "Creación de eventos" ON public.calendar_events FOR INSERT WITH CHECK (
+    auth.role() = 'service_role' OR 
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'delegado'))
+  );
+  CREATE POLICY "Modificación de eventos" ON public.calendar_events FOR UPDATE USING (
+    auth.role() = 'service_role' OR 
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'delegado'))
+  );
+  CREATE POLICY "Borrado de eventos" ON public.calendar_events FOR DELETE USING (
+    auth.role() = 'service_role' OR 
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'delegado'))
+  );
+
+  -- APP UPDATES (BLINDADO: Solo admins pueden publicar avisos globales)
+  DROP POLICY IF EXISTS "Lectura pública de actualizaciones" ON public.app_updates;
+  DROP POLICY IF EXISTS "Creación de actualizaciones" ON public.app_updates;
+
+  CREATE POLICY "Lectura pública de actualizaciones" ON public.app_updates FOR SELECT USING (true);
+  CREATE POLICY "Creación de actualizaciones" ON public.app_updates FOR INSERT WITH CHECK (
+    auth.role() = 'service_role' OR 
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
 
   -- BALANCE TRANSACTIONS
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'balance_transactions' AND policyname = 'Lectura de transacciones') THEN

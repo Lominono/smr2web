@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     // Verify session
     const serverSession = await verifyUserSession();
-    const user: UserProfile | null = serverSession.user || clientUser;
+    const user: UserProfile | null = serverSession.user;
 
     if (!user || !user.id || !user.username) {
       return NextResponse.json(

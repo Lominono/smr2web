@@ -248,6 +248,8 @@ export async function updateLocalUserPassword(userId: string, newPassword: strin
  */
 export function clearUserSession(): void {
   deleteCookie(COOKIE_SESSION);
+  deleteCookie('smr2_session_token');
+  deleteCookie('smr2_admin_token');
   deleteCookie(COOKIE_REMEMBER);
 
   try {
