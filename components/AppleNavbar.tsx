@@ -23,6 +23,7 @@ import {
 import { UserProfile } from '@/lib/types';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
 import { Button } from '@/components/ui/Button';
+import { getPetById } from '@/lib/pets';
 
 interface AppleNavbarProps {
   user: UserProfile | null;
@@ -317,6 +318,26 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                   <Settings className="w-3.5 h-3.5" />
                 </button>
               )}
+
+              {/* Pet Companion if equipped */}
+              {(() => {
+                const navPet = getPetById(user.mascota_equipada);
+                if (!navPet) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={onOpenSettings}
+                    title={`Mascota Oficial: ${navPet.name} · ${navPet.perkName}`}
+                    className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg bg-surface-raised border border-border/70 flex items-center justify-center p-1 cursor-pointer hover:border-foreground/30 active:scale-95 transition-all touch-manipulation shrink-0"
+                  >
+                    <img
+                      src={navPet.image}
+                      alt={navPet.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </button>
+                );
+              })()}
 
               {/* Avatar Initial */}
               <button

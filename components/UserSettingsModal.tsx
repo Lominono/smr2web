@@ -56,6 +56,7 @@ import { SMR2_SUBJECTS } from '@/lib/scheduleData';
 import { setCookie } from '@/lib/cookies';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { getPetById } from '@/lib/pets';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 
@@ -461,6 +462,24 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             <Coins className="w-3.5 h-3.5 text-amber-500" />
             <span>{user.coins.toLocaleString('es-ES')}</span>
           </div>
+
+          {(() => {
+            const pet = getPetById(user.mascota_equipada);
+            if (!pet) return null;
+            return (
+              <div
+                title={`Mascota Oficial: ${pet.name} · ${pet.perkName}`}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-neutral-200/60 dark:bg-neutral-850 border border-neutral-300/60 dark:border-neutral-800 text-xs font-mono font-medium text-neutral-900 dark:text-neutral-100 shrink-0 select-none"
+              >
+                <img
+                  src={pet.image}
+                  alt={pet.name}
+                  className="w-4 h-4 rounded-full object-cover shrink-0"
+                />
+                <span className="hidden xs:inline">{pet.name.split(' ')[0]}</span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Minimalist Segmented Tabs Bar */}

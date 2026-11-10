@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppleNavbar } from '@/components/AppleNavbar';
 import { SmrTwitterFeed } from '@/components/SmrTwitterFeed';
 import { NavigationDrawer } from '@/components/NavigationDrawer';
@@ -33,6 +33,7 @@ import { WindowsWelcomeModal } from '@/components/WindowsWelcomeModal';
 import { PutoIsaacTour } from '@/components/PutoIsaacTour';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
 import { StudentCardModal } from '@/components/StudentCardModal';
+import { PetShopModal } from '@/components/PetShopModal';
 import { VipShopView } from '@/components/VipShopView';
 import { OnlineUsersModal } from '@/components/OnlineUsersModal';
 import { PushNotificationModal } from '@/components/PushNotificationModal';
@@ -121,6 +122,7 @@ export default function Home() {
   const [isTourActive, setIsTourActive] = useState(false);
   const [isStudentCardOpen, setIsStudentCardOpen] = useState(false);
   const [inspectedStudent, setInspectedStudent] = useState<Partial<UserProfile> | null>(null);
+  const [isPetShopOpen, setIsPetShopOpen] = useState(false);
 
   // Estados de control para desarrolladores (Debug y ajustes de diseño)
   const [isAdmin, setIsAdmin] = useState(false);
@@ -187,6 +189,60 @@ export default function Home() {
 
   // Real-time presence hook (tracks active user view and aggregates online classmates)
   const { onlineUsers, onlineCount } = useRealtimePresence(user, activeView);
+
+  // Mapa de mascotas de usuarios para renderizado instantáneo en Feed y Clasificación
+  const userPetsMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    leaderboard.forEach((entry) => {
+      if (entry.mascota_equipada) {
+        map[entry.username.toLowerCase()] = entry.mascota_equipada;
+        if (entry.id) map[entry.id] = entry.mascota_equipada;
+      }
+    });
+    if (user?.mascota_equipada) {
+      map[user.username.toLowerCase()] = user.mascota_equipada;
+      if (user.id) map[user.id] = user.mascota_equipada;
+    }
+    return map;
+  }, [leaderboard, user]);
+
+  // Habilidad pasiva de mascotas: Dropeo espontáneo para Spongegar y Aguinaldo de Toy Chica
+  useEffect(() => {
+    if (!user || !user.mascota_equipada) return;
+    const petId = user.mascota_equipada;
+    if (petId !== 'spongegar' && petId !== 'toy_chica') return;
+
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      const roll = Math.random();
+
+      if (petId === 'spongegar' && roll < 0.65) {
+        const dropAmount = Math.floor(75_000 + Math.random() * 275_000);
+        handleUpdateCoins(dropAmount);
+        sound.coinWin();
+        setRealtimeNotification({
+          id: String(Date.now()),
+          type: 'win',
+          title: '🐾 Spongegar Primitivo',
+          description: `¡Ha rebuscado en las papeleras de la plaza y te da +${dropAmount.toLocaleString('es-ES')} monedas!`,
+          actionLabel: '¡Genial!',
+        });
+      } else if (petId === 'toy_chica' && roll < 0.50) {
+        const dropAmount = Math.floor(2_000_000 + Math.random() * 4_000_000);
+        handleUpdateCoins(dropAmount);
+        sound.coinWin();
+        setRealtimeNotification({
+          id: String(Date.now()),
+          type: 'win',
+          title: '✨ Toy Chica "Let\'s Party!"',
+          description: `¡Aguinaldo festivo VIP! Has recibido +${dropAmount.toLocaleString('es-ES')} monedas de fiesta.`,
+          actionLabel: '¡Party!',
+        });
+      }
+    }, 210_000);
+
+    return () => clearInterval(interval);
+  }, [user?.mascota_equipada]);
 
   // Easter Egg secreto - Disparador forense restringido para los más observadores y técnicos
   const secretTapCountRef = useRef(0);
@@ -365,6 +421,12 @@ export default function Home() {
           banner_estilo: data.banner_estilo || cached?.banner_estilo || undefined,
           titulo_personalizado: data.titulo_personalizado || cached?.titulo_personalizado || undefined,
           frase: data.frase || cached?.frase || undefined,
+          mascota_equipada: data.mascota_equipada || data.party_farm_data?.mascota_equipada || cached?.mascota_equipada || undefined,
+          mascotas_desbloqueadas: Array.isArray(data.mascotas_desbloqueadas)
+            ? data.mascotas_desbloqueadas
+            : Array.isArray(data.party_farm_data?.mascotas_desbloqueadas)
+            ? data.party_farm_data.mascotas_desbloqueadas
+            : (cached?.mascotas_desbloqueadas || []),
           sound_enabled: soundEnabled,
           notifications_enabled: notificationsEnabled,
           created_at: data.created_at || cached?.created_at,
@@ -2171,6 +2233,7 @@ export default function Home() {
                   isRealtimeConnected={isRealtimeConnected}
                   composerRef={composerRef}
                   onRefresh={fetchMessages}
+                  userPetsMap={userPetsMap}
                 />
               </div>
 
@@ -2275,6 +2338,7 @@ export default function Home() {
                   onUpdateUser={(updated) => setUser(updated)}
                   onNavigateToPartyIdle={() => setActiveView('party_idle')}
                   onBackToFeed={() => setActiveView('feed')}
+                  onUpdateCoins={handleUpdateCoins}
                 />
               ) : activeView === 'farmhand' ? (
                 <FarmhandGame
@@ -2288,6 +2352,7 @@ export default function Home() {
                   userCoins={user ? user.coins : 200}
                   userId={user?.id}
                   username={user?.username}
+                  mascotaEquipada={user?.mascota_equipada}
                   onUpdateCoins={handleUpdateCoins}
                   onNavigateGame={(g) => setActiveView(g as ViewMode)}
                   onRequireAuth={() => setIsAuthOpen(true)}
@@ -2566,6 +2631,20 @@ export default function Home() {
           setInspectedStudent(null);
           setActiveView('russian_roulette');
         }}
+        onOpenPetShop={() => setIsPetShopOpen(true)}
+      />
+
+      {/* Tienda de Mascotas Exclusivas */}
+      <PetShopModal
+        isOpen={isPetShopOpen}
+        onClose={() => setIsPetShopOpen(false)}
+        currentUser={user}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onUpdateUser={(updated) => {
+          setUser(updated);
+          fetchLeaderboard();
+        }}
+        onUpdateCoins={handleUpdateCoins}
       />
 
       <CookieBanner

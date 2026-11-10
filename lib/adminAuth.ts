@@ -372,47 +372,7 @@ export async function verifyUserSession(): Promise<{
     }
   }
 
-  // 3. Fallback de compatibilidad para clientes existentes con cookie sin firmar:
-  // IMPORTANTE: NUNCA se confía en el campo "role" de la cookie no firmada para evitar escalada de privilegios.
-  const rawSessionCookie = cookieStore.get(COOKIE_SESSION);
-  if (rawSessionCookie?.value) {
-    try {
-      let raw = rawSessionCookie.value;
-      if (raw.includes('%')) {
-        try { raw = decodeURIComponent(raw); } catch {}
-      }
-      const rawUser = JSON.parse(raw) as UserProfile;
-      if (rawUser && rawUser.id && rawUser.username && isUUID(rawUser.id)) {
-        if (isServerSupabaseConfigured()) {
-          try {
-            const adminClient = createAdminClient();
-            if (adminClient) {
-              const { data: p } = await adminClient
-                .from('profiles')
-                .select('id, username, email, role, full_name, student_number, coins, biggest_win, is_banned, created_at')
-                .eq('id', rawUser.id)
-                .maybeSingle();
-
-              // Si es un alumno normal y no está baneado, permitir sesión pero forzar rol de base de datos
-              if (p && !p.is_banned) {
-                // SEGURIDAD: Si en la base de datos figura como admin, NO confiar en cookie plana sin token firmado
-                const safeRole = p.role === 'admin' ? 'student' : (p.role || 'student');
-                return {
-                  authenticated: true,
-                  user: {
-                    ...rawUser,
-                    role: safeRole,
-                    is_banned: p.is_banned,
-                    coins: Number(p.coins ?? rawUser.coins ?? 1000),
-                  },
-                };
-              }
-            }
-          } catch {}
-        }
-      }
-    } catch {}
-  }
-
+  // 3. SEGURIDAD ESTRICTA: Las cookies sin firma criptográfica (como smr2_user_session)
+  // NUNCA son aceptadas por el servidor para verificar identidad, evitando suplantaciones o manipulación.
   return { authenticated: false, user: null };
 }

@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
         try {
           let query = client
             .from('profiles')
-            .select('*');
+            .select('id, username, full_name, student_number, pc_seat, coins, biggest_win, streak_count, avatar_color, role, created_at, games_played, games_won, items_comprados, banner_estilo, titulo_personalizado, frase, onboarding_completado, mascota_equipada, mascotas_desbloqueadas, party_farm_data');
 
           if (rawId && isUUID(rawId)) {
             query = query.eq('id', rawId);
@@ -63,6 +63,12 @@ export async function GET(req: NextRequest) {
                 titulo_personalizado: data.titulo_personalizado || undefined,
                 frase: data.frase || undefined,
                 onboarding_completado: Boolean(data.onboarding_completado || (data.full_name && data.student_number)),
+                mascota_equipada: data.mascota_equipada || data.party_farm_data?.mascota_equipada || undefined,
+                mascotas_desbloqueadas: Array.isArray(data.mascotas_desbloqueadas)
+                  ? data.mascotas_desbloqueadas
+                  : (Array.isArray(data.party_farm_data?.mascotas_desbloqueadas)
+                  ? data.party_farm_data.mascotas_desbloqueadas
+                  : []),
               },
             });
           }
@@ -102,7 +108,16 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { newUsername, avatarColor, soundEnabled, fullName, studentNumber, notificationsEnabled } = body;
+    const {
+      newUsername,
+      avatarColor,
+      soundEnabled,
+      fullName,
+      studentNumber,
+      notificationsEnabled,
+      mascotaEquipada,
+      mascotasDesbloqueadas,
+    } = body;
 
     // Solo se permite actualizar el perfil del usuario autenticado en la sesión (previene manipulación IDOR)
     const targetUserId = session.user.id;
@@ -166,10 +181,34 @@ export async function POST(req: NextRequest) {
           updates.student_number = cleanNumber;
         }
 
+        if (mascotaEquipada !== undefined) {
+          updates.mascota_equipada = mascotaEquipada ? String(mascotaEquipada) : null;
+        }
+
+        if (Array.isArray(mascotasDesbloqueadas)) {
+          updates.mascotas_desbloqueadas = mascotasDesbloqueadas;
+        }
+
         if (Object.keys(updates).length > 0 && isUUID(targetUserId)) {
+          // Intentar actualizar directamente
           const { error: updateError } = await client.from('profiles').update(updates).eq('id', targetUserId);
           if (updateError) {
-            console.warn('Note updating profiles in Supabase:', updateError.message);
+            console.warn('Note updating profiles in Supabase directly, falling back:', updateError.message);
+            // Si la columna física aún no existe, guardar en party_farm_data
+            if (mascotaEquipada !== undefined || mascotasDesbloqueadas) {
+              try {
+                const { data: currP } = await client.from('profiles').select('party_farm_data').eq('id', targetUserId).maybeSingle();
+                const existingFarm = (currP?.party_farm_data && typeof currP.party_farm_data === 'object') ? currP.party_farm_data : {};
+                const updatedFarm = {
+                  ...existingFarm,
+                  ...(mascotaEquipada !== undefined ? { mascota_equipada: mascotaEquipada } : {}),
+                  ...(mascotasDesbloqueadas ? { mascotas_desbloqueadas: mascotasDesbloqueadas } : {}),
+                };
+                delete updates.mascota_equipada;
+                delete updates.mascotas_desbloqueadas;
+                await client.from('profiles').update({ ...updates, party_farm_data: updatedFarm }).eq('id', targetUserId);
+              } catch {}
+            }
           }
         }
       }

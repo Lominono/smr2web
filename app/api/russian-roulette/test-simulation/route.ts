@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import {
   createRoomServer,
   joinRoomServer,
@@ -8,10 +8,18 @@ import {
 } from '@/lib/russianRouletteServer';
 import { queryEventLogs } from '@/lib/logger';
 import { UserProfile } from '@/lib/types';
+import { verifyAdminSession } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    const authResult = await verifyAdminSession(req);
+    if (!authResult.authorized) {
+      return NextResponse.json({ success: false, error: 'Endpoint restringido en producción.' }, { status: 404 });
+    }
+  }
+
   const steps: string[] = [];
 
   try {

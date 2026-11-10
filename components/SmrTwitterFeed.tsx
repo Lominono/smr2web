@@ -35,6 +35,7 @@ import {
   getNotificationPermission,
   isPushNotificationSupported,
 } from '@/lib/webPushService';
+import { getPetById } from '@/lib/pets';
 
 export interface SmrTwitterFeedProps {
   messages: ChatMessage[];
@@ -50,6 +51,7 @@ export interface SmrTwitterFeedProps {
   isRealtimeConnected?: boolean;
   composerRef?: React.RefObject<HTMLTextAreaElement | null>;
   onRefresh?: () => Promise<void> | void;
+  userPetsMap?: Record<string, string>;
 }
 
 type FeedFilterId = 'all' | 'avisos' | 'dudas' | 'recursos';
@@ -137,8 +139,23 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   isRealtimeConnected = true,
   composerRef: externalComposerRef,
   onRefresh,
+  userPetsMap = {},
 }) => {
   const [activeTab, setActiveTab] = useState<FeedFilterId>('all');
+
+  const resolveUserPet = (userId?: string, username?: string, directPetId?: string) => {
+    if (directPetId) return getPetById(directPetId);
+    if (currentUser && (userId === currentUser.id || username?.toLowerCase() === currentUser.username?.toLowerCase())) {
+      if (currentUser.mascota_equipada) return getPetById(currentUser.mascota_equipada);
+    }
+    if (username && userPetsMap[username.toLowerCase()]) {
+      return getPetById(userPetsMap[username.toLowerCase()]);
+    }
+    if (userId && userPetsMap[userId]) {
+      return getPetById(userPetsMap[userId]);
+    }
+    return undefined;
+  };
   const [inputText, setInputText] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('General');
   const [isPinned, setIsPinned] = useState(false);
@@ -1304,6 +1321,28 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                           @{msg.username}
                         </button>
 
+                        {(() => {
+                          const authorPet = resolveUserPet(msg.user_id, msg.username, msg.mascota_equipada);
+                          if (!authorPet) return null;
+                          return (
+                            <span
+                              title={`Mascota Oficial: ${authorPet.name} · ${authorPet.perkName} (${authorPet.perkDescription})`}
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-mono transition-all cursor-help ${
+                                authorPet.id === 'toy_chica'
+                                  ? 'bg-amber-400/10 border-amber-400/50 text-amber-300 ring-1 ring-amber-400/30 shadow-xs'
+                                  : 'bg-white/[0.05] border-white/10 text-neutral-300'
+                              }`}
+                            >
+                              <img
+                                src={authorPet.image}
+                                alt={authorPet.name}
+                                className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                              />
+                              <span className="hidden xs:inline font-medium">{authorPet.name.split(' ')[0]}</span>
+                            </span>
+                          );
+                        })()}
+
                         {(msg.username === 'admin' ||
                           msg.username.toLowerCase().includes('delegado') ||
                           msg.user_id === 'ed922205-b961-487c-a13b-93b5ab7a5faf') && (
@@ -1490,6 +1529,18 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                                         >
                                           @{comment.username}
                                         </button>
+                                        {(() => {
+                                          const cPet = resolveUserPet(comment.user_id, comment.username, comment.mascota_equipada);
+                                          if (!cPet) return null;
+                                          return (
+                                            <img
+                                              src={cPet.image}
+                                              alt={cPet.name}
+                                              title={`Mascota: ${cPet.name}`}
+                                              className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                                            />
+                                          );
+                                        })()}
                                         <span className="text-neutral-600 text-[10px]">·</span>
                                         <span className="text-[10px] text-neutral-500 font-mono">
                                           {formatRelativeTime(comment.created_at)}

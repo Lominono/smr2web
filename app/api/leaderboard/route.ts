@@ -10,10 +10,30 @@ export async function GET() {
     if (isServerSupabaseConfigured()) {
       const client = createAdminClient();
       if (client) {
-        const { data, error } = await client
+        let data: any[] | null = null;
+        let error: any = null;
+
+        // Intento 1: Incluyendo mascota_equipada directa y party_farm_data
+        const primaryRes = await client
           .from('profiles')
-          .select('id, username, full_name, coins, biggest_win, streak_count, avatar_color, role, is_banned')
+          .select('id, username, full_name, coins, biggest_win, streak_count, avatar_color, role, is_banned, mascota_equipada, party_farm_data')
           .order('coins', { ascending: false });
+
+        if (!primaryRes.error) {
+          data = primaryRes.data;
+        } else {
+          // Fallback resiliente: Si la columna mascota_equipada aún no se ha creado físicamente en Supabase
+          const fallbackRes = await client
+            .from('profiles')
+            .select('id, username, full_name, coins, biggest_win, streak_count, avatar_color, role, is_banned, party_farm_data')
+            .order('coins', { ascending: false });
+
+          if (!fallbackRes.error) {
+            data = fallbackRes.data;
+          } else {
+            error = fallbackRes.error;
+          }
+        }
 
         if (!error && data) {
           const entries: LeaderboardEntry[] = data
@@ -27,6 +47,7 @@ export async function GET() {
             streak_count: p.streak_count ? Number(p.streak_count) : 1,
             avatar_color: p.avatar_color || undefined,
             role: p.role || undefined,
+            mascota_equipada: p.mascota_equipada || p.party_farm_data?.mascota_equipada || undefined,
           }));
 
           return NextResponse.json(

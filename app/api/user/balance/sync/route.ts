@@ -6,9 +6,12 @@ import { logEvent } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-// Límite máximo de ganancia permitido en una sola sincronización ordinaria (anti-trampas / memory hacks)
-const MAX_DELTA_SINGLE_SYNC = 500000;
-const MIN_NEGATIVE_DELTA = -5000000;
+// Límite máximo de ganancia y gasto permitido en una sola sincronización ordinaria
+const MAX_DELTA_GAME_WIN = 500_000; // Máximo 500.000 monedas por partida ordinaria
+const MAX_DELTA_DAILY = 1_000;     // Máximo 1.000 monedas por reclamo diario
+const MAX_DELTA_SPIN = 2_000;      // Máximo 2.000 monedas por ruleta diaria
+const MAX_DELTA_RESCUE = 200;      // Máximo 200 monedas por fondo de rescate
+const MIN_NEGATIVE_DELTA = -5_000_000; // Gasto máximo en una transacción de tienda/apuesta
 
 // Rate-limiting en memoria por usuario para sincronizaciones continuas
 interface SyncRateLimit {
@@ -61,8 +64,13 @@ export async function POST(req: NextRequest) {
 
     const delta = Math.round(rawDelta);
 
-    // Detección anti-trampas: rechazar inyecciones numéricas absurdas
-    if (delta > MAX_DELTA_SINGLE_SYNC) {
+    // Detección anti-trampas: validar límites según el tipo de reclamo
+    let maxAllowed = MAX_DELTA_GAME_WIN;
+    if (claimType === 'daily') maxAllowed = MAX_DELTA_DAILY;
+    else if (claimType === 'spin') maxAllowed = MAX_DELTA_SPIN;
+    else if (claimType === 'rescue') maxAllowed = MAX_DELTA_RESCUE;
+
+    if (delta > maxAllowed) {
       try {
         await logEvent({
           eventType: 'balance_adjusted',
@@ -72,7 +80,8 @@ export async function POST(req: NextRequest) {
           details: {
             alert: 'EXCESSIVE_DELTA_BLOCKED',
             attemptedDelta: delta,
-            maxAllowed: MAX_DELTA_SINGLE_SYNC,
+            maxAllowed,
+            claimType,
           },
         });
       } catch {}
@@ -80,7 +89,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `Transacción sospechosa bloqueada: El incremento (+${delta.toLocaleString()}) supera el límite de seguridad permitido por sincronización.`,
+          error: `Transacción no autorizada: El incremento (+${delta.toLocaleString()}) supera el límite de seguridad permitido para esta acción.`,
         },
         { status: 400 }
       );

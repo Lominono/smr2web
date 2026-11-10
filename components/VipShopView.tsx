@@ -20,11 +20,13 @@ import {
   Lock,
   Sliders,
   Layers,
+  X,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import confetti from 'canvas-confetti';
 import { createClient } from '@/lib/supabase/client';
+import { PETS_REGISTRY, PetItem, formatCoinsAbbreviated } from '@/lib/pets';
 
 export const BANNER_PRICE = 13_000_000;
 
@@ -122,6 +124,7 @@ interface VipShopViewProps {
   onUpdateUser: (updated: UserProfile) => void;
   onNavigateToPartyIdle: () => void;
   onBackToFeed: () => void;
+  onUpdateCoins?: (delta: number) => void;
 }
 
 export const VipShopView: React.FC<VipShopViewProps> = ({
@@ -130,11 +133,26 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
   onUpdateUser,
   onNavigateToPartyIdle,
   onBackToFeed,
+  onUpdateCoins,
 }) => {
   const userCoins = currentUser ? Number(currentUser.coins || 0) : 0;
   const itemsComprados = Array.isArray(currentUser?.items_comprados)
     ? currentUser!.items_comprados!
     : [];
+
+  const [shopTab, setShopTab] = useState<'mascotas' | 'banners'>('mascotas');
+  const [selectedPetId, setSelectedPetId] = useState<string>(PETS_REGISTRY[0].id);
+  const [isPetProcessing, setIsPetProcessing] = useState(false);
+  const [petSuccessMessage, setPetSuccessMessage] = useState<string | null>(null);
+
+  const unlockedPets = Array.isArray(currentUser?.mascotas_desbloqueadas)
+    ? currentUser!.mascotas_desbloqueadas!
+    : [];
+  const equippedPetId = currentUser?.mascota_equipada;
+  const selectedPet = PETS_REGISTRY.find((p) => p.id === selectedPetId) || PETS_REGISTRY[0];
+  const isSelectedPetOwned = unlockedPets.includes(selectedPet.id);
+  const isSelectedPetEquipped = equippedPetId === selectedPet.id;
+  const canAffordSelectedPet = userCoins >= selectedPet.price;
 
   const isOwner =
     itemsComprados.includes('banner_vip_13m') ||
@@ -164,6 +182,165 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
 
   const currentPreset =
     BANNER_PRESETS.find((p) => p.id === selectedStyle) || BANNER_PRESETS[0];
+
+  const handleBuyPet = async (pet: PetItem) => {
+    if (!currentUser) {
+      sound.tap();
+      onOpenAuth();
+      return;
+    }
+
+    if (userCoins < pet.price) {
+      sound.broke();
+      setErrorMessage(`Te faltan ${(pet.price - userCoins).toLocaleString('es-ES')} monedas para adoptar a ${pet.name}.`);
+      return;
+    }
+
+    if (!window.confirm(`¿Confirmas la compra de ${pet.name} por ${pet.price.toLocaleString('es-ES')} monedas?`)) {
+      return;
+    }
+
+    setIsPetProcessing(true);
+    setErrorMessage(null);
+    setPetSuccessMessage(null);
+    sound.tap();
+
+    try {
+      const nextCoins = userCoins - pet.price;
+      const nextUnlocked = Array.from(new Set([...unlockedPets, pet.id]));
+      const nextItems = Array.from(new Set([...itemsComprados, `pet_${pet.id}`]));
+
+      const supabase = createClient();
+      if (supabase && currentUser.id) {
+        const { error: sbErr } = await supabase
+          .from('profiles')
+          .update({
+            coins: nextCoins,
+            mascota_equipada: pet.id,
+            mascotas_desbloqueadas: nextUnlocked,
+            items_comprados: nextItems,
+          })
+          .eq('id', currentUser.id);
+
+        if (sbErr) {
+          const { data: currP } = await supabase
+            .from('profiles')
+            .select('party_farm_data')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+
+          const currFarm = (currP?.party_farm_data && typeof currP.party_farm_data === 'object') ? currP.party_farm_data : {};
+          await supabase
+            .from('profiles')
+            .update({
+              coins: nextCoins,
+              items_comprados: nextItems,
+              party_farm_data: {
+                ...currFarm,
+                mascota_equipada: pet.id,
+                mascotas_desbloqueadas: nextUnlocked,
+              },
+            })
+            .eq('id', currentUser.id);
+        }
+
+        try {
+          await supabase.from('chat_messages').insert([
+            {
+              username: 'SMR2',
+              text: `🐾 ¡Adopción exclusiva! @${currentUser.username} ha adoptado a ${pet.name} por ${pet.price.toLocaleString('es-ES')} monedas en la Tienda Oficial.`,
+              tag: 'aviso',
+              pinned: false,
+            },
+          ]);
+        } catch (_) {}
+      }
+
+      onUpdateCoins?.(-pet.price);
+
+      const updatedProfile: UserProfile = {
+        ...currentUser,
+        coins: nextCoins,
+        mascota_equipada: pet.id,
+        mascotas_desbloqueadas: nextUnlocked,
+        items_comprados: nextItems,
+      };
+
+      onUpdateUser(updatedProfile);
+      sound.coinWin();
+
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#f59e0b', '#10b981', '#3b82f6', '#ec4899'],
+        });
+      } catch (_) {}
+
+      setPetSuccessMessage(`¡Has adoptado a ${pet.name} con éxito! Ha sido equipada en tu perfil y Feed.`);
+    } catch (err: any) {
+      console.error('Error al comprar mascota:', err);
+      setErrorMessage(err?.message || 'Error al procesar la compra.');
+    } finally {
+      setIsPetProcessing(false);
+    }
+  };
+
+  const handleToggleEquipPet = async (petId: string) => {
+    if (!currentUser) return;
+
+    setIsPetProcessing(true);
+    setErrorMessage(null);
+    setPetSuccessMessage(null);
+    sound.tap();
+
+    try {
+      const nextEquipped = equippedPetId === petId ? undefined : petId;
+      const supabase = createClient();
+
+      if (supabase && currentUser.id) {
+        const { error: sbErr } = await supabase
+          .from('profiles')
+          .update({
+            mascota_equipada: nextEquipped || null,
+          })
+          .eq('id', currentUser.id);
+
+        if (sbErr) {
+          const { data: currP } = await supabase
+            .from('profiles')
+            .select('party_farm_data')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+
+          const currFarm = (currP?.party_farm_data && typeof currP.party_farm_data === 'object') ? currP.party_farm_data : {};
+          await supabase
+            .from('profiles')
+            .update({
+              party_farm_data: {
+                ...currFarm,
+                mascota_equipada: nextEquipped || null,
+              },
+            })
+            .eq('id', currentUser.id);
+        }
+      }
+
+      const updatedProfile: UserProfile = {
+        ...currentUser,
+        mascota_equipada: nextEquipped,
+      };
+
+      onUpdateUser(updatedProfile);
+      setPetSuccessMessage(nextEquipped ? `Has equipado a ${selectedPet.name}.` : 'Has desequipado a tu mascota.');
+    } catch (err: any) {
+      console.error('Error al cambiar de mascota:', err);
+      setErrorMessage(err?.message || 'Error al equipar mascota.');
+    } finally {
+      setIsPetProcessing(false);
+    }
+  };
 
   const handleBuyBanner = async () => {
     if (!currentUser) {
@@ -376,7 +553,282 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
         </div>
       </div>
 
-      {/* 3. Ficha de Producto: Banner de Perfil Personalizado */}
+      {/* 2.5 Selector de Sección: Mascotas Exclusivas vs Banners VIP */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-surface border border-border">
+        <button
+          type="button"
+          onClick={() => {
+            sound.tap();
+            setShopTab('mascotas');
+          }}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-xs transition-all cursor-pointer ${
+            shopTab === 'mascotas'
+              ? 'bg-foreground text-background font-semibold shadow-xs'
+              : 'text-foreground-muted hover:text-foreground'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          <span>Mascotas Exclusivas</span>
+          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-500 font-bold">
+            NUEVO
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            sound.tap();
+            setShopTab('banners');
+          }}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-xs transition-all cursor-pointer ${
+            shopTab === 'banners'
+              ? 'bg-foreground text-background font-semibold shadow-xs'
+              : 'text-foreground-muted hover:text-foreground'
+          }`}
+        >
+          <Crown className="w-3.5 h-3.5 text-amber-400" />
+          <span>Banners VIP</span>
+        </button>
+      </div>
+
+      {petSuccessMessage && (
+        <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs flex items-center justify-between font-medium">
+          <span>{petSuccessMessage}</span>
+          <button type="button" onClick={() => setPetSuccessMessage(null)} className="text-emerald-400 hover:text-emerald-200 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center justify-between font-medium">
+          <span>{errorMessage}</span>
+          <button type="button" onClick={() => setErrorMessage(null)} className="text-rose-400 hover:text-rose-200 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {shopTab === 'mascotas' ? (
+        /* ================= VISTA DE MASCOTAS ================= */
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border bg-surface p-6 sm:p-7 space-y-6 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-border/80 pb-5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-surface-raised border border-border text-foreground font-medium">
+                    <Sparkles className="w-3 h-3 text-amber-500" />
+                    <span>Coleccionables Oficiales</span>
+                  </span>
+                  <span className="text-[11px] font-mono text-foreground-subtle">
+                    Acompañantes 2º SMR
+                  </span>
+                </div>
+
+                <h2 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
+                  Mascotas del Aula
+                </h2>
+
+                <p className="text-xs text-foreground-muted max-w-xl leading-relaxed">
+                  Compañeros legendarios que te acompañan junto a tu perfil y en cada publicación del Feed. Cada uno posee habilidades pasivas reales (ayuda en botellón, ahorro en comisiones de bolsa o recompensas espontáneas).
+                </p>
+              </div>
+            </div>
+
+            {/* Catálogo de Mascotas en Grid Master-Detail */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+              {/* Lista lateral */}
+              <div className="md:col-span-5 space-y-2">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-foreground-subtle px-1">
+                  Catálogo ({PETS_REGISTRY.length})
+                </div>
+
+                {PETS_REGISTRY.map((pet) => {
+                  const isSelected = pet.id === selectedPetId;
+                  const isOwned = unlockedPets.includes(pet.id);
+                  const isEquipped = equippedPetId === pet.id;
+
+                  return (
+                    <button
+                      key={pet.id}
+                      type="button"
+                      onClick={() => {
+                        sound.tap();
+                        setSelectedPetId(pet.id);
+                      }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
+                        isSelected
+                          ? 'bg-surface-raised border-foreground/30 shadow-xs ring-1 ring-foreground/20'
+                          : 'bg-surface border-border hover:bg-surface-raised/40 hover:border-neutral-500'
+                      }`}
+                    >
+                      <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-border shrink-0 p-1 flex items-center justify-center">
+                        <Image
+                          src={pet.image}
+                          alt={pet.name}
+                          width={44}
+                          height={44}
+                          className="object-contain"
+                        />
+                        {isEquipped && (
+                          <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-surface" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-semibold text-xs text-foreground truncate">{pet.name}</span>
+                          {isEquipped ? (
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 font-bold">
+                              Equipada
+                            </span>
+                          ) : isOwned ? (
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-surface-raised text-foreground-muted border border-border shrink-0">
+                              En propiedad
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-mono font-bold text-amber-500 shrink-0">
+                              {formatCoinsAbbreviated(pet.price)} 🪙
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-[11px] text-foreground-subtle truncate mt-0.5">
+                          {pet.subtitle}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Ficha de detalle de la mascota seleccionada */}
+              <div className="md:col-span-7 flex flex-col rounded-2xl bg-surface-raised/40 border border-border p-5 space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-black/50 border border-border p-2 flex items-center justify-center shrink-0 shadow-inner">
+                    <Image
+                      src={selectedPet.image}
+                      alt={selectedPet.name}
+                      width={100}
+                      height={100}
+                      className="object-contain max-h-full"
+                    />
+                    {isSelectedPetEquipped && (
+                      <div className="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full bg-emerald-500 text-black font-mono text-[10px] font-extrabold shadow-xs">
+                        ✓ ACTIVA
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="inline-block px-2 py-0.5 rounded-md border text-[10px] font-mono font-medium uppercase bg-surface border-border text-foreground-muted">
+                      {selectedPet.tierBadge}
+                    </div>
+                    <h3 className="text-lg font-bold text-foreground tracking-tight leading-tight">
+                      {selectedPet.name}
+                    </h3>
+                    <p className="text-xs text-foreground-muted">{selectedPet.subtitle}</p>
+                    <div className="pt-1 flex items-center gap-1.5 text-xs font-mono font-bold text-amber-500">
+                      <Coins className="w-3.5 h-3.5" />
+                      <span>{selectedPet.price.toLocaleString('es-ES')} monedas</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-surface border border-border text-xs text-foreground-muted leading-relaxed">
+                  {selectedPet.description}
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-surface border border-border space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Habilidad: {selectedPet.perkName}</span>
+                  </div>
+                  <p className="text-xs text-foreground-muted leading-normal">
+                    {selectedPet.perkDescription}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-surface/70 border border-border/80 space-y-1.5">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-foreground-subtle">
+                    Previsualización en Perfil y Feed
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-surface-raised border border-border">
+                    <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center font-mono text-[9px] font-bold text-white shrink-0">
+                      {currentUser?.username ? currentUser.username.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <span className="text-xs font-medium text-foreground">
+                      @{currentUser?.username || 'tu_usuario'}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-surface border border-border text-[10px] font-mono text-foreground-muted">
+                      <img
+                        src={selectedPet.image}
+                        alt={selectedPet.name}
+                        className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                      />
+                      <span>{selectedPet.name.split(' ')[0]}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Botón de acción */}
+                <div className="pt-2 mt-auto">
+                  {isSelectedPetOwned ? (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleEquipPet(selectedPet.id)}
+                      disabled={isPetProcessing}
+                      className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95 ${
+                        isSelectedPetEquipped
+                          ? 'bg-surface-raised text-foreground border border-border hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-400'
+                          : 'bg-foreground text-background hover:opacity-90'
+                      }`}
+                    >
+                      {isSelectedPetEquipped ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-500" />
+                          <span>Equipada (Clic para desequipar)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          <span>Equipar Mascota</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleBuyPet(selectedPet)}
+                      disabled={isPetProcessing || !canAffordSelectedPet}
+                      className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 ${
+                        canAffordSelectedPet
+                          ? 'bg-foreground text-background hover:opacity-90 cursor-pointer active:scale-95 shadow-xs'
+                          : 'bg-surface-raised text-foreground-subtle border border-border cursor-not-allowed opacity-50'
+                      }`}
+                    >
+                      {isPetProcessing ? (
+                        <span className="w-3.5 h-3.5 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                      ) : canAffordSelectedPet ? (
+                        <>
+                          <Coins className="w-3.5 h-3.5" />
+                          <span>Adquirir por {selectedPet.price.toLocaleString('es-ES')} monedas</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Faltan {(selectedPet.price - userCoins).toLocaleString('es-ES')} monedas</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ================= VISTA DE BANNERS ================= */
       <div className="rounded-2xl border border-border bg-surface p-6 sm:p-7 space-y-6 shadow-xs">
         {/* Cabecera del producto */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-border/80 pb-5">
@@ -724,6 +1176,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

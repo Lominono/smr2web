@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { isUUID } from '@/lib/uuid';
 import { logEvent } from '@/lib/logger';
+import { verifyUserSession } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,15 +65,18 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { userId, fullName, studentNumber } = body;
-
-    if (!userId) {
+    const session = await verifyUserSession();
+    if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
       return NextResponse.json(
-        { success: false, error: 'Identificador de usuario no proporcionado.' },
-        { status: 400 }
+        { success: false, error: 'Debes iniciar sesión para actualizar tu identificación.' },
+        { status: 401 }
       );
     }
+
+    const body = await req.json().catch(() => ({}));
+    const { fullName, studentNumber } = body;
+    // Solo el propio usuario autenticado puede modificar su identificación
+    const userId = session.user.id;
 
     const cleanFullName = (fullName || '').trim().replace(/\s+/g, ' ');
     const cleanStudentNumber = (studentNumber || '').trim().toUpperCase();

@@ -56,6 +56,7 @@ interface BotellonInvestmentsProps {
   userCoins: number;
   userId?: string;
   username?: string;
+  mascotaEquipada?: string;
   onUpdateCoins?: (delta: number) => void;
   onRequireAuth?: () => void;
 }
@@ -64,6 +65,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
   userCoins,
   userId,
   username,
+  mascotaEquipada,
   onUpdateCoins,
   onRequireAuth,
 }) => {
@@ -605,13 +607,16 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     return Number((inputNumeric / activeAsset.price).toFixed(2));
   }, [inputNumeric, activeAsset.price]);
 
+  const isThinkingButt = mascotaEquipada === 'thinking_butt';
+
   const estimatedCoins = useMemo(() => {
     if (activeAsset.price <= 0 || inputNumeric <= 0) return { gross: 0, fee: 0, net: 0 };
     const gross = Math.round(inputNumeric * activeAsset.price);
-    const fee = Math.max(1, Math.round(gross * 0.02));
+    const feeRate = isThinkingButt ? 0.01 : 0.02; // -50% de comisión con Pensador Descarado
+    const fee = Math.max(1, Math.round(gross * feeRate));
     const net = Math.max(0, gross - fee);
     return { gross, fee, net };
-  }, [inputNumeric, activeAsset.price]);
+  }, [inputNumeric, activeAsset.price, isThinkingButt]);
 
   // Ejecución de la orden de compra o venta
   const handleExecuteTrade = async (e: React.FormEvent) => {
@@ -1187,7 +1192,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                     <span className="font-mono text-neutral-900 dark:text-white font-medium">{estimatedCoins.gross} monedas</span>
                   </div>
                   <div className="flex items-center justify-between text-neutral-500 text-[11px]">
-                    <span>Comisión para tesorería (2%):</span>
+                    <span>Comisión de tesorería {isThinkingButt ? '(1% · Pensador -50%)' : '(2%)'}:</span>
                     <span className="font-mono">-{estimatedCoins.fee} monedas</span>
                   </div>
                   <div className="flex items-center justify-between pt-1 border-t border-neutral-200 dark:border-neutral-700/60 font-medium text-neutral-900 dark:text-white">

@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { sound } from '@/lib/audio';
+import { getPetById } from '@/lib/pets';
 
 interface LeaderboardModalProps {
   isOpen: boolean;
@@ -310,9 +311,23 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         </span>
                       </div>
 
-                      <span className="text-xs font-semibold text-foreground font-mono truncate w-full">
-                        @{top3[1].username}
-                      </span>
+                      <div className="flex items-center justify-center gap-1 w-full">
+                        <span className="text-xs font-semibold text-foreground font-mono truncate">
+                          @{top3[1].username}
+                        </span>
+                        {(() => {
+                          const pet = getPetById(top3[1].mascota_equipada);
+                          if (!pet) return null;
+                          return (
+                            <img
+                              src={pet.image}
+                              alt={pet.name}
+                              title={`Mascota: ${pet.name}`}
+                              className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                            />
+                          );
+                        })()}
+                      </div>
                       {top3[1].full_name && (
                         <span className="text-[10px] text-foreground-subtle truncate w-full">
                           {top3[1].full_name}
@@ -358,9 +373,23 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         </span>
                       </div>
 
-                      <span className="text-xs font-bold text-foreground font-mono truncate w-full">
-                        @{top3[0].username}
-                      </span>
+                      <div className="flex items-center justify-center gap-1 w-full">
+                        <span className="text-xs font-bold text-foreground font-mono truncate">
+                          @{top3[0].username}
+                        </span>
+                        {(() => {
+                          const pet = getPetById(top3[0].mascota_equipada);
+                          if (!pet) return null;
+                          return (
+                            <img
+                              src={pet.image}
+                              alt={pet.name}
+                              title={`Mascota: ${pet.name}`}
+                              className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                            />
+                          );
+                        })()}
+                      </div>
                       {top3[0].full_name && (
                         <span className="text-[10px] text-foreground-subtle truncate w-full">
                           {top3[0].full_name}
@@ -406,9 +435,23 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         </span>
                       </div>
 
-                      <span className="text-xs font-semibold text-foreground font-mono truncate w-full">
-                        @{top3[2].username}
-                      </span>
+                      <div className="flex items-center justify-center gap-1 w-full">
+                        <span className="text-xs font-semibold text-foreground font-mono truncate">
+                          @{top3[2].username}
+                        </span>
+                        {(() => {
+                          const pet = getPetById(top3[2].mascota_equipada);
+                          if (!pet) return null;
+                          return (
+                            <img
+                              src={pet.image}
+                              alt={pet.name}
+                              title={`Mascota: ${pet.name}`}
+                              className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                            />
+                          );
+                        })()}
+                      </div>
                       {top3[2].full_name && (
                         <span className="text-[10px] text-foreground-subtle truncate w-full">
                           {top3[2].full_name}
@@ -473,6 +516,19 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             <span className="text-xs font-semibold text-foreground font-mono truncate">
                               @{item.username}
                             </span>
+
+                            {(() => {
+                              const pet = getPetById(item.mascota_equipada);
+                              if (!pet) return null;
+                              return (
+                                <img
+                                  src={pet.image}
+                                  alt={pet.name}
+                                  title={`Mascota: ${pet.name}`}
+                                  className="w-4 h-4 rounded-full object-cover shrink-0"
+                                />
+                              );
+                            })()}
 
                             {onlineUsernamesSet.has(item.username.toLowerCase()) && (
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="En línea" />

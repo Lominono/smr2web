@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.5.1';
+let CURRENT_APP_VERSION = '1.6.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,20 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.6.0',
+    title: 'SMR2 v1.6.0 · Tienda de Mascotas Exclusivas, Desbloqueo de 28B y Habilidades Pasivas',
+    badge: 'ACTUALIZACIÓN',
+    date: 'Martes, 10 de Noviembre, 2026',
+    description:
+      'Llega la Tienda de Mascotas Oficial con compañeros coleccionables de precios exclusivos acordes a la economía del aula. Desbloqueo total del guardado de saldos multimillonarios (>28B) y habilidades pasivas reales en Botellón, Bolsa y dropeo de monedas.',
+    changes: [
+      'Tienda de Mascotas Exclusivas: Adopta y equipa a 5 compañeros únicos: Spongegar Primitivo (50M), Pensador Descarado (500M), Kirby Fachero (2.5B), Link del Alijo (10B) y Toy Chica "Let\'s Party!" (25B).',
+      'Presencia en Perfil y Feed: Tu mascota equipada aparece con orgullo junto a tu nombre de usuario en publicaciones del Feed, respuestas, carnet de estudiante, podio y clasificación.',
+      'Habilidades Pasivas Reales: Spongegar encuentra fajos de monedas en la plaza y potencia el trago; Pensador reduce 50% las comisiones de la Bolsa; Kirby alarga Fiesta Loca y bonus de bote; Link te defiende con escudo hyliano contra redadas policiales; y Toy Chica otorga halo cosmético animado y aguinaldos millonarios sorpresa.',
+      'Desbloqueo de Sincronización >28.000.000.000: Se corrigen las restricciones heredadas en la API de balance, permitiendo que los líderes de la clasificación guarden y avancen sus miles de millones sin resetearse al reiniciar la página.',
+    ],
+  },
   {
     version: '1.5.1',
     title: 'SMR2 v1.5.1 · Bóveda Blindada Proporcional, Zona de Mecenazgo y Sistema de Riesgo Dinámico',

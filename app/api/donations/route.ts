@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { logEvent } from '@/lib/logger';
 import { isUUID } from '@/lib/uuid';
+import { verifyUserSession } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,21 +119,25 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { userId, username, amount } = body;
+    const session = await verifyUserSession();
+    if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
+      return NextResponse.json(
+        { success: false, error: 'Debes iniciar sesión para realizar donaciones.' },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
+    const username = session.user.username;
+
+    const body = await req.json().catch(() => ({}));
+    const { amount } = body;
 
     const parsedAmount = Math.floor(Number(amount));
     if (!parsedAmount || parsedAmount < 1000) {
       return NextResponse.json(
         { success: false, error: 'La donación mínima es de 1.000 monedas.' },
         { status: 400 }
-      );
-    }
-
-    if (!userId || !username) {
-      return NextResponse.json(
-        { success: false, error: 'Usuario no identificado.' },
-        { status: 401 }
       );
     }
 

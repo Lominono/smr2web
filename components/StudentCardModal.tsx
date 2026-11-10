@@ -32,6 +32,7 @@ import {
   DayKey,
 } from '@/lib/scheduleData';
 import { saveStudentIdentification } from '@/lib/authService';
+import { getPetById } from '@/lib/pets';
 
 interface StudentCardModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ interface StudentCardModalProps {
   onUpdateUser?: (updated: UserProfile) => void;
   onTipUser?: (username: string, amount: number) => void;
   onChallengeUser?: (targetUsername: string) => void;
+  onOpenPetShop?: () => void;
 }
 
 export const StudentCardModal: React.FC<StudentCardModalProps> = ({
@@ -51,6 +53,7 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
   onUpdateUser,
   onTipUser,
   onChallengeUser,
+  onOpenPetShop,
 }) => {
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -415,6 +418,72 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Mascota Oficial Acompañante */}
+            {(() => {
+              const equippedPet = getPetById(displayUser.mascota_equipada);
+              if (equippedPet) {
+                return (
+                  <div className="pt-3 border-t border-neutral-800/80 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-black/60 border border-neutral-700/60 p-1 flex items-center justify-center shrink-0">
+                        <img
+                          src={equippedPet.image}
+                          alt={equippedPet.name}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-white truncate">{equippedPet.name}</span>
+                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-400/10 text-amber-300 border border-amber-400/20">
+                            {equippedPet.perkName}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-neutral-400 truncate">
+                          {equippedPet.perkDescription}
+                        </p>
+                      </div>
+                    </div>
+
+                    {!isViewingOther && onOpenPetShop && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sound.tap();
+                          onClose();
+                          onOpenPetShop();
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-[10px] font-mono text-neutral-200 transition-colors shrink-0 cursor-pointer"
+                      >
+                        Cambiar
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
+              if (!isViewingOther && onOpenPetShop) {
+                return (
+                  <div className="pt-3 border-t border-neutral-800/80 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-neutral-400">¿Sin mascota equipada?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.tap();
+                        onClose();
+                        onOpenPetShop();
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/30 text-amber-300 hover:bg-amber-400/20 text-[10px] font-mono transition-colors cursor-pointer"
+                    >
+                      🐾 Adoptar en Tienda
+                    </button>
+                  </div>
+                );
+              }
+
+              return null;
+            })()}
           </div>
 
           {/* ============================================================== */}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { isUUID } from '@/lib/uuid';
+import { verifyUserSession } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,15 +23,15 @@ function calculatePrestigeMultiplier(count: number): number {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const userId = body.userId;
-
-    if (!userId || !isUUID(userId)) {
+    const session = await verifyUserSession();
+    if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
       return NextResponse.json(
-        { success: false, error: 'Identificador de usuario inválido.' },
-        { status: 400 }
+        { success: false, error: 'Debes iniciar sesión para realizar un renacimiento.' },
+        { status: 401 }
       );
     }
+
+    const userId = session.user.id;
 
     if (!isServerSupabaseConfigured()) {
       return NextResponse.json(
@@ -66,15 +67,15 @@ export async function POST(req: NextRequest) {
       : {};
 
     const currentPrestige = Number(currentFarm.afterPrestigeCount || currentFarm.rebirths || 0);
-    const targetPrestige = Number(body.targetPrestige || 0);
-    const newPrestigeCount = targetPrestige > currentPrestige ? targetPrestige : currentPrestige + 1;
+    // Cada renacimiento avanza estrictamente de 1 en 1 para evitar manipulaciones
+    const newPrestigeCount = currentPrestige + 1;
     const now = Date.now();
     // Capital de siembra en fichas para arrancar produciendo inmediatamente tras renacer
-    const startingSeedFichas = Math.max(2500, newPrestigeCount * 5000);
+    const startingSeedFichas = Math.min(250000, Math.max(2500, newPrestigeCount * 5000));
 
-    // Bonus de fichas acumuladas convertido a monedas reales (20% del bote acumulado)
-    const pendingVault = Number(currentFarm.pendingVault || body.pendingVault || 0);
-    const bonusCoins = Math.max(0, Math.floor(pendingVault / 5));
+    // Bonus de fichas acumuladas calculado autoritativamente en servidor (máximo 50.000 monedas por renacimiento)
+    const rawPendingVault = Number(currentFarm.pendingVault || 0);
+    const bonusCoins = Math.min(50000, Math.max(0, Math.floor(rawPendingVault / 5)));
     const newCoins = Math.max(0, Number(profile.coins || 0) + bonusCoins);
 
     // Estado reseteado para el nuevo renacimiento con multiplicador y capital inicial garantizados

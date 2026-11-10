@@ -2,11 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { UserProfile } from '@/lib/types';
 import { signAdminToken, signUserSessionToken, COOKIE_SESSION_TOKEN } from '@/lib/adminAuth';
+import { extractClientMeta } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
+interface LoginRateLimit {
+  attempts: number;
+  lockedUntil: number;
+}
+const loginRateLimitMap = new Map<string, LoginRateLimit>();
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutos
+
 export async function POST(req: NextRequest) {
   try {
+    const { ip } = extractClientMeta(req);
+    const now = Date.now();
+
+    // Comprobación de bloqueo por fuerza bruta para la IP
+    const ipRate = loginRateLimitMap.get(ip);
+    if (ipRate && ipRate.lockedUntil > now) {
+      const waitMin = Math.ceil((ipRate.lockedUntil - now) / 60000);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Demasiados intentos fallidos. Por seguridad, el acceso está bloqueado temporalmente durante ${waitMin} minuto(s).`,
+        },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const rawIdentifier = String(body.identifier || '').trim();
     const password = String(body.password || '');
@@ -101,12 +126,23 @@ export async function POST(req: NextRequest) {
     }
 
     if (signInError || !signInData?.user) {
+      const currentAttempts = (ipRate?.attempts || 0) + 1;
+      const isLocked = currentAttempts >= MAX_LOGIN_ATTEMPTS;
+      loginRateLimitMap.set(ip, {
+        attempts: isLocked ? 0 : currentAttempts,
+        lockedUntil: isLocked ? now + LOGIN_LOCKOUT_MS : 0,
+      });
+
       if (
         signInError?.message.includes('Invalid login credentials') ||
         signInError?.message.includes('invalid_grant')
       ) {
+        const remaining = Math.max(0, MAX_LOGIN_ATTEMPTS - currentAttempts);
+        const msg = isLocked
+          ? 'Has superado el límite de intentos permitidos. Tu acceso ha sido bloqueado temporalmente durante 15 minutos.'
+          : `Correo o contraseña incorrectos. Te quedan ${remaining} intento(s) antes del bloqueo de seguridad.`;
         return NextResponse.json(
-          { success: false, error: 'Correo o contraseña incorrectos. Por favor, compruébalos e inténtalo de nuevo.' },
+          { success: false, error: msg },
           { status: 401 }
         );
       }
@@ -115,6 +151,9 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Éxito: limpiar contador de intentos fallidos
+    loginRateLimitMap.delete(ip);
 
     const userId = signInData.user.id;
 

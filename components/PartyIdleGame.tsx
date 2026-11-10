@@ -57,6 +57,7 @@ export interface PartyIdleGameProps {
   userCoins: number;
   userId?: string;
   username?: string;
+  mascotaEquipada?: string;
   onUpdateCoins: (delta: number) => void;
   onNavigateGame?: (game: string) => void;
   onRequireAuth?: () => void;
@@ -528,6 +529,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   userCoins,
   userId,
   username,
+  mascotaEquipada,
   onUpdateCoins,
   onNavigateGame,
   onRequireAuth,
@@ -741,10 +743,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const effectiveRatePerSecond = useMemo(() => {
     const frenzyMult = isCrazyParty ? 3 : 1;
     const stashMult = guardActiveUntilMs > Date.now() ? 1.20 : 1.0;
-    const suppliesRate = baseRatePerSecond * prestigeMultiplier * frenzyMult * underdogMultiplier * stashMult;
-    const prestigeBaseRate = permanentPrestigeRate * frenzyMult * stashMult;
+    const petProdMult = mascotaEquipada === 'toy_chica' ? 1.20 : 1.0; // +20% producción pasiva con Toy Chica
+    const suppliesRate = baseRatePerSecond * prestigeMultiplier * frenzyMult * underdogMultiplier * stashMult * petProdMult;
+    const prestigeBaseRate = permanentPrestigeRate * frenzyMult * stashMult * petProdMult;
     return suppliesRate + prestigeBaseRate;
-  }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, underdogMultiplier, permanentPrestigeRate, guardActiveUntilMs]);
+  }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, underdogMultiplier, permanentPrestigeRate, guardActiveUntilMs, mascotaEquipada]);
 
   // Referencia actualizada del estado completo para evitar pérdida de propiedades al guardar
   const stateRef = useRef<BotellonState>({
@@ -842,13 +845,19 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             const vaultAtRisk = stateToApply.pendingVault || 0;
             if (vaultAtRisk > 500) {
               const raidPct = Math.min(0.40, 0.15 + Math.floor(hoursUnguarded) * 0.05);
-              const confiscatedFichas = Math.floor(vaultAtRisk * raidPct);
+              let confiscatedFichas = Math.floor(vaultAtRisk * raidPct);
+              if (mascotaEquipada === 'link') {
+                confiscatedFichas = Math.floor(confiscatedFichas * 0.4); // Escudo Hyliano: -60% pérdidas
+              }
               stateToApply.pendingVault = Math.max(50, vaultAtRisk - confiscatedFichas);
 
               let confiscatedCoins = 0;
               if (userCoins >= 100000) {
                 const fineRate = userCoins >= 50000000 ? 0.03 : userCoins >= 10000000 ? 0.02 : 0.01;
                 confiscatedCoins = Math.floor(userCoins * fineRate);
+                if (mascotaEquipada === 'link') {
+                  confiscatedCoins = Math.floor(confiscatedCoins * 0.4); // Escudo Hyliano: -60% multas
+                }
                 if (confiscatedCoins > 0 && allowOfflineReport) {
                   onUpdateCoins(-confiscatedCoins);
                 }
@@ -1166,6 +1175,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       clickPower += 15;
     }
 
+    if (mascotaEquipada === 'spongegar') {
+      clickPower = Math.round(clickPower * 1.05); // +5% de fichas con Spongegar Primitivo
+    }
+
     // Enchufe en barra perk: 12% probabilidad de Jackpot sorpresa
     let hasJackpotBonus = false;
     if (hasPerk('enchufe_barra') && Math.random() < 0.12) {
@@ -1196,7 +1209,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     setPartyComboCount((prev) => {
       const next = prev + 1;
       if (next >= 10 && !isCrazyParty) {
-        const crazyDuration = hasPerk('bafles_jbl') ? 25 : 15;
+        let crazyDuration = hasPerk('bafles_jbl') ? 25 : 15;
+        if (mascotaEquipada === 'kirby') {
+          crazyDuration = Math.round(crazyDuration * 1.35); // +35% de duración con Kirby Fachero
+        }
         setIsCrazyParty(true);
         setCrazyPartyTimeRemaining(crazyDuration);
         sound.toastClink();
@@ -1378,7 +1394,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
   // Acción: Blindar el alijo (servicio de seguridad privada de 8h con coste proporcional severo)
   const handleGuardStash = (mode: 'fichas' | 'coins' = 'coins') => {
-    const { costCoins, costFichas } = getVaultGuardCost(userCoins, pendingVault);
+    let { costCoins, costFichas } = getVaultGuardCost(userCoins, pendingVault);
+    if (mascotaEquipada === 'link') {
+      costCoins = Math.max(1, Math.floor(costCoins * 0.5)); // Escudo Hyliano: -50% de coste
+      costFichas = Math.max(1, Math.floor(costFichas * 0.5));
+    }
 
     if (mode === 'fichas') {
       if (pendingVault < costFichas) {
@@ -1521,7 +1541,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
     const safeVault = Math.max(0, isNaN(pendingVault) || !isFinite(pendingVault) ? 0 : pendingVault);
     const rawFichas = Math.floor(safeVault);
-    const coinsToClaim = Math.floor(rawFichas / 5);
+    let coinsToClaim = Math.floor(rawFichas / 5);
+    if (mascotaEquipada === 'kirby') {
+      coinsToClaim = Math.floor(coinsToClaim * 1.12); // +12% bonus permanente al recaudar con Kirby
+    }
     if (coinsToClaim <= 0) {
       alert('Necesitas acumular al menos 5 fichas de botellón para canjear 1 moneda real.');
       return;
@@ -2888,6 +2911,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           userCoins={userCoins}
           userId={userId}
           username={username}
+          mascotaEquipada={mascotaEquipada}
           onUpdateCoins={onUpdateCoins}
           onRequireAuth={onRequireAuth}
         />

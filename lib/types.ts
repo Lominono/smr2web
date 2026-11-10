@@ -26,6 +26,8 @@ export interface UserProfile {
   titulo_personalizado?: string;
   frase?: string;
   onboarding_completado?: boolean;
+  mascota_equipada?: string;
+  mascotas_desbloqueadas?: string[];
 }
 
 export interface OnlineUser {
@@ -44,6 +46,7 @@ export interface OnlineUser {
   online_at: string;
   last_ping: number;
   is_current_user?: boolean;
+  mascota_equipada?: string;
 }
 
 export interface ChatMessage {
@@ -62,6 +65,7 @@ export interface ChatMessage {
   tag?: string;
   reply_to_username?: string;
   pinned?: boolean;
+  mascota_equipada?: string;
 }
 
 export interface ChatComment {
@@ -71,6 +75,7 @@ export interface ChatComment {
   username: string;
   text: string;
   created_at: string;
+  mascota_equipada?: string;
 }
 
 export interface Announcement {
@@ -94,6 +99,7 @@ export interface LeaderboardEntry {
   avatar_color?: string;
   role?: string;
   is_current_user?: boolean;
+  mascota_equipada?: string;
 }
 
 export interface CrashHistoryItem {
