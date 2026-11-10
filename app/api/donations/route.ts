@@ -5,40 +5,26 @@ import { isUUID } from '@/lib/uuid';
 import { verifyUserSession } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export interface DonorEntry {
   userId: string;
   username: string;
   totalDonated: number;
   lastDonationDate: string;
-  badge: 'magnate' | 'padrino' | 'mecenas' | 'colaborador';
+  badge: 'gran_mecenas' | 'padrino' | 'protector' | 'colaborador';
 }
 
-function getBadge(total: number): 'magnate' | 'padrino' | 'mecenas' | 'colaborador' {
-  if (total >= 10000000) return 'magnate';
-  if (total >= 1000000) return 'padrino';
-  if (total >= 100000) return 'mecenas';
+function getDonationBadge(total: number): 'gran_mecenas' | 'padrino' | 'protector' | 'colaborador' {
+  if (total >= 1_000_000_000) return 'gran_mecenas'; // ≥ 1 Mil Millón (1B)
+  if (total >= 100_000_000) return 'padrino';       // ≥ 100 Millones (100M)
+  if (total >= 10_000_000) return 'protector';      // ≥ 10 Millones (10M)
   return 'colaborador';
 }
 
-// Respaldo en memoria por si Supabase está offline o para desarrollo local
-let inMemoryPoolTotal = 150000; // Fondo inicial
-const inMemoryDonors: Record<string, DonorEntry> = {
-  'demo-magnate': {
-    userId: 'demo-magnate',
-    username: 'El_Patrón_SMR',
-    totalDonated: 50000000,
-    lastDonationDate: new Date().toISOString(),
-    badge: 'magnate',
-  },
-  'demo-padrino': {
-    userId: 'demo-padrino',
-    username: 'Anonimo_Generoso',
-    totalDonated: 5000000,
-    lastDonationDate: new Date().toISOString(),
-    badge: 'padrino',
-  },
-};
+// Memoria volátil exclusivamente para entornos sin base de datos configurada (desarrollo puro offline)
+let inMemoryPoolTotal = 0;
+const inMemoryDonors: Record<string, DonorEntry> = {};
 
 export async function GET() {
   try {
@@ -47,7 +33,7 @@ export async function GET() {
       return NextResponse.json({
         success: true,
         poolTotal: inMemoryPoolTotal,
-        donors: sorted.slice(0, 15),
+        donors: sorted.slice(0, 20),
       });
     }
 
@@ -57,11 +43,11 @@ export async function GET() {
       return NextResponse.json({
         success: true,
         poolTotal: inMemoryPoolTotal,
-        donors: sorted.slice(0, 15),
+        donors: sorted.slice(0, 20),
       });
     }
 
-    // Consultar perfiles que hayan donado
+    // Consultar exclusivamente perfiles reales con donaciones registradas
     const { data: profiles, error } = await adminClient
       .from('profiles')
       .select('id, username, party_farm_data')
@@ -72,11 +58,11 @@ export async function GET() {
       return NextResponse.json({
         success: true,
         poolTotal: inMemoryPoolTotal,
-        donors: sorted.slice(0, 15),
+        donors: sorted.slice(0, 20),
       });
     }
 
-    let totalPool = 150000;
+    let totalPool = 0;
     const donorsList: DonorEntry[] = [];
 
     for (const p of profiles) {
@@ -89,16 +75,8 @@ export async function GET() {
           username: p.username || 'Estudiante SMR',
           totalDonated: donated,
           lastDonationDate: farmData?.lastDonationDate || farmData?.last_donation_date || new Date().toISOString(),
-          badge: getBadge(donated),
+          badge: getDonationBadge(donated),
         });
-      }
-    }
-
-    // Mezclar con memoria si aplica
-    for (const d of Object.values(inMemoryDonors)) {
-      if (!donorsList.some((item) => item.username === d.username)) {
-        donorsList.push(d);
-        totalPool += d.totalDonated;
       }
     }
 
@@ -107,7 +85,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       poolTotal: totalPool,
-      donors: donorsList.slice(0, 20),
+      donors: donorsList.slice(0, 30),
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -122,7 +100,7 @@ export async function POST(req: NextRequest) {
     const session = await verifyUserSession();
     if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
       return NextResponse.json(
-        { success: false, error: 'Debes iniciar sesión para realizar donaciones.' },
+        { success: false, error: 'Debes iniciar sesión para realizar una donación.' },
         { status: 401 }
       );
     }
@@ -134,7 +112,7 @@ export async function POST(req: NextRequest) {
     const { amount } = body;
 
     const parsedAmount = Math.floor(Number(amount));
-    if (!parsedAmount || parsedAmount < 1000) {
+    if (!parsedAmount || isNaN(parsedAmount) || parsedAmount < 1000) {
       return NextResponse.json(
         { success: false, error: 'La donación mínima es de 1.000 monedas.' },
         { status: 400 }
@@ -145,7 +123,7 @@ export async function POST(req: NextRequest) {
     if (isServerSupabaseConfigured() && isUUID(userId)) {
       const adminClient = createAdminClient();
       if (adminClient) {
-        // Verificar saldo real del usuario
+        // Verificar saldo real del usuario en la base de datos
         const { data: userProfile, error: fetchErr } = await adminClient
           .from('profiles')
           .select('id, coins, party_farm_data')
@@ -188,46 +166,68 @@ export async function POST(req: NextRequest) {
 
         if (updateErr) {
           return NextResponse.json(
-            { success: false, error: 'Error al procesar la donación en base de datos.' },
+            { success: false, error: 'Error al procesar la donación en base de datos: ' + updateErr.message },
             { status: 500 }
           );
         }
 
-        // Registrar en logs
-        await logEvent({
-          eventType: 'donation' as any,
-          userId,
-          username,
-          details: {
-            amount: parsedAmount,
-            previousCoins: currentCoins,
-            newCoins: nextCoins,
-            totalDonatedSoFar: nextDonated,
-          },
-          req,
-        });
+        // Registrar en transacciones
+        try {
+          await adminClient.from('balance_transactions').insert([
+            {
+              user_id: userId,
+              amount: -parsedAmount,
+              balance_before: currentCoins,
+              balance_after: nextCoins,
+              type: 'donation',
+              description: `Donación al Fondo de Mecenazgo de Clase (${parsedAmount.toLocaleString()} 🪙)`,
+            },
+          ]);
+        } catch {}
 
-        // Actualizar memoria
-        inMemoryPoolTotal += parsedAmount;
-        inMemoryDonors[userId] = {
-          userId,
-          username,
-          totalDonated: nextDonated,
-          lastDonationDate: new Date().toISOString(),
-          badge: getBadge(nextDonated),
-        };
+        // Registrar en auditoría
+        try {
+          await logEvent({
+            eventType: 'donation' as any,
+            userId,
+            username,
+            details: {
+              amount: parsedAmount,
+              previousCoins: currentCoins,
+              newCoins: nextCoins,
+              totalDonatedSoFar: nextDonated,
+            },
+            req,
+          });
+        } catch {}
+
+        // Recalcular total real del bote consultando a todos los donantes
+        let totalPool = nextDonated;
+        try {
+          const { data: allProfiles } = await adminClient
+            .from('profiles')
+            .select('id, party_farm_data')
+            .not('party_farm_data', 'is', null);
+
+          if (allProfiles) {
+            totalPool = allProfiles.reduce((acc, p: any) => {
+              const d = Number(p.party_farm_data?.totalDonated || p.party_farm_data?.total_donated || 0);
+              return acc + (d > 0 ? d : 0);
+            }, 0);
+          }
+        } catch {}
 
         return NextResponse.json({
           success: true,
-          poolTotal: inMemoryPoolTotal,
+          poolTotal: totalPool,
           newCoins: nextCoins,
           totalDonated: nextDonated,
-          badge: getBadge(nextDonated),
+          badge: getDonationBadge(nextDonated),
         });
       }
     }
 
-    // Modo fallback en memoria
+    // Modo fallback en memoria para entornos locales sin backend
     inMemoryPoolTotal += parsedAmount;
     const prev = inMemoryDonors[userId]?.totalDonated || 0;
     const nextTotal = prev + parsedAmount;
@@ -236,19 +236,19 @@ export async function POST(req: NextRequest) {
       username,
       totalDonated: nextTotal,
       lastDonationDate: new Date().toISOString(),
-      badge: getBadge(nextTotal),
+      badge: getDonationBadge(nextTotal),
     };
 
     return NextResponse.json({
       success: true,
       poolTotal: inMemoryPoolTotal,
-      newCoins: 1000,
+      newCoins: Math.max(0, 1000 - parsedAmount),
       totalDonated: nextTotal,
-      badge: getBadge(nextTotal),
+      badge: getDonationBadge(nextTotal),
     });
   } catch (err: any) {
     return NextResponse.json(
-      { success: false, error: err.message || 'Error al procesar donación' },
+      { success: false, error: err.message || 'Error al procesar la donación' },
       { status: 500 }
     );
   }

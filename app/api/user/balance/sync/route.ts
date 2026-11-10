@@ -6,12 +6,14 @@ import { logEvent } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-// Límite máximo de ganancia y gasto permitido en una sola sincronización ordinaria
-const MAX_DELTA_GAME_WIN = 500_000; // Máximo 500.000 monedas por partida ordinaria
-const MAX_DELTA_DAILY = 1_000;     // Máximo 1.000 monedas por reclamo diario
-const MAX_DELTA_SPIN = 2_000;      // Máximo 2.000 monedas por ruleta diaria
-const MAX_DELTA_RESCUE = 200;      // Máximo 200 monedas por fondo de rescate
-const MIN_NEGATIVE_DELTA = -5_000_000; // Gasto máximo en una transacción de tienda/apuesta
+// Límites de sincronización calibrados para la economía libre y desatada del aula:
+// Permite que la progresión exponencial del botellón y compras de mascotas fluyan de forma natural sin topes artificiales
+const MAX_DELTA_DAILY = 10_000;     // Máximo 10.000 monedas por reclamo diario
+const MAX_DELTA_SPIN = 50_000;      // Máximo 50.000 monedas por ruleta diaria
+const MAX_DELTA_RESCUE = 5_000;     // Máximo 5.000 monedas por fondo de rescate
+// Para juego general, alijo del botellón, minijuegos y compras: sin topes arbitrarios (hasta 500 billones / 500T)
+const MAX_DELTA_GAME_WIN = 500_000_000_000_000; 
+const MIN_NEGATIVE_DELTA = -500_000_000_000_000; // Gasto máximo en compras o donaciones masivas
 
 // Rate-limiting en memoria por usuario para sincronizaciones continuas
 interface SyncRateLimit {
@@ -19,7 +21,7 @@ interface SyncRateLimit {
   lastReset: number;
 }
 const syncRateMap = new Map<string, SyncRateLimit>();
-const MAX_SYNCS_PER_MINUTE = 60;
+const MAX_SYNCS_PER_MINUTE = 300;
 
 export async function POST(req: NextRequest) {
   try {

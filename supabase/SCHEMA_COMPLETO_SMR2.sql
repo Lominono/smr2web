@@ -469,7 +469,7 @@ BEGIN
     EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', pol.policyname, pol.tablename);
   END LOOP;
 END $$;
-
+-- sistema todo dañado macatrafa mrd. no tocar que si no todo se daña asi que chili, no se yo ni como funciona.
 -- Políticas de Profiles (SELECT público, INSERT de registro, UPDATE de perfil)
 CREATE POLICY "profiles_select_policy" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "profiles_insert_policy" ON public.profiles FOR INSERT WITH CHECK (true);
@@ -513,6 +513,7 @@ GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 
 -- --------------------------------------------------------------
 -- 8. REPLICACIÓN EN TIEMPO REAL (SUPABASE REALTIME)
+--preferiblemente esto que lo haga la IA que yo no supe como solucionarlo.
 -- --------------------------------------------------------------
 DO $$
 DECLARE

@@ -1456,6 +1456,51 @@ export default function Home() {
     } catch {}
   };
 
+  const handleSetCoins = (newCoins: number) => {
+    if (!user) return;
+    const safeCoins = Math.max(0, Math.round(newCoins));
+    setUser((prev) =>
+      prev
+        ? {
+            ...prev,
+            coins: safeCoins,
+          }
+        : null
+    );
+    updateSessionCoins(safeCoins);
+    setLeaderboard((prev) => {
+      const idx = prev.findIndex(
+        (entry) =>
+          entry.id === user.id ||
+          entry.username.toLowerCase() === user.username.toLowerCase()
+      );
+      let updated: LeaderboardEntry[];
+      if (idx !== -1) {
+        updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          coins: safeCoins,
+          is_current_user: true,
+        };
+      } else {
+        updated = [
+          ...prev,
+          {
+            id: user.id,
+            username: user.username,
+            full_name: user.full_name,
+            coins: safeCoins,
+            biggest_win: user.biggest_win,
+            streak_count: user.streak_count || 1,
+            role: user.role,
+            is_current_user: true,
+          },
+        ];
+      }
+      return updated.sort((a, b) => (b.coins ?? 0) - (a.coins ?? 0));
+    });
+  };
+
   const handleClaimCoins = async (
     amount: number,
     newStreak?: number,
@@ -2354,6 +2399,7 @@ export default function Home() {
                   username={user?.username}
                   mascotaEquipada={user?.mascota_equipada}
                   onUpdateCoins={handleUpdateCoins}
+                  onSetCoins={handleSetCoins}
                   onNavigateGame={(g) => setActiveView(g as ViewMode)}
                   onRequireAuth={() => setIsAuthOpen(true)}
                   onBroadcastWin={handleBroadcastWin}

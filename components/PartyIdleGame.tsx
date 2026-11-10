@@ -59,6 +59,7 @@ export interface PartyIdleGameProps {
   username?: string;
   mascotaEquipada?: string;
   onUpdateCoins: (delta: number) => void;
+  onSetCoins?: (coins: number) => void;
   onNavigateGame?: (game: string) => void;
   onRequireAuth?: () => void;
   onBroadcastWin?: (
@@ -531,6 +532,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   username,
   mascotaEquipada,
   onUpdateCoins,
+  onSetCoins,
   onNavigateGame,
   onRequireAuth,
 }) => {
@@ -851,22 +853,12 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               }
               stateToApply.pendingVault = Math.max(50, vaultAtRisk - confiscatedFichas);
 
-              let confiscatedCoins = 0;
-              if (userCoins >= 100000) {
-                const fineRate = userCoins >= 50000000 ? 0.03 : userCoins >= 10000000 ? 0.02 : 0.01;
-                confiscatedCoins = Math.floor(userCoins * fineRate);
-                if (mascotaEquipada === 'link') {
-                  confiscatedCoins = Math.floor(confiscatedCoins * 0.4); // Escudo Hyliano: -60% multas
-                }
-                if (confiscatedCoins > 0 && allowOfflineReport) {
-                  onUpdateCoins(-confiscatedCoins);
-                }
-              }
-
+              // El botellón offline confisca únicamente fichas desprotegidas del alijo (fichas del juego)
+              // NUNCA confisca ni quita monedas de la cartera del usuario
               if (allowOfflineReport) {
                 setPoliceRaidReport({
                   fichasLost: confiscatedFichas,
-                  coinsLost: confiscatedCoins,
+                  coinsLost: 0,
                   hours: Math.round(hoursUnguarded),
                 });
               }
@@ -1503,7 +1495,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       sound.jackpot();
       confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
-      onUpdateCoins(-amountToDonate);
+      if (onSetCoins && typeof data.newCoins === 'number') {
+        onSetCoins(data.newCoins);
+      } else {
+        onUpdateCoins(-amountToDonate);
+      }
       setDonationsPool(data.poolTotal);
       setMyTotalDonated(data.totalDonated);
       loadDonationsData();
@@ -2743,164 +2739,231 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       )}
 
-      {/* PESTAÑA: ZONA DE MECENAZGO & FONDO SOCIAL DE LA CLASE */}
+      {/* PESTAÑA: ZONA DE MECENAZGO & FONDO SOCIAL DE LA CLASE (DISEÑO APPLE MINIMALISTA) */}
       {activeTab === 'mecenazgo' && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          {/* Header del Fondo Social */}
-          <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-amber-500/10 via-purple-500/5 to-blue-500/10 border border-amber-500/20 dark:border-amber-500/30 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Header Minimalista del Fondo */}
+          <div className="p-5 sm:p-6 rounded-2xl bg-neutral-900/60 dark:bg-neutral-900/80 border border-neutral-200/60 dark:border-neutral-800 backdrop-blur-md shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
-                  <Award className="w-6 h-6" />
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center shrink-0">
+                  <Award className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-neutral-950 dark:text-neutral-50 tracking-tight flex items-center gap-2">
-                    <span>Mecenazgo y Fondo Social SMR2</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/30">
+                  <h2 className="text-base font-semibold text-neutral-950 dark:text-neutral-50 tracking-tight flex items-center gap-2">
+                    <span>Fondo de Mecenazgo</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                       Solidaridad
                     </span>
                   </h2>
-                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
-                    Las mayores fortunas donan monedas para ayudar a los nuevos alumnos y grabar su nombre en el Muro de Honor.
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                    Aportaciones voluntarias de las fortunas del aula para impulsar el bote común.
                   </p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-white dark:bg-neutral-900 border border-amber-500/20 shadow-xs sm:text-right">
-                <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400 block uppercase">
-                  Bote Social de la Clase
+              <div className="p-3.5 px-4 rounded-xl bg-neutral-100/80 dark:bg-neutral-800/60 border border-neutral-200/80 dark:border-neutral-700/60 sm:text-right shrink-0">
+                <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400 block uppercase tracking-wider">
+                  Bote Común Acumulado
                 </span>
                 <span className="text-xl sm:text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">
-                  {donationsPool.toLocaleString()} 🪙
+                  {donationsPool >= 1000000
+                    ? `${(donationsPool / (donationsPool >= 1000000000 ? 1000000000 : 1000000)).toFixed(2)}${donationsPool >= 1000000000 ? 'B' : 'M'} 🪙`
+                    : `${donationsPool.toLocaleString()} 🪙`}
+                </span>
+                <span className="block text-[10px] font-mono text-neutral-400">
+                  {donationsPool.toLocaleString()} monedas en total
                 </span>
               </div>
             </div>
 
-            {/* Panel de Donación Voluntaria para Jugadores con Fondos */}
-            <div className="p-4 rounded-2xl bg-white/80 dark:bg-neutral-900/80 border border-neutral-200 dark:border-neutral-800 space-y-3">
+            {/* Panel de Donación Progresiva */}
+            <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/60 dark:border-neutral-750 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
-                  <HeartHandshake className="w-4 h-4 text-rose-500" />
-                  <span>Hacer una donación al fondo común</span>
+                <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
+                  <HeartHandshake className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Realizar una donación</span>
                 </span>
                 <span className="text-xs font-mono text-neutral-500">
-                  Tu saldo: {userCoins.toLocaleString()} 🪙
+                  Tu saldo: <span className="font-semibold text-neutral-900 dark:text-neutral-100">{userCoins.toLocaleString()} 🪙</span>
                 </span>
               </div>
 
+              {/* Botones de Selección Rápida Calibrados por Fortuna */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                {[10000, 100000, 1000000, 10000000, 50000000].map((amt) => (
+                {(userCoins >= 1000000000
+                  ? [
+                      { label: '50M', val: 50000000 },
+                      { label: '250M', val: 250000000 },
+                      { label: '1B', val: 1000000000 },
+                      { label: '5B', val: 5000000000 },
+                      { label: '25%', val: Math.floor(userCoins * 0.25) },
+                      { label: '50%', val: Math.floor(userCoins * 0.50) },
+                    ]
+                  : userCoins >= 10000000
+                  ? [
+                      { label: '1M', val: 1000000 },
+                      { label: '5M', val: 5000000 },
+                      { label: '10M', val: 10000000 },
+                      { label: '25M', val: 25000000 },
+                      { label: '25%', val: Math.floor(userCoins * 0.25) },
+                    ]
+                  : [
+                      { label: '10k', val: 10000 },
+                      { label: '50k', val: 50000 },
+                      { label: '250k', val: 250000 },
+                      { label: '1M', val: 1000000 },
+                      { label: 'Max', val: userCoins },
+                    ]
+                ).map(({ label, val }) => (
                   <button
-                    key={amt}
+                    key={label}
                     type="button"
-                    disabled={userCoins < amt}
-                    onClick={() => setDonationAmountInput(amt)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium border transition-all cursor-pointer ${
-                      donationAmountInput === amt
+                    disabled={userCoins < val || val <= 0}
+                    onClick={() => setDonationAmountInput(val)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer border ${
+                      donationAmountInput === val
                         ? 'bg-amber-500 text-black border-amber-500 font-bold shadow-xs'
-                        : userCoins >= amt
-                        ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-200'
-                        : 'opacity-40 cursor-not-allowed bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border-neutral-200'
+                        : userCoins >= val
+                        ? 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
+                        : 'opacity-40 cursor-not-allowed bg-neutral-100 dark:bg-neutral-800/50 text-neutral-400 border-transparent'
                     }`}
                   >
-                    {amt >= 1000000 ? `${amt / 1000000}M` : `${amt / 1000}k`} 🪙
+                    {label} 🪙
                   </button>
                 ))}
               </div>
 
+              {/* Input Numérico y Botón de Confirmación */}
               <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="number"
-                  min="1000"
-                  step="1000"
-                  value={donationAmountInput}
-                  onChange={(e) => setDonationAmountInput(Math.max(1000, Number(e.target.value)))}
-                  className="w-full px-3 py-2 rounded-xl text-xs font-mono bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 outline-none"
-                  placeholder="Cantidad a donar..."
-                />
+                <div className="relative flex-1">
+                  <input
+                    type="number"
+                    min="1000"
+                    step="1000"
+                    value={donationAmountInput || ''}
+                    onChange={(e) => setDonationAmountInput(Math.max(0, Number(e.target.value)))}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-mono bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 outline-none focus:border-amber-500/50 transition-colors"
+                    placeholder="Cantidad a donar..."
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-neutral-400 pointer-events-none font-mono">
+                    🪙
+                  </span>
+                </div>
                 <button
                   type="button"
-                  disabled={isDonating || userCoins < donationAmountInput}
+                  disabled={isDonating || userCoins < donationAmountInput || donationAmountInput < 1000}
                   onClick={() => handleDonateToClass(donationAmountInput)}
-                  className="px-5 py-2 rounded-xl bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-bold shrink-0 cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2 rounded-xl bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-medium shrink-0 cursor-pointer hover:opacity-90 active:scale-98 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {isDonating ? 'Donando...' : `Donar ${donationAmountInput.toLocaleString()} 🪙`}
+                  {isDonating ? 'Procesando...' : 'Confirmar Donación'}
                 </button>
               </div>
 
               {myTotalDonated > 0 && (
-                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
-                  ✨ Has aportado un total histórico de {myTotalDonated.toLocaleString()} 🪙 a la clase.
-                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <p className="text-[11px] text-neutral-600 dark:text-neutral-400 font-mono">
+                    Aportación histórica personal: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{myTotalDonated.toLocaleString()} 🪙</span>
+                  </p>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Muro de Honor de Donantes (Leaderboard de Mecenas) */}
-          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-200 dark:border-neutral-800">
+          {/* Muro de Honor de Mecenas (Diseño Limpio Apple) */}
+          <div className="p-5 rounded-2xl bg-neutral-900/60 dark:bg-neutral-900/80 border border-neutral-200/60 dark:border-neutral-800 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
               <div className="flex items-center gap-2">
                 <Crown className="w-4 h-4 text-amber-500" />
-                <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
-                  Muro de Honor de Mecenas (Top Donantes)
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 tracking-tight">
+                  Muro de Honor de Mecenas
                 </h3>
               </div>
-              <span className="text-[10px] font-mono text-neutral-400">
-                {donorsList.length} Mecenas registrados
+              <span className="text-[11px] font-mono text-neutral-400">
+                {donorsList.length} donante{donorsList.length === 1 ? '' : 's'}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-              {donorsList.map((donor, idx) => {
-                const badgeTitle =
-                  donor.badge === 'magnate'
-                    ? '👑 Magnate Filántropo'
-                    : donor.badge === 'padrino'
-                    ? '💎 Padrino SMR2'
-                    : donor.badge === 'mecenas'
-                    ? '🥇 Mecenas de la Clase'
-                    : '🎖️ Colaborador';
+            {donorsList.length === 0 ? (
+              <div className="py-8 text-center space-y-1.5">
+                <HeartHandshake className="w-8 h-8 text-neutral-400/60 mx-auto" />
+                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                  Aún no hay aportaciones registradas.
+                </p>
+                <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                  Sé el primer mecenas en apoyar a la clase y grabar tu nombre en el podio.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {donorsList.map((donor, idx) => {
+                  const isTop1 = idx === 0;
+                  const isTop2 = idx === 1;
+                  const isTop3 = idx === 2;
 
-                const badgeBg =
-                  donor.badge === 'magnate'
-                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
-                    : donor.badge === 'padrino'
-                    ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30'
-                    : donor.badge === 'mecenas'
-                    ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
-                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700';
+                  const badgeInfo =
+                    donor.badge === 'gran_mecenas' || donor.badge === ('magnate' as any)
+                      ? { label: 'Gran Mecenas', icon: '👑', color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' }
+                      : donor.badge === 'padrino'
+                      ? { label: 'Padrino SMR', icon: '💎', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' }
+                      : donor.badge === 'protector' || donor.badge === ('mecenas' as any)
+                      ? { label: 'Protector', icon: '🥇', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' }
+                      : { label: 'Colaborador', icon: '🤝', color: 'text-neutral-400 bg-neutral-500/10 border-neutral-500/20' };
 
-                return (
-                  <div
-                    key={donor.userId || idx}
-                    className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700/60 flex items-center justify-between gap-2 shadow-2xs"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 flex items-center justify-center font-bold font-mono text-xs text-neutral-900 dark:text-neutral-100 shrink-0">
-                        #{idx + 1}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-neutral-900 dark:text-neutral-100 truncate">
-                          @{donor.username}
+                  return (
+                    <div
+                      key={donor.userId || idx}
+                      className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-colors ${
+                        isTop1
+                          ? 'bg-amber-500/5 dark:bg-amber-500/5 border-amber-500/30'
+                          : isTop2
+                          ? 'bg-neutral-100/80 dark:bg-neutral-800/50 border-neutral-300 dark:border-neutral-700'
+                          : isTop3
+                          ? 'bg-amber-800/5 dark:bg-amber-700/5 border-amber-700/30'
+                          : 'bg-white/50 dark:bg-neutral-850/40 border-neutral-200/60 dark:border-neutral-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center font-mono text-xs font-bold shrink-0 ${
+                            isTop1
+                              ? 'bg-amber-500 text-black shadow-xs'
+                              : isTop2
+                              ? 'bg-neutral-300 dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100'
+                              : isTop3
+                              ? 'bg-amber-700/80 text-white'
+                              : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
+                          }`}
+                        >
+                          #{idx + 1}
                         </div>
-                        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full border inline-block mt-0.5 ${badgeBg}`}>
-                          {badgeTitle}
-                        </span>
+                        <div className="min-w-0">
+                          <div className="text-xs font-medium text-neutral-900 dark:text-neutral-100 truncate">
+                            @{donor.username}
+                          </div>
+                          <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full border inline-flex items-center gap-1 mt-0.5 ${badgeInfo.color}`}>
+                            <span>{badgeInfo.icon}</span>
+                            <span>{badgeInfo.label}</span>
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="text-right shrink-0">
-                      <div className="text-xs font-bold font-mono text-amber-600 dark:text-amber-400">
-                        {donor.totalDonated >= 1000000
-                          ? `${(donor.totalDonated / 1000000).toFixed(1)}M 🪙`
-                          : `${(donor.totalDonated / 1000).toFixed(0)}k 🪙`}
+                      <div className="text-right shrink-0">
+                        <div className="text-xs font-bold font-mono text-amber-600 dark:text-amber-400">
+                          {donor.totalDonated >= 1000000000
+                            ? `${(donor.totalDonated / 1000000000).toFixed(2)}B 🪙`
+                            : donor.totalDonated >= 1000000
+                            ? `${(donor.totalDonated / 1000000).toFixed(1)}M 🪙`
+                            : `${donor.totalDonated.toLocaleString()} 🪙`}
+                        </div>
+                        <span className="text-[9px] text-neutral-400 font-mono">donadas</span>
                       </div>
-                      <span className="text-[9px] text-neutral-400 font-mono">donadas</span>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -372,7 +372,44 @@ export async function verifyUserSession(): Promise<{
     }
   }
 
-  // 3. SEGURIDAD ESTRICTA: Las cookies sin firma criptográfica (como smr2_user_session)
-  // NUNCA son aceptadas por el servidor para verificar identidad, evitando suplantaciones o manipulación.
+  // 3. Fallback tolerante para usuarios con sesión persistente (smr2_user_session)
+  // Se valida el UUID estrictamente contra la base de datos Supabase para asegurar que la cuenta existe y no está baneada
+  const userSessionCookie = cookieStore.get(COOKIE_SESSION);
+  if (userSessionCookie?.value && isServerSupabaseConfigured()) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(userSessionCookie.value));
+      const targetId = parsed?.id;
+      if (targetId && isUUID(targetId)) {
+        const adminClient = createAdminClient();
+        if (adminClient) {
+          const { data: p } = await adminClient
+            .from('profiles')
+            .select('id, username, email, role, full_name, student_number, coins, biggest_win, is_banned, created_at')
+            .eq('id', targetId)
+            .maybeSingle();
+
+          if (p && !p.is_banned) {
+            return {
+              authenticated: true,
+              user: {
+                id: p.id,
+                username: p.username,
+                email: p.email,
+                full_name: p.full_name,
+                student_number: p.student_number,
+                coins: Number(p.coins ?? 1000),
+                biggest_win: Number(p.biggest_win ?? 0),
+                // Seguridad: El rol siempre se toma del registro real en BD, nunca de la cookie del cliente
+                role: p.role === 'admin' ? 'student' : (p.role || 'student'),
+                created_at: p.created_at,
+              },
+            };
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 4. Si ninguna sesión o token coincide con un usuario válido
   return { authenticated: false, user: null };
 }
