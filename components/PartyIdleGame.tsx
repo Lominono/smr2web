@@ -46,6 +46,8 @@ import {
   Activity,
   HeartHandshake,
   Dice5,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { BotellonInvestments } from '@/components/BotellonInvestments';
@@ -144,6 +146,9 @@ export interface ZoneConfig {
   badge: string;
   icon: string;
   policeRisk: number; // 0 a 1
+  accentColor: string;
+  lightGlow: string;
+  darkGlow: string;
 }
 
 export const ZONES: ZoneConfig[] = [
@@ -157,6 +162,9 @@ export const ZONES: ZoneConfig[] = [
     badge: 'Inicio',
     icon: 'trees',
     policeRisk: 0,
+    accentColor: '#10B981',
+    lightGlow: 'from-emerald-500/10 via-emerald-500/5 to-transparent',
+    darkGlow: 'dark:from-emerald-950/25 dark:via-emerald-950/10 dark:to-transparent',
   },
   {
     id: 'portal',
@@ -168,6 +176,9 @@ export const ZONES: ZoneConfig[] = [
     badge: 'Fase 2',
     icon: 'home',
     policeRisk: 0.06,
+    accentColor: '#F59E0B',
+    lightGlow: 'from-amber-500/10 via-amber-500/5 to-transparent',
+    darkGlow: 'dark:from-amber-950/25 dark:via-amber-950/10 dark:to-transparent',
   },
   {
     id: 'piso',
@@ -179,6 +190,9 @@ export const ZONES: ZoneConfig[] = [
     badge: 'Fase 3',
     icon: 'speaker',
     policeRisk: 0.14,
+    accentColor: '#0EA5E9',
+    lightGlow: 'from-sky-500/10 via-sky-500/5 to-transparent',
+    darkGlow: 'dark:from-sky-950/25 dark:via-sky-950/10 dark:to-transparent',
   },
   {
     id: 'callejon',
@@ -190,6 +204,9 @@ export const ZONES: ZoneConfig[] = [
     badge: 'Fase 4',
     icon: 'map-pin',
     policeRisk: 0.24,
+    accentColor: '#8B5CF6',
+    lightGlow: 'from-purple-500/10 via-purple-500/5 to-transparent',
+    darkGlow: 'dark:from-purple-950/25 dark:via-purple-950/10 dark:to-transparent',
   },
   {
     id: 'discoteca',
@@ -201,6 +218,9 @@ export const ZONES: ZoneConfig[] = [
     badge: 'Fase 5',
     icon: 'disc',
     policeRisk: 0.36,
+    accentColor: '#EC4899',
+    lightGlow: 'from-pink-500/10 via-pink-500/5 to-transparent',
+    darkGlow: 'dark:from-pink-950/25 dark:via-pink-950/10 dark:to-transparent',
   },
   {
     id: 'macrofestival',
@@ -212,6 +232,9 @@ export const ZONES: ZoneConfig[] = [
     badge: 'Fase 6',
     icon: 'tent',
     policeRisk: 0.50,
+    accentColor: '#F43F5E',
+    lightGlow: 'from-rose-500/10 via-rose-500/5 to-transparent',
+    darkGlow: 'dark:from-rose-950/25 dark:via-rose-950/10 dark:to-transparent',
   },
   {
     id: 'after_clandestino',
@@ -223,6 +246,9 @@ export const ZONES: ZoneConfig[] = [
     badge: 'Leyenda',
     icon: 'crown',
     policeRisk: 0.65,
+    accentColor: '#A855F7',
+    lightGlow: 'from-violet-500/12 via-violet-500/5 to-transparent',
+    darkGlow: 'dark:from-violet-950/30 dark:via-violet-950/10 dark:to-transparent',
   },
 ];
 
@@ -459,41 +485,42 @@ export interface SpontaneousEvent {
   resultText?: string;
 }
 
-export const renderZoneIcon = (iconName: string) => {
+export const renderZoneIcon = (iconName: string, customColor?: string) => {
+  const style = customColor ? { color: customColor } : undefined;
   switch (iconName) {
     case 'trees':
-      return <Trees className="w-5 h-5 text-emerald-400" />;
+      return <Trees className="w-5 h-5 text-emerald-600 dark:text-emerald-400" style={style} />;
     case 'home':
-      return <Home className="w-5 h-5 text-blue-400" />;
+      return <Home className="w-5 h-5 text-amber-600 dark:text-amber-400" style={style} />;
     case 'speaker':
-      return <Volume2 className="w-5 h-5 text-cyan-400" />;
+      return <Volume2 className="w-5 h-5 text-sky-600 dark:text-sky-400" style={style} />;
     case 'map-pin':
-      return <MapPin className="w-5 h-5 text-amber-400" />;
+      return <MapPin className="w-5 h-5 text-purple-600 dark:text-purple-400" style={style} />;
     case 'disc':
-      return <Disc className="w-5 h-5 text-purple-400" />;
+      return <Disc className="w-5 h-5 text-pink-600 dark:text-pink-400" style={style} />;
     case 'tent':
-      return <Tent className="w-5 h-5 text-rose-400" />;
+      return <Tent className="w-5 h-5 text-rose-600 dark:text-rose-400" style={style} />;
     case 'crown':
-      return <Crown className="w-5 h-5 text-amber-500" />;
+      return <Crown className="w-5 h-5 text-amber-600 dark:text-amber-400" style={style} />;
     default:
-      return <MapPin className="w-5 h-5 text-foreground-muted" />;
+      return <MapPin className="w-5 h-5 text-neutral-600 dark:text-neutral-400" style={style} />;
   }
 };
 
 export const renderPerkIcon = (iconName: string) => {
   switch (iconName) {
     case 'shield':
-      return <Shield className="w-5 h-5 text-blue-400" />;
+      return <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
     case 'tag':
-      return <Tag className="w-5 h-5 text-emerald-400" />;
+      return <Tag className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />;
     case 'speaker':
-      return <Volume2 className="w-5 h-5 text-amber-400" />;
+      return <Volume2 className="w-5 h-5 text-amber-600 dark:text-amber-400" />;
     case 'sparkles':
-      return <Sparkles className="w-5 h-5 text-purple-400" />;
+      return <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
     case 'ticket':
-      return <Ticket className="w-5 h-5 text-rose-400" />;
+      return <Ticket className="w-5 h-5 text-rose-600 dark:text-rose-400" />;
     default:
-      return <Zap className="w-5 h-5 text-foreground-muted" />;
+      return <Zap className="w-5 h-5 text-amber-600 dark:text-amber-400" />;
   }
 };
 
@@ -575,6 +602,47 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     quote: string;
     tierName: string;
   } | null>(null);
+
+  // Detección y alternancia reactiva de modo claro / modo oscuro
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
+  useEffect(() => {
+    const updateThemeState = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+    updateThemeState();
+    const observer = new MutationObserver(updateThemeState);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const handleToggleTheme = () => {
+    sound.tap();
+    const d = document.documentElement;
+    d.classList.add('theme-transitioning');
+    setTimeout(() => {
+      d.classList.remove('theme-transitioning');
+    }, 300);
+
+    const metaScheme = document.querySelector('meta[name="color-scheme"]');
+    if (isDarkMode) {
+      d.classList.remove('dark');
+      d.classList.add('light');
+      try {
+        localStorage.setItem('smr2_theme', 'light');
+      } catch {}
+      if (metaScheme) metaScheme.setAttribute('content', 'light');
+      setIsDarkMode(false);
+    } else {
+      d.classList.remove('light');
+      d.classList.add('dark');
+      try {
+        localStorage.setItem('smr2_theme', 'dark');
+      } catch {}
+      if (metaScheme) metaScheme.setAttribute('content', 'dark');
+      setIsDarkMode(true);
+    }
+  };
 
   // Tutorial interactivo de primera visita (3 pasos simples)
   const [showTutorial, setShowTutorial] = useState(false);
@@ -1695,11 +1763,14 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       )}
 
       {/* Banner de Zona Actual, Rango y Estado de Nube Supabase con ticker en vivo integrado */}
-      <div className="p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-2.5 transition-colors">
+      <div className={`p-4 rounded-2xl sm:rounded-3xl bg-gradient-to-r ${activeZone.lightGlow} ${activeZone.darkGlow} bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-2.5 transition-all duration-500`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700/60 flex items-center justify-center shrink-0">
-              {renderZoneIcon(activeZone.icon)}
+            <div
+              className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700/60 flex items-center justify-center shrink-0 shadow-2xs transition-colors"
+              style={{ color: activeZone.accentColor }}
+            >
+              {renderZoneIcon(activeZone.icon, activeZone.accentColor)}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -1734,7 +1805,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             </div>
           </div>
 
-          {/* Controles: Nube, Rango y Guía */}
+          {/* Controles: Nube, Rango, Modo Claro/Oscuro y Guía */}
           <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-neutral-200 dark:border-neutral-800 flex-wrap justify-between sm:justify-end">
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-medium border bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700/60"
@@ -1748,6 +1819,26 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <Trophy className="w-3 h-3 text-amber-500" />
               <span>{currentRank.name}</span>
             </div>
+
+            {/* Alternador Rápido de Tema Claro / Oscuro */}
+            <button
+              type="button"
+              onClick={handleToggleTheme}
+              title={isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-[10px] font-medium transition-all cursor-pointer border border-neutral-200 dark:border-neutral-700/60 shadow-2xs active:scale-95 touch-manipulation"
+            >
+              {isDarkMode ? (
+                <>
+                  <Sun className="w-3 h-3 text-amber-500 animate-in spin-in-180 duration-200" />
+                  <span>Claro</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3 h-3 text-sky-500 animate-in spin-in-180 duration-200" />
+                  <span>Oscuro</span>
+                </>
+              )}
+            </button>
 
             <button
               type="button"
@@ -2093,6 +2184,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       <PartyLiveScene
         levels={levels}
         zoneName={activeZone.name}
+        zoneColor={activeZone.accentColor}
         onCharacterClick={handleCharacterClick}
         activeSpeech={activeCharacterSpeech}
         onCloseSpeech={() => setActiveCharacterSpeech(null)}
@@ -2809,19 +2901,19 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-200"
         >
           <div className="fixed inset-0" onClick={handleCloseTutorial} />
-          <div className="relative z-10 w-full max-w-md rounded-2xl bg-surface border border-border/80 shadow-2xl overflow-hidden p-5 space-y-4">
+          <div className="relative z-10 w-full max-w-md rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xl overflow-hidden p-5 sm:p-6 space-y-4 text-neutral-900 dark:text-neutral-100">
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-200 dark:border-neutral-800">
               <div className="flex items-center gap-2">
-                <Wine className="w-4 h-4 text-accent" />
-                <h3 className="text-sm font-semibold text-foreground tracking-tight">
+                <Wine className="w-4 h-4 text-[#0071e3]" />
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white tracking-tight">
                   Guía de El Botellón · Paso {tutorialStep + 1} de 3
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={handleCloseTutorial}
-                className="p-1 rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-raised cursor-pointer"
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2830,39 +2922,39 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             {/* Step Content */}
             <div className="py-2 space-y-3">
               {tutorialStep === 0 && (
-                <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
-                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-border flex items-center justify-center text-accent mx-auto mb-2">
-                    <Wine className="w-5 h-5" />
+                <div className="space-y-2 text-xs text-neutral-600 dark:text-neutral-400 animate-in fade-in duration-150">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 flex items-center justify-center text-[#0071e3] mx-auto mb-2">
+                    <Wine className="w-6 h-6" />
                   </div>
-                  <h4 className="text-sm font-semibold text-foreground text-center">
+                  <h4 className="text-sm font-semibold text-neutral-900 dark:text-white text-center">
                     1. Bebidas y Generación Continua
                   </h4>
                   <p className="leading-relaxed text-center">
-                    Haz clic en la litrona central para acumular fichas manuales. Compra y sube de nivel tus suministros (hielos, kalimotxo, botellas) y desbloquea Perks para producir fichas por segundo de forma continua, incluso cuando cierres la ventana.
+                    Haz clic en el trago manual para acumular fichas directas. Compra y sube de nivel tus suministros (litronas, hielos, chupitos, botellas) y activa Perks para producir fichas por segundo de forma continua, incluso cuando cierres la ventana.
                   </p>
                 </div>
               )}
 
               {tutorialStep === 1 && (
-                <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
-                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-amber-500/30 flex items-center justify-center text-amber-500 mx-auto mb-2">
-                    <Coins className="w-5 h-5" />
+                <div className="space-y-2 text-xs text-neutral-600 dark:text-neutral-400 animate-in fade-in duration-150">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-500 mx-auto mb-2">
+                    <Coins className="w-6 h-6" />
                   </div>
-                  <h4 className="text-sm font-semibold text-foreground text-center">
+                  <h4 className="text-sm font-semibold text-neutral-900 dark:text-white text-center">
                     2. Canje Oficial 5 a 1 a tu Cartera
                   </h4>
                   <p className="leading-relaxed text-center">
-                    Tus fichas se acumulan en el panel principal. La tasa de cambio oficial es fija: <strong>5 fichas = 1 moneda real</strong>. Pulsa <strong>&quot;Meter a la saca&quot;</strong> cuando quieras para ingresar el saldo directamente a tu cuenta y usarlo en el Casino o subir en el Ranking.
+                    Tus fichas se acumulan en el panel principal. La tasa de cambio oficial es fija: <strong>5 fichas = 1 moneda real</strong>. Pulsa <strong>&quot;Canjear al Monedero&quot;</strong> cuando quieras para ingresar el saldo directamente a tu cuenta y usarlo en el Casino o subir en el Ranking.
                   </p>
                 </div>
               )}
 
               {tutorialStep === 2 && (
-                <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
-                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-purple-500/30 flex items-center justify-center text-purple-400 mx-auto mb-2">
-                    <RotateCcw className="w-5 h-5" />
+                <div className="space-y-2 text-xs text-neutral-600 dark:text-neutral-400 animate-in fade-in duration-150">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/25 flex items-center justify-center text-purple-600 dark:text-purple-400 mx-auto mb-2">
+                    <RotateCcw className="w-6 h-6" />
                   </div>
-                  <h4 className="text-sm font-semibold text-foreground text-center">
+                  <h4 className="text-sm font-semibold text-neutral-900 dark:text-white text-center">
                     3. El After (Rebirth) y Solidaridad
                   </h4>
                   <p className="leading-relaxed text-center">
@@ -2873,13 +2965,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             </div>
 
             {/* Step Indicators and Nav Buttons */}
-            <div className="flex items-center justify-between pt-2 border-t border-border/60">
+            <div className="flex items-center justify-between pt-2 border-t border-neutral-200 dark:border-neutral-800">
               <div className="flex items-center gap-1.5">
                 {[0, 1, 2].map((s) => (
                   <span
                     key={s}
                     className={`h-1.5 rounded-full transition-all ${
-                      tutorialStep === s ? 'w-5 bg-foreground' : 'w-2 bg-border'
+                      tutorialStep === s ? 'w-5 bg-neutral-900 dark:bg-white' : 'w-2 bg-neutral-200 dark:bg-neutral-700'
                     }`}
                   />
                 ))}
@@ -2893,7 +2985,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                       sound.tap();
                       setTutorialStep((prev) => prev - 1);
                     }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-foreground-muted hover:text-foreground bg-surface-raised border border-border/70 cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 cursor-pointer transition-colors"
                   >
                     Anterior
                   </button>
@@ -2906,7 +2998,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                       sound.tap();
                       setTutorialStep((prev) => prev + 1);
                     }}
-                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-foreground text-background cursor-pointer active:scale-95"
+                    className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:opacity-90 cursor-pointer active:scale-95 transition-all shadow-xs"
                   >
                     Siguiente
                   </button>
@@ -2917,7 +3009,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                       sound.tap();
                       handleCloseTutorial();
                     }}
-                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-foreground text-background cursor-pointer active:scale-95 shadow-xs"
+                    className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:opacity-90 cursor-pointer active:scale-95 shadow-xs transition-all"
                   >
                     ¡Comenzar fiesta!
                   </button>

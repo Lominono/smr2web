@@ -389,7 +389,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
               <span>El Botellón</span>
             </h3>
           </div>
-          <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+          <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
             +{botellonState.rate.toFixed(1)}/s
           </span>
         </div>
@@ -417,7 +417,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
           >
             {justClaimedWidget ? (
               <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>¡Cobrado!</span>
               </>
             ) : (

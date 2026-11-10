@@ -38,6 +38,7 @@ export interface CharacterItem {
 interface PartyLiveSceneProps {
   levels: Record<string, number>;
   zoneName: string;
+  zoneColor?: string;
   onCharacterClick: (char: CharacterItem) => void;
   activeSpeech: {
     id: string;
@@ -159,6 +160,7 @@ export const PARTY_CHARACTERS_DATA: Omit<CharacterItem, 'unlocked' | 'level'>[] 
 export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
   levels,
   zoneName,
+  zoneColor,
   onCharacterClick,
   activeSpeech,
   onCloseSpeech,
@@ -175,6 +177,7 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
   });
 
   const unlockedCount = characters.filter((c) => c.unlocked).length;
+  const activeChar = activeSpeech ? PARTY_CHARACTERS_DATA.find((c) => c.id === activeSpeech.id) : null;
 
   return (
     <section
@@ -184,7 +187,10 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
       {/* Cabecera Técnica de la Escena (Estilo Apple Compact Strip) */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          <div
+            className="w-2 h-2 rounded-full shrink-0 shadow-2xs transition-colors"
+            style={{ backgroundColor: zoneColor || '#10B981' }}
+          />
           <div className="flex items-center gap-2 truncate">
             <span className="text-xs font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 uppercase font-mono truncate">
               {zoneName}
@@ -218,7 +224,10 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
           className="relative p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700 shadow-xs flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150"
         >
           <div className="flex items-start gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white flex items-center justify-center font-bold font-mono text-[11px] shrink-0 border border-neutral-200 dark:border-neutral-600 shadow-2xs">
+            <div
+              className="w-8 h-8 rounded-lg bg-white dark:bg-neutral-700 font-bold font-mono text-[11px] shrink-0 border border-neutral-200 dark:border-neutral-600 shadow-2xs flex items-center justify-center transition-colors"
+              style={{ color: activeChar?.color || '#0071e3' }}
+            >
               {activeSpeech.name.slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -226,7 +235,12 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
                 <span className="text-xs font-bold text-neutral-900 dark:text-white">
                   @{activeSpeech.name}
                 </span>
-                <span className="text-[10px] text-neutral-500 dark:text-neutral-400">[{activeSpeech.tierName}]</span>
+                <span
+                  className="text-[10px] font-semibold"
+                  style={{ color: activeChar?.color }}
+                >
+                  [{activeSpeech.tierName}]
+                </span>
                 <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                   +10 fichas
                 </span>
@@ -284,22 +298,29 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
                 key={char.id}
                 type="button"
                 onClick={() => onCharacterClick(char)}
+                style={isSpeaking ? { borderColor: char.color } : undefined}
                 className={`group relative flex flex-col items-center justify-between p-2 rounded-xl border text-center min-h-[76px] transition-all cursor-pointer active:scale-[0.96] touch-manipulation ${
                   isSpeaking
-                    ? 'bg-blue-50/60 dark:bg-blue-950/20 border-[#0071e3] shadow-xs ring-1 ring-[#0071e3]'
+                    ? 'bg-neutral-100/80 dark:bg-neutral-800 shadow-xs ring-1'
                     : 'bg-neutral-50 hover:bg-neutral-100/80 dark:bg-neutral-800/40 dark:hover:bg-neutral-800 border-neutral-200/80 dark:border-neutral-700/60 hover:border-neutral-300 dark:hover:border-neutral-600'
                 }`}
               >
                 {/* Nivel en formato Tabular Mono */}
                 <div className="w-full flex items-center justify-between">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shadow-2xs"
+                    style={{ backgroundColor: char.color }}
+                  />
                   <span className="text-[9px] font-mono font-semibold text-neutral-600 dark:text-neutral-300 px-1 py-0.2 rounded bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600">
                     nv.{char.level}
                   </span>
                 </div>
 
                 {/* Icono Vectorial */}
-                <div className="w-7 h-7 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 flex items-center justify-center group-hover:scale-105 transition-transform border border-neutral-200/80 dark:border-neutral-600/80 shadow-2xs">
+                <div
+                  className="w-7 h-7 rounded-lg bg-white dark:bg-neutral-700 flex items-center justify-center group-hover:scale-105 transition-transform border border-neutral-200/80 dark:border-neutral-600/80 shadow-2xs"
+                  style={{ color: char.color }}
+                >
                   <Icon className="w-3.5 h-3.5" />
                 </div>
 
