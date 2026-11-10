@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BottleWine,
   GlassWater,
@@ -18,6 +18,8 @@ import {
   ArrowUpRight,
   Shield,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 export interface CharacterItem {
@@ -161,6 +163,8 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
   activeSpeech,
   onCloseSpeech,
 }) => {
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+
   const characters: CharacterItem[] = PARTY_CHARACTERS_DATA.map((c) => {
     const lvl = levels[c.tierId] || 0;
     return {
@@ -175,24 +179,34 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
   return (
     <section
       aria-label="Escena en directo del botellón"
-      className="relative rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 sm:p-5 shadow-sm space-y-4 select-none font-sans transition-colors"
+      className="relative rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-3.5 sm:p-4 shadow-xs space-y-3 select-none font-sans transition-colors"
     >
-      {/* Cabecera Técnica de la Escena (Apple Minimalist Studio) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-neutral-200 dark:border-neutral-800">
-        <div className="flex items-center gap-2.5">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 uppercase font-mono">
-              PLAZA EN VIVO · {zoneName}
+      {/* Cabecera Técnica de la Escena (Estilo Apple Compact Strip) */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          <div className="flex items-center gap-2 truncate">
+            <span className="text-xs font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 uppercase font-mono truncate">
+              {zoneName}
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 font-medium">
-              {unlockedCount}/7 PRESENTES
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700/60 font-medium shrink-0">
+              {unlockedCount}/7 en la plaza
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-          <span>Toca un personaje para interactuar (+10 fichas)</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="hidden sm:inline text-[11px] text-neutral-400 dark:text-neutral-500">
+            Toca un personaje (+10 fichas)
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="flex items-center gap-1 text-[11px] font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer px-2 py-0.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          >
+            <span>{isCollapsed ? 'Mostrar' : 'Plegar'}</span>
+            {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+          </button>
         </div>
       </div>
 
@@ -201,10 +215,10 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
         <div
           role="region"
           aria-live="polite"
-          className="relative p-3.5 rounded-2xl bg-white dark:bg-neutral-800/90 border border-neutral-200 dark:border-neutral-700 shadow-md flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150"
+          className="relative p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700 shadow-xs flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150"
         >
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-neutral-100 dark:bg-neutral-700 text-neutral-900 dark:text-white flex items-center justify-center font-bold font-mono text-xs shrink-0 border border-neutral-200 dark:border-neutral-600 shadow-2xs">
+          <div className="flex items-start gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white flex items-center justify-center font-bold font-mono text-[11px] shrink-0 border border-neutral-200 dark:border-neutral-600 shadow-2xs">
               {activeSpeech.name.slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -217,7 +231,7 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
                   +10 fichas
                 </span>
               </div>
-              <p className="text-xs text-neutral-700 dark:text-neutral-300 mt-1 leading-relaxed">
+              <p className="text-xs text-neutral-700 dark:text-neutral-300 mt-0.5 leading-relaxed">
                 &ldquo;{activeSpeech.quote}&rdquo;
               </p>
             </div>
@@ -226,7 +240,7 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
           <button
             type="button"
             onClick={onCloseSpeech}
-            className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer transition-colors"
+            className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-1 rounded-md hover:bg-neutral-200/50 dark:hover:bg-neutral-700 cursor-pointer transition-colors"
             title="Cerrar diálogo"
           >
             ✕
@@ -234,76 +248,72 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
         </div>
       )}
 
-      {/* Cuadrícula de Estaciones de Personajes (Anti-AI Minimalist Stage) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-        {characters.map((char) => {
-          const Icon = char.icon;
-          const isSpeaking = activeSpeech?.id === char.id;
+      {/* Cuadrícula compacta de personajes */}
+      {!isCollapsed && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5 pt-0.5">
+          {characters.map((char) => {
+            const Icon = char.icon;
+            const isSpeaking = activeSpeech?.id === char.id;
 
-          if (!char.unlocked) {
+            if (!char.unlocked) {
+              return (
+                <div
+                  key={char.id}
+                  className="group relative flex flex-col items-center justify-between p-2 rounded-xl bg-neutral-100/40 dark:bg-neutral-900/20 border border-dashed border-neutral-200 dark:border-neutral-800 text-center min-h-[76px] opacity-40 transition-opacity hover:opacity-60"
+                  title={`Mejora ${char.badge} para invitar a este personaje`}
+                >
+                  <div className="w-full flex justify-end">
+                    <Lock className="w-2.5 h-2.5 text-neutral-400 dark:text-neutral-600" />
+                  </div>
+
+                  <div className="w-7 h-7 rounded-lg bg-neutral-200/40 dark:bg-neutral-800/30 flex items-center justify-center text-neutral-400 dark:text-neutral-600">
+                    <Icon className="w-3.5 h-3.5" />
+                  </div>
+
+                  <div className="w-full">
+                    <div className="text-[10px] font-mono font-medium text-neutral-400 dark:text-neutral-500 uppercase truncate">
+                      {char.name}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
-              <div
+              <button
                 key={char.id}
-                className="group relative flex flex-col items-center justify-between p-3 rounded-2xl bg-neutral-100/50 dark:bg-neutral-900/30 border border-dashed border-neutral-300 dark:border-neutral-800 text-center min-h-[116px] opacity-40 transition-opacity hover:opacity-60"
-                title={`Mejora ${char.badge} para invitar a este personaje`}
+                type="button"
+                onClick={() => onCharacterClick(char)}
+                className={`group relative flex flex-col items-center justify-between p-2 rounded-xl border text-center min-h-[76px] transition-all cursor-pointer active:scale-[0.96] touch-manipulation ${
+                  isSpeaking
+                    ? 'bg-blue-50/60 dark:bg-blue-950/20 border-[#0071e3] shadow-xs ring-1 ring-[#0071e3]'
+                    : 'bg-neutral-50 hover:bg-neutral-100/80 dark:bg-neutral-800/40 dark:hover:bg-neutral-800 border-neutral-200/80 dark:border-neutral-700/60 hover:border-neutral-300 dark:hover:border-neutral-600'
+                }`}
               >
-                <div className="w-full flex justify-end">
-                  <Lock className="w-3 h-3 text-neutral-400 dark:text-neutral-600" />
+                {/* Nivel en formato Tabular Mono */}
+                <div className="w-full flex items-center justify-between">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-[9px] font-mono font-semibold text-neutral-600 dark:text-neutral-300 px-1 py-0.2 rounded bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600">
+                    nv.{char.level}
+                  </span>
                 </div>
 
-                <div className="w-9 h-9 rounded-xl bg-neutral-200/50 dark:bg-neutral-800/40 flex items-center justify-center text-neutral-400 dark:text-neutral-600">
-                  <Icon className="w-4 h-4" />
+                {/* Icono Vectorial */}
+                <div className="w-7 h-7 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 flex items-center justify-center group-hover:scale-105 transition-transform border border-neutral-200/80 dark:border-neutral-600/80 shadow-2xs">
+                  <Icon className="w-3.5 h-3.5" />
                 </div>
 
-                <div className="w-full space-y-0.5">
-                  <div className="text-[10px] font-mono font-medium text-neutral-400 dark:text-neutral-500 uppercase truncate">
+                {/* Nombre */}
+                <div className="w-full">
+                  <div className="text-[11px] font-semibold text-neutral-900 dark:text-neutral-100 truncate">
                     {char.name}
                   </div>
-                  <div className="text-[9px] font-mono text-neutral-400 dark:text-neutral-600">
-                    Bloqueado
-                  </div>
                 </div>
-              </div>
+              </button>
             );
-          }
-
-          return (
-            <button
-              key={char.id}
-              type="button"
-              onClick={() => onCharacterClick(char)}
-              className={`group relative flex flex-col items-center justify-between p-3 rounded-2xl border text-center min-h-[116px] transition-all cursor-pointer active:scale-[0.96] touch-manipulation ${
-                isSpeaking
-                  ? 'bg-blue-50/50 dark:bg-blue-950/20 border-[#0071e3] shadow-xs ring-1 ring-[#0071e3]'
-                  : 'bg-neutral-50 hover:bg-neutral-100/80 dark:bg-neutral-800/50 dark:hover:bg-neutral-800 border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 shadow-2xs'
-              }`}
-            >
-              {/* Nivel en formato Tabular Mono */}
-              <div className="w-full flex items-center justify-between">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[9px] font-mono font-semibold text-neutral-700 dark:text-neutral-300 px-1.5 py-0.5 rounded-full bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600">
-                  NV.{char.level.toString().padStart(2, '0')}
-                </span>
-              </div>
-
-              {/* Icono Vectorial con Círculo de Alto Contraste */}
-              <div className="w-9 h-9 rounded-xl bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 flex items-center justify-center group-hover:scale-105 transition-transform border border-neutral-200 dark:border-neutral-600 shadow-2xs">
-                <Icon className="w-4 h-4" />
-              </div>
-
-              {/* Nombre y Especialidad */}
-              <div className="w-full space-y-0.5">
-                <div className="text-[11px] font-semibold text-neutral-900 dark:text-neutral-100 truncate">
-                  {char.name}
-                </div>
-                <div className="text-[9px] font-mono text-neutral-500 dark:text-neutral-400 truncate leading-tight">
-                  {char.role}
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      )}
     </section>
   );
 };

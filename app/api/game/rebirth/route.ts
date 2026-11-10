@@ -6,15 +6,18 @@ export const dynamic = 'force-dynamic';
 
 function calculatePrestigeMultiplier(count: number): number {
   if (count <= 0) return 1.0;
-  let mult = 1.0;
-  for (let i = 1; i <= count; i++) {
-    if (i === 1) mult += 0.35;
-    else if (i <= 3) mult += 0.20;
-    else if (i <= 6) mult += 0.12;
-    else if (i <= 10) mult += 0.06;
-    else mult += 0.02;
-  }
-  return Math.min(6.0, Number(mult.toFixed(2)));
+  // Escalado gratificante y progresivo para Idle Game:
+  // Rebirth 1: x2.00 (+100% producción total)
+  // Rebirth 2: x3.50 (+150%)
+  // Rebirth 3: x5.00 (+150%)
+  // Rebirth 4: x6.50 (+150%)
+  // Rebirth 5: x8.50 (+200%)
+  // Rebirth 10: x18.50
+  let mult = 1.0 + count * 1.0;
+  if (count >= 2) mult += (count - 1) * 0.5;
+  if (count >= 4) mult += (count - 3) * 0.5;
+  if (count >= 7) mult += (count - 6) * 0.5;
+  return Number(mult.toFixed(2));
 }
 
 export async function POST(req: NextRequest) {
@@ -63,10 +66,11 @@ export async function POST(req: NextRequest) {
       : {};
 
     const currentPrestige = Number(currentFarm.afterPrestigeCount || currentFarm.rebirths || 0);
-    const newPrestigeCount = currentPrestige + 1;
+    const targetPrestige = Number(body.targetPrestige || 0);
+    const newPrestigeCount = targetPrestige > currentPrestige ? targetPrestige : currentPrestige + 1;
     const now = Date.now();
     // Capital de siembra en fichas para arrancar produciendo inmediatamente tras renacer
-    const startingSeedFichas = Math.max(800, newPrestigeCount * 1500);
+    const startingSeedFichas = Math.max(2500, newPrestigeCount * 5000);
 
     // Bonus de fichas acumuladas convertido a monedas reales (20% del bote acumulado)
     const pendingVault = Number(currentFarm.pendingVault || body.pendingVault || 0);
