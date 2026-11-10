@@ -1328,7 +1328,11 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                             <span
                               title={`Mascota Oficial: ${authorPet.name} · ${authorPet.perkName} (${authorPet.perkDescription})`}
                               className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-mono transition-all cursor-help ${
-                                authorPet.id === 'toy_chica'
+                                authorPet.id === 'androide_18'
+                                  ? 'bg-gradient-to-r from-yellow-500/20 via-amber-400/25 to-yellow-300/20 border-yellow-400/80 text-yellow-300 ring-2 ring-yellow-400/50 shadow-md shadow-yellow-500/30'
+                                  : authorPet.id === 'tung_tung'
+                                  ? 'bg-amber-600/15 border-amber-600/50 text-amber-300 ring-1 ring-amber-600/30'
+                                  : authorPet.id === 'toy_chica'
                                   ? 'bg-amber-400/10 border-amber-400/50 text-amber-300 ring-1 ring-amber-400/30 shadow-xs'
                                   : 'bg-white/[0.05] border-white/10 text-neutral-300'
                               }`}

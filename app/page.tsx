@@ -206,26 +206,49 @@ export default function Home() {
     return map;
   }, [leaderboard, user]);
 
-  // Habilidad pasiva de mascotas: Dropeo espontáneo para Spongegar y Aguinaldo de Toy Chica
+  // Habilidad pasiva de mascotas: Dropeos espontáneos periódicos
   useEffect(() => {
     if (!user || !user.mascota_equipada) return;
     const petId = user.mascota_equipada;
-    if (petId !== 'spongegar' && petId !== 'toy_chica') return;
+    const dropPets = ['spongegar', 'baldi', 'peter_kirby', 'toy_chica', 'tung_tung', 'androide_18'];
+    if (!dropPets.includes(petId)) return;
 
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       const roll = Math.random();
 
-      if (petId === 'spongegar' && roll < 0.65) {
-        const dropAmount = Math.floor(75_000 + Math.random() * 275_000);
+      if (petId === 'androide_18' && roll < 0.85) {
+        const dropAmount = Math.floor(25_000_000 + Math.random() * 25_000_000); // 25M a 50M
         handleUpdateCoins(dropAmount);
         sound.coinWin();
         setRealtimeNotification({
           id: String(Date.now()),
           type: 'win',
-          title: '🐾 Spongegar Primitivo',
-          description: `¡Ha rebuscado en las papeleras de la plaza y te da +${dropAmount.toLocaleString('es-ES')} monedas!`,
-          actionLabel: '¡Genial!',
+          title: '⚡ Androide 18 Celestial',
+          description: `¡Transferencia cósmica de energía ilimitada! Has recibido +${dropAmount.toLocaleString('es-ES')} monedas.`,
+          actionLabel: '¡Brutal!',
+        });
+      } else if (petId === 'tung_tung' && roll < 0.70) {
+        const dropAmount = Math.floor(5_000_000 + Math.random() * 7_000_000); // 5M a 12M
+        handleUpdateCoins(dropAmount);
+        sound.coinWin();
+        setRealtimeNotification({
+          id: String(Date.now()),
+          type: 'win',
+          title: '🥁 Tung Tung Tung Sahur',
+          description: `¡Despertó a toda la clase con su bate y liberó +${dropAmount.toLocaleString('es-ES')} monedas!`,
+          actionLabel: '¡TUNG TUNG!',
+        });
+      } else if (petId === 'peter_kirby' && roll < 0.60) {
+        const dropAmount = Math.floor(1_500_000 + Math.random() * 3_000_000); // 1.5M a 4.5M
+        handleUpdateCoins(dropAmount);
+        sound.coinWin();
+        setRealtimeNotification({
+          id: String(Date.now()),
+          type: 'win',
+          title: '🍺 Peter Kirby de Quahog',
+          description: `¡Hehehehe Lois, se me cayó calderilla en la web! +${dropAmount.toLocaleString('es-ES')} monedas.`,
+          actionLabel: '¡Hehehe!',
         });
       } else if (petId === 'toy_chica' && roll < 0.50) {
         const dropAmount = Math.floor(2_000_000 + Math.random() * 4_000_000);
@@ -238,8 +261,30 @@ export default function Home() {
           description: `¡Aguinaldo festivo VIP! Has recibido +${dropAmount.toLocaleString('es-ES')} monedas de fiesta.`,
           actionLabel: '¡Party!',
         });
+      } else if (petId === 'baldi' && roll < 0.65) {
+        const dropAmount = Math.floor(500_000 + Math.random() * 700_000); // 500k a 1.2M
+        handleUpdateCoins(dropAmount);
+        sound.coinWin();
+        setRealtimeNotification({
+          id: String(Date.now()),
+          type: 'win',
+          title: '📐 Baldi a 144p',
+          description: `¡Has aprobado la cuenta del aula sin pestañear! Premio: +${dropAmount.toLocaleString('es-ES')} monedas.`,
+          actionLabel: '¡Aprobado!',
+        });
+      } else if (petId === 'spongegar' && roll < 0.65) {
+        const dropAmount = Math.floor(75_000 + Math.random() * 275_000);
+        handleUpdateCoins(dropAmount);
+        sound.coinWin();
+        setRealtimeNotification({
+          id: String(Date.now()),
+          type: 'win',
+          title: '🐾 Spongegar Primitivo',
+          description: `¡Ha rebuscado en las papeleras de la plaza y te da +${dropAmount.toLocaleString('es-ES')} monedas!`,
+          actionLabel: '¡Genial!',
+        });
       }
-    }, 210_000);
+    }, 180_000); // Cada 3 minutos
 
     return () => clearInterval(interval);
   }, [user?.mascota_equipada]);

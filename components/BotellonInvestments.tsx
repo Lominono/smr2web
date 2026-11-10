@@ -608,15 +608,16 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
   }, [inputNumeric, activeAsset.price]);
 
   const isThinkingButt = mascotaEquipada === 'thinking_butt';
+  const isGokuBird = mascotaEquipada === 'goku_bird';
 
   const estimatedCoins = useMemo(() => {
     if (activeAsset.price <= 0 || inputNumeric <= 0) return { gross: 0, fee: 0, net: 0 };
     const gross = Math.round(inputNumeric * activeAsset.price);
-    const feeRate = isThinkingButt ? 0.01 : 0.02; // -50% de comisión con Pensador Descarado
+    const feeRate = isGokuBird ? 0.008 : isThinkingButt ? 0.01 : 0.02; // -60% con Goku Bird, -50% con Pensador
     const fee = Math.max(1, Math.round(gross * feeRate));
     const net = Math.max(0, gross - fee);
     return { gross, fee, net };
-  }, [inputNumeric, activeAsset.price, isThinkingButt]);
+  }, [inputNumeric, activeAsset.price, isThinkingButt, isGokuBird]);
 
   // Ejecución de la orden de compra o venta
   const handleExecuteTrade = async (e: React.FormEvent) => {

@@ -446,7 +446,7 @@ export function getGuardCost(userCoins: number): number {
   return getVaultGuardCost(userCoins, 0).costCoins;
 }
 
-export function getAfterRiskStats(suspicionLevel: number, userCoins: number = 0): AfterRiskStats {
+export function getAfterRiskStats(suspicionLevel: number, userCoins: number = 0, mascotaEquipada?: string): AfterRiskStats {
   const level = Math.max(0, Math.min(10, suspicionLevel || 0));
   // Nivel 0 (Limpio): 20% probabilidad de redada, 25% confiscación
   // Cada nivel subsiguiente aumenta la probabilidad en +15% y la multa en +15% (máx 95% y 90%)
@@ -464,7 +464,10 @@ export function getAfterRiskStats(suspicionLevel: number, userCoins: number = 0)
     const taxRate = Math.min(0.35, 0.06 + level * 0.045); // del 6% al 35% de su fortuna
     wealthSurcharge = Math.floor(userCoins * taxRate);
   }
-  const bribeCost = Math.max(baseCost, wealthSurcharge);
+  let bribeCost = Math.max(baseCost, wealthSurcharge);
+  if (mascotaEquipada === 'peter_kirby') {
+    bribeCost = Math.floor(bribeCost * 0.5); // 50% de rebaja en fianza con Peter Kirby
+  }
 
   return { level, raidChancePct, confiscatePct, bribeCost, wealthSurcharge };
 }
@@ -745,7 +748,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const effectiveRatePerSecond = useMemo(() => {
     const frenzyMult = isCrazyParty ? 3 : 1;
     const stashMult = guardActiveUntilMs > Date.now() ? 1.20 : 1.0;
-    const petProdMult = mascotaEquipada === 'toy_chica' ? 1.20 : 1.0; // +20% producción pasiva con Toy Chica
+    const petProdMult =
+      mascotaEquipada === 'androide_18' ? 1.50 :
+      mascotaEquipada === 'toy_chica' ? 1.20 :
+      mascotaEquipada === 'baldi' ? 1.10 : 1.0;
     const suppliesRate = baseRatePerSecond * prestigeMultiplier * frenzyMult * underdogMultiplier * stashMult * petProdMult;
     const prestigeBaseRate = permanentPrestigeRate * frenzyMult * stashMult * petProdMult;
     return suppliesRate + prestigeBaseRate;
@@ -850,6 +856,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               let confiscatedFichas = Math.floor(vaultAtRisk * raidPct);
               if (mascotaEquipada === 'link') {
                 confiscatedFichas = Math.floor(confiscatedFichas * 0.4); // Escudo Hyliano: -60% pérdidas
+              } else if (mascotaEquipada === 'tung_tung') {
+                confiscatedFichas = Math.floor(confiscatedFichas * 0.5); // Batazo Tung Tung: -50% pérdidas
               }
               stateToApply.pendingVault = Math.max(50, vaultAtRisk - confiscatedFichas);
 
@@ -1202,7 +1210,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       const next = prev + 1;
       if (next >= 10 && !isCrazyParty) {
         let crazyDuration = hasPerk('bafles_jbl') ? 25 : 15;
-        if (mascotaEquipada === 'kirby') {
+        if (mascotaEquipada === 'austin') {
+          crazyDuration = Math.round(crazyDuration * 1.50); // +50% de duración con Austin Hawaiano
+        } else if (mascotaEquipada === 'kirby') {
           crazyDuration = Math.round(crazyDuration * 1.35); // +35% de duración con Kirby Fachero
         }
         setIsCrazyParty(true);
@@ -1578,7 +1588,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   // Acción: Revertir sospecha policial pagando fianza (escala proporcionalmente para las grandes fortunas)
   const handleRevertSuspicion = () => {
     if (afterSuspicionLevel <= 0) return;
-    const { bribeCost } = getAfterRiskStats(afterSuspicionLevel, userCoins);
+    const { bribeCost } = getAfterRiskStats(afterSuspicionLevel, userCoins, mascotaEquipada);
     if (userCoins < bribeCost) {
       sound.broke();
       alert(`Saldo insuficiente. Necesitas al menos ${bribeCost.toLocaleString()} monedas para pagar la fianza y limpiar tu historial policial.`);
@@ -2548,7 +2558,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         const nextPermanentRate = Math.round(nextPrestigeCount * 25 * nextMultiplier);
         const nextBaseClick = Math.round((1 + nextPrestigeCount * 5) * nextMultiplier);
         const startingSeedFichas = Math.max(2500, nextPrestigeCount * 5000);
-        const riskStats = getAfterRiskStats(afterSuspicionLevel, userCoins);
+        const riskStats = getAfterRiskStats(afterSuspicionLevel, userCoins, mascotaEquipada);
 
         return (
           <div className="space-y-4 animate-in fade-in duration-150">

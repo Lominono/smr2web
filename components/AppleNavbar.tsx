@@ -328,7 +328,11 @@ export const AppleNavbar: React.FC<AppleNavbarProps> = ({
                     type="button"
                     onClick={onOpenSettings}
                     title={`Mascota Oficial: ${navPet.name} · ${navPet.perkName}`}
-                    className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg bg-surface-raised border border-border/70 flex items-center justify-center p-1 cursor-pointer hover:border-foreground/30 active:scale-95 transition-all touch-manipulation shrink-0"
+                    className={`w-9 h-9 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center p-1 cursor-pointer transition-all touch-manipulation shrink-0 ${
+                      navPet.id === 'androide_18'
+                        ? 'bg-yellow-500/10 border border-yellow-400/80 ring-2 ring-yellow-400/50 shadow-md shadow-yellow-500/30'
+                        : 'bg-surface-raised border border-border/70 hover:border-foreground/30 active:scale-95'
+                    }`}
                   >
                     <img
                       src={navPet.image}

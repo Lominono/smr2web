@@ -283,7 +283,7 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
         {/* Contenido Principal */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-5">
           {/* Columna Izquierda: Lista de Mascotas */}
-          <div className="md:col-span-5 space-y-2.5">
+          <div className="md:col-span-5 space-y-2.5 max-h-[68vh] overflow-y-auto pr-1">
             <div className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 px-1">
               Catálogo Disponible ({PETS_REGISTRY.length})
             </div>
