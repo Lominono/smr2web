@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
                 banner_estilo: data.banner_estilo || undefined,
                 titulo_personalizado: data.titulo_personalizado || undefined,
                 frase: data.frase || undefined,
+                onboarding_completado: Boolean(data.onboarding_completado || (data.full_name && data.student_number)),
               },
             });
           }

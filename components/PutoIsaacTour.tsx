@@ -922,43 +922,49 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
         `}</style>
 
         <div className={`relative flex flex-col pointer-events-auto ${bubbleAlignment}`}>
-          {/* Bocadillo rediseñado: Minimalista, Obsidian & Titanium */}
+          {/* Bocadillo rediseñado: Minimalista, adaptativo a modo claro y oscuro */}
           {isOpen && (
             <div
               onClick={handleBubbleClick}
-              className="mb-2.5 w-[calc(100vw-28px)] max-w-[340px] sm:max-w-[360px] bg-neutral-950/95 backdrop-blur-2xl text-white border border-neutral-800/90 rounded-2xl p-4 shadow-2xl cursor-pointer relative animate-in fade-in zoom-in-95 duration-200 ring-1 ring-white/[0.06]"
-              style={{
-                boxShadow: '0 20px 48px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.08)',
-              }}
+              className="mb-2.5 w-[calc(100vw-28px)] max-w-[340px] sm:max-w-[368px] bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl text-neutral-900 dark:text-neutral-100 border border-neutral-200/90 dark:border-neutral-800 rounded-2xl p-4 shadow-xl shadow-black/5 dark:shadow-2xl dark:shadow-black/40 cursor-pointer relative animate-in fade-in zoom-in-95 duration-200 ring-1 ring-black/[0.04] dark:ring-white/[0.05]"
             >
               {/* Cabecera minimalista del asistente */}
-              <div className="flex items-center justify-between pb-2 border-b border-neutral-800/80 mb-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[11px] font-bold tracking-wider text-white uppercase font-mono">
+              <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100 dark:border-neutral-800 mb-2.5">
+                <div className="flex items-center gap-2">
+                  {/* Indicador de voz reactivo minimalista */}
+                  {isTalking ? (
+                    <span className="flex items-center gap-0.5 h-3" title="Hablando...">
+                      <span className="w-0.5 h-2 bg-orange-500 rounded-full animate-pulse" />
+                      <span className="w-0.5 h-3 bg-orange-500 rounded-full animate-pulse [animation-delay:150ms]" />
+                      <span className="w-0.5 h-1.5 bg-orange-500 rounded-full animate-pulse [animation-delay:300ms]" />
+                    </span>
+                  ) : (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  )}
+                  <span className="text-[11px] font-bold tracking-wider text-neutral-900 dark:text-neutral-100 uppercase font-mono">
                     PUTOISAAC
                   </span>
                   {!isTourCompleted && !isIdleChat ? (
-                    <span className="text-[10px] text-neutral-400 font-mono ml-1">
+                    <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-mono">
                       {currentStep + 1}/{TOUR_STEPS.length}
                     </span>
                   ) : (
-                    <span className="text-[9.5px] text-neutral-500 font-mono ml-1">
+                    <span className="text-[9.5px] text-neutral-400 dark:text-neutral-500 font-mono">
                       aula 35
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   {/* Cuota por hora minimalista */}
                   {isIdleChat && (
                     <span
                       className={`text-[9.5px] font-mono px-2 py-0.5 rounded-full border transition-colors ${
                         hourlyQuota.isBlocked
-                          ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 font-medium'
+                          ? 'bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400 font-medium'
                           : hourlyQuota.remaining <= 2
-                          ? 'bg-amber-500/10 border-amber-500/20 text-amber-300'
-                          : 'bg-neutral-900 border-neutral-800 text-neutral-400'
+                          ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-300'
+                          : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700/60 text-neutral-500 dark:text-neutral-400'
                       }`}
                       title={
                         hourlyQuota.isBlocked
@@ -979,13 +985,13 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                       e.stopPropagation();
                       toggleSound();
                     }}
-                    className="w-5 h-5 rounded text-neutral-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                    className="w-6 h-6 rounded-md text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
                     title={isMuted ? 'Activar voz' : 'Silenciar voz'}
                   >
                     {isMuted ? (
-                      <VolumeX className="w-3 h-3 text-neutral-500" />
+                      <VolumeX className="w-3.5 h-3.5 text-neutral-400" />
                     ) : (
-                      <Volume2 className="w-3 h-3" />
+                      <Volume2 className="w-3.5 h-3.5" />
                     )}
                   </button>
 
@@ -997,10 +1003,10 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                         e.stopPropagation();
                         handleClearMemory();
                       }}
-                      className="w-5 h-5 rounded text-neutral-500 hover:text-amber-400 flex items-center justify-center transition-colors cursor-pointer"
+                      className="w-6 h-6 rounded-md text-neutral-400 hover:text-rose-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
                       title="Olvidar conversación previa"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
 
@@ -1011,7 +1017,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                       e.stopPropagation();
                       handleClose(true);
                     }}
-                    className="w-5 h-5 rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+                    className="w-6 h-6 rounded-md text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
                     title="Cerrar"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -1020,21 +1026,21 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
               </div>
 
               {/* Título o estado de la conversación */}
-              <h4 className="text-[11.5px] font-semibold text-amber-400 mb-1 font-mono tracking-tight">
+              <h4 className="text-[11.5px] font-semibold text-orange-600 dark:text-orange-400 mb-1 font-mono tracking-tight">
                 {isIdleChat ? 'Asistente Aula 35' : getTourStep(currentStep)?.title}
               </h4>
 
               {/* Texto mecanografiado con audio melódico suave */}
-              <div className="text-[12px] text-neutral-200 leading-relaxed min-h-[42px] font-sans">
+              <div className="text-[12.5px] sm:text-[13px] text-neutral-700 dark:text-neutral-200 leading-relaxed min-h-[44px] font-sans">
                 {displayedText}
                 {isTyping && (
-                  <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-amber-400/90 animate-pulse align-middle" />
+                  <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-orange-500 animate-pulse align-middle rounded-xs" />
                 )}
               </div>
 
               {/* Acciones interactivas del asistente */}
               {currentActions.length > 0 && !isTyping && (
-                <div className="mt-2.5 pt-2 border-t border-neutral-800/80 flex flex-wrap gap-1.5 animate-in fade-in duration-200">
+                <div className="mt-3 pt-2.5 border-t border-neutral-100 dark:border-neutral-800 flex flex-wrap gap-1.5 animate-in fade-in duration-200">
                   {currentActions.map((act) => (
                     <button
                       key={act.type}
@@ -1043,15 +1049,15 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                         e.stopPropagation();
                         handleExecuteAction(act.type);
                       }}
-                      className="px-2.5 py-1 rounded-lg bg-neutral-900 hover:bg-neutral-850 border border-neutral-700/80 hover:border-amber-400/50 text-neutral-200 hover:text-white text-[11px] font-medium flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs"
+                      className="px-2.5 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 border border-neutral-200/60 dark:border-neutral-700/60 text-neutral-700 dark:text-neutral-200 text-[11px] font-medium flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-2xs"
                     >
-                      {act.type === 'schedule' && <Calendar className="w-3 h-3 text-amber-400" />}
-                      {act.type === 'investments' && <TrendingUp className="w-3 h-3 text-amber-400" />}
-                      {act.type === 'chat' && <MessageSquare className="w-3 h-3 text-amber-400" />}
-                      {act.type === 'games' && <Dices className="w-3 h-3 text-amber-400" />}
-                      {act.type === 'leaderboard' && <Trophy className="w-3 h-3 text-amber-400" />}
-                      {act.type === 'faucet' && <Coins className="w-3 h-3 text-amber-400" />}
-                      {act.type === 'admin' && <Shield className="w-3 h-3 text-amber-400" />}
+                      {act.type === 'schedule' && <Calendar className="w-3 h-3 text-orange-500" />}
+                      {act.type === 'investments' && <TrendingUp className="w-3 h-3 text-orange-500" />}
+                      {act.type === 'chat' && <MessageSquare className="w-3 h-3 text-orange-500" />}
+                      {act.type === 'games' && <Dices className="w-3 h-3 text-orange-500" />}
+                      {act.type === 'leaderboard' && <Trophy className="w-3 h-3 text-orange-500" />}
+                      {act.type === 'faucet' && <Coins className="w-3 h-3 text-orange-500" />}
+                      {act.type === 'admin' && <Shield className="w-3 h-3 text-orange-500" />}
                       <span>{act.label}</span>
                     </button>
                   ))}
@@ -1060,7 +1066,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
               {/* Comandos ejecutables o copiables */}
               {currentCommands.length > 0 && !isTyping && (
-                <div className="mt-2 flex flex-col gap-1.5 animate-in fade-in duration-200">
+                <div className="mt-2.5 flex flex-col gap-1.5 animate-in fade-in duration-200">
                   {currentCommands.map((cmd) => (
                     <button
                       key={cmd}
@@ -1069,18 +1075,18 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                         e.stopPropagation();
                         handleCopyCommand(cmd);
                       }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg bg-black/60 hover:bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-[11px] font-mono text-neutral-200 flex items-center justify-between gap-2 transition-all active:scale-[0.98] cursor-pointer"
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg bg-neutral-50 dark:bg-neutral-950/80 hover:bg-neutral-100 dark:hover:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-[11px] font-mono text-neutral-800 dark:text-neutral-200 flex items-center justify-between gap-2 transition-all active:scale-[0.99] cursor-pointer"
                       title="Copiar comando al portapapeles"
                     >
                       <span className="flex items-center gap-1.5 truncate">
-                        <Terminal className="w-3 h-3 text-amber-400 shrink-0" />
-                        <code className="text-amber-300/90 truncate">{cmd}</code>
+                        <Terminal className="w-3 h-3 text-orange-500 shrink-0" />
+                        <code className="text-orange-600 dark:text-orange-400 truncate">{cmd}</code>
                       </span>
-                      <span className="shrink-0 text-[10px] text-neutral-400 flex items-center gap-1 font-sans">
+                      <span className="shrink-0 text-[10px] text-neutral-500 dark:text-neutral-400 flex items-center gap-1 font-sans">
                         {copiedCmd === cmd ? (
                           <>
-                            <Check className="w-3 h-3 text-emerald-400" />
-                            <span className="text-emerald-400 font-medium">¡Copiado!</span>
+                            <Check className="w-3 h-3 text-emerald-500" />
+                            <span className="text-emerald-500 font-medium">Copiado</span>
                           </>
                         ) : (
                           <>
@@ -1096,14 +1102,14 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
               {/* Sugerencias rápidas minimalistas cuando está en reposo */}
               {isIdleChat && !isTyping && !isAiLoading && (
-                <div className="mt-2.5 pt-2 border-t border-neutral-800/80 flex flex-wrap gap-1.5">
+                <div className="mt-3 pt-2.5 border-t border-neutral-100 dark:border-neutral-800 flex flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       executeAssistantPrompt('¿Qué clase toca ahora?');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-amber-400/40 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
+                    className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 border border-neutral-200/60 dark:border-neutral-700/50 text-[10.5px] font-mono text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
                     ¿Qué clase toca?
                   </button>
@@ -1113,10 +1119,9 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                       e.stopPropagation();
                       executeAssistantPrompt('¿Isaac es gay?');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 text-[10.5px] font-mono text-pink-300 hover:text-white transition-all cursor-pointer select-none active:scale-95 flex items-center gap-1"
+                    className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 border border-neutral-200/60 dark:border-neutral-700/50 text-[10.5px] font-mono text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
-                    <span>🌈</span>
-                    <span>¿Isaac es gay?</span>
+                    ¿Isaac es gay?
                   </button>
                   <button
                     type="button"
@@ -1124,7 +1129,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                       e.stopPropagation();
                       executeAssistantPrompt('¿Cuánto queda para el recreo?');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
+                    className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 border border-neutral-200/60 dark:border-neutral-700/50 text-[10.5px] font-mono text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
                     Recreo
                   </button>
@@ -1134,7 +1139,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                       e.stopPropagation();
                       executeAssistantPrompt('¿Hay algún examen fijado?');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
+                    className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 border border-neutral-200/60 dark:border-neutral-700/50 text-[10.5px] font-mono text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
                     ¿Hay exámenes?
                   </button>
@@ -1144,7 +1149,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                       e.stopPropagation();
                       executeAssistantPrompt('Objetos y trucos de la Ruleta Rusa');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
+                    className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 border border-neutral-200/60 dark:border-neutral-700/50 text-[10.5px] font-mono text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
                     Ruleta Rusa
                   </button>
@@ -1154,7 +1159,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                       e.stopPropagation();
                       executeAssistantPrompt('¿Cómo funciona la Bolsa del Botellón?');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
+                    className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 border border-neutral-200/60 dark:border-neutral-700/50 text-[10.5px] font-mono text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
                     La Bolsa
                   </button>
@@ -1162,18 +1167,18 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      executeAssistantPrompt('Novedades versión 1.0.1');
+                      executeAssistantPrompt('Novedades versión 1.3.0');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-[10.5px] font-mono text-neutral-300 hover:text-white transition-all cursor-pointer select-none active:scale-95"
+                    className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 border border-neutral-200/60 dark:border-neutral-700/50 text-[10.5px] font-mono text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-all cursor-pointer select-none active:scale-95"
                   >
-                    Novedades v1.0.1
+                    Novedades v1.3.0
                   </button>
                 </div>
               )}
 
               {/* Formulario de chat con Isaac */}
               {isIdleChat && (
-                <form onSubmit={handleSendAiPrompt} className="mt-2.5 pt-2 border-t border-neutral-800/80">
+                <form onSubmit={handleSendAiPrompt} className="mt-3 pt-2.5 border-t border-neutral-100 dark:border-neutral-800">
                   <div className="relative flex items-center">
                     <input
                       type="text"
@@ -1185,30 +1190,30 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                           ? `Recarga en ${hourlyQuota.minutesUntilReset} min...`
                           : cooldown > 0
                           ? `Espera ${cooldown}s...`
-                          : 'Pregunta a PUTOISAAC (clases, recreo, exámenes)...'
+                          : 'Pregunta a PUTOISAAC...'
                       }
                       disabled={isAiLoading || cooldown > 0 || hourlyQuota.isBlocked}
-                      className="w-full text-[11px] bg-neutral-900/90 border border-neutral-700/70 rounded-lg px-2.5 py-1.5 pr-8 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-400/60 transition-colors disabled:opacity-50 font-sans"
+                      className="w-full text-[12px] bg-neutral-50 dark:bg-neutral-800/70 border border-neutral-200 dark:border-neutral-700/70 rounded-xl px-3 py-2 pr-8 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500 focus:bg-white dark:focus:bg-neutral-800 transition-colors disabled:opacity-50 font-sans"
                     />
                     <button
                       type="submit"
                       disabled={isAiLoading || !aiPrompt.trim() || cooldown > 0 || hourlyQuota.isBlocked}
-                      className="absolute right-1 w-6 h-6 rounded flex items-center justify-center text-neutral-400 hover:text-amber-400 disabled:opacity-30 cursor-pointer"
+                      className="absolute right-1.5 w-6 h-6 rounded flex items-center justify-center text-neutral-400 hover:text-neutral-900 dark:hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
                       title="Enviar"
                     >
                       {isAiLoading ? (
-                        <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500" />
                       ) : (
-                        <Send className="w-3 h-3" />
+                        <Send className="w-3.5 h-3.5" />
                       )}
                     </button>
                   </div>
 
                   {/* Contador sutil y cuota horaria */}
-                  <div className="flex items-center justify-between text-[9px] text-neutral-500 mt-1 px-0.5 font-mono">
+                  <div className="flex items-center justify-between text-[9px] text-neutral-400 dark:text-neutral-500 mt-1 px-1 font-mono">
                     <span className="flex items-center gap-1.5">
                       {hourlyQuota.isBlocked ? (
-                        <span className="text-amber-400/90 font-medium">
+                        <span className="text-amber-600 dark:text-amber-400 font-medium">
                           Cupo por hora agotado · recarga en {hourlyQuota.minutesUntilReset}m
                         </span>
                       ) : (
@@ -1223,10 +1228,10 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
               )}
 
               {/* Navegación del tour inicial */}
-              <div className="mt-2 pt-2 border-t border-neutral-800/80 flex items-center justify-between gap-2">
+              <div className="mt-3 pt-2.5 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-2">
                 {!isTourCompleted && !isIdleChat ? (
                   <>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       {TOUR_STEPS.map((_, idx) => (
                         <button
                           key={idx}
@@ -1236,7 +1241,9 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                             setCurrentStep(idx);
                           }}
                           className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                            idx === currentStep ? 'w-4 bg-amber-400' : 'w-1.5 bg-neutral-700 hover:bg-neutral-500'
+                            idx === currentStep
+                              ? 'w-4 bg-neutral-900 dark:bg-white'
+                              : 'w-1.5 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-400 dark:hover:bg-neutral-500'
                           }`}
                           aria-label={`Paso ${idx + 1}`}
                         />
@@ -1251,7 +1258,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                             e.stopPropagation();
                             setCurrentStep((p) => p - 1);
                           }}
-                          className="px-2 py-1 text-[11px] font-medium text-neutral-400 hover:text-white cursor-pointer"
+                          className="px-2.5 py-1 text-[11px] font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white cursor-pointer transition-colors"
                         >
                           Atrás
                         </button>
@@ -1263,7 +1270,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                           e.stopPropagation();
                           handleNext();
                         }}
-                        className="px-3 py-1.5 bg-white hover:bg-neutral-200 active:scale-95 text-black text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                        className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 active:scale-95 text-white dark:text-neutral-950 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-xs"
                       >
                         <span>{currentStep === TOUR_STEPS.length - 1 ? '¡Listo!' : 'Siguiente'}</span>
                         <ArrowRight className="w-3 h-3" />
@@ -1278,7 +1285,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                         e.stopPropagation();
                         handleRestartTour();
                       }}
-                      className="text-[11px] text-neutral-400 hover:text-amber-400 transition-colors flex items-center gap-1 cursor-pointer font-medium"
+                      className="text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors flex items-center gap-1 cursor-pointer font-medium"
                     >
                       <RotateCcw className="w-3 h-3" />
                       <span>Repetir tour</span>
@@ -1290,7 +1297,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
                         e.stopPropagation();
                         handleClose(false);
                       }}
-                      className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-medium rounded-lg cursor-pointer"
+                      className="px-3 py-1 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-xs font-medium rounded-lg cursor-pointer transition-colors"
                     >
                       Cerrar
                     </button>
@@ -1300,7 +1307,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
               {/* Puntero triangular sutil */}
               <div
-                className={`absolute -bottom-1.5 w-3 h-3 bg-neutral-950 border-r border-b border-neutral-800/90 transform rotate-45 ${
+                className={`absolute -bottom-1.5 w-3 h-3 bg-white dark:bg-neutral-900 border-r border-b border-neutral-200/90 dark:border-neutral-800 transform rotate-45 ${
                   bubbleAlignment === 'items-end'
                     ? 'right-6'
                     : bubbleAlignment === 'items-center'
@@ -1331,27 +1338,27 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
             }}
             title="Toca para hablar con PUTOISAAC"
           >
-            {/* Cartelito con el nombre */}
-            <div className="mb-1 px-2 py-0.5 rounded-full bg-neutral-950/90 text-white border border-neutral-800 text-[9px] font-bold tracking-tight shadow-md transition-all group-hover:scale-105 flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full ${isAiLoading ? 'bg-amber-300 animate-ping' : 'bg-amber-400'}`} />
-              <span className="font-mono">PUTOISAAC</span>
-              {isAiLoading && <span className="text-[8px] font-mono text-amber-300 animate-pulse">pensando...</span>}
+            {/* Cartelito minimalista con el nombre */}
+            <div className="mb-1 px-2 py-0.5 rounded-full bg-white/90 dark:bg-neutral-900/90 text-neutral-800 dark:text-neutral-200 border border-neutral-200/80 dark:border-neutral-800 text-[9px] font-semibold tracking-wider font-mono shadow-xs transition-all group-hover:scale-105 flex items-center gap-1 backdrop-blur-xs">
+              <span className={`w-1.5 h-1.5 rounded-full ${isAiLoading ? 'bg-orange-500 animate-ping' : isTalking ? 'bg-orange-500 animate-pulse' : 'bg-orange-500'}`} />
+              <span>PUTOISAAC</span>
+              {isAiLoading && <span className="text-[8px] font-mono text-neutral-400 dark:text-neutral-500 animate-pulse">pensando...</span>}
             </div>
 
             {/* Esfera física táctil */}
             <div
-              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-amber-600 via-orange-500 to-yellow-400 border-2 border-white/85 shadow-xl flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:scale-105 ${
-                isAiLoading ? 'ring-2 ring-amber-400/60 ring-offset-2 ring-offset-neutral-950' : ''
+              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-amber-600 via-orange-500 to-amber-400 border border-white/60 dark:border-white/20 shadow-md shadow-orange-500/20 flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:scale-105 ${
+                isAiLoading ? 'ring-2 ring-orange-500/50 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950' : ''
               }`}
               style={{
                 boxShadow: isAiLoading
-                  ? '0 0 20px rgba(245, 158, 11, 0.6), inset 0 2px 5px rgba(255,255,255,0.8)'
-                  : '0 8px 24px rgba(245, 158, 11, 0.42), inset 0 2px 5px rgba(255,255,255,0.7)',
+                  ? '0 0 20px rgba(249, 115, 22, 0.4), inset 0 2px 4px rgba(255,255,255,0.6)'
+                  : '0 8px 20px rgba(249, 115, 22, 0.3), inset 0 2px 4px rgba(255,255,255,0.5)',
                 animation: isAiLoading ? 'thinkPulse 2s ease-in-out infinite' : undefined,
               }}
             >
               {/* Brillo especular superior de vidrio */}
-              <div className="absolute top-1 left-1.5 w-3.5 h-2 rounded-full bg-white/75 blur-[0.3px] transform -rotate-12 pointer-events-none" />
+              <div className="absolute top-1 left-1.5 w-3.5 h-1.5 rounded-full bg-white/55 blur-[0.3px] transform -rotate-12 pointer-events-none" />
 
               {/* Cara expresiva de PUTOISAAC */}
               <div className="flex flex-col items-center justify-center relative z-10 space-y-0.5 mt-0.5">
@@ -1479,7 +1486,7 @@ export const PutoIsaacTour: React.FC<PutoIsaacTourProps> = ({
 
             {/* Sombra de suelo dinámica */}
             <div
-              className="w-7 h-1.5 rounded-full bg-black/45 blur-[1.5px] mt-1 transition-all pointer-events-none"
+              className="w-7 h-1 rounded-full bg-black/20 dark:bg-black/50 blur-[1px] mt-1 transition-all pointer-events-none"
               style={{
                 animation: 'shadowPulse 4s ease-in-out infinite',
               }}

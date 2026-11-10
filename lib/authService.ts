@@ -22,6 +22,8 @@ export interface SignUpParams {
   email: string;
   password: string;
   confirmPassword?: string;
+  fullName?: string;
+  studentNumber?: string;
   rememberMe?: boolean;
   acceptedTerms?: boolean;
 }
@@ -142,6 +144,8 @@ export async function registerAccount(params: SignUpParams): Promise<AuthResult>
         username: cleanUsername,
         email: cleanEmail,
         password: params.password,
+        fullName: params.fullName,
+        studentNumber: params.studentNumber,
       }),
     });
 
@@ -668,6 +672,7 @@ export async function saveStudentIdentification(
         .update({
           full_name: cleanName,
           student_number: cleanNumber,
+          onboarding_completado: true,
         })
         .eq('id', userId);
     } catch {}
@@ -685,11 +690,14 @@ export async function saveStudentIdentification(
     ...current,
     full_name: cleanName,
     student_number: cleanNumber,
+    onboarding_completado: true,
   };
   saveUserSession(guaranteedUser, true);
 
   if (typeof window !== 'undefined') {
     try {
+      localStorage.setItem('smr2_student_id_completed', 'true');
+      localStorage.setItem('smr2_student_id_dismissed', 'true');
       const stored = localStorage.getItem('smr2_local_db_users');
       if (stored) {
         const accounts: any[] = JSON.parse(stored);

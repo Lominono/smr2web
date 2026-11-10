@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.2.0';
+let CURRENT_APP_VERSION = '1.4.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,36 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.4.0',
+    title: 'SMR2 v1.4.0 · El Botellón 2.0: Rediseño Apple Minimalista, Nube Supabase y Optimización Móvil',
+    badge: 'BOTELLÓN 2.0',
+    date: 'Martes, 10 de Noviembre, 2026',
+    description:
+      'Gran rediseño de El Botellón y del Mercado de Inversiones con la filosofía de diseño minimalista de Apple (Human Interface Guidelines), sincronización bidireccional continua con Supabase Cloud y optimización móvil integral de pantalla táctil para todos los alumnos.',
+    changes: [
+      'Filosofía Apple y Anti-Diseño IA: Eliminación completa de degradados estridentes y brillos de neón artificiales. Interfaz serena, tipografía limpia de alta jerarquía, tarjetas agrupadas y bordes sutiles de 1px hairline con contraste impecable tanto en Modo Claro como en Modo Oscuro.',
+      'Dashboard Móvil Compacto: Nuevo panel unificado todo-en-uno que ahorra más de 400px de scroll vertical en pantallas móviles, agrupando el bote de fichas, ritmo de producción, control de resaca y acción táctil de trago en una tarjeta de acceso rápido.',
+      'Sincronización Supabase Cloud & Realtime: Persistencia atómica de partida en PostgreSQL con la columna JSONB profiles.party_farm_data, índice GIN acelerado, canal Realtime para reconciliación automática entre dispositivos y reconexión resiliente.',
+      'Escena Viva y Personajes Rediseñados: La plaza del botellón ahora luce un cuadro de escenario interactivo adaptativo, globos de diálogo estilo iOS toast y tarjetas de suministros con objetivos táctiles de 44px+ para toques cómodos con el pulgar.',
+      'Mercado de Acciones e Inversiones Apple Stocks: Selector de tickers con scroll táctil suave, gráfica SVG inspirada en la app Bolsa de Apple con cotización en verde/rojo de alto contraste, controles segmentados de temporalidad (1H, 6H, 24H, Todo) y boleta de compra/venta instantánea.',
+      'Minijuegos y Modales Renovados: Beer Pong de clase con indicador central de enceste calibrado, ruleta de 3 vasos misteriosos táctil y modales de redada/renacimiento con acabado Apple sheet.',
+    ],
+  },
+  {
+    version: '1.3.0',
+    title: 'SMR2 v1.3.0 · Sistema de Renacimientos y Actualizaciones Obligatorias',
+    badge: 'ACTUALIZACIÓN OBLIGATORIA',
+    date: 'Martes, 10 de Noviembre, 2026',
+    description:
+      'Actualización obligatoria para sincronizar a todos los alumnos con el nuevo sistema de renacimientos (rebirths), balance económico y persistencia continua de sesión sin solicitudes repetitivas de ficha de estudiante.',
+    changes: [
+      'Sistema de Renacimiento (Rebirth): Datos guardados y sincronizados directamente en Supabase con multiplicador permanente acumulativo y registro limpio en la base de datos.',
+      'Actualizaciones obligatorias: Bloqueo de pantalla completa para garantizar que todos los alumnos jueguen bajo las mismas reglas y en la misma versión.',
+      'Persistencia de sesión permanente: Corrección del cierre de sesión inesperado y eliminación del aviso repetitivo de ficha de estudiante al entrar.',
+      'Diseño minimalista: Optimización completa de modos claro y oscuro con estética limpia y profesional.',
+    ],
+  },
   {
     version: '1.2.0',
     title: 'SMR2 v1.2.0 · Escena Viva del Botellón, Goteo Comunista y Panel Admin',

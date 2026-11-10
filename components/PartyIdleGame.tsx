@@ -338,6 +338,7 @@ export interface BotellonState {
   totalLifetimeProduced: number;
   currentRunProduced?: number;
   afterPrestigeCount: number;
+  rebirths?: number;
   afterSuspicionLevel?: number;
   lastAfterTimestamp?: number;
   lastTickMs: number;
@@ -502,6 +503,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [purchasedPerks, setPurchasedPerks] = useState<string[]>([]);
   const [totalDrinksTaken, setTotalDrinksTaken] = useState<number>(0);
   const [beerPongWins, setBeerPongWins] = useState<number>(0);
+
+  // Estado de sincronización en la nube Supabase
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'saved' | 'saving' | 'offline'>('saved');
 
   // Estados de Goteo Comunista y Custodia del Alijo
   const [guardActiveUntilMs, setGuardActiveUntilMs] = useState<number>(0);
@@ -793,8 +797,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       applyState(saved, true);
     }
 
-    // Comprobar y sincronizar con la nube de Supabase solo si es cuenta con UUID real y la nube está disponible
-    if (userId && isUUID(userId) && !cloudSyncDisabledRef.current) {
+    // Comprobar y sincronizar con la nube de Supabase solo si es cuenta con UUID real
+    if (userId && isUUID(userId)) {
       const supabase = createClient();
       if (supabase) {
         (async () => {
@@ -806,8 +810,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               .maybeSingle();
 
             if (error) {
-              // Si la columna no existe o Supabase rechaza la petición, desactivar sync en nube para evitar spam
-              cloudSyncDisabledRef.current = true;
+              console.warn('Nota al consultar party_farm_data en Supabase:', error.message);
               return;
             }
 
@@ -815,23 +818,31 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               const cloudState = data.party_farm_data as BotellonState;
               const localProd = saved?.totalLifetimeProduced || 0;
               const cloudProd = cloudState.totalLifetimeProduced || 0;
+              const localPrestige = saved?.afterPrestigeCount || 0;
+              const cloudPrestige = cloudState.afterPrestigeCount || (cloudState as any).rebirths || 0;
 
-              // Si la nube tiene mayor progreso o el dispositivo actual estaba a cero
-              if (cloudProd > localProd || !saved) {
+              // Reconciliación: dar prioridad al mayor número de renacimientos o mayor producción acumulada
+              if (cloudPrestige > localPrestige || cloudProd > localProd || !saved) {
                 applyState(cloudState, false);
                 try {
                   localStorage.setItem(storageKey, JSON.stringify(cloudState));
                 } catch {}
-              } else if (localProd > cloudProd && saved) {
-                // Si el dispositivo actual tiene más avance, actualizar la nube
+              } else if ((localPrestige > cloudPrestige || localProd > cloudProd) && saved) {
+                // Si el dispositivo actual tiene más avance, actualizar la base de datos
                 await supabase
                   .from('profiles')
                   .update({ party_farm_data: saved })
                   .eq('id', userId);
               }
+            } else if (saved && isUUID(userId)) {
+              // Si la nube estaba vacía ({}) pero hay progreso local guardado, sincronizarlo a la nube
+              await supabase
+                .from('profiles')
+                .update({ party_farm_data: saved })
+                .eq('id', userId);
             }
-          } catch {
-            cloudSyncDisabledRef.current = true;
+          } catch (syncErr) {
+            console.warn('Error sincronizando progreso con Supabase:', syncErr);
           }
         })();
       }
@@ -852,11 +863,12 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         localStorage.setItem(storageKey, JSON.stringify(fullState));
       } catch {}
 
-      // Sincronizar en Supabase solo si el usuario tiene UUID válido y la columna existe (control de frecuencia: máx 1 cada 4s)
-      if (userId && isUUID(userId) && !cloudSyncDisabledRef.current) {
+      // Sincronizar en Supabase si el usuario tiene UUID válido (control de frecuencia: máx 1 cada 3.5s salvo urgencia)
+      if (userId && isUUID(userId)) {
         const now = Date.now();
-        if (isUrgent || now - lastCloudSyncRef.current >= 4000) {
+        if (isUrgent || now - lastCloudSyncRef.current >= 3500) {
           lastCloudSyncRef.current = now;
+          setCloudSyncStatus('saving');
           const supabase = createClient();
           if (supabase) {
             (async () => {
@@ -866,11 +878,14 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   .update({ party_farm_data: fullState })
                   .eq('id', userId);
                 if (error) {
-                  // Si falla (ej. columna no existe en Supabase), desactivar para no seguir enviando peticiones 400 cada 5s
-                  cloudSyncDisabledRef.current = true;
+                  console.warn('Nota al guardar en Supabase:', error.message);
+                  setCloudSyncStatus('offline');
+                } else {
+                  setCloudSyncStatus('saved');
                 }
-              } catch {
-                cloudSyncDisabledRef.current = true;
+              } catch (err) {
+                console.warn('Error al guardar party_farm_data en Supabase:', err);
+                setCloudSyncStatus('offline');
               }
             })();
           }
@@ -879,6 +894,48 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     },
     [storageKey, userId]
   );
+
+  // 2.1 Suscripción Realtime a Supabase para sincronización instantánea entre dispositivos
+  useEffect(() => {
+    if (!userId || !isUUID(userId)) return;
+    const supabase = createClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`realtime_party_farm_${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`,
+        },
+        (payload: any) => {
+          const remoteData = payload?.new?.party_farm_data as BotellonState | undefined;
+          if (remoteData && typeof remoteData === 'object' && Object.keys(remoteData).length > 0) {
+            const currentTotal = stateRef.current.totalLifetimeProduced || 0;
+            const remoteTotal = remoteData.totalLifetimeProduced || 0;
+            const currentPrestige = stateRef.current.afterPrestigeCount || 0;
+            const remotePrestige = remoteData.afterPrestigeCount || 0;
+
+            if (remotePrestige > currentPrestige || remoteTotal > currentTotal + 50) {
+              if (remoteData.levels) setLevels(remoteData.levels);
+              if (typeof remoteData.pendingVault === 'number') setPendingVault(remoteData.pendingVault);
+              if (typeof remoteData.totalLifetimeProduced === 'number') setTotalLifetimeProduced(remoteData.totalLifetimeProduced);
+              if (remoteData.currentZoneId) setCurrentZoneId(remoteData.currentZoneId);
+              if (remoteData.purchasedPerks) setPurchasedPerks(remoteData.purchasedPerks);
+              setCloudSyncStatus('saved');
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   // 3. Bucle de simulación en tiempo real (ticks de 250ms)
   useEffect(() => {
@@ -1706,12 +1763,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     setShowAfterModal(true);
   };
 
-  const handleConfirmAfter = () => {
+  const handleConfirmAfter = async () => {
     if (!canPrestige) return;
 
-    const { raidChancePct, confiscatePct } = getAfterRiskStats(afterSuspicionLevel, userCoins);
-    const rolled = Math.random() * 100;
-    const isPoliceRaid = rolled < raidChancePct;
+    sound.coinWin();
+    confetti({ particleCount: 160, spread: 85, origin: { y: 0.6 } });
 
     const resetLevels = {
       litronas: 0,
@@ -1724,91 +1780,48 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     };
 
     const afterTimestamp = Date.now();
-
-    if (isPoliceRaid) {
-      // ¡REDADA POLICIAL EN EL AFTER! FIESTA CLAUSURADA
-      sound.broke();
-      const coinsLost = Math.floor(userCoins * (confiscatePct / 100));
-      const vaultLost = Math.floor(pendingVault * (confiscatePct / 100));
-
-      if (coinsLost > 0) {
-        onUpdateCoins(-coinsLost);
-      }
-
-      const raidNextSuspicion = Math.min(10, afterSuspicionLevel + 2); // Redada sube +2 de sospecha inmediata
-
-      setLevels(resetLevels);
-      setPendingVault(0);
-      setHangoverLevel(0);
-      setCurrentRunProduced(0);
-      setLastAfterTimestamp(afterTimestamp);
-      // CASTIGO ANTI-ABUSO: En redada policial NO se concede el prestigio de After (la fiesta fue desmantelada)
-      setAfterSuspicionLevel(raidNextSuspicion);
-      setAfterCooldownSeconds(150); // 2.5 min de espera por operativo policial
-
-      setAfterRaidResult({
-        type: 'raid',
-        raidChancePct,
-        confiscatePct,
-        coinsLost,
-        vaultLost,
-        nextLevel: raidNextSuspicion,
-      });
-
-      saveState(
-        {
-          levels: resetLevels,
-          pendingVault: 0,
-          hangoverLevel: 0,
-          currentRunProduced: 0,
-          lastAfterTimestamp: afterTimestamp,
-          afterSuspicionLevel: raidNextSuspicion,
-        },
-        true
-      );
-    } else {
-      // ¡ÉXITO EN EL AFTER!
-      sound.coinWin();
-      confetti({ particleCount: 160, spread: 85, origin: { y: 0.6 } });
-
-      const leftoverCoins = Math.floor(pendingVault / 5);
-      if (leftoverCoins > 0) {
-        onUpdateCoins(leftoverCoins);
-      }
-
-      const successNextSuspicion = Math.min(10, afterSuspicionLevel + 1);
-
-      setLevels(resetLevels);
-      setPendingVault(0);
-      setHangoverLevel(0);
-      setCurrentRunProduced(0);
-      setLastAfterTimestamp(afterTimestamp);
-      setAfterPrestigeCount((prev) => prev + 1);
-      setAfterSuspicionLevel(successNextSuspicion);
-      setAfterCooldownSeconds(90);
-
-      setAfterRaidResult({
-        type: 'success',
-        raidChancePct,
-        confiscatePct,
-        coinsLost: 0,
-        vaultLost: 0,
-        nextLevel: successNextSuspicion,
-      });
-
-      saveState(
-        {
-          levels: resetLevels,
-          pendingVault: 0,
-          hangoverLevel: 0,
-          currentRunProduced: 0,
-          lastAfterTimestamp: afterTimestamp,
-          afterPrestigeCount: afterPrestigeCount + 1,
-          afterSuspicionLevel: successNextSuspicion,
-        },
-        true
-      );
+    const leftoverCoins = Math.floor(pendingVault / 5);
+    if (leftoverCoins > 0) {
+      onUpdateCoins(leftoverCoins);
     }
+
+    const nextPrestigeCount = afterPrestigeCount + 1;
+
+    setLevels(resetLevels);
+    setPendingVault(0);
+    setHangoverLevel(0);
+    setCurrentRunProduced(0);
+    setLastAfterTimestamp(afterTimestamp);
+    setAfterPrestigeCount(nextPrestigeCount);
+    setAfterSuspicionLevel(0);
+    setAfterCooldownSeconds(60);
+
+    const updatedState: Partial<BotellonState> = {
+      levels: resetLevels,
+      pendingVault: 0,
+      hangoverLevel: 0,
+      currentRunProduced: 0,
+      lastAfterTimestamp: afterTimestamp,
+      afterPrestigeCount: nextPrestigeCount,
+      afterSuspicionLevel: 0,
+    };
+
+    // 1. Guardar de forma autoritativa en el endpoint del servidor con Supabase Admin
+    if (userId && isUUID(userId)) {
+      try {
+        fetch('/api/game/rebirth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            pendingVault,
+          }),
+        }).catch((err) => console.warn('Error llamando a /api/game/rebirth:', err));
+      } catch {}
+    }
+
+    // 2. Persistir inmediatamente en local y cliente directo Supabase
+    saveState(updatedState, true);
 
     setShowAfterModal(false);
   };
@@ -1818,24 +1831,24 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-5">
-      {/* Alerta de Redada Policial / Vecinos */}
+      {/* Alerta de Redada Policial / Vecinos (Estilo Apple System Alert) */}
       {policeAlert && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-red-950/30 border border-red-500/50 shadow-lg shadow-red-500/10 animate-in fade-in zoom-in-95 duration-200 space-y-3">
+        <div className="p-4 sm:p-5 rounded-3xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 shadow-xs animate-in fade-in zoom-in-95 duration-200 space-y-3">
           <div className="flex items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-red-500/20 border border-red-500/40 text-red-400 flex items-center justify-center shrink-0 animate-bounce">
-                <Siren className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-2xl bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center justify-center shrink-0">
+                <Siren className="w-5 h-5 animate-pulse" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-red-200 tracking-tight">
-                    ¡CONTROL POLICIAL / QUEJAS DE VECINOS!
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm font-semibold text-red-900 dark:text-red-100 tracking-tight">
+                    Control Policial / Quejas de Vecinos
                   </h3>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40 font-semibold">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/25 font-semibold">
                     {policeAlert.secondsLeft > 0 ? `${policeAlert.secondsLeft}s para actuar` : 'Resolviendo'}
                   </span>
                 </div>
-                <p className="text-xs text-red-300/80 mt-0.5">
+                <p className="text-xs text-red-800/80 dark:text-red-300/80 mt-0.5">
                   {policeAlert.penaltyResult || 'La patrulla se acerca por la esquina. Si no reaccionas a tiempo te requisarán el 50% del bote acumulado.'}
                 </p>
               </div>
@@ -1847,7 +1860,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <button
                 type="button"
                 onClick={handlePoliceHide}
-                className="rounded-xl text-xs h-9 px-3 flex items-center justify-center font-medium bg-surface-raised hover:bg-surface border border-border/80 text-foreground cursor-pointer transition-all active:scale-98"
+                className="rounded-xl text-xs h-10 px-3 flex items-center justify-center font-medium bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 border border-red-200 dark:border-red-900/50 text-zinc-900 dark:text-zinc-100 cursor-pointer transition-all active:scale-[0.98] shadow-2xs"
               >
                 <span>Esconder vasos (Pausa 40s)</span>
               </button>
@@ -1855,7 +1868,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <button
                 type="button"
                 onClick={handlePoliceRun}
-                className="rounded-xl text-xs h-9 px-3 flex items-center justify-center font-medium bg-surface-raised hover:bg-surface border border-border/80 text-amber-300 cursor-pointer transition-all active:scale-98"
+                className="rounded-xl text-xs h-10 px-3 flex items-center justify-center font-medium bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 border border-red-200 dark:border-red-900/50 text-amber-700 dark:text-amber-400 cursor-pointer transition-all active:scale-[0.98] shadow-2xs"
               >
                 <span>Correr y dispersarse (-40%)</span>
               </button>
@@ -1863,7 +1876,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <button
                 type="button"
                 onClick={handlePoliceBluff}
-                className="rounded-xl text-xs h-9 px-3 flex items-center justify-center font-medium bg-surface-raised hover:bg-surface border border-border/80 text-rose-300 cursor-pointer transition-all active:scale-98"
+                className="rounded-xl text-xs h-10 px-3 flex items-center justify-center font-medium bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 cursor-pointer transition-all active:scale-[0.98] shadow-2xs"
               >
                 <span>Hacerse el loco (50/50)</span>
               </button>
@@ -1874,12 +1887,12 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       {/* Aviso de Producción Congelada por Redada */}
       {isProductionFrozen && (
-        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
+        <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between shadow-2xs">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>Fiesta en silencio: La policía está patrullando cerca. La música y farmeo están pausados.</span>
           </div>
-          <span className="font-mono text-[11px] shrink-0 font-semibold">
+          <span className="font-mono text-[11px] shrink-0 font-semibold px-2 py-0.5 rounded-full bg-amber-500/15">
             {Math.ceil((productionFrozenUntilMs - Date.now()) / 1000)}s
           </span>
         </div>
@@ -1887,22 +1900,22 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       {/* Suceso Espontáneo entre Colegas (Evento en Vivo) */}
       {spontaneousEvent && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-surface-raised border border-amber-500/40 shadow-xl shadow-amber-500/10 animate-in fade-in zoom-in-95 duration-200 space-y-3">
+        <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)] animate-in fade-in zoom-in-95 duration-200 space-y-3">
           <div className="flex items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-foreground tracking-tight">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
                     {spontaneousEvent.title}
                   </h3>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 font-semibold">
                     {spontaneousEvent.secondsLeft > 0 ? `${spontaneousEvent.secondsLeft}s` : '¡Ya!'}
                   </span>
                 </div>
-                <p className="text-xs text-foreground-muted mt-0.5 font-sans">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 font-sans">
                   {spontaneousEvent.resultText || spontaneousEvent.desc}
                 </p>
               </div>
@@ -1914,7 +1927,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <button
                 type="button"
                 onClick={() => handleResolveEventOption('A')}
-                className="p-3 rounded-2xl bg-foreground text-background font-semibold text-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-98 shadow-sm"
+                className="p-3 rounded-2xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 font-semibold text-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-[0.98] shadow-xs"
               >
                 <span>{spontaneousEvent.optionA.label}</span>
                 <span className="text-[10px] font-mono opacity-80 mt-0.5">{spontaneousEvent.optionA.sublabel}</span>
@@ -1923,10 +1936,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <button
                 type="button"
                 onClick={() => handleResolveEventOption('B')}
-                className="p-3 rounded-2xl bg-surface hover:bg-surface-hover border border-border/80 text-foreground font-semibold text-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-98"
+                className="p-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/80 dark:hover:bg-zinc-700 border border-black/[0.06] dark:border-white/[0.08] text-zinc-900 dark:text-zinc-100 font-semibold text-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-[0.98]"
               >
                 <span>{spontaneousEvent.optionB.label}</span>
-                <span className="text-[10px] font-mono text-foreground-subtle mt-0.5">{spontaneousEvent.optionB.sublabel}</span>
+                <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 mt-0.5">{spontaneousEvent.optionB.sublabel}</span>
               </button>
             </div>
           )}
@@ -1935,12 +1948,12 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       {/* Descuento relámpago de la gasolinera */}
       {isFlashDiscount && (
-        <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center justify-between animate-in fade-in">
+        <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200 text-xs flex items-center justify-between animate-in fade-in shadow-2xs">
           <div className="flex items-center gap-2">
-            <Tag className="w-4 h-4 shrink-0 text-emerald-400" />
+            <Tag className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span>Descuento de escote activo: 30% menos en todas las compras de bebidas.</span>
           </div>
-          <span className="font-mono text-[11px] shrink-0 font-semibold">
+          <span className="font-mono text-[11px] shrink-0 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15">
             {Math.ceil((discountActiveUntil - Date.now()) / 1000)}s
           </span>
         </div>
@@ -1948,18 +1961,18 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       {/* Aviso de farmeo offline */}
       {offlineReport && (
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-raised border border-border shadow-xs animate-in fade-in slide-in-from-top-2">
+        <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)] animate-in fade-in slide-in-from-top-2">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-[#0071e3] dark:text-blue-400 flex items-center justify-center shrink-0">
               <Clock className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 La fiesta siguió mientras estabas fuera
               </p>
-              <p className="text-xs text-foreground-muted">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Has recaudado{' '}
-                <span className="font-semibold text-foreground">
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100 font-mono">
                   +{offlineReport.earned.toLocaleString()} fichas
                 </span>{' '}
                 durante tus {Math.round(offlineReport.seconds / 60)} min desconectado.
@@ -1969,39 +1982,72 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           <button
             type="button"
             onClick={() => setOfflineReport(null)}
-            className="px-3 py-1.5 rounded-full text-xs font-medium bg-foreground text-background cursor-pointer active:scale-95 transition-transform"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 cursor-pointer active:scale-95 transition-transform shadow-2xs"
           >
             Aceptar
           </button>
         </div>
       )}
 
-      {/* Banner de Zona Actual y Rango de Fiestero */}
-      <div className="p-4 rounded-3xl bg-surface-raised border border-border/70 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Banner de Zona Actual, Rango y Estado de Nube Supabase */}
+      <div className="p-3.5 sm:p-4 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-surface border border-border/60 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-11 h-11 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.06] flex items-center justify-center shrink-0 shadow-2xs">
             {renderZoneIcon(activeZone.icon)}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-foreground tracking-tight">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
                 {activeZone.name}
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold border border-accent/20">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-[#0071e3] dark:text-blue-400 font-semibold border border-blue-500/20">
                 x{activeZone.multiplier.toFixed(1)} Zona
               </span>
-              {activeZone.policeRisk > 0 && (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-semibold border border-red-500/20">
+              {activeZone.policeRisk > 0 ? (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 font-semibold border border-red-500/20">
                   Riesgo redada: {Math.round(activeZone.policeRisk * 100)}%
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+                  Zona Segura
                 </span>
               )}
             </div>
-            <p className="text-xs text-foreground-muted mt-0.5">{activeZone.desc}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{activeZone.desc}</p>
           </div>
         </div>
 
-        {/* Rango de Fiestero & Botón de Ayuda */}
-        <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+        {/* Controles de Ayuda, Reputación y Estado Supabase */}
+        <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-black/[0.06] dark:border-white/[0.06] flex-wrap justify-between sm:justify-end">
+          {/* Indicador Apple de Nube Supabase */}
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-medium border ${
+              cloudSyncStatus === 'saved'
+                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+                : cloudSyncStatus === 'saving'
+                ? 'bg-blue-500/10 text-[#0071e3] dark:text-blue-300 border-blue-500/20 animate-pulse'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border-black/[0.04] dark:border-white/[0.06]'
+            }`}
+            title="Estado de guardado en base de datos Supabase"
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                cloudSyncStatus === 'saved'
+                  ? 'bg-emerald-500'
+                  : cloudSyncStatus === 'saving'
+                  ? 'bg-[#0071e3] animate-ping'
+                  : 'bg-zinc-400'
+              }`}
+            />
+            <span>
+              {cloudSyncStatus === 'saved'
+                ? 'Supabase en la nube'
+                : cloudSyncStatus === 'saving'
+                ? 'Guardando...'
+                : 'Modo local'}
+            </span>
+          </div>
+
           <button
             type="button"
             onClick={() => {
@@ -2010,20 +2056,22 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               setShowTutorial(true);
             }}
             title="Ver guía completa de cómo jugar"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-hover border border-border/70 text-foreground-muted hover:text-foreground text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/80 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-xs font-medium transition-colors cursor-pointer border border-black/[0.04] dark:border-white/[0.06]"
           >
-            <HelpCircle className="w-3.5 h-3.5 text-accent" />
-            <span>¿Cómo jugar?</span>
+            <HelpCircle className="w-3.5 h-3.5 text-[#0071e3]" />
+            <span>Guía</span>
           </button>
 
-          <div className="text-right">
-            <div className="text-[10px] font-mono text-foreground-subtle uppercase tracking-wider">
-              Tu reputación
+          <div className="flex items-center gap-2">
+            <div className="text-right">
+              <div className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                Rango
+              </div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{currentRank.name}</div>
             </div>
-            <div className="text-xs font-semibold text-foreground">{currentRank.name}</div>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center">
-            <Trophy className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center">
+              <Trophy className="w-4 h-4" />
+            </div>
           </div>
         </div>
       </div>
@@ -2031,19 +2079,19 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       {/* Banner de Goteo Comunista & Custodia de Alijo (Grandes Fortunas) o Subsidio Proletario (Novatos) */}
       {userCoins >= 100000 ? (
         guardActiveUntilMs > Date.now() ? (
-          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 flex items-center justify-center shrink-0">
                 <Shield className="w-4 h-4" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-foreground">Alijo Custodiado · Seguridad Activa</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">
+                  <span className="font-semibold text-emerald-950 dark:text-emerald-100">Alijo Custodiado · Seguridad Activa</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 font-semibold">
                     {Math.ceil((guardActiveUntilMs - Date.now()) / 3600000)}h restantes
                   </span>
                 </div>
-                <p className="text-[11px] text-foreground-muted">
+                <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
                   Tu fortuna está protegida temporalmente contra el Goteo Comunista. Renovar seguridad cuesta una tasa proporcional a tu alijo.
                 </p>
               </div>
@@ -2051,25 +2099,25 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             <button
               type="button"
               onClick={handleGuardStash}
-              className="px-3.5 py-1.5 rounded-xl bg-surface hover:bg-surface-hover border border-border text-foreground font-semibold text-xs cursor-pointer transition-colors shrink-0"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-800 hover:bg-emerald-100/50 dark:hover:bg-zinc-700 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100 font-semibold text-xs cursor-pointer transition-colors shrink-0 shadow-2xs active:scale-[0.98]"
             >
               Renovar (+6h) {getGuardCost(userCoins) > 0 ? `· -${getGuardCost(userCoins).toLocaleString()}` : '· Gratis'}
             </button>
           </div>
         ) : (
-          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-4 h-4" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-amber-200">Goteo Comunista Inminente · Alijo Desprotegido</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-semibold border border-red-500/30 animate-pulse">
+                  <span className="font-semibold text-amber-950 dark:text-amber-100">Goteo Comunista Inminente · Alijo Desprotegido</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-700 dark:text-red-300 font-semibold border border-red-500/25">
                     Tasa Proletaria Activa
                   </span>
                 </div>
-                <p className="text-[11px] text-amber-300/80">
+                <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
                   Las fortunas ociosas sin seguridad privada gotean automáticamente al Fondo Común para financiar a los alumnos novatos.
                 </p>
               </div>
@@ -2077,59 +2125,194 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             <button
               type="button"
               onClick={handleGuardStash}
-              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs cursor-pointer transition-colors shrink-0 shadow-xs active:scale-95"
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs cursor-pointer transition-colors shrink-0 shadow-xs active:scale-[0.98]"
             >
               🛡️ Contratar Seguridad (+6h) {getGuardCost(userCoins) > 0 ? `· -${getGuardCost(userCoins).toLocaleString()} monedas` : '· Gratis'}
             </button>
           </div>
         )
       ) : isUnderdog && Date.now() - (lastSubsidioClaimMs || 0) >= 2 * 3600 * 1000 ? (
-        <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 flex items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/15 text-[#0071e3] dark:text-blue-400 border border-blue-500/25 flex items-center justify-center shrink-0">
               <Coins className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground">Fondo Social Proletario de Clase</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30">
+                <span className="font-semibold text-blue-950 dark:text-blue-100">Fondo Social Proletario de Clase</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-500/20">
                   +{Math.min(15000, Math.max(3500, Math.floor((50000 - userCoins) * 0.25))).toLocaleString()} Monedas
                 </span>
               </div>
-              <p className="text-[11px] text-foreground-muted truncate">
-                Subvención social para impulsar a los alumnos novatos financiada por las tasas y el Goteo Comunista de las ballenas.
+              <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80 truncate">
+                Subvención social para impulsar a los alumnos novatos financiada por las tasas y el Goteo Comunista.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleClaimSubsidio}
-            className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs cursor-pointer transition-colors shrink-0 active:scale-95"
+            className="px-4 py-2 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold text-xs cursor-pointer transition-colors shrink-0 active:scale-[0.98] shadow-xs"
           >
             Reclamar Subsidio
           </button>
         </div>
       ) : null}
 
-      {/* Cabecera y Resumen de la Fiesta */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* DASHBOARD OPTIMIZADO PARA MÓVILES (Estilo Apple Compact Dashboard) */}
+      <div className="block sm:hidden">
+        <div className="p-4 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)] space-y-3.5">
+          {/* Fila Superior: Bote y Ritmo */}
+          <div className="grid grid-cols-2 gap-3 pb-3 border-b border-black/[0.06] dark:border-white/[0.08]">
+            {/* Bote acumulado */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-mono font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                <Coins className="w-3 h-3 text-amber-500" />
+                <span>En la saca</span>
+              </span>
+              <div className="text-xl font-bold font-mono tracking-tight text-zinc-900 dark:text-zinc-100">
+                {roundedVault.toLocaleString()}
+              </div>
+              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium">
+                ≈ {coinsToClaim.toLocaleString()} 🪙 (5:1)
+              </div>
+              <button
+                type="button"
+                disabled={coinsToClaim <= 0 || isClaimingVault}
+                onClick={handleClaimVault}
+                className={`w-full mt-1.5 py-1.5 px-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.97] min-h-[36px] ${
+                  coinsToClaim > 0 && !isClaimingVault
+                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-2xs'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-60'
+                }`}
+              >
+                {isClaimingVault ? (
+                  <>
+                    <Clock className="w-3.5 h-3.5 animate-spin text-[#0071e3]" />
+                    <span>Canjeando...</span>
+                  </>
+                ) : justClaimed ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>¡Canjeado!</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownToLine className="w-3.5 h-3.5" />
+                    <span>Canjear</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Ritmo y Resaca */}
+            <div className="space-y-1 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-mono font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3 text-emerald-500" />
+                  <span>Ritmo</span>
+                </span>
+                <div className="text-xl font-bold font-mono tracking-tight text-emerald-600 dark:text-emerald-400">
+                  {isProductionFrozen ? '0.0' : `+${effectiveRatePerSecond.toFixed(1)}`}
+                  <span className="text-[10px] font-normal text-zinc-500 dark:text-zinc-400 ml-1">/s</span>
+                </div>
+                {/* Mini barra de resaca */}
+                <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400 font-mono mt-1">
+                  <span>Resaca:</span>
+                  <span className={isHungover ? 'text-red-500 font-bold' : ''}>{Math.round(hangoverLevel)}%</span>
+                </div>
+                <div className="w-full h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden mt-0.5">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      isHungover ? 'bg-red-500' : hangoverLevel > 60 ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${Math.min(100, hangoverLevel)}%` }}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={waterCooldown > 0 || hangoverLevel <= 0}
+                onClick={handleDrinkWater}
+                className={`w-full py-1.5 px-2 rounded-xl text-[11px] font-medium flex items-center justify-center gap-1 transition-all cursor-pointer min-h-[36px] ${
+                  waterCooldown > 0 || hangoverLevel <= 0
+                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-60'
+                    : 'bg-blue-500/10 text-[#0071e3] dark:text-blue-400 border border-blue-500/20 active:scale-[0.97]'
+                }`}
+              >
+                <Droplets className="w-3 h-3" />
+                <span>{waterCooldown > 0 ? `${waterCooldown}s` : 'Vaso de agua (-45%)'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Botón Táctil de Trago Manual Móvil */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={handleManualDrink}
+              className={`w-full py-3.5 px-4 rounded-2xl border transition-all active:scale-[0.97] cursor-pointer flex items-center justify-between touch-manipulation min-h-[48px] ${
+                isCrazyParty
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-900 dark:text-amber-100'
+                  : 'bg-zinc-100/80 dark:bg-zinc-800/80 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 border-black/[0.06] dark:border-white/[0.08] text-zinc-900 dark:text-zinc-100'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Wine className={`w-5 h-5 ${isCrazyParty ? 'text-amber-500 animate-bounce' : 'text-[#0071e3]'}`} />
+                <div className="text-left">
+                  <div className="text-xs font-semibold leading-tight">
+                    {isCrazyParty ? '¡Trago Subidón x3!' : '¡Echar un trago manual!'}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
+                    +{Math.max(1, Math.floor(1 + baseRatePerSecond * 0.05)) * prestigeMultiplier * drinkPowerMult * (isCrazyParty ? 3 : 1)} al bote
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white dark:bg-zinc-700 border border-black/[0.05] dark:border-white/[0.08] text-zinc-600 dark:text-zinc-300 font-medium">
+                  {isCrazyParty ? `${crazyPartyTimeRemaining}s` : `${partyComboCount}/10`}
+                </span>
+                <span className="text-xs font-semibold text-[#0071e3]">Trago</span>
+              </div>
+            </button>
+
+            {/* Partículas visuales de tragos móvil */}
+            {particles.map((p) => (
+              <span
+                key={p.id}
+                className="pointer-events-none absolute left-1/2 top-1/2 font-mono font-bold text-xs text-amber-500 select-none animate-in fade-in slide-in-from-bottom-2 duration-300"
+                style={{
+                  transform: `translate(calc(-50% + ${p.x}px), calc(-50% + ${p.y}px))`,
+                }}
+              >
+                {p.text}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* DASHBOARD PARA TABLETS Y ESCRITORIO (Estilo Apple Grouped Cards 3 Columnas) */}
+      <div className="hidden sm:grid sm:grid-cols-3 sm:gap-3">
         {/* Panel 1: En la saca (acumulado listo para cobrar) */}
-        <div className="p-5 rounded-3xl bg-surface-raised border border-border/70 shadow-xs flex flex-col justify-between space-y-4">
+        <div className="p-5 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)] flex flex-col justify-between space-y-4 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground-muted uppercase tracking-wider font-mono">
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono">
               En la saca del botellón
             </span>
-            <Coins className="w-4 h-4 text-amber-400" />
+            <Coins className="w-4 h-4 text-amber-500" />
           </div>
 
           <div>
-            <div className="text-3xl font-bold tracking-tight text-foreground font-mono">
+            <div className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 font-mono">
               {roundedVault.toLocaleString()}{' '}
-              <span className="text-xs font-sans text-foreground-muted font-normal">fichas</span>
+              <span className="text-xs font-sans text-zinc-500 dark:text-zinc-400 font-normal">fichas</span>
             </div>
-            <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-emerald-400 font-mono">
+            <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
               <span>≈ {coinsToClaim.toLocaleString()} monedas reales</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                 5:1
               </span>
             </div>
@@ -2139,20 +2322,20 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             type="button"
             disabled={coinsToClaim <= 0 || isClaimingVault}
             onClick={handleClaimVault}
-            className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98] ${
+            className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98] min-h-[44px] ${
               coinsToClaim > 0 && !isClaimingVault
-                ? 'bg-foreground text-background shadow-xs hover:opacity-95'
-                : 'bg-surface-raised text-foreground-subtle border border-border/50 cursor-not-allowed opacity-60'
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-xs hover:opacity-95'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border border-black/[0.04] dark:border-white/[0.06] cursor-not-allowed opacity-60'
             }`}
           >
             {isClaimingVault ? (
               <>
-                <Clock className="w-4 h-4 animate-spin text-accent" />
+                <Clock className="w-4 h-4 animate-spin text-[#0071e3]" />
                 <span>Canjeando fichas...</span>
               </>
             ) : justClaimed ? (
               <>
-                <Check className="w-4 h-4 text-emerald-400" />
+                <Check className="w-4 h-4 text-emerald-500" />
                 <span>¡Canjeado al monedero!</span>
               </>
             ) : (
@@ -2165,26 +2348,26 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
 
         {/* Panel 2: Ritmo de fiesta (Fichas por segundo y Resaca) */}
-        <div className="p-5 rounded-3xl bg-surface-raised border border-border/70 shadow-xs flex flex-col justify-between space-y-3">
+        <div className="p-5 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)] flex flex-col justify-between space-y-3 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground-muted uppercase tracking-wider font-mono">
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono">
               Ritmo de farmeo
             </span>
-            <TrendingUp className={`w-4 h-4 ${isProductionFrozen ? 'text-red-400' : isHungover ? 'text-amber-400' : 'text-emerald-400'}`} />
+            <TrendingUp className={`w-4 h-4 ${isProductionFrozen ? 'text-red-500' : isHungover ? 'text-amber-500' : 'text-emerald-500'}`} />
           </div>
 
           <div>
-            <div className="text-3xl font-bold tracking-tight text-foreground font-mono">
+            <div className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 font-mono">
               {isProductionFrozen ? '0.0' : `+${effectiveRatePerSecond.toFixed(1)}`}{' '}
-              <span className="text-xs font-sans text-foreground-muted font-normal">fichas / seg</span>
+              <span className="text-xs font-sans text-zinc-500 dark:text-zinc-400 font-normal">fichas / seg</span>
             </div>
-            <p className="text-[11px] text-foreground-subtle mt-0.5">
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
               {isProductionFrozen ? (
-                <span className="text-amber-400 font-medium">Pausa por presencia policial</span>
+                <span className="text-amber-600 dark:text-amber-400 font-medium">Pausa por presencia policial</span>
               ) : isHungover ? (
-                <span className="text-red-400 font-medium">Resaca mortal activa (-65% velocidad)</span>
+                <span className="text-red-600 dark:text-red-400 font-medium">Resaca mortal activa (-65% velocidad)</span>
               ) : afterPrestigeCount > 0 ? (
-                <span className="text-purple-400 font-medium">
+                <span className="text-purple-600 dark:text-purple-400 font-medium">
                   Multiplicador After: x{prestigeMultiplier.toFixed(1)}
                 </span>
               ) : (
@@ -2194,17 +2377,17 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           </div>
 
           {/* Medidor de Resaca / Fatiga y Botón de Agua */}
-          <div className="pt-2 border-t border-border/50 space-y-1.5">
+          <div className="pt-2 border-t border-black/[0.06] dark:border-white/[0.08] space-y-1.5">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-foreground-muted flex items-center gap-1">
-                <Activity className="w-3.5 h-3.5 text-foreground-subtle" />
+              <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                <Activity className="w-3.5 h-3.5 text-zinc-400" />
                 <span>Nivel de Resaca:</span>
               </span>
-              <span className={`font-mono font-semibold ${isHungover ? 'text-red-400' : 'text-foreground'}`}>
+              <span className={`font-mono font-semibold ${isHungover ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
                 {Math.round(hangoverLevel)}% {isHungover && '(Mortal)'}
               </span>
             </div>
-            <div className="w-full h-1.5 bg-surface rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
                   isHungover ? 'bg-red-500' : hangoverLevel > 60 ? 'bg-amber-500' : 'bg-emerald-500'
@@ -2217,10 +2400,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               type="button"
               disabled={waterCooldown > 0 || hangoverLevel <= 0}
               onClick={handleDrinkWater}
-              className={`w-full py-1.5 px-2.5 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`w-full py-1.5 px-2.5 rounded-xl text-[11px] font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[38px] ${
                 waterCooldown > 0 || hangoverLevel <= 0
-                  ? 'bg-surface text-foreground-subtle border border-border/40 cursor-not-allowed opacity-60'
-                  : 'bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25'
+                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border border-black/[0.04] dark:border-white/[0.06] cursor-not-allowed opacity-60'
+                  : 'bg-blue-500/10 text-[#0071e3] dark:text-blue-400 border border-blue-500/20 hover:bg-blue-500/15 active:scale-[0.98]'
               }`}
             >
               <Droplets className="w-3.5 h-3.5" />
@@ -2230,17 +2413,17 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
 
         {/* Panel 3: Clic Manual ("Echar un trago") */}
-        <div className="p-5 rounded-3xl bg-surface-raised border border-border/70 shadow-xs flex flex-col justify-between space-y-3">
+        <div className="p-5 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)] flex flex-col justify-between space-y-3 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground-muted uppercase tracking-wider font-mono">
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono">
               Trago manual
             </span>
             {isCrazyParty ? (
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                 ¡SUBIDÓN x3 ({crazyPartyTimeRemaining}s)!
               </span>
             ) : (
-              <Zap className="w-4 h-4 text-foreground-muted" />
+              <Zap className="w-4 h-4 text-zinc-400" />
             )}
           </div>
 
@@ -2248,19 +2431,19 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             <button
               type="button"
               onClick={handleManualDrink}
-              className={`w-full py-4 rounded-xl border transition-all active:scale-95 cursor-pointer flex flex-col items-center justify-center gap-1 group shadow-xs touch-manipulation ${
+              className={`w-full py-4 rounded-2xl border transition-all active:scale-[0.97] cursor-pointer flex flex-col items-center justify-center gap-1 group shadow-2xs touch-manipulation min-h-[72px] ${
                 isCrazyParty
-                  ? 'bg-amber-500/10 border-amber-500/40 shadow-amber-500/15'
-                  : 'bg-surface border border-border/80 hover:border-foreground/30 hover:bg-surface-raised'
+                  ? 'bg-amber-500/10 border-amber-500/30 shadow-amber-500/10'
+                  : 'bg-zinc-50 dark:bg-zinc-800/60 border-black/[0.06] dark:border-white/[0.08] hover:border-black/20 dark:hover:border-white/20 hover:bg-zinc-100/80 dark:hover:bg-zinc-800'
               }`}
             >
               <Wine className={`w-6 h-6 transition-all group-hover:scale-110 ${
-                isCrazyParty ? 'text-amber-400 animate-bounce' : 'text-foreground-muted group-hover:text-accent'
+                isCrazyParty ? 'text-amber-500 animate-bounce' : 'text-zinc-500 dark:text-zinc-400 group-hover:text-[#0071e3]'
               }`} />
-              <span className="text-xs font-semibold text-foreground">
+              <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                 {isCrazyParty ? '¡Trago con Subidón x3!' : '¡Echar un trago!'}
               </span>
-              <span className="text-[10px] text-foreground-subtle font-mono">
+              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
                 +{Math.max(1, Math.floor(1 + baseRatePerSecond * 0.05)) * prestigeMultiplier * drinkPowerMult * (isCrazyParty ? 3 : 1)} al bote
               </span>
             </button>
@@ -2269,7 +2452,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             {particles.map((p) => (
               <span
                 key={p.id}
-                className="pointer-events-none absolute left-1/2 top-1/2 font-mono font-black text-xs text-amber-400 select-none animate-in fade-in slide-in-from-bottom-2 duration-300 drop-shadow-xs"
+                className="pointer-events-none absolute left-1/2 top-1/2 font-mono font-bold text-xs text-amber-500 select-none animate-in fade-in slide-in-from-bottom-2 duration-300"
                 style={{
                   transform: `translate(calc(-50% + ${p.x}px), calc(-50% + ${p.y}px))`,
                 }}
@@ -2281,14 +2464,14 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
           {/* Barra de combo fiesta */}
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-[10px] text-foreground-subtle">
+            <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400">
               <span>Ritmo para el Subidón</span>
-              <span>{isCrazyParty ? '¡Ambiente a tope!' : `${partyComboCount}/10 tragos`}</span>
+              <span className="font-mono">{isCrazyParty ? '¡Ambiente a tope!' : `${partyComboCount}/10 tragos`}</span>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-border/40 overflow-hidden">
+            <div className="w-full h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
               <div
                 className={`h-full transition-all duration-200 ${
-                  isCrazyParty ? 'bg-amber-400 w-full animate-pulse' : 'bg-foreground w-0'
+                  isCrazyParty ? 'bg-amber-500 w-full' : 'bg-zinc-900 dark:bg-zinc-100 w-0'
                 }`}
                 style={!isCrazyParty ? { width: `${(partyComboCount / 10) * 100}%` } : undefined}
               />
@@ -2298,23 +2481,23 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       </div>
 
       {/* Feed de Noticias de la Fiesta en Vivo y Ecualizador de Ritmo */}
-      <div className="p-3.5 rounded-2xl bg-surface-raised border border-border/60 flex items-center justify-between gap-3 text-xs shadow-2xs overflow-hidden">
+      <div className="p-3.5 rounded-2xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between gap-3 text-xs shadow-2xs overflow-hidden transition-colors">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded-xl bg-blue-500/10 text-[#0071e3] dark:text-blue-400 flex items-center justify-center shrink-0">
             <Sparkles className="w-4 h-4" />
           </div>
           <div className="min-w-0 truncate">
-            <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-accent mr-2">
+            <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-[#0071e3] mr-2">
               En directo:
             </span>
-            <span className="text-foreground-muted font-medium transition-all duration-300">
+            <span className="text-zinc-600 dark:text-zinc-300 font-medium transition-all duration-300">
               {PARTY_NEWS[currentNewsIndex]}
             </span>
           </div>
         </div>
 
         {/* Ecualizador animado */}
-        <div className="flex items-end gap-0.5 h-3.5 shrink-0 px-2 py-0.5 rounded-md bg-surface border border-border/50">
+        <div className="flex items-end gap-0.5 h-3.5 shrink-0 px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.06]">
           {[0, 1, 2, 3, 4].map((i) => {
             const h =
               effectiveRatePerSecond > 0
@@ -2324,7 +2507,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <span
                 key={i}
                 className={`w-1 rounded-full transition-all duration-100 ${
-                  effectiveRatePerSecond > 0 ? 'bg-emerald-400' : 'bg-foreground-subtle'
+                  effectiveRatePerSecond > 0 ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600'
                 }`}
                 style={{ height: `${h}px` }}
               />
@@ -2342,8 +2525,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         onCloseSpeech={() => setActiveCharacterSpeech(null)}
       />
 
-      {/* Pestañas de Progresión y Mecánicas del Botellón */}
-      <div className="flex items-center p-1 rounded-2xl bg-surface-raised border border-border/70 overflow-x-auto scrollbar-none gap-1">
+      {/* Pestañas de Progresión y Mecánicas del Botellón (Apple Segmented Control) */}
+      <div className="flex items-center p-1 rounded-2xl bg-zinc-200/60 dark:bg-zinc-800/60 border border-black/[0.04] dark:border-white/[0.06] overflow-x-auto scrollbar-none gap-1 touch-pan-x">
         {[
           { id: 'suministros', label: 'Bebidas & Suministros', icon: Wine },
           { id: 'zonas', label: 'Fases & Zonas', icon: MapPin },
@@ -2361,10 +2544,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                 setActiveTab(tab.id as any);
                 sound.tap();
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer whitespace-nowrap active:scale-95 touch-manipulation ${
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer whitespace-nowrap active:scale-[0.97] touch-manipulation min-h-[38px] ${
                 isActive
-                  ? 'bg-foreground text-background font-semibold shadow-xs'
-                  : 'text-foreground-muted hover:text-foreground hover:bg-surface'
+                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white font-semibold shadow-xs'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -2418,38 +2601,30 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   type="button"
                   onClick={canPrestige ? handleOpenAfterModal : undefined}
                   disabled={!canPrestige}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all active:scale-95 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-95 ${
                     canPrestige
-                      ? 'bg-purple-500/15 text-purple-400 border-purple-500/30 hover:bg-purple-500/25 cursor-pointer'
-                      : 'bg-surface-raised text-foreground-muted border-border/60 cursor-not-allowed opacity-75'
+                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 border-neutral-900 dark:border-white hover:opacity-90 cursor-pointer shadow-xs'
+                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border-neutral-200 dark:border-neutral-700/60 cursor-not-allowed opacity-75'
                   }`}
                   title={
                     isAfterOnCooldown
-                      ? `Espera ${Math.ceil(afterCooldownRemainingMs / 1000)}s para organizar otro After`
+                      ? `Espera ${Math.ceil(afterCooldownRemainingMs / 1000)}s para el siguiente renacimiento`
                       : currentRunProduced < requiredRunProd
                       ? `Necesitas producir ${Math.floor(currentRunProduced).toLocaleString()} / ${requiredRunProd.toLocaleString()} fichas en esta ronda`
-                      : 'Irse de After'
+                      : 'Ejecutar Renacimiento'
                   }
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>
                     {isAfterOnCooldown
-                      ? `After enfría (${Math.ceil(afterCooldownRemainingMs / 1000)}s)`
+                      ? `Renacimiento (${Math.ceil(afterCooldownRemainingMs / 1000)}s)`
                       : currentRunProduced < requiredRunProd
-                      ? `After: ${Math.floor(currentRunProduced).toLocaleString()} / ${requiredRunProd.toLocaleString()}`
-                      : 'Irse de After (+bonus)'}
+                      ? `Renacer: ${Math.floor(currentRunProduced).toLocaleString()} / ${requiredRunProd.toLocaleString()}`
+                      : 'Renacer (+bonus)'}
                   </span>
-                  {canPrestige && (
-                    <span
-                      className={`ml-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
-                        afterSuspicionLevel === 0
-                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                          : afterSuspicionLevel <= 2
-                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
-                          : 'bg-red-500/15 text-red-400 border border-red-500/20 animate-pulse'
-                      }`}
-                    >
-                      Riesgo {getAfterRiskStats(afterSuspicionLevel, userCoins).raidChancePct}%
+                  {afterPrestigeCount > 0 && (
+                    <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-neutral-200 text-neutral-800 dark:bg-neutral-700 dark:text-neutral-200">
+                      x{prestigeMultiplier.toFixed(2)}
                     </span>
                   )}
                 </button>
@@ -2461,27 +2636,27 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           {afterSuspicionLevel > 0 && (() => {
             const stats = getAfterRiskStats(afterSuspicionLevel, userCoins);
             return (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 shadow-xs">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 shadow-xs">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-red-500/15 border border-red-500/25 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
                     <Siren className="w-4 h-4 animate-pulse" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-red-200">
+                      <span className="text-xs font-semibold text-red-900 dark:text-red-100">
                         Sospecha Policial del After: Nivel {afterSuspicionLevel}
                       </span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-red-500/25 border border-red-500/40 text-red-300 font-semibold">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/25 text-red-700 dark:text-red-300 font-semibold">
                         {stats.raidChancePct}% Redada · {stats.confiscatePct}% Confiscación
                       </span>
                       {stats.wealthSurcharge > 0 && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300 font-semibold border border-amber-500/25">
                           Recargo a Gran Fortuna
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-red-300/80 leading-relaxed mt-0.5">
-                      La policía patrulla el After. Se enfría 1 nivel en <strong className="font-mono text-red-200">{afterCooldownSeconds}s</strong> o puedes revertir la sospecha pagando una fianza.
+                    <p className="text-[11px] text-red-800/80 dark:text-red-300/80 leading-relaxed mt-0.5">
+                      La policía patrulla el After. Se enfría 1 nivel en <strong className="font-mono">{afterCooldownSeconds}s</strong> o puedes revertir la sospecha pagando una fianza.
                     </p>
                   </div>
                 </div>
@@ -2489,9 +2664,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                 <button
                   type="button"
                   onClick={handleRevertSuspicion}
-                  className="self-end sm:self-center px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shrink-0"
+                  className="self-end sm:self-center px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-800 hover:bg-red-50 dark:hover:bg-zinc-700 border border-red-200 dark:border-red-800 text-xs font-semibold text-red-900 dark:text-red-100 flex items-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] shrink-0 shadow-2xs"
                 >
-                  <Coins className="w-3.5 h-3.5 text-amber-300" />
+                  <Coins className="w-3.5 h-3.5 text-amber-500" />
                   <span>Revertir a 0% (-{stats.bribeCost.toLocaleString()} monedas)</span>
                 </button>
               </div>
@@ -2513,34 +2688,34 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               return (
                 <div
                   key={tier.id}
-                  className="p-4 rounded-2xl bg-surface-raised border border-border/60 hover:border-border transition-all flex flex-col justify-between gap-3 shadow-xs"
+                  className="p-4 rounded-2xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] hover:border-black/15 dark:hover:border-white/15 transition-all flex flex-col justify-between gap-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-surface border border-border/60 flex items-center justify-center shrink-0 text-foreground-muted">
+                      <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.06] flex items-center justify-center shrink-0 text-zinc-700 dark:text-zinc-300">
                         <Icon className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-foreground truncate">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                             {tier.name}
                           </span>
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-surface text-foreground-muted border border-border/50 shrink-0">
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-black/[0.04] dark:border-white/[0.06] shrink-0 font-medium">
                             Nvl. {currentLevel}
                           </span>
                           {milestone > 1 && (
-                            <span className="text-[9px] font-mono font-semibold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                            <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
                               x{milestone}
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-foreground-subtle truncate mt-0.5">
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
                           {tier.desc}
                         </p>
-                        <p className="text-[10px] text-emerald-400 font-mono mt-0.5">
-                          +{(tier.baseRate * milestone * activeZone.multiplier * prestigeMultiplier).toFixed(1)}/s cada uno{' '}
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 font-medium">
+                          +{(tier.baseRate * milestone * activeZone.multiplier * prestigeMultiplier).toFixed(1)}/s c/u{' '}
                           {currentLevel > 0 && (
-                            <span className="text-foreground-subtle">
+                            <span className="text-zinc-400 dark:text-zinc-500 font-normal">
                               (total: +{currentTotalRate.toFixed(1)}/s)
                             </span>
                           )}
@@ -2552,10 +2727,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                       type="button"
                       disabled={!quote.canAfford}
                       onClick={() => handleBuyTier(tier)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer active:scale-95 flex flex-col items-end ${
+                      className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer active:scale-[0.96] flex flex-col items-end min-h-[44px] justify-center ${
                         quote.canAfford
-                          ? 'bg-foreground text-background shadow-xs hover:opacity-95'
-                          : 'bg-surface text-foreground-subtle border border-border/50 cursor-not-allowed opacity-50'
+                          ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-2xs hover:opacity-90'
+                          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border border-black/[0.04] dark:border-white/[0.06] cursor-not-allowed opacity-60'
                       }`}
                     >
                       <span>Pillar {quote.count > 1 ? `x${quote.count}` : ''}</span>
@@ -2565,12 +2740,12 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                     </button>
                   </div>
 
-                  {/* Barra de progreso de producción continua en tiempo real */}
+                  {/* Barra de progreso de ciclo de producción */}
                   {currentLevel > 0 && (
-                    <div className="w-full space-y-1 pt-1">
-                      <div className="w-full h-1 bg-border/40 rounded-full overflow-hidden">
+                    <div className="w-full space-y-1 pt-0.5">
+                      <div className="w-full h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-emerald-400 transition-all duration-100 rounded-full"
+                          className="h-full bg-emerald-500 transition-all duration-100 rounded-full"
                           style={{ width: `${progressPercent}%` }}
                         />
                       </div>
@@ -2587,8 +2762,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       {activeTab === 'zonas' && (
         <div className="space-y-3 animate-in fade-in duration-150">
           <div className="px-1">
-            <h2 className="text-sm font-semibold text-foreground">Etapas de la Noche</h2>
-            <p className="text-xs text-foreground-muted">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Etapas de la Noche</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Avanza de localización a medida que aumentas tu recaudación total. Cada fase multiplica toda tu producción.
             </p>
           </div>
@@ -2603,40 +2778,40 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   key={zone.id}
                   className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                     isSelected
-                      ? 'bg-surface border-foreground shadow-xs'
+                      ? 'bg-white dark:bg-[#1c1c1e] border-black dark:border-white shadow-sm ring-1 ring-black/10 dark:ring-white/20'
                       : isUnlocked
-                      ? 'bg-surface-raised border-border/70 hover:border-border'
-                      : 'bg-surface/50 border-border/40 opacity-60'
+                      ? 'bg-white dark:bg-[#1c1c1e] border-black/[0.06] dark:border-white/[0.08] hover:border-black/20 dark:hover:border-white/20 shadow-[0_1px_3px_rgba(0,0,0,0.03)]'
+                      : 'bg-zinc-50/70 dark:bg-zinc-900/40 border-black/[0.04] dark:border-white/[0.04] opacity-60'
                   }`}
                 >
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-surface border border-border/60 flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-black/[0.06] dark:border-white/[0.08] flex items-center justify-center shrink-0">
                       {renderZoneIcon(zone.icon)}
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold text-foreground">{zone.name}</span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
+                        <span className="text-sm font-bold text-zinc-900 dark:text-white">{zone.name}</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-200 dark:border-emerald-800/40">
                           x{zone.multiplier.toFixed(1)} Producción
                         </span>
                         {zone.policeRisk > 0 ? (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-semibold border border-red-500/20">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 font-semibold border border-red-200 dark:border-red-800/40">
                             Riesgo redada: {Math.round(zone.policeRisk * 100)}%
                           </span>
                         ) : (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 font-semibold border border-blue-200 dark:border-blue-800/40">
                             Zona Segura (0% riesgo)
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-foreground-subtle mt-0.5">{zone.subtitle}</p>
-                      <p className="text-[11px] text-foreground-muted mt-0.5">{zone.desc}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{zone.subtitle}</p>
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">{zone.desc}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
+                  <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-black/[0.04] dark:border-white/[0.06]">
                     {isSelected ? (
-                      <span className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-foreground text-background flex items-center gap-1.5 shadow-xs">
+                      <span className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-black text-white dark:bg-white dark:text-black flex items-center gap-1.5 shadow-sm">
                         <Check className="w-3.5 h-3.5" />
                         <span>Fase Activa</span>
                       </span>
@@ -2644,12 +2819,12 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                       <button
                         type="button"
                         onClick={() => handleSelectZone(zone)}
-                        className="px-4 py-2 rounded-xl text-xs font-semibold bg-surface border border-border hover:bg-surface-raised transition-all cursor-pointer active:scale-95 text-foreground"
+                        className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-black/[0.06] dark:border-white/[0.08] transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
                       >
                         Mudar la fiesta
                       </button>
                     ) : (
-                      <div className="flex items-center gap-1.5 text-xs text-foreground-subtle font-mono">
+                      <div className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 font-mono">
                         <Lock className="w-3.5 h-3.5" />
                         <span>Req. {zone.requiredProduction.toLocaleString()} fichas</span>
                       </div>
@@ -2666,8 +2841,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       {activeTab === 'habilidades' && (
         <div className="space-y-3 animate-in fade-in duration-150">
           <div className="px-1">
-            <h2 className="text-sm font-semibold text-foreground">Habilidades y Ventajas de Fiesta</h2>
-            <p className="text-xs text-foreground-muted">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Habilidades y Ventajas de Fiesta</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Compradas una sola vez. Otorgan ventajas permanentes para toda la noche.
             </p>
           </div>
@@ -2682,19 +2857,19 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   key={perk.id}
                   className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                     bought
-                      ? 'bg-surface border-emerald-500/30'
-                      : 'bg-surface-raised border-border/70 hover:border-border shadow-xs'
+                      ? 'bg-white dark:bg-[#1c1c1e] border-emerald-500/30 dark:border-emerald-500/20 shadow-[0_1px_3px_rgba(0,0,0,0.03)]'
+                      : 'bg-white dark:bg-[#1c1c1e] border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03)]'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-surface border border-border/60 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-black/[0.06] dark:border-white/[0.08] flex items-center justify-center shrink-0">
                       {renderPerkIcon(perk.icon)}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-xs font-bold text-foreground truncate">
+                      <div className="text-xs font-bold text-zinc-900 dark:text-white truncate">
                         {perk.name}
                       </div>
-                      <p className="text-[11px] text-foreground-subtle mt-0.5 leading-snug">
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-snug">
                         {perk.desc}
                       </p>
                     </div>
@@ -2702,7 +2877,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
                   <div className="shrink-0">
                     {bought ? (
-                      <span className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                      <span className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 flex items-center gap-1">
                         <Check className="w-3.5 h-3.5" />
                         <span>Activo</span>
                       </span>
@@ -2711,10 +2886,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                         type="button"
                         disabled={!canAfford}
                         onClick={() => handleBuyPerk(perk)}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-95 flex flex-col items-end ${
+                        className={`min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] flex flex-col items-end justify-center touch-manipulation ${
                           canAfford
-                            ? 'bg-foreground text-background shadow-xs hover:opacity-95'
-                            : 'bg-surface text-foreground-subtle border border-border/50 cursor-not-allowed opacity-50'
+                            ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs hover:opacity-90'
+                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border border-black/[0.04] dark:border-white/[0.04] cursor-not-allowed opacity-50'
                         }`}
                       >
                         <span>Aprender</span>
@@ -2735,36 +2910,43 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       {activeTab === 'beerpong' && (
         <div className="space-y-4 animate-in fade-in duration-150">
           <div className="px-1">
-            <h2 className="text-sm font-semibold text-foreground">Minijuego: Beer Pong de Clase</h2>
-            <p className="text-xs text-foreground-muted">
-              Apunta en el momento justo cuando el cursor pase por el centro para encestar en el vaso y ganar botines directos de fichas.
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Minijuegos de la Fiesta</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Desafía tu puntería o prueba suerte en la mesa para ganar botines instantáneos de fichas.
             </p>
           </div>
 
-          <div className="p-6 rounded-3xl bg-surface-raised border border-border/70 shadow-xs text-center space-y-6">
+          <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03)] text-center space-y-5">
             <div className="flex items-center justify-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center text-accent">
+              <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-black/[0.06] dark:border-white/[0.08] flex items-center justify-center text-zinc-900 dark:text-white">
                 <Target className="w-6 h-6" />
               </div>
             </div>
 
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Beer Pong de Clase</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
+                Apunta cuando el cursor pase por la zona verde central para encestar en el vaso.
+              </p>
+            </div>
+
             {/* Barra de puntería interactiva */}
             <div className="max-w-md mx-auto space-y-2">
-              <div className="flex items-center justify-between text-xs text-foreground-subtle font-mono">
+              <div className="flex items-center justify-between text-[11px] text-zinc-400 dark:text-zinc-500 font-mono">
                 <span>Fallo</span>
-                <span className="text-emerald-400 font-bold">ZONA DE ENCESTE (45% - 55%)</span>
+                <span className="text-emerald-700 dark:text-emerald-300 font-bold">ZONA DE ENCESTE (45% - 55%)</span>
                 <span>Fallo</span>
               </div>
 
-              <div className="relative w-full h-8 rounded-2xl bg-surface border border-border/80 overflow-hidden shadow-inner flex items-center">
+              <div className="relative w-full h-8 rounded-full bg-zinc-100 dark:bg-zinc-800/80 border border-black/[0.08] dark:border-white/[0.1] overflow-hidden shadow-inner flex items-center">
                 {/* Zona dulce verde (Sweet spot) */}
-                <div className="absolute left-[40%] w-[20%] h-full bg-emerald-500/20 border-x border-emerald-500/40" />
+                <div className="absolute left-[40%] w-[20%] h-full bg-emerald-500/20 dark:bg-emerald-400/25 border-x border-emerald-500/30" />
                 <div className="absolute left-[45%] w-[10%] h-full bg-emerald-500/40" />
 
                 {/* Cursor móvil */}
                 <div
-                  className="absolute top-1 bottom-1 w-2.5 rounded-full bg-foreground shadow-md transition-none"
-                  style={{ left: `calc(${pongAim}% - 5px)` }}
+                  className="absolute top-1 bottom-1 w-3 rounded-full bg-black dark:bg-white shadow-md transition-none"
+                  style={{ left: `calc(${pongAim}% - 6px)` }}
                 />
               </div>
             </div>
@@ -2775,10 +2957,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                 type="button"
                 disabled={pongShooting || pongCooldown > 0}
                 onClick={handleShootBeerPong}
-                className={`py-3.5 px-8 rounded-2xl text-sm font-bold tracking-tight transition-all cursor-pointer active:scale-95 shadow-md ${
+                className={`w-full max-w-sm mx-auto min-h-[48px] py-3 px-6 rounded-2xl text-xs font-semibold tracking-tight transition-all cursor-pointer active:scale-[0.98] shadow-sm touch-manipulation ${
                   pongCooldown > 0
-                    ? 'bg-surface text-foreground-subtle border border-border cursor-not-allowed opacity-60'
-                    : 'bg-foreground text-background hover:opacity-90'
+                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border border-black/[0.06] dark:border-white/[0.08] cursor-not-allowed opacity-60'
+                    : 'bg-black text-white dark:bg-white dark:text-black hover:opacity-90'
                 }`}
               >
                 {pongShooting
@@ -2788,8 +2970,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   : '¡Lanzar Bola de Beer Pong!'}
               </button>
 
-              <div className="text-xs text-foreground-subtle">
-                Victorias en Beer Pong: <span className="font-mono font-bold text-foreground">{beerPongWins}</span>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                Victorias en Beer Pong: <span className="font-mono font-bold text-zinc-900 dark:text-white">{beerPongWins}</span>
               </div>
             </div>
 
@@ -2798,8 +2980,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <div
                 className={`p-3.5 rounded-2xl text-xs font-medium max-w-md mx-auto border animate-in fade-in duration-200 ${
                   pongResult.success
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
-                    : 'bg-danger-subtle text-danger border-danger/20'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/40'
+                    : 'bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800/40'
                 }`}
               >
                 {pongResult.text}
@@ -2808,15 +2990,15 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           </div>
 
           {/* Minijuego 2: El Vaso Misterioso (Ruleta de Chupitos) */}
-          <div className="p-6 rounded-3xl bg-surface-raised border border-border/70 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-3">
+          <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black/[0.04] dark:border-white/[0.06] pb-3">
               <div>
-                <h3 className="text-sm font-semibold text-foreground">El Vaso Misterioso (Ruleta de Chupitos)</h3>
-                <p className="text-xs text-foreground-muted">
-                  Elige uno de los tres vasos de la mesa: uno tiene Chupito Dorado (+fichas), uno Agua Fresca (-resaca) y uno Mezcla Picante (Subidón x3).
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">El Vaso Misterioso (Ruleta de Chupitos)</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Elige uno de los tres vasos: Chupito Dorado (+fichas), Agua Fresca (-resaca) o Mezcla Picante (Subidón x3).
                 </p>
               </div>
-              <span className="text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full bg-surface border border-border text-foreground-muted shrink-0">
+              <span className="text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-black/[0.06] dark:border-white/[0.08] shrink-0 self-start sm:self-auto">
                 {glassCooldown > 0 ? `Enfriando: ${glassCooldown}s` : '¡Listo para beber!'}
               </span>
             </div>
@@ -2829,16 +3011,16 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   type="button"
                   disabled={glassCooldown > 0 || isSelectingGlass}
                   onClick={() => handlePickMysteryGlass(idx)}
-                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation cursor-pointer ${
+                  className={`min-h-[84px] p-3.5 rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-[0.98] touch-manipulation cursor-pointer ${
                     glassCooldown > 0
-                      ? 'bg-surface/50 border-border/40 opacity-50 cursor-not-allowed'
-                      : 'bg-surface hover:bg-surface-raised border-border/80 hover:border-accent hover:shadow-md'
+                      ? 'bg-zinc-50/50 dark:bg-zinc-900/30 border-black/[0.04] dark:border-white/[0.04] opacity-50 cursor-not-allowed'
+                      : 'bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/60 dark:hover:bg-zinc-800 border-black/[0.06] dark:border-white/[0.08] shadow-xs'
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400">
-                    <CupSoda className="w-6 h-6" />
+                  <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/40 flex items-center justify-center text-red-600 dark:text-red-400">
+                    <CupSoda className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-bold text-foreground font-mono">
+                  <span className="text-xs font-bold text-zinc-900 dark:text-white font-mono">
                     Vaso #{idx + 1}
                   </span>
                 </button>
@@ -2848,10 +3030,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             {glassResult && (
               <div className={`p-3.5 rounded-2xl text-xs font-medium max-w-md mx-auto border text-center animate-in fade-in duration-200 ${
                 glassResult.type === 'gold'
-                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                  ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/40'
                   : glassResult.type === 'water'
-                  ? 'bg-blue-500/10 text-blue-300 border-blue-500/30'
-                  : 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                  ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/40'
+                  : 'bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800/40'
               }`}>
                 {glassResult.text}
               </div>
@@ -3067,200 +3249,131 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       )}
 
-      {/* Modal interactivo: Irse de After Clandestino & Riesgo Policial */}
+      {/* Modal Minimalista de Renacimiento (Rebirth) */}
       {showAfterModal && (() => {
-        const stats = getAfterRiskStats(afterSuspicionLevel, userCoins);
-        const coinsAtRisk = Math.floor(userCoins * (stats.confiscatePct / 100));
+        const nextPrestigeCount = afterPrestigeCount + 1;
+        const currentMultiplier = prestigeMultiplier;
+        const bonusPct =
+          afterPrestigeCount === 0 ? 35 : afterPrestigeCount <= 2 ? 20 : afterPrestigeCount <= 5 ? 12 : afterPrestigeCount <= 9 ? 6 : 2;
+        const nextMultiplier = Number((currentMultiplier + bonusPct / 100).toFixed(2));
+        const coinsReward = Math.floor(pendingVault / 5);
+        const progressPct = Math.min(100, Math.round((currentRunProduced / requiredRunProd) * 100));
+
         return (
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-200"
           >
             <div className="fixed inset-0" onClick={() => setShowAfterModal(false)} />
-            <div className="relative z-10 w-full max-w-lg rounded-3xl bg-surface border border-border shadow-2xl overflow-hidden p-5 sm:p-6 space-y-4">
-              {/* Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-border/70">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                    <RotateCcw className="w-4 h-4" />
+            <div className="relative z-10 w-full max-w-md rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xl p-6 sm:p-7 space-y-5 text-neutral-900 dark:text-neutral-100 select-none">
+              {/* Encabezado */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
+                      Sistema de Prestigio
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">
+                      Nivel {afterPrestigeCount}
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="text-base font-bold text-foreground tracking-tight">
-                      El After Clandestino
-                    </h3>
-                    <p className="text-xs text-foreground-muted">
-                      Prestigio de la fiesta con riesgo de redada policial
-                    </p>
-                  </div>
+                  <h3 className="text-lg font-bold tracking-tight text-neutral-900 dark:text-white font-sans">
+                    Renacimiento
+                  </h3>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed font-sans">
+                    Reinicia los suministros de esta ronda a cambio de un incremento permanente en la tasa de producción.
+                  </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowAfterModal(false)}
-                  className="p-1.5 rounded-lg text-foreground-subtle hover:text-foreground hover:bg-surface-raised cursor-pointer transition-colors"
+                  className="w-8 h-8 rounded-xl text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Multiplicador y Beneficio */}
-              <div className="p-3.5 rounded-2xl bg-surface-raised border border-border/70 flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-mono uppercase text-foreground-muted block">
-                    Bonus Permanente Obtenido
+              {/* Estadísticas de Renacimiento */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/80 dark:border-neutral-700/60 space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block">
+                    Nivel de Renacimiento
                   </span>
-                  <div className="text-lg font-bold text-purple-400 font-mono">
-                    +{afterPrestigeCount === 0 ? '40%' : afterPrestigeCount <= 2 ? '25%' : '15%'} Producción Global
+                  <div className="flex items-baseline gap-1.5 font-mono">
+                    <span className="text-base font-bold text-neutral-500 dark:text-neutral-400">#{afterPrestigeCount}</span>
+                    <span className="text-xs text-neutral-400">→</span>
+                    <span className="text-base font-bold text-neutral-900 dark:text-white">#{nextPrestigeCount}</span>
                   </div>
                 </div>
-                <div className="text-right font-mono text-xs text-foreground-muted">
-                  Multiplicador total: <strong className="text-foreground">x{(prestigeMultiplier + (afterPrestigeCount === 0 ? 0.4 : afterPrestigeCount <= 2 ? 0.25 : 0.15)).toFixed(2)}</strong>
+
+                <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/80 dark:border-neutral-700/60 space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block">
+                    Multiplicador Global
+                  </span>
+                  <div className="flex items-baseline gap-1.5 font-mono">
+                    <span className="text-base font-bold text-neutral-500 dark:text-neutral-400">x{currentMultiplier.toFixed(2)}</span>
+                    <span className="text-xs text-neutral-400">→</span>
+                    <span className="text-base font-bold text-neutral-900 dark:text-white">x{nextMultiplier.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Panel de Riesgo Policial Progresivo */}
-              <div className="p-4 rounded-2xl bg-surface-raised/60 border border-border space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Siren className={`w-4 h-4 ${stats.level > 0 ? 'text-red-400 animate-pulse' : 'text-foreground-muted'}`} />
-                    <span className="text-xs font-bold text-foreground">
-                      Nivel de Sospecha Policial: Nivel {stats.level}
-                    </span>
-                  </div>
-                  <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${
-                    stats.level === 0
-                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                      : stats.level <= 2
-                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                      : 'bg-red-500/15 text-red-400 border border-red-500/30'
-                  }`}>
-                    {stats.raidChancePct}% Probabilidad
+              {/* Recompensa en monedas de la ronda actual */}
+              {coinsReward > 0 && (
+                <div className="p-3 rounded-2xl bg-neutral-100/70 dark:bg-neutral-800/40 border border-neutral-200/70 dark:border-neutral-700/50 flex items-center justify-between text-xs">
+                  <span className="text-neutral-600 dark:text-neutral-400">Conversión de bote a cartera:</span>
+                  <span className="font-mono font-bold text-neutral-900 dark:text-white">
+                    +{coinsReward.toLocaleString()} monedas
                   </span>
                 </div>
+              )}
 
-                {/* Barra de progreso de sospecha */}
-                <div className="space-y-1">
-                  <div className="w-full h-2 rounded-full bg-surface border border-border/70 overflow-hidden flex">
-                    <div
-                      className={`h-full transition-all duration-300 rounded-full ${
-                        stats.level === 0
-                          ? 'bg-emerald-500'
-                          : stats.level <= 2
-                          ? 'bg-amber-500'
-                          : 'bg-red-500'
-                      }`}
-                      style={{ width: `${Math.min(100, (stats.level / 6) * 100)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono text-foreground-subtle">
-                    <span>Nivel 0 (15%)</span>
-                    <span>Nivel 3 (60%)</span>
-                    <span>Nivel 6+ (95%)</span>
-                  </div>
+              {/* Barra de progreso de la ronda actual */}
+              <div className="space-y-1.5 p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/80 dark:border-neutral-700/60">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-neutral-500 dark:text-neutral-400">Fichas de esta ronda:</span>
+                  <span className="font-bold text-neutral-900 dark:text-white">
+                    {Math.floor(currentRunProduced).toLocaleString()} / {requiredRunProd.toLocaleString()}
+                  </span>
                 </div>
-
-                {/* Métricas clave: Probabilidad de redada y Porcentaje requisado */}
-                <div className="grid grid-cols-2 gap-2 pt-1 font-mono">
-                  <div className="p-2.5 rounded-xl bg-surface border border-border text-center space-y-0.5">
-                    <span className="text-[10px] uppercase text-foreground-muted block font-sans">
-                      Probabilidad de Redada
-                    </span>
-                    <span className={`text-base font-bold ${
-                      stats.raidChancePct > 50 ? 'text-red-400' : stats.raidChancePct > 20 ? 'text-amber-400' : 'text-emerald-400'
-                    }`}>
-                      {stats.raidChancePct}%
-                    </span>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-surface border border-border text-center space-y-0.5">
-                    <span className="text-[10px] uppercase text-foreground-muted block font-sans">
-                      Multa si te pillan
-                    </span>
-                    <span className="text-base font-bold text-red-400">
-                      -{stats.confiscatePct}%
-                    </span>
-                  </div>
+                <div className="w-full h-1.5 rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+                  <div
+                    className="h-full bg-neutral-900 dark:bg-white rounded-full transition-all duration-300"
+                    style={{ width: `${progressPct}%` }}
+                  />
                 </div>
-
-                {/* Alerta de Gran Fortuna si tiene monedas millonarias */}
-                {coinsAtRisk > 0 && (
-                  <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-300 flex items-center justify-between">
-                    <span>Monedas en riesgo directo de tu monedero:</span>
-                    <strong className="font-mono text-red-400">-{coinsAtRisk.toLocaleString()} monedas</strong>
-                  </div>
-                )}
-
-                <p className="text-[11px] text-foreground-muted leading-relaxed">
-                  Cada vez que le das a irte de After, la policía te ficha más de cerca. La probabilidad de redada sube un <strong className="text-foreground">+15%</strong> y la multa requisada sube un <strong className="text-foreground">+15%</strong>. Si eres millonario, te arriesgas a perder una tajada masiva de tu fortuna.
-                </p>
               </div>
 
-              {/* Sección de Reversión de la sospecha */}
-              <div className="p-3.5 rounded-2xl bg-surface-raised/40 border border-border/70 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5 text-accent" />
-                    <span>Reversión de Sospecha</span>
-                  </span>
-                  {afterSuspicionLevel > 0 && (
-                    <span className="text-[11px] font-mono text-foreground-muted flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      <span>Enfría 1 nivel en {afterCooldownSeconds}s</span>
-                    </span>
-                  )}
+              {/* Reglas claras y concisas */}
+              <div className="space-y-1.5 text-xs text-neutral-600 dark:text-neutral-400 font-sans border-t border-neutral-200 dark:border-neutral-800 pt-3">
+                <div className="flex items-start gap-2">
+                  <span className="font-semibold text-neutral-900 dark:text-neutral-200 shrink-0">Se reinicia:</span>
+                  <span>Suministros (litronas, hielos, etc.) y fichas acumuladas en la ronda actual.</span>
                 </div>
-
-                {stats.wealthSurcharge > 0 && (
-                  <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-center justify-between">
-                    <span>Recargo de Fianza a Gran Fortuna:</span>
-                    <span className="font-mono font-bold">~{Math.round((stats.wealthSurcharge / userCoins) * 100)}% de tu saldo</span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between gap-3 text-xs">
-                  <p className="text-[11px] text-foreground-muted">
-                    {afterSuspicionLevel === 0
-                      ? 'Tu historial policial está limpio. La probabilidad de redada se encuentra en su mínimo (15%).'
-                      : 'Puedes esperar a que la policía baje la guardia con el tiempo o pagar una fianza para limpiar tu historial ahora mismo.'}
-                  </p>
-                  {afterSuspicionLevel > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleRevertSuspicion();
-                        setShowAfterModal(false);
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-raised border border-border font-medium text-foreground hover:text-foreground text-xs whitespace-nowrap cursor-pointer transition-colors shrink-0 shadow-2xs"
-                    >
-                      Pagar fianza (-{stats.bribeCost.toLocaleString()} monedas)
-                    </button>
-                  )}
+                <div className="flex items-start gap-2">
+                  <span className="font-semibold text-neutral-900 dark:text-neutral-200 shrink-0">Se conserva:</span>
+                  <span>Monedas en cartera, rango, estadísticas totales y el nuevo multiplicador permanente.</span>
                 </div>
               </div>
 
               {/* Botones de acción */}
-              <div className="flex items-center gap-2.5 pt-1">
+              <div className="flex items-center gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAfterModal(false)}
-                  className="flex-1 py-2.5 rounded-xl font-medium text-xs text-foreground bg-surface-raised hover:bg-surface border border-border transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 px-4 rounded-xl text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
                 >
-                  Seguir en la fiesta
+                  Cancelar
                 </button>
 
                 <button
                   type="button"
                   onClick={handleConfirmAfter}
-                  className={`flex-1 py-2.5 rounded-xl font-semibold text-xs text-white transition-all cursor-pointer shadow-sm active:scale-95 flex items-center justify-center gap-1.5 ${
-                    stats.raidChancePct >= 70
-                      ? 'bg-red-600 hover:bg-red-500'
-                      : stats.raidChancePct >= 40
-                      ? 'bg-amber-600 hover:bg-amber-500'
-                      : 'bg-purple-600 hover:bg-purple-500'
-                  }`}
+                  className="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-neutral-900 hover:bg-black dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-100 transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center gap-1.5"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>¡Vámonos de After! ({stats.raidChancePct}% riesgo)</span>
+                  <span>Confirmar Renacimiento</span>
                 </button>
               </div>
             </div>
@@ -3273,17 +3386,19 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-200"
         >
           <div className="fixed inset-0" onClick={() => setAfterRaidResult(null)} />
-          <div className={`relative z-10 w-full max-w-md rounded-3xl bg-surface border shadow-2xl overflow-hidden p-5 sm:p-6 space-y-4 ${
-            afterRaidResult.type === 'raid' ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-purple-500/50 ring-2 ring-purple-500/20'
+          <div className={`relative z-10 w-full max-w-md rounded-3xl bg-white dark:bg-[#1c1c1e] border shadow-2xl overflow-hidden p-6 sm:p-7 space-y-4 ${
+            afterRaidResult.type === 'raid'
+              ? 'border-red-200 dark:border-red-900/50'
+              : 'border-purple-200 dark:border-purple-900/50'
           }`}>
             <div className="text-center space-y-2">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
                 afterRaidResult.type === 'raid'
-                  ? 'bg-red-500/20 text-red-400 border border-red-500/40 animate-bounce'
-                  : 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
+                  ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40'
+                  : 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-900/40'
               }`}>
                 {afterRaidResult.type === 'raid' ? (
                   <Siren className="w-6 h-6" />
@@ -3293,14 +3408,14 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               </div>
 
               <h3 className={`text-base font-bold tracking-tight ${
-                afterRaidResult.type === 'raid' ? 'text-red-400' : 'text-purple-400'
+                afterRaidResult.type === 'raid' ? 'text-red-900 dark:text-red-200' : 'text-purple-900 dark:text-purple-200'
               }`}>
                 {afterRaidResult.type === 'raid'
-                  ? '¡REDADA POLICIAL EN EL AFTER!'
-                  : '¡AFTER CLANDESTINO COMPLETADO!'}
+                  ? '¡Redada Policial en el After!'
+                  : '¡After Clandestino Completado!'}
               </h3>
 
-              <p className="text-xs text-foreground-muted leading-relaxed">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 {afterRaidResult.type === 'raid'
                   ? `La patrulla intervino el local ilegalmente. Te aplicaron una sanción severa del ${afterRaidResult.confiscatePct}% sobre todos tus fondos disponibles.`
                   : '¡Habéis despistado a la policía! La fiesta continuó sin incidentes y recibes tu bonus de producción.'}
@@ -3309,50 +3424,50 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
             {/* Desglose de Pérdidas / Ganancias */}
             {afterRaidResult.type === 'raid' ? (
-              <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 space-y-2 font-mono text-xs">
-                <div className="flex items-center justify-between text-red-300">
+              <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 space-y-2 font-mono text-xs text-red-900 dark:text-red-200">
+                <div className="flex items-center justify-between font-bold">
                   <span>Multa confiscada:</span>
-                  <span className="font-bold">-{afterRaidResult.confiscatePct}%</span>
+                  <span>-{afterRaidResult.confiscatePct}%</span>
                 </div>
                 {afterRaidResult.coinsLost > 0 && (
-                  <div className="flex items-center justify-between text-red-400">
-                    <span>Monedas requisadas del monedero:</span>
+                  <div className="flex items-center justify-between text-red-700 dark:text-red-300">
+                    <span>Monedas requisadas:</span>
                     <span className="font-bold">-{afterRaidResult.coinsLost.toLocaleString()} monedas</span>
                   </div>
                 )}
                 {afterRaidResult.coinsLost >= 1000000 && (
-                  <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/40 text-[11px] text-red-200 font-sans">
+                  <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800/40 text-[11px] text-red-900 dark:text-red-200 font-sans">
                     💥 <strong>¡GOLPE FISCAL A LA GRAN FORTUNA!</strong> La policía ha requisado más de 1 millón de monedas de tu fortuna acumulada.
                   </div>
                 )}
                 {afterRaidResult.vaultLost > 0 && (
-                  <div className="flex items-center justify-between text-red-400">
+                  <div className="flex items-center justify-between text-red-700 dark:text-red-300">
                     <span>Fichas requisadas del bote:</span>
                     <span className="font-bold">-{afterRaidResult.vaultLost.toLocaleString()} fichas</span>
                   </div>
                 )}
-                <div className="pt-2 border-t border-red-500/20 flex items-center justify-between text-foreground text-[11px] font-sans">
+                <div className="pt-2 border-t border-red-200 dark:border-red-900/40 flex items-center justify-between text-zinc-700 dark:text-zinc-300 text-[11px] font-sans">
                   <span>Bonus de producción:</span>
-                  <span className="font-mono text-purple-400 font-bold">Activo</span>
+                  <span className="font-mono text-purple-700 dark:text-purple-300 font-bold">Activo</span>
                 </div>
               </div>
             ) : (
-              <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/25 space-y-1.5 font-mono text-xs">
-                <div className="flex items-center justify-between text-foreground">
+              <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/50 space-y-1.5 font-mono text-xs text-purple-900 dark:text-purple-200">
+                <div className="flex items-center justify-between">
                   <span>Bonus permanente sumado:</span>
-                  <span className="text-purple-400 font-bold">Farmeo mejorado</span>
+                  <span className="font-bold text-purple-700 dark:text-purple-300">Farmeo mejorado</span>
                 </div>
-                <div className="flex items-center justify-between text-foreground">
+                <div className="flex items-center justify-between">
                   <span>Nuevo multiplicador total:</span>
-                  <span className="text-foreground font-bold">x{prestigeMultiplier.toFixed(2)}</span>
+                  <span className="font-bold text-zinc-900 dark:text-white">x{prestigeMultiplier.toFixed(2)}</span>
                 </div>
               </div>
             )}
 
             {/* Aviso de sospecha para el siguiente After */}
-            <div className="p-3 rounded-xl bg-surface-raised border border-border text-[11px] text-foreground-muted flex items-center justify-between gap-2">
+            <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-black/[0.06] dark:border-white/[0.08] text-[11px] text-zinc-600 dark:text-zinc-400 flex items-center justify-between gap-2">
               <span>Sospecha actual: <strong>Nivel {afterRaidResult.nextLevel}</strong></span>
-              <span className="font-mono text-red-400 font-semibold">
+              <span className="font-mono text-red-700 dark:text-red-300 font-semibold">
                 {getAfterRiskStats(afterRaidResult.nextLevel, userCoins).raidChancePct}% riesgo próximo
               </span>
             </div>
@@ -3360,7 +3475,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             <button
               type="button"
               onClick={() => setAfterRaidResult(null)}
-              className="w-full py-2.5 rounded-xl font-semibold text-xs text-background bg-foreground hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-sm"
+              className="w-full min-h-[44px] py-2.5 rounded-xl font-semibold text-xs text-white bg-black dark:bg-white dark:text-black hover:opacity-90 transition-opacity cursor-pointer active:scale-[0.98] shadow-sm touch-manipulation"
             >
               {afterRaidResult.type === 'raid' ? 'Asumir sanción y continuar' : '¡Seguir la fiesta!'}
             </button>
@@ -3373,28 +3488,28 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in select-none"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in select-none"
         >
-          <div className="w-full max-w-sm rounded-3xl bg-surface border border-red-500/40 p-5 space-y-4 shadow-2xl text-xs">
-            <div className="w-12 h-12 rounded-2xl bg-red-500/15 text-red-400 border border-red-500/30 flex items-center justify-center mx-auto">
+          <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-[#1c1c1e] border border-red-200 dark:border-red-900/50 p-6 space-y-4 shadow-2xl text-xs text-zinc-900 dark:text-zinc-100">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 flex items-center justify-center mx-auto">
               <TrendingDown className="w-6 h-6" />
             </div>
 
             <div className="text-center space-y-1">
-              <h3 className="text-base font-bold text-foreground">
+              <h3 className="text-base font-bold text-zinc-900 dark:text-white">
                 Tasa de Solidaridad · Goteo Comunista
               </h3>
-              <p className="text-xs text-foreground-muted">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Has estado {communistDripReport.hours}h desconectado con una gran fortuna (&gt;100k) sin custodiar tu alijo.
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-surface-raised border border-border/70 text-center space-y-1">
-              <span className="text-[11px] font-mono text-foreground-muted">Aportación al Fondo Común de Clase:</span>
-              <div className="text-xl font-bold font-mono text-red-400">
+            <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-center space-y-1.5">
+              <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">Aportación al Fondo Común:</span>
+              <div className="text-xl font-bold font-mono text-red-700 dark:text-red-400">
                 -{communistDripReport.coinsLost.toLocaleString()} monedas
               </div>
-              <p className="text-[10px] text-foreground-subtle">
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
                 Estas monedas se han repartido entre los alumnos con menos de 25k monedas para equilibrar la clase.
               </p>
             </div>
@@ -3405,7 +3520,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                 setCommunistDripReport(null);
                 handleGuardStash();
               }}
-              className="w-full py-2.5 rounded-xl bg-foreground text-background font-semibold text-xs cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-xs"
+              className="w-full min-h-[44px] py-2.5 rounded-xl bg-black text-white dark:bg-white dark:text-black font-semibold text-xs cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all shadow-sm touch-manipulation"
             >
               Entendido · Custodiar Alijo Ahora (8h)
             </button>

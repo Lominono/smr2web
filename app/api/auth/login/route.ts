@@ -201,6 +201,7 @@ export async function POST(req: NextRequest) {
       last_claim_date: profileRow?.last_claim_date || undefined,
       created_at: profileRow?.created_at,
       auth_provider: 'supabase',
+      onboarding_completado: Boolean(profileRow?.onboarding_completado || (profileRow?.full_name && profileRow?.student_number)),
     };
 
     const response = NextResponse.json({

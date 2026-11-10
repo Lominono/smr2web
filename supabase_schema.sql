@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   games_won INT DEFAULT 0,
   is_banned BOOLEAN DEFAULT false,
   ban_reason TEXT,
+  party_farm_data JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -51,10 +52,12 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS games_played INT DEFAULT 0;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS games_won INT DEFAULT 0;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT false;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ban_reason TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS party_farm_data JSONB DEFAULT '{}'::jsonb;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_student_number ON public.profiles (student_number) WHERE student_number IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_profiles_coins ON public.profiles (coins DESC);
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON public.profiles (username);
+CREATE INDEX IF NOT EXISTS idx_profiles_party_farm_gin ON public.profiles USING gin (party_farm_data);
 
 -- Trigger automático al registrarse un usuario en Supabase Auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()

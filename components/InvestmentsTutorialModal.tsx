@@ -72,18 +72,18 @@ export const InvestmentsTutorialModal: React.FC<InvestmentsTutorialModalProps> =
     >
       <div className="fixed inset-0" onClick={handleClose} />
 
-      <div className="relative z-10 w-full max-w-lg rounded-2xl bg-surface border border-border shadow-2xl overflow-hidden p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-150">
+      <div className="relative z-10 w-full max-w-lg rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/[0.1] shadow-2xl overflow-hidden p-6 sm:p-7 space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900 dark:text-zinc-100">
         {/* Cabecera */}
-        <div className="flex items-center justify-between pb-3 border-b border-border/60">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+        <div className="flex items-center justify-between pb-3 border-b border-black/[0.04] dark:border-white/[0.06]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <TrendingUp className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground">
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
                 Guía de Inversiones · Paso {step + 1} de 4
               </h3>
-              <p className="text-[11px] text-foreground-subtle">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Aprende cómo funciona el mercado compartido de la clase
               </p>
             </div>
@@ -92,7 +92,7 @@ export const InvestmentsTutorialModal: React.FC<InvestmentsTutorialModalProps> =
           <button
             type="button"
             onClick={handleClose}
-            className="w-8 h-8 rounded-xl text-foreground-muted hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
             aria-label="Cerrar tutorial"
           >
             <X className="w-4 h-4" />

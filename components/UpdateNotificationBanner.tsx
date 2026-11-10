@@ -219,8 +219,8 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
       changes: currentChangeList,
     };
 
-  // Si está bloqueado por el tour activo, no renderizar ni banner ni píldora (el modal manual siempre se respeta)
-  if (isBlocked && !isModalOpen) {
+  // Si está bloqueado por el tour activo pero no hay actualización obligatoria pendiente
+  if (isBlocked && !isModalOpen && !hasUpdate) {
     return null;
   }
 
@@ -397,114 +397,72 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
         </div>
       )}
 
-      {/* 3. Banner superior editorial sin clichés */}
-      {hasUpdate && !isMinimized && !isModalOpen && (
-        <aside
-          role="alert"
-          aria-live="polite"
-          className="fixed top-3 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-40 animate-in slide-in-from-top-2 fade-in duration-200 select-none"
+      {/* 3. Pantalla en negro obligatoria de actualización */}
+      {hasUpdate && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[99999] bg-black text-white flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto antialiased animate-in fade-in duration-300"
         >
-          <div className="p-4 rounded-2xl bg-surface/98 backdrop-blur-xl border border-border shadow-xl space-y-3 text-foreground">
-            {/* Cabecera del aviso */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-0.5 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-foreground-muted">
-                    Versión {updateDetails?.version || '1.0.0'}
-                  </span>
-                  <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-surface-raised text-foreground-subtle border border-border/60">
-                    {isLiveDeploy ? 'Despliegue en vivo' : 'Novedad'}
-                  </span>
-                </div>
-                <h3 className="text-xs font-semibold text-foreground tracking-tight line-clamp-1">
-                  {updateDetails?.title || 'Actualización de 2º SMR'}
-                </h3>
+          <div className="w-full max-w-lg bg-neutral-950 border border-neutral-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative my-auto">
+            {/* Cabecera con indicación obligatoria */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400">
+                  Actualización obligatoria
+                </span>
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-300 ml-auto">
+                  v{updateDetails?.version || '1.3.0'}
+                </span>
               </div>
-
-              <button
-                type="button"
-                onClick={handleDismiss}
-                className="w-6 h-6 rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-raised flex items-center justify-center transition-colors cursor-pointer shrink-0"
-                title="Cerrar aviso"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans">
+                {updateDetails?.title || `Nueva versión ${updateDetails?.version || '1.3.0'} disponible`}
+              </h2>
+              <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed font-sans">
+                Debes actualizar a la última versión para poder continuar. Esta actualización es obligatoria para que el juego funcione correctamente y mantenga las mismas reglas y condiciones justas para todos los alumnos.
+              </p>
             </div>
 
-            {/* Resumen ordenado de cambios */}
-            <div className="p-3 rounded-xl bg-surface-raised/40 border border-border/60 space-y-2">
+            {/* Explicación detallada de la actualización */}
+            <div className="p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800 space-y-3">
+              <div className="flex items-center justify-between text-xs text-neutral-400 font-mono pb-2 border-b border-neutral-800/80">
+                <span>Novedades del parche</span>
+                <span>{updateDetails?.date || 'Hoy'}</span>
+              </div>
+
               {updateDetails?.description && (
-                <p className="text-[11px] text-foreground-muted leading-relaxed font-sans line-clamp-2">
+                <p className="text-xs text-neutral-300 leading-relaxed font-sans">
                   {updateDetails.description}
                 </p>
               )}
 
-              <ul className="space-y-1.5 pt-0.5">
-                {currentChangeList.slice(0, 3).map((change, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-[11px] text-foreground-muted leading-relaxed">
-                    <span className="text-foreground shrink-0 mt-0.5 text-[10px] font-mono">·</span>
-                    <span className="line-clamp-2">{change}</span>
+              <ul className="space-y-2 pt-1 font-sans">
+                {currentChangeList.map((change, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-xs text-neutral-300 leading-relaxed">
+                    <span className="text-neutral-500 font-mono text-[11px] shrink-0 mt-0.5">—</span>
+                    <span>{change}</span>
                   </li>
                 ))}
               </ul>
-
-              <button
-                type="button"
-                onClick={handleOpenFullModal}
-                className="w-full pt-1 text-[11px] font-medium text-foreground-muted hover:text-foreground flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              >
-                <span>Ver historial completo</span>
-                <ChevronRight className="w-3 h-3" />
-              </button>
             </div>
 
-            {/* Acciones */}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
+            {/* Botón único y obligatorio de actualización */}
+            <div className="space-y-2.5 pt-1">
               <button
                 type="button"
-                onClick={() => {
-                  sound.tap();
-                  setIsMinimized(true);
-                }}
-                className="text-[11px] text-foreground-subtle hover:text-foreground transition-colors cursor-pointer"
+                onClick={handleReload}
+                className="w-full min-h-[50px] py-3.5 px-5 rounded-2xl bg-white hover:bg-neutral-200 text-black font-semibold text-sm transition-all active:scale-[0.99] flex items-center justify-center gap-2.5 cursor-pointer shadow-lg"
               >
-                Minimizar
+                <RefreshCw className="w-4 h-4" />
+                <span>Actualizar a la versión {updateDetails?.version || '1.3.0'}</span>
               </button>
-
-              <div className="flex items-center gap-2">
-                {isLiveDeploy ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleDismiss}
-                      className="px-2.5 py-1 text-xs text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
-                    >
-                      Más tarde
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleReload}
-                      className="px-3.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Actualizar</span>
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleDismiss}
-                    className="px-3.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                  >
-                    <Check className="w-3 h-3" />
-                    <span>Entendido</span>
-                  </button>
-                )}
-              </div>
+              <p className="text-[11px] text-center text-neutral-500 font-mono">
+                Se limpiará la caché y se cargará la versión oficial más reciente.
+              </p>
             </div>
           </div>
-        </aside>
+        </div>
       )}
     </>
   );

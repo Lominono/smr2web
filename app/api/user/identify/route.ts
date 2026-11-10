@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
               .update({
                 full_name: cleanFullName,
                 student_number: cleanStudentNumber,
+                onboarding_completado: true,
               })
               .eq('id', userId)
               .select('*')

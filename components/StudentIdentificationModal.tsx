@@ -239,13 +239,13 @@ export const StudentIdentificationModal: React.FC<StudentIdentificationModalProp
               )}
             </button>
 
-            {onSkip && (user?.role === 'admin' || user?.username === 'admin') && (
+            {onSkip && (
               <button
                 type="button"
                 onClick={onSkip}
-                className="w-full text-center text-xs text-accent hover:underline py-1 transition-colors cursor-pointer"
+                className="w-full text-center text-xs text-foreground-muted hover:text-foreground py-1.5 transition-colors cursor-pointer"
               >
-                Acceso como Administrador (Omitir identificación)
+                Completar más tarde
               </button>
             )}
 

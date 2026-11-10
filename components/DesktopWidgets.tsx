@@ -95,7 +95,16 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
               .reverse()
               .find((r) => (parsed.totalLifetimeProduced || 0) >= r.minProd) || PARTY_RANKS[0];
           const rankMult = 1 + rank.bonusPercent / 100;
-          const prestigeMult = 1 + (parsed.afterPrestigeCount || 0) * 0.5;
+          const afterCount = parsed.afterPrestigeCount || parsed.rebirths || 0;
+          let mult = 1.0;
+          for (let i = 1; i <= afterCount; i++) {
+            if (i === 1) mult += 0.35;
+            else if (i <= 3) mult += 0.20;
+            else if (i <= 6) mult += 0.12;
+            else if (i <= 10) mult += 0.06;
+            else mult += 0.02;
+          }
+          const prestigeMult = Math.min(6.0, Number(mult.toFixed(2)));
           setBotellonState({
             vault: Math.floor(parsed.pendingVault || 0),
             rate: Math.floor(baseRate * (zone?.multiplier || 1) * rankMult * prestigeMult * 10) / 10,

@@ -10,6 +10,12 @@ export async function POST(req: NextRequest) {
     const username = String(body.username || '').trim().toLowerCase().replace(/[-\s]+/g, '_');
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '');
+    const rawFullName = String(body.fullName || '').trim().replace(/\s+/g, ' ');
+    const rawStudentNumber = String(body.studentNumber || '').trim().toUpperCase();
+
+    const fullName = rawFullName.length >= 3 ? rawFullName : null;
+    const studentNumber = rawStudentNumber.length >= 2 ? rawStudentNumber : null;
+    const hasStudentId = Boolean(fullName && studentNumber);
 
     if (!username || !email || !password) {
       return NextResponse.json(
@@ -188,8 +194,9 @@ export async function POST(req: NextRequest) {
         {
           id: userId,
           username,
-          nombre: username,
-          full_name: username,
+          nombre: fullName || username,
+          full_name: fullName || null,
+          student_number: studentNumber || null,
           email,
           coins: 1000,
           biggest_win: 0,
@@ -197,6 +204,7 @@ export async function POST(req: NextRequest) {
           role: 'student',
           rol: 'alumno',
           avatar_color: 'emerald',
+          onboarding_completado: hasStudentId,
           created_at: new Date().toISOString(),
         },
         { onConflict: 'id' }
@@ -222,7 +230,8 @@ export async function POST(req: NextRequest) {
     const userProfile: UserProfile = {
       id: userId,
       username,
-      full_name: username,
+      full_name: fullName || undefined,
+      student_number: studentNumber || undefined,
       email,
       coins: 1000,
       biggest_win: 0,
@@ -235,6 +244,7 @@ export async function POST(req: NextRequest) {
       notifications_enabled: true,
       created_at: new Date().toISOString(),
       auth_provider: 'supabase',
+      onboarding_completado: hasStudentId,
     };
 
     const response = NextResponse.json({

@@ -25,6 +25,7 @@ export interface UserProfile {
   banner_estilo?: string;
   titulo_personalizado?: string;
   frase?: string;
+  onboarding_completado?: boolean;
 }
 
 export interface OnlineUser {

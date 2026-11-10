@@ -35,6 +35,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [studentNumber, setStudentNumber] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -143,11 +145,19 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           email: cleanMail,
           password,
           confirmPassword,
+          fullName: fullName.trim() || undefined,
+          studentNumber: studentNumber.trim().toUpperCase() || undefined,
           rememberMe,
           acceptedTerms: true,
         });
 
         if (result.user) {
+          if (fullName.trim() && studentNumber.trim()) {
+            try {
+              localStorage.setItem('smr2_student_id_completed', 'true');
+              localStorage.setItem('smr2_student_id_dismissed', 'true');
+            } catch {}
+          }
           onSuccess(result.user);
         }
       } catch (err: any) {
@@ -400,6 +410,38 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                   Las contraseñas no coinciden
                 </p>
               )}
+            </div>
+
+            {/* Ficha de Estudiante (Opcional en registro para no pedirla después) */}
+            <div className="space-y-3 pt-2 border-t border-neutral-200/60 dark:border-neutral-800/60">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                  Ficha de estudiante <span className="text-[11px] font-normal text-neutral-400">(opcional)</span>
+                </span>
+                <span className="text-[10px] text-neutral-400 font-mono">
+                  Evita rellenarla después
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Nombre y apellidos reales"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full min-h-[42px] px-3.5 py-2 rounded-xl bg-white dark:bg-neutral-900/70 border border-neutral-300 dark:border-neutral-800 text-xs text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 transition-colors focus:outline-none focus:border-neutral-900 dark:focus:border-neutral-400 focus:bg-white dark:focus:bg-neutral-900"
+                />
+
+                <input
+                  type="text"
+                  autoCapitalize="characters"
+                  placeholder="Número de estudiante o NIA (ej: NIA-102)"
+                  value={studentNumber}
+                  onChange={(e) => setStudentNumber(e.target.value.toUpperCase())}
+                  className="w-full min-h-[42px] px-3.5 py-2 rounded-xl bg-white dark:bg-neutral-900/70 border border-neutral-300 dark:border-neutral-800 text-xs font-mono uppercase text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 transition-colors focus:outline-none focus:border-neutral-900 dark:focus:border-neutral-400 focus:bg-white dark:focus:bg-neutral-900"
+                />
+              </div>
             </div>
           </>
         ) : (

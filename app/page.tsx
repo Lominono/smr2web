@@ -106,10 +106,18 @@ export default function Home() {
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [dismissedIdentification, setDismissedIdentification] = useState(false);
+  const [dismissedIdentification, setDismissedIdentification] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return (
+        localStorage.getItem('smr2_student_id_dismissed') === 'true' ||
+        localStorage.getItem('smr2_student_id_completed') === 'true'
+      );
+    }
+    return false;
+  });
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
   const [realtimeNotification, setRealtimeNotification] = useState<RealtimeNotification | null>(null);
-  const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
+  const [isSiteUnlocked, setIsSiteUnlocked] = useState(true);
   const [isTourActive, setIsTourActive] = useState(false);
   const [isStudentCardOpen, setIsStudentCardOpen] = useState(false);
   const [inspectedStudent, setInspectedStudent] = useState<Partial<UserProfile> | null>(null);
@@ -318,35 +326,48 @@ export default function Home() {
       }
 
       if (data) {
-        const rawUsername = data.username || (data.nombre ? String(data.nombre).toLowerCase().replace(/\s+/g, '_') : `user_${data.id?.slice(0, 5)}`);
+        const cached = getUserSession();
+        const rawUsername = data.username || (data.nombre ? String(data.nombre).toLowerCase().replace(/\s+/g, '_') : (cached?.username || `user_${data.id?.slice(0, 5)}`));
+        const resolvedFullName = data.full_name || data.nombre || cached?.full_name || undefined;
+        const resolvedStudentNumber = data.student_number || cached?.student_number || undefined;
+        const resolvedOnboarding = Boolean(
+          data.onboarding_completado ??
+          cached?.onboarding_completado ??
+          (typeof window !== 'undefined' && (
+            localStorage.getItem('smr2_student_id_completed') === 'true' ||
+            localStorage.getItem('smr2_student_id_dismissed') === 'true'
+          ))
+        );
+
         const profile: UserProfile = {
           id: data.id,
           username: rawUsername,
-          full_name: data.full_name || data.nombre || undefined,
-          student_number: data.student_number || undefined,
-          email: data.email || email,
-          coins: Number(data.coins ?? data.puntos_total ?? 1000),
-          biggest_win: Number(data.biggest_win ?? 0),
-          streak_count: Number(data.streak_count ?? data.racha_actual ?? 1),
-          last_claim_date: data.last_claim_date || undefined,
-          last_spin_date: data.last_spin_date || undefined,
-          last_rescue_date: data.last_rescue_date || undefined,
+          full_name: resolvedFullName,
+          student_number: resolvedStudentNumber,
+          onboarding_completado: resolvedOnboarding,
+          email: data.email || email || cached?.email,
+          coins: Number(data.coins ?? data.puntos_total ?? cached?.coins ?? 1000),
+          biggest_win: Number(data.biggest_win ?? cached?.biggest_win ?? 0),
+          streak_count: Number(data.streak_count ?? data.racha_actual ?? cached?.streak_count ?? 1),
+          last_claim_date: data.last_claim_date || cached?.last_claim_date || undefined,
+          last_spin_date: data.last_spin_date || cached?.last_spin_date || undefined,
+          last_rescue_date: data.last_rescue_date || cached?.last_rescue_date || undefined,
           role:
-            data.rol === 'admin' || data.role === 'admin'
+            data.rol === 'admin' || data.role === 'admin' || cached?.role === 'admin'
               ? 'admin'
-              : data.rol === 'delegado' || data.role === 'delegado'
+              : data.rol === 'delegado' || data.role === 'delegado' || cached?.role === 'delegado'
               ? 'delegado'
               : 'student',
-          avatar_color: data.avatar_color || data.color_acento || 'emerald',
-          games_played: Number(data.games_played ?? 0),
-          games_won: Number(data.games_won ?? 0),
-          items_comprados: Array.isArray(data.items_comprados) ? data.items_comprados : [],
-          banner_estilo: data.banner_estilo || undefined,
-          titulo_personalizado: data.titulo_personalizado || undefined,
-          frase: data.frase || undefined,
+          avatar_color: data.avatar_color || data.color_acento || cached?.avatar_color || 'emerald',
+          games_played: Number(data.games_played ?? cached?.games_played ?? 0),
+          games_won: Number(data.games_won ?? cached?.games_won ?? 0),
+          items_comprados: Array.isArray(data.items_comprados) ? data.items_comprados : (cached?.items_comprados || []),
+          banner_estilo: data.banner_estilo || cached?.banner_estilo || undefined,
+          titulo_personalizado: data.titulo_personalizado || cached?.titulo_personalizado || undefined,
+          frase: data.frase || cached?.frase || undefined,
           sound_enabled: soundEnabled,
           notifications_enabled: notificationsEnabled,
-          created_at: data.created_at,
+          created_at: data.created_at || cached?.created_at,
           auth_provider: 'supabase',
         };
         setUser(profile);
@@ -751,8 +772,11 @@ export default function Home() {
         }
       } catch {}
     }
-    // Si ya se abrió el portal, solo se da por desbloqueado si ya vio la secuencia de apertura
-    setIsSiteUnlocked(isLaunched ? hasSeenWelcome : hasValidTokenLocally);
+    // El portal ya se encuentra oficialmente inaugurado
+    setIsSiteUnlocked(true);
+    try {
+      localStorage.setItem('smr2_launch_welcome_seen', 'true');
+    } catch {}
 
     // 0. Forzar reseteo absoluto de datos locales si la época de reinicio no se ha aplicado
     const wasWiped = checkAndEnforceSystemWipe();
@@ -2010,6 +2034,7 @@ export default function Home() {
           }}
           supabaseConfigured={supabaseConfigured}
         />
+        <UpdateNotificationBanner />
         {isAdmin && (
           <LaunchDevToolbar
             isAdmin={isAdmin}
@@ -2397,6 +2422,7 @@ export default function Home() {
             user.role !== 'admin' &&
             user.username !== 'admin' &&
             !dismissedIdentification &&
+            !user.onboarding_completado &&
             (!user.full_name || !user.student_number)
           );
           if (!needsId) {
@@ -2452,11 +2478,19 @@ export default function Home() {
           user.role !== 'admin' &&
           user.username !== 'admin' &&
           !dismissedIdentification &&
+          !user.onboarding_completado &&
           (!user.full_name || !user.student_number)
         )}
         user={user}
         onSuccess={(updated) => {
-          setUser(updated);
+          const fullUpdated: UserProfile = { ...updated, onboarding_completado: true };
+          setUser(fullUpdated);
+          setDismissedIdentification(true);
+          try {
+            localStorage.setItem('smr2_student_id_completed', 'true');
+            localStorage.setItem('smr2_student_id_dismissed', 'true');
+            saveUserSession(fullUpdated, true);
+          } catch {}
           fetchLeaderboard();
           try {
             const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
@@ -2469,6 +2503,13 @@ export default function Home() {
         onSkip={() => {
           setDismissedIdentification(true);
           try {
+            localStorage.setItem('smr2_student_id_dismissed', 'true');
+            if (user?.id && isUUID(user.id)) {
+              const sb = createClient();
+              if (sb) {
+                sb.from('profiles').update({ onboarding_completado: true }).eq('id', user.id).then(() => {});
+              }
+            }
             const tourDone = localStorage.getItem('smr2_putoisaac_tour_done') === 'true';
             if (!tourDone) {
               setTimeout(() => setIsIsaacTourOpen(true), 600);

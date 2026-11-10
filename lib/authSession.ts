@@ -299,9 +299,12 @@ export function checkAndEnforceSystemWipe(): boolean {
   try {
     const executed = localStorage.getItem(SYSTEM_WIPE_EPOCH);
     if (!executed) {
-      wipeAllLocalData();
       localStorage.setItem(SYSTEM_WIPE_EPOCH, 'true');
-      return true;
+      const current = getUserSession();
+      if (!current) {
+        wipeAllLocalData();
+        return true;
+      }
     }
   } catch {}
   return false;
