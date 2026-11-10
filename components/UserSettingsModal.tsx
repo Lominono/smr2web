@@ -170,19 +170,29 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
     try {
       localStorage.setItem('smr2_theme', theme);
       const d = document.documentElement;
+      d.classList.add('theme-transitioning');
+      setTimeout(() => {
+        d.classList.remove('theme-transitioning');
+      }, 300);
+
+      const metaScheme = document.querySelector('meta[name="color-scheme"]');
       if (theme === 'dark') {
         d.classList.add('dark');
         d.classList.remove('light');
+        if (metaScheme) metaScheme.setAttribute('content', 'dark');
       } else if (theme === 'light') {
         d.classList.add('light');
         d.classList.remove('dark');
+        if (metaScheme) metaScheme.setAttribute('content', 'light');
       } else {
         d.classList.remove('dark', 'light');
-        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (isDark) {
           d.classList.add('dark');
         } else {
           d.classList.add('light');
         }
+        if (metaScheme) metaScheme.setAttribute('content', 'light dark');
       }
     } catch {}
     sound.tap();
@@ -994,8 +1004,8 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                     onClick={() => handleSetTheme('light')}
                     className={`min-h-[42px] p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer active:scale-95 touch-manipulation ${
                       themePreference === 'light'
-                        ? 'bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-950 font-semibold border-transparent shadow-xs'
-                        : 'bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100'
+                        ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-semibold border-neutral-900 dark:border-white shadow-xs'
+                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700/60 hover:text-neutral-950 dark:hover:text-white'
                     }`}
                   >
                     <Sun className="w-3.5 h-3.5 text-amber-500" />
@@ -1007,8 +1017,8 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                     onClick={() => handleSetTheme('dark')}
                     className={`min-h-[42px] p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer active:scale-95 touch-manipulation ${
                       themePreference === 'dark'
-                        ? 'bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-950 font-semibold border-transparent shadow-xs'
-                        : 'bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100'
+                        ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-semibold border-neutral-900 dark:border-white shadow-xs'
+                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700/60 hover:text-neutral-950 dark:hover:text-white'
                     }`}
                   >
                     <Moon className="w-3.5 h-3.5 text-sky-400" />
@@ -1020,8 +1030,8 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                     onClick={() => handleSetTheme('system')}
                     className={`min-h-[42px] p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer active:scale-95 touch-manipulation ${
                       themePreference === 'system'
-                        ? 'bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-950 font-semibold border-transparent shadow-xs'
-                        : 'bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100'
+                        ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-semibold border-neutral-900 dark:border-white shadow-xs'
+                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700/60 hover:text-neutral-950 dark:hover:text-white'
                     }`}
                   >
                     <Laptop className="w-3.5 h-3.5 text-neutral-400" />

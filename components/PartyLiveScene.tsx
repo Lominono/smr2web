@@ -175,23 +175,23 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
   return (
     <section
       aria-label="Escena en directo del botellón"
-      className="relative rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)] space-y-4 select-none font-sans transition-colors"
+      className="relative rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 sm:p-5 shadow-sm space-y-4 select-none font-sans transition-colors"
     >
       {/* Cabecera Técnica de la Escena (Apple Minimalist Studio) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-black/[0.06] dark:border-white/[0.08]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-neutral-200 dark:border-neutral-800">
         <div className="flex items-center gap-2.5">
           <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 uppercase font-mono">
+            <span className="text-xs font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 uppercase font-mono">
               PLAZA EN VIVO · {zoneName}
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-black/[0.05] dark:border-white/[0.06] font-medium">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 font-medium">
               {unlockedCount}/7 PRESENTES
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
           <span>Toca un personaje para interactuar (+10 fichas)</span>
         </div>
       </div>
@@ -201,23 +201,23 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
         <div
           role="region"
           aria-live="polite"
-          className="relative p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/90 border border-black/[0.06] dark:border-white/[0.08] shadow-sm flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150"
+          className="relative p-3.5 rounded-2xl bg-white dark:bg-neutral-800/90 border border-neutral-200 dark:border-neutral-700 shadow-md flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150"
         >
           <div className="flex items-start gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white flex items-center justify-center font-bold font-mono text-xs shrink-0 border border-black/[0.06] dark:border-white/[0.1] shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-neutral-100 dark:bg-neutral-700 text-neutral-900 dark:text-white flex items-center justify-center font-bold font-mono text-xs shrink-0 border border-neutral-200 dark:border-neutral-600 shadow-2xs">
               {activeSpeech.name.slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 font-mono">
-                <span className="text-xs font-bold text-zinc-900 dark:text-white">
+                <span className="text-xs font-bold text-neutral-900 dark:text-white">
                   @{activeSpeech.name}
                 </span>
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-400">[{activeSpeech.tierName}]</span>
+                <span className="text-[10px] text-neutral-500 dark:text-neutral-400">[{activeSpeech.tierName}]</span>
                 <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                   +10 fichas
                 </span>
               </div>
-              <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-1 leading-relaxed">
+              <p className="text-xs text-neutral-700 dark:text-neutral-300 mt-1 leading-relaxed">
                 &ldquo;{activeSpeech.quote}&rdquo;
               </p>
             </div>
@@ -226,7 +226,7 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
           <button
             type="button"
             onClick={onCloseSpeech}
-            className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors"
+            className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer transition-colors"
             title="Cerrar diálogo"
           >
             ✕
@@ -244,22 +244,22 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
             return (
               <div
                 key={char.id}
-                className="group relative flex flex-col items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-900/30 border border-dashed border-zinc-200 dark:border-zinc-800 text-center min-h-[116px] opacity-40 transition-opacity hover:opacity-60"
+                className="group relative flex flex-col items-center justify-between p-3 rounded-2xl bg-neutral-100/50 dark:bg-neutral-900/30 border border-dashed border-neutral-300 dark:border-neutral-800 text-center min-h-[116px] opacity-40 transition-opacity hover:opacity-60"
                 title={`Mejora ${char.badge} para invitar a este personaje`}
               >
                 <div className="w-full flex justify-end">
-                  <Lock className="w-3 h-3 text-zinc-400 dark:text-zinc-600" />
+                  <Lock className="w-3 h-3 text-neutral-400 dark:text-neutral-600" />
                 </div>
 
-                <div className="w-9 h-9 rounded-xl bg-zinc-200/50 dark:bg-zinc-800/40 flex items-center justify-center text-zinc-400 dark:text-zinc-600">
+                <div className="w-9 h-9 rounded-xl bg-neutral-200/50 dark:bg-neutral-800/40 flex items-center justify-center text-neutral-400 dark:text-neutral-600">
                   <Icon className="w-4 h-4" />
                 </div>
 
                 <div className="w-full space-y-0.5">
-                  <div className="text-[10px] font-mono font-medium text-zinc-400 dark:text-zinc-500 uppercase truncate">
+                  <div className="text-[10px] font-mono font-medium text-neutral-400 dark:text-neutral-500 uppercase truncate">
                     {char.name}
                   </div>
-                  <div className="text-[9px] font-mono text-zinc-400 dark:text-zinc-600">
+                  <div className="text-[9px] font-mono text-neutral-400 dark:text-neutral-600">
                     Bloqueado
                   </div>
                 </div>
@@ -275,28 +275,28 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
               className={`group relative flex flex-col items-center justify-between p-3 rounded-2xl border text-center min-h-[116px] transition-all cursor-pointer active:scale-[0.96] touch-manipulation ${
                 isSpeaking
                   ? 'bg-blue-50/50 dark:bg-blue-950/20 border-[#0071e3] shadow-xs ring-1 ring-[#0071e3]'
-                  : 'bg-zinc-50/80 dark:bg-zinc-800/50 border-black/[0.05] dark:border-white/[0.08] hover:border-black/20 dark:hover:border-white/20 hover:bg-zinc-100/80 dark:hover:bg-zinc-800 shadow-2xs'
+                  : 'bg-neutral-50 hover:bg-neutral-100/80 dark:bg-neutral-800/50 dark:hover:bg-neutral-800 border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 shadow-2xs'
               }`}
             >
               {/* Nivel en formato Tabular Mono */}
               <div className="w-full flex items-center justify-between">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[9px] font-mono font-semibold text-zinc-600 dark:text-zinc-300 px-1.5 py-0.5 rounded-full bg-white dark:bg-zinc-700/80 border border-black/[0.04] dark:border-white/[0.08]">
+                <span className="text-[9px] font-mono font-semibold text-neutral-700 dark:text-neutral-300 px-1.5 py-0.5 rounded-full bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600">
                   NV.{char.level.toString().padStart(2, '0')}
                 </span>
               </div>
 
               {/* Icono Vectorial con Círculo de Alto Contraste */}
-              <div className="w-9 h-9 rounded-xl bg-white dark:bg-zinc-700/70 text-zinc-900 dark:text-zinc-100 flex items-center justify-center group-hover:scale-105 transition-transform border border-black/[0.04] dark:border-white/[0.08] shadow-2xs">
+              <div className="w-9 h-9 rounded-xl bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 flex items-center justify-center group-hover:scale-105 transition-transform border border-neutral-200 dark:border-neutral-600 shadow-2xs">
                 <Icon className="w-4 h-4" />
               </div>
 
               {/* Nombre y Especialidad */}
               <div className="w-full space-y-0.5">
-                <div className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                <div className="text-[11px] font-semibold text-neutral-900 dark:text-neutral-100 truncate">
                   {char.name}
                 </div>
-                <div className="text-[9px] font-mono text-zinc-500 dark:text-zinc-400 truncate leading-tight">
+                <div className="text-[9px] font-mono text-neutral-500 dark:text-neutral-400 truncate leading-tight">
                   {char.role}
                 </div>
               </div>

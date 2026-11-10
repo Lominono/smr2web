@@ -65,13 +65,15 @@ export async function POST(req: NextRequest) {
     const currentPrestige = Number(currentFarm.afterPrestigeCount || currentFarm.rebirths || 0);
     const newPrestigeCount = currentPrestige + 1;
     const now = Date.now();
+    // Capital de siembra en fichas para arrancar produciendo inmediatamente tras renacer
+    const startingSeedFichas = Math.max(800, newPrestigeCount * 1500);
 
     // Bonus de fichas acumuladas convertido a monedas reales (20% del bote acumulado)
     const pendingVault = Number(currentFarm.pendingVault || body.pendingVault || 0);
     const bonusCoins = Math.max(0, Math.floor(pendingVault / 5));
     const newCoins = Math.max(0, Number(profile.coins || 0) + bonusCoins);
 
-    // Estado reseteado para el nuevo renacimiento
+    // Estado reseteado para el nuevo renacimiento con multiplicador y capital inicial garantizados
     const updatedFarm = {
       ...currentFarm,
       levels: {
@@ -83,7 +85,7 @@ export async function POST(req: NextRequest) {
         barra_libre: 0,
         vip: 0,
       },
-      pendingVault: 0,
+      pendingVault: startingSeedFichas,
       currentRunProduced: 0,
       hangoverLevel: 0,
       afterSuspicionLevel: 0,

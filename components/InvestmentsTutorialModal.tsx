@@ -72,9 +72,9 @@ export const InvestmentsTutorialModal: React.FC<InvestmentsTutorialModalProps> =
     >
       <div className="fixed inset-0" onClick={handleClose} />
 
-      <div className="relative z-10 w-full max-w-lg rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/[0.1] shadow-2xl overflow-hidden p-6 sm:p-7 space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900 dark:text-zinc-100">
+      <div className="relative z-10 w-full max-w-lg rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xl overflow-hidden p-6 sm:p-7 space-y-4 animate-in zoom-in-95 duration-150 text-neutral-900 dark:text-neutral-100">
         {/* Cabecera */}
-        <div className="flex items-center justify-between pb-3 border-b border-black/[0.04] dark:border-white/[0.06]">
+        <div className="flex items-center justify-between pb-3 border-b border-neutral-200 dark:border-neutral-800">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <TrendingUp className="w-4 h-4" />

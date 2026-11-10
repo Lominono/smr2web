@@ -44,9 +44,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
+        <meta name="color-scheme" content="light dark" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('smr2_theme');var d=document.documentElement;if(t==='dark'){d.classList.add('dark');d.classList.remove('light');}else if(t==='light'){d.classList.add('light');d.classList.remove('dark');}else{if(window.matchMedia('(prefers-color-scheme: dark)').matches){d.classList.add('dark');d.classList.remove('light');}else{d.classList.add('light');d.classList.remove('dark');}}}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('smr2_theme');var d=document.documentElement;var m=document.querySelector('meta[name="color-scheme"]');if(t==='dark'){d.classList.add('dark');d.classList.remove('light');if(m)m.content='dark';}else if(t==='light'){d.classList.add('light');d.classList.remove('dark');if(m)m.content='light';}else{var isDark=window.matchMedia('(prefers-color-scheme: dark)').matches;if(isDark){d.classList.add('dark');d.classList.remove('light');}else{d.classList.add('light');d.classList.remove('dark');}if(m)m.content='light dark';}}catch(e){}})();`,
           }}
         />
       </head>

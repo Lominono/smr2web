@@ -683,8 +683,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               }}
               className={`min-h-[44px] px-3.5 py-2 rounded-2xl border flex items-center gap-2.5 shrink-0 transition-all cursor-pointer text-left relative touch-manipulation active:scale-[0.98] ${
                 isSelected
-                  ? 'bg-black text-white dark:bg-white dark:text-black border-transparent shadow-sm'
-                  : 'bg-white hover:bg-zinc-50 dark:bg-[#1c1c1e] dark:hover:bg-[#2c2c2e] border-black/[0.06] dark:border-white/[0.08] text-zinc-600 dark:text-zinc-400 shadow-[0_1px_2px_rgba(0,0,0,0.02)]'
+                  ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-neutral-950 dark:border-white shadow-sm'
+                  : 'bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-800 border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 shadow-2xs'
               } ${
                 isGlow
                   ? glowType === 'buy'
@@ -695,7 +695,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className={`font-mono font-bold text-xs tracking-tight ${isSelected ? 'text-white dark:text-black' : 'text-zinc-900 dark:text-white'}`}>
+                  <span className={`font-mono font-bold text-xs tracking-tight ${isSelected ? 'text-white dark:text-neutral-950' : 'text-neutral-900 dark:text-white'}`}>
                     ${asset.ticker}
                   </span>
                   {isGlow && (
@@ -712,7 +712,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 font-mono text-[11px] mt-0.5">
-                  <span className={`font-semibold flex items-center gap-1 ${isSelected ? 'text-white dark:text-black' : 'text-zinc-900 dark:text-white'}`}>
+                  <span className={`font-semibold flex items-center gap-1 ${isSelected ? 'text-white dark:text-neutral-950' : 'text-neutral-900 dark:text-white'}`}>
                     {asset.price.toFixed(2)}
                     <Coins className="w-3 h-3 text-amber-400" />
                   </span>
@@ -732,7 +732,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
 
       {/* NOTIFICACIÓN FLOTANTE DE MOVIMIENTO EN VIVO CON TEMPORIZADOR Y CAMBIO RÁPIDO */}
       {recentLiveNotification && (
-        <div className="p-3.5 rounded-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.1] shadow-lg space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-lg space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 min-w-0">
               <span
@@ -740,7 +740,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                   recentLiveNotification.type === 'buy' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
                 }`}
               />
-              <span className="text-zinc-800 dark:text-zinc-200 truncate">
+              <span className="text-neutral-800 dark:text-neutral-200 truncate">
                 <strong>@{recentLiveNotification.username}</strong>{' '}
                 {recentLiveNotification.type === 'buy' ? 'compró' : 'vendió'}{' '}
                 {recentLiveNotification.coins.toLocaleString()} monedas de ${recentLiveNotification.ticker}
@@ -762,14 +762,14 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                     setSelectedTicker(recentLiveNotification.ticker);
                     sound.tap();
                   }}
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white transition-colors cursor-pointer border border-black/[0.04] dark:border-white/[0.06]"
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-semibold bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-900 dark:text-white transition-colors cursor-pointer border border-neutral-200 dark:border-neutral-700"
                 >
                   Ver ${recentLiveNotification.ticker}
                 </button>
               )}
             </div>
           </div>
-          <div className="w-full h-0.5 bg-black/[0.04] dark:border-white/[0.06] rounded-full overflow-hidden">
+          <div className="w-full h-0.5 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full animate-progress-shrink ${
                 recentLiveNotification.type === 'buy' ? 'bg-emerald-500/70' : 'bg-rose-500/70'
@@ -780,18 +780,18 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
       )}
 
       {/* 2. CABECERA DEL ACTIVO + RESUMEN DE COTIZACIÓN TIPO APPLE STOCKS */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
+      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
+              <h2 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">
                 {activeAsset.name}
               </h2>
-              <span className="px-2 py-0.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.06] font-mono text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+              <span className="px-2 py-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 font-mono text-xs font-semibold text-neutral-600 dark:text-neutral-400">
                 ${activeAsset.ticker}
               </span>
             </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
               {activeAsset.slogan}
             </p>
           </div>
@@ -804,11 +804,11 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                     ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30'
                     : priceFlash === 'down'
                     ? 'text-rose-700 dark:text-rose-300 bg-red-50 dark:bg-red-950/30'
-                    : 'text-zinc-900 dark:text-white'
+                    : 'text-neutral-900 dark:text-white'
                 }`}
               >
                 <span>{activeAsset.price.toFixed(2)}</span>
-                <span className="text-xs font-normal text-zinc-400 dark:text-zinc-500">monedas</span>
+                <span className="text-xs font-normal text-neutral-400 dark:text-neutral-500">monedas</span>
               </div>
               <div className="flex items-center justify-end gap-1.5 font-mono text-xs mt-0.5">
                 <span className={`px-2 py-0.5 rounded-full font-semibold ${
@@ -818,7 +818,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 }`}>
                   {isPriceUp ? '+' : ''}{activeAsset.change24h.toFixed(2)}%
                 </span>
-                <span className="text-zinc-400 dark:text-zinc-500">24h</span>
+                <span className="text-neutral-400 dark:text-neutral-500">24h</span>
               </div>
             </div>
 
@@ -826,7 +826,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               type="button"
               onClick={handleManualRefresh}
               disabled={isRefreshing}
-              className="w-10 h-10 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+              className="w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center transition-colors cursor-pointer active:scale-95 shadow-2xs"
               title="Refrescar cotización"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -840,24 +840,24 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
             {/* Tooltip en hover sobre la curva */}
             <div className="text-xs font-mono min-h-[1.25rem]">
               {hoveredPoint ? (
-                <span className="text-zinc-900 dark:text-white flex items-center gap-1.5">
+                <span className="text-neutral-900 dark:text-white flex items-center gap-1.5">
                   <span className="font-bold">{hoveredPoint.price.toFixed(2)} monedas</span>
-                  <span className="text-zinc-400 dark:text-zinc-500">({hoveredPoint.time})</span>
+                  <span className="text-neutral-400 dark:text-neutral-500">({hoveredPoint.time})</span>
                   {hoveredPoint.player && (
-                    <span className="text-zinc-600 dark:text-zinc-300 font-sans font-medium text-[11px]">
+                    <span className="text-neutral-600 dark:text-neutral-300 font-sans font-medium text-[11px]">
                       · @{hoveredPoint.player}
                     </span>
                   )}
                 </span>
               ) : (
-                <span className="text-zinc-400 dark:text-zinc-500 text-[11px]">
+                <span className="text-neutral-400 dark:text-neutral-500 text-[11px]">
                   Toca o pasa el ratón sobre los puntos para ver transacciones
                 </span>
               )}
             </div>
 
             {/* Selector de periodo Apple Segmented Control */}
-            <div className="flex items-center gap-0.5 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-800/60 border border-black/[0.04] dark:border-white/[0.04] text-[11px] font-mono">
+            <div className="flex items-center gap-0.5 p-1 rounded-xl bg-neutral-200/70 dark:bg-neutral-800/70 border border-neutral-300/70 dark:border-neutral-700 text-[11px] font-mono">
               {(['1H', '6H', '24H', 'ALL'] as const).map((r) => (
                 <button
                   key={r}
@@ -868,8 +868,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                   }}
                   className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-medium touch-manipulation active:scale-95 ${
                     timeFilter === r
-                      ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white shadow-xs font-semibold'
-                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                      ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white shadow-2xs font-semibold'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
                   }`}
                 >
                   {r === 'ALL' ? 'Todo' : r}
@@ -878,7 +878,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
             </div>
           </div>
 
-          <div className="relative w-full h-44 sm:h-52 bg-zinc-50/60 dark:bg-zinc-900/40 rounded-2xl p-2 border border-black/[0.04] dark:border-white/[0.06] overflow-hidden">
+          <div className="relative w-full h-44 sm:h-52 bg-neutral-50/70 dark:bg-neutral-900/40 rounded-2xl p-2 border border-neutral-200 dark:border-neutral-800 overflow-hidden">
             <svg
               viewBox="0 0 600 180"
               className="w-full h-full overflow-visible"
@@ -897,7 +897,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               <line x1="14" y1="160" x2="586" y2="160" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="3 3" />
 
               {/* Área y Línea continua */}
-              {chartData.area && <path d={chartData.area} fill="url(#titaniumGrad)" className="text-zinc-900 dark:text-white" />}
+              {chartData.area && <path d={chartData.area} fill="url(#titaniumGrad)" className="text-neutral-900 dark:text-white" />}
               {chartData.line && (
                 <path
                   d={chartData.line}
@@ -935,13 +935,13 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                       className={`transition-all cursor-pointer ${
                         isLast
                           ? isPriceUp
-                            ? 'fill-emerald-400 stroke-zinc-950 stroke-2'
-                            : 'fill-rose-400 stroke-zinc-950 stroke-2'
+                            ? 'fill-emerald-400 stroke-neutral-950 stroke-2'
+                            : 'fill-rose-400 stroke-neutral-950 stroke-2'
                           : hasPlayer
                           ? isBuy
                             ? 'fill-emerald-500 stroke-white stroke-1'
                             : 'fill-rose-500 stroke-white stroke-1'
-                          : 'fill-transparent hover:fill-zinc-900 dark:hover:fill-white'
+                          : 'fill-transparent hover:fill-neutral-900 dark:hover:fill-white'
                       }`}
                       onMouseEnter={() =>
                         setHoveredPoint({
@@ -960,29 +960,29 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
             </svg>
 
             {/* Referencias Mín y Máx */}
-            <div className="absolute top-2 right-2.5 text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-white/90 dark:bg-[#1c1c1e]/90 px-2 py-0.5 rounded-full border border-black/[0.06] dark:border-white/[0.08] shadow-xs">
+            <div className="absolute top-2 right-2.5 text-[10px] font-mono text-neutral-600 dark:text-neutral-400 bg-white/95 dark:bg-neutral-900/95 px-2 py-0.5 rounded-full border border-neutral-200 dark:border-neutral-700 shadow-2xs">
               Máx: {maxPrice.toFixed(2)}
             </div>
-            <div className="absolute bottom-2 right-2.5 text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-white/90 dark:bg-[#1c1c1e]/90 px-2 py-0.5 rounded-full border border-black/[0.06] dark:border-white/[0.08] shadow-xs">
+            <div className="absolute bottom-2 right-2.5 text-[10px] font-mono text-neutral-600 dark:text-neutral-400 bg-white/95 dark:bg-neutral-900/95 px-2 py-0.5 rounded-full border border-neutral-200 dark:border-neutral-700 shadow-2xs">
               Mín: {minPrice.toFixed(2)}
             </div>
           </div>
         </div>
 
         {/* 4. PRESIÓN DE MERCADO EN VIVO (COMPRAS VS VENTAS) */}
-        <div className="pt-2 border-t border-black/[0.04] dark:border-white/[0.06] space-y-1.5">
+        <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800 space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="flex items-center gap-1.5 font-medium text-zinc-600 dark:text-zinc-400 text-[11px]">
+            <span className="flex items-center gap-1.5 font-medium text-neutral-600 dark:text-neutral-400 text-[11px]">
               <Activity className="w-3.5 h-3.5 text-blue-500" />
               Presión de mercado en vivo
             </span>
             <div className="flex items-center gap-2 font-mono text-[11px]">
               <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{marketSentiment.buyPercentage}% Compras</span>
-              <span className="text-zinc-400">/</span>
+              <span className="text-neutral-400">/</span>
               <span className="text-rose-700 dark:text-rose-400 font-semibold">{100 - marketSentiment.buyPercentage}% Ventas</span>
             </div>
           </div>
-          <div className="w-full h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden flex">
+          <div className="w-full h-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden flex">
             <div
               className="h-full bg-emerald-500 transition-all duration-300 rounded-l-full"
               style={{ width: `${marketSentiment.buyPercentage}%` }}
@@ -998,14 +998,14 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
       {/* 5. GRID PRINCIPAL: PANEL DE OPERACIÓN (IZQUIERDA) Y PESTAÑAS ESTRATÉGICAS (DERECHA) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* PANEL DE OPERACIÓN (COMPRAR / VENDER) */}
-        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
               Operar en ${activeAsset.ticker}
             </h3>
 
             {/* Apple Segmented Control */}
-            <div className="flex items-center p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-800/60 border border-black/[0.04] dark:border-white/[0.04] text-xs">
+            <div className="flex items-center p-1 rounded-xl bg-neutral-200/70 dark:bg-neutral-800/70 border border-neutral-300/70 dark:border-neutral-700 text-xs">
               <button
                 type="button"
                 onClick={() => {
@@ -1015,8 +1015,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 }}
                 className={`px-3 py-1 rounded-lg font-medium transition-all cursor-pointer touch-manipulation active:scale-95 ${
                   tradeMode === 'buy'
-                    ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-semibold shadow-xs'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                    ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white font-semibold shadow-xs'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
                 }`}
               >
                 Comprar
@@ -1030,8 +1030,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 }}
                 className={`px-3 py-1 rounded-lg font-medium transition-all cursor-pointer touch-manipulation active:scale-95 ${
                   tradeMode === 'sell'
-                    ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-semibold shadow-xs'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                    ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white font-semibold shadow-xs'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
                 }`}
               >
                 Vender
@@ -1057,18 +1057,18 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           )}
 
           {cooldownSeconds > 0 && (
-            <div className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800/60 border border-black/[0.04] dark:border-white/[0.06] text-xs text-zinc-600 dark:text-zinc-400 flex items-center justify-between">
+            <div className="p-2.5 rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-xs text-neutral-600 dark:text-neutral-400 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-zinc-400" />
+                <Clock className="w-3.5 h-3.5 text-neutral-400" />
                 Enfriamiento entre órdenes:
               </span>
-              <span className="font-mono font-semibold text-zinc-900 dark:text-white">{cooldownSeconds}s</span>
+              <span className="font-mono font-semibold text-neutral-900 dark:text-white">{cooldownSeconds}s</span>
             </div>
           )}
 
           <form onSubmit={handleExecuteTrade} className="space-y-3">
             <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
                 <span>{tradeMode === 'buy' ? 'Monedas a invertir' : 'Acciones a vender'}</span>
                 <span className="font-mono text-[11px]">
                   {tradeMode === 'buy'
@@ -1084,10 +1084,10 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                   min="1"
                   value={tradeAmountInput}
                   onChange={(e) => setTradeAmountInput(e.target.value)}
-                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800/70 border border-black/[0.06] dark:border-white/[0.08] text-zinc-900 dark:text-white font-mono font-bold text-sm focus:outline-hidden focus:ring-2 focus:ring-black dark:focus:ring-white transition-all"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/70 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white font-mono font-bold text-sm focus:outline-hidden focus:ring-2 focus:ring-neutral-900 dark:focus:ring-white transition-all"
                   placeholder={tradeMode === 'buy' ? '50' : '1.00'}
                 />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-zinc-400 dark:text-zinc-500">
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-neutral-400 dark:text-neutral-500">
                   {tradeMode === 'buy' ? 'monedas' : 'acciones'}
                 </span>
               </div>
@@ -1104,7 +1104,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                           setTradeAmountInput(String(amt));
                           sound.tap();
                         }}
-                        className="min-h-[36px] flex-1 py-1 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-black/[0.04] dark:border-white/[0.06] transition-all cursor-pointer active:scale-95 touch-manipulation"
+                        className="min-h-[36px] flex-1 py-1 rounded-lg text-xs font-medium bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition-all cursor-pointer active:scale-95 touch-manipulation"
                       >
                         +{amt}
                       </button>
@@ -1115,7 +1115,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                         setTradeAmountInput(String(Math.min(userCoins, 25000)));
                         sound.tap();
                       }}
-                      className="min-h-[36px] px-3 py-1 rounded-lg text-xs font-semibold bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-zinc-900 dark:text-white border border-black/[0.04] dark:border-white/[0.06] transition-all cursor-pointer active:scale-95 touch-manipulation"
+                      className="min-h-[36px] px-3 py-1 rounded-lg text-xs font-semibold bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-900 dark:text-white border border-neutral-300 dark:border-neutral-600 transition-all cursor-pointer active:scale-95 touch-manipulation"
                     >
                       Máx
                     </button>
@@ -1130,7 +1130,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                           setTradeAmountInput((currentHolding.shares * pct).toFixed(2));
                           sound.tap();
                         }}
-                        className="min-h-[36px] flex-1 py-1 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-black/[0.04] dark:border-white/[0.06] transition-all cursor-pointer active:scale-95 touch-manipulation"
+                        className="min-h-[36px] flex-1 py-1 rounded-lg text-xs font-medium bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition-all cursor-pointer active:scale-95 touch-manipulation"
                       >
                         {pct * 100}%
                       </button>
@@ -1141,7 +1141,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                         setTradeAmountInput(currentHolding.shares.toFixed(2));
                         sound.tap();
                       }}
-                      className="min-h-[36px] px-3 py-1 rounded-lg text-xs font-semibold bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-zinc-900 dark:text-white border border-black/[0.04] dark:border-white/[0.06] transition-all cursor-pointer active:scale-95 touch-manipulation"
+                      className="min-h-[36px] px-3 py-1 rounded-lg text-xs font-semibold bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-900 dark:text-white border border-neutral-300 dark:border-neutral-600 transition-all cursor-pointer active:scale-95 touch-manipulation"
                     >
                       Todo
                     </button>
@@ -1151,11 +1151,11 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
             </div>
 
             {/* Resumen de orden */}
-            <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-black/[0.04] dark:border-white/[0.06] text-xs space-y-1.5 text-zinc-600 dark:text-zinc-400">
+            <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/80 dark:border-neutral-700/60 text-xs space-y-1.5 text-neutral-600 dark:text-neutral-400">
               {tradeMode === 'buy' ? (
                 <div className="flex items-center justify-between">
                   <span>Acciones estimadas a recibir:</span>
-                  <span className="font-mono font-bold text-zinc-900 dark:text-white">
+                  <span className="font-mono font-bold text-neutral-900 dark:text-white">
                     ~{estimatedShares} acc.
                   </span>
                 </div>
@@ -1163,13 +1163,13 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 <>
                   <div className="flex items-center justify-between">
                     <span>Importe bruto:</span>
-                    <span className="font-mono text-zinc-900 dark:text-white font-medium">{estimatedCoins.gross} monedas</span>
+                    <span className="font-mono text-neutral-900 dark:text-white font-medium">{estimatedCoins.gross} monedas</span>
                   </div>
-                  <div className="flex items-center justify-between text-zinc-500 text-[11px]">
+                  <div className="flex items-center justify-between text-neutral-500 text-[11px]">
                     <span>Comisión para tesorería (2%):</span>
                     <span className="font-mono">-{estimatedCoins.fee} monedas</span>
                   </div>
-                  <div className="flex items-center justify-between pt-1 border-t border-black/[0.04] dark:border-white/[0.06] font-medium text-zinc-900 dark:text-white">
+                  <div className="flex items-center justify-between pt-1 border-t border-neutral-200 dark:border-neutral-700/60 font-medium text-neutral-900 dark:text-white">
                     <span>Recibirás neto:</span>
                     <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                       +{estimatedCoins.net} monedas
@@ -1187,7 +1187,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                 (tradeMode === 'buy' && (inputNumeric < 10 || inputNumeric > userCoins)) ||
                 (tradeMode === 'sell' && (inputNumeric <= 0 || inputNumeric > currentHolding.shares))
               }
-              className="w-full min-h-[48px] py-3 rounded-2xl font-semibold text-xs text-white bg-black dark:bg-white dark:text-black hover:opacity-90 transition-opacity cursor-pointer active:scale-[0.98] shadow-sm touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full min-h-[48px] py-3 rounded-2xl font-semibold text-xs text-white bg-neutral-950 dark:bg-white dark:text-neutral-950 hover:opacity-90 transition-opacity cursor-pointer active:scale-[0.98] shadow-sm touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
@@ -1203,21 +1203,21 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           </form>
 
           {/* Posición actual del usuario */}
-          <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-black/[0.04] dark:border-white/[0.06] text-xs space-y-1.5">
-            <div className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+          <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/80 dark:border-neutral-700/60 text-xs space-y-1.5">
+            <div className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
               Tu posición en ${activeAsset.ticker}
             </div>
             <div className="grid grid-cols-3 gap-2 font-mono text-[11px]">
               <div>
-                <span className="text-zinc-400 dark:text-zinc-500 block text-[10px]">Acciones</span>
-                <span className="font-semibold text-zinc-900 dark:text-white">{currentHolding.shares.toFixed(2)}</span>
+                <span className="text-neutral-400 dark:text-neutral-500 block text-[10px]">Acciones</span>
+                <span className="font-semibold text-neutral-900 dark:text-white">{currentHolding.shares.toFixed(2)}</span>
               </div>
               <div>
-                <span className="text-zinc-400 dark:text-zinc-500 block text-[10px]">Valor</span>
-                <span className="font-semibold text-zinc-900 dark:text-white">{currentHolding.currentValue} monedas</span>
+                <span className="text-neutral-400 dark:text-neutral-500 block text-[10px]">Valor</span>
+                <span className="font-semibold text-neutral-900 dark:text-white">{currentHolding.currentValue} monedas</span>
               </div>
               <div>
-                <span className="text-zinc-400 dark:text-zinc-500 block text-[10px]">Rendimiento</span>
+                <span className="text-neutral-400 dark:text-neutral-500 block text-[10px]">Rendimiento</span>
                 <span className={`font-semibold ${currentHolding.profitPercent >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                   {currentHolding.profitPercent >= 0 ? '+' : ''}{currentHolding.profitPercent}%
                 </span>
@@ -1227,9 +1227,9 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         </div>
 
         {/* PESTAÑAS ESTRATÉGICAS (DERECHA): CINTA DE MERCADO / LIBRO DE ACCIONISTAS / BALANCE DE EMPRESA */}
-        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-3 flex flex-col">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-3 flex flex-col">
           {/* Navegación entre vistas Apple Segmented Control */}
-          <div className="flex items-center p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-800/60 border border-black/[0.04] dark:border-white/[0.04] text-xs">
+          <div className="flex items-center p-1 rounded-xl bg-neutral-200/70 dark:bg-neutral-800/70 border border-neutral-300/70 dark:border-neutral-700 text-xs">
             <button
               type="button"
               onClick={() => {
@@ -1238,8 +1238,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               }}
               className={`flex-1 py-1.5 rounded-lg font-medium transition-all cursor-pointer text-center touch-manipulation active:scale-95 ${
                 viewTab === 'tape'
-                  ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-semibold shadow-xs'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white font-semibold shadow-xs'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
               }`}
             >
               Cinta en Vivo
@@ -1252,8 +1252,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               }}
               className={`flex-1 py-1.5 rounded-lg font-medium transition-all cursor-pointer text-center touch-manipulation active:scale-95 ${
                 viewTab === 'shareholders'
-                  ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-semibold shadow-xs'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white font-semibold shadow-xs'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
               }`}
             >
               Accionistas
@@ -1266,8 +1266,8 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               }}
               className={`flex-1 py-1.5 rounded-lg font-medium transition-all cursor-pointer text-center touch-manipulation active:scale-95 ${
                 viewTab === 'balance'
-                  ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-semibold shadow-xs'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white font-semibold shadow-xs'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
               }`}
             >
               Tesorería
@@ -1277,13 +1277,13 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           {/* VISTA 1: CINTA DE MERCADO EN VIVO */}
           {viewTab === 'tape' && (
             <div className="space-y-2 flex-1">
-              <div className="flex items-center justify-between text-[11px] text-zinc-400 dark:text-zinc-500">
+              <div className="flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
                 <span>Operaciones recientes de compañeros</span>
                 <span className="font-mono">{transactions.length} regs.</span>
               </div>
 
               {transactions.length === 0 ? (
-                <div className="py-8 text-center text-xs text-zinc-400 dark:text-zinc-500 border border-dashed border-black/[0.08] dark:border-white/[0.08] rounded-2xl">
+                <div className="py-8 text-center text-xs text-neutral-400 dark:text-neutral-500 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-2xl">
                   Aún no hay operaciones registradas. Sé el primero.
                 </div>
               ) : (
@@ -1302,18 +1302,18 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700/50 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300'
                               : 'bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700/50 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300'
                             : isWhale
-                            ? 'bg-zinc-50/80 dark:bg-zinc-800/60 border-amber-300/60 dark:border-amber-600/30'
-                            : 'bg-zinc-50/60 dark:bg-zinc-850/40 border-black/[0.04] dark:border-white/[0.06]'
+                            ? 'bg-neutral-50 dark:bg-neutral-800/60 border-amber-300/60 dark:border-amber-600/30'
+                            : 'bg-neutral-50/70 dark:bg-neutral-850/40 border-neutral-200/80 dark:border-neutral-800'
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`w-2 h-2 rounded-full shrink-0 ${isBuy ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-zinc-900 dark:text-white truncate">
+                              <span className="font-semibold text-neutral-900 dark:text-white truncate">
                                 @{tx.username}
                               </span>
-                              <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">
+                              <span className="text-[10px] font-mono text-neutral-400 dark:text-neutral-500">
                                 ${tx.ticker}
                               </span>
                               {isWhale && (
@@ -1322,7 +1322,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                            <span className="text-[10px] text-neutral-400 dark:text-neutral-500">
                               {new Date(tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
@@ -1332,7 +1332,7 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                           <span className={`font-semibold ${isBuy ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                             {isBuy ? '+' : '-'}{tx.coins_amount.toLocaleString()} monedas
                           </span>
-                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 block">
+                          <span className="text-[10px] text-neutral-400 dark:text-neutral-500 block">
                             {tx.shares_amount.toFixed(2)} acc.
                           </span>
                         </div>
@@ -1347,13 +1347,13 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           {/* VISTA 2: LIBRO DE ACCIONISTAS (CAP TABLE ESTRATÉGICA) */}
           {viewTab === 'shareholders' && (
             <div className="space-y-2 flex-1">
-              <div className="flex items-center justify-between text-[11px] text-zinc-400 dark:text-zinc-500">
+              <div className="flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
                 <span>Mayores accionistas de ${activeAsset.ticker}</span>
                 <span>% Empresa</span>
               </div>
 
               {shareholders.length === 0 ? (
-                <div className="py-8 text-center text-xs text-zinc-400 dark:text-zinc-500 border border-dashed border-black/[0.08] dark:border-white/[0.08] rounded-2xl">
+                <div className="py-8 text-center text-xs text-neutral-400 dark:text-neutral-500 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-2xl">
                   No hay participaciones acumuladas en este activo todavía.
                 </div>
               ) : (
@@ -1361,27 +1361,27 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
                   {shareholders.map((sh, idx) => (
                     <div
                       key={sh.user_id || idx}
-                      className="p-2.5 rounded-xl bg-zinc-50/60 dark:bg-zinc-800/50 border border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between text-xs"
+                      className="p-2.5 rounded-xl bg-neutral-50/70 dark:bg-neutral-800/50 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between text-xs"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="w-5 h-5 rounded-md bg-white dark:bg-zinc-700 border border-black/[0.06] dark:border-white/[0.08] font-mono font-bold text-[10px] flex items-center justify-center text-zinc-600 dark:text-zinc-300">
+                        <span className="w-5 h-5 rounded-md bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 font-mono font-bold text-[10px] flex items-center justify-center text-neutral-700 dark:text-neutral-300">
                           #{idx + 1}
                         </span>
                         <div className="min-w-0">
-                          <span className="font-semibold text-zinc-900 dark:text-white truncate block">
+                          <span className="font-semibold text-neutral-900 dark:text-white truncate block">
                             @{sh.username}
                           </span>
-                          <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">
+                          <span className="text-[10px] font-mono text-neutral-400 dark:text-neutral-500">
                             {sh.shares.toFixed(2)} acciones
                           </span>
                         </div>
                       </div>
 
                       <div className="text-right font-mono text-[11px]">
-                        <span className="font-bold text-zinc-900 dark:text-white">
+                        <span className="font-bold text-neutral-900 dark:text-white">
                           {sh.ownership_percentage}%
                         </span>
-                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 block">
+                        <span className="text-[10px] text-neutral-400 dark:text-neutral-500 block">
                           ~{sh.position_value.toLocaleString()} monedas
                         </span>
                       </div>
@@ -1395,57 +1395,57 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
           {/* VISTA 3: BALANCE FINANCIERO Y TESORERÍA DE LA EMPRESA */}
           {viewTab === 'balance' && (
             <div className="space-y-3 flex-1">
-              <div className="text-[11px] text-zinc-400 dark:text-zinc-500">
+              <div className="text-[11px] text-neutral-500 dark:text-neutral-400">
                 Caja contable y cómo la empresa genera riqueza
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-black/[0.04] dark:border-white/[0.06] space-y-1">
-                  <div className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 text-[11px]">
+                <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/80 dark:border-neutral-700/60 space-y-1">
+                  <div className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400 text-[11px]">
                     <Landmark className="w-3.5 h-3.5 text-emerald-500" />
                     <span>Caja Fuerte / Tesorería</span>
                   </div>
-                  <div className="font-mono font-bold text-sm text-zinc-900 dark:text-white">
+                  <div className="font-mono font-bold text-sm text-neutral-900 dark:text-white">
                     {(companyFinancials?.treasury_balance ?? 5000).toLocaleString()} monedas
                   </div>
-                  <p className="text-[10px] text-zinc-400">Comisiones y beneficios retenidos</p>
+                  <p className="text-[10px] text-neutral-400">Comisiones y beneficios retenidos</p>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-black/[0.04] dark:border-white/[0.06] space-y-1">
-                  <div className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 text-[11px]">
+                <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/80 dark:border-neutral-700/60 space-y-1">
+                  <div className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400 text-[11px]">
                     <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
                     <span>Ingresos Generados</span>
                   </div>
                   <div className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
                     +{(companyFinancials?.total_revenue_generated ?? 0).toLocaleString()} monedas
                   </div>
-                  <p className="text-[10px] text-zinc-400">Facturación operativa total</p>
+                  <p className="text-[10px] text-neutral-400">Facturación operativa total</p>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-black/[0.04] dark:border-white/[0.06] space-y-1">
-                  <div className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 text-[11px]">
+                <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/80 dark:border-neutral-700/60 space-y-1">
+                  <div className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400 text-[11px]">
                     <PiggyBank className="w-3.5 h-3.5 text-amber-500" />
                     <span>Rake del Casino</span>
                   </div>
-                  <div className="font-mono font-bold text-sm text-zinc-900 dark:text-white">
+                  <div className="font-mono font-bold text-sm text-neutral-900 dark:text-white">
                     {(companyFinancials?.arcade_rake_accumulated ?? 0).toLocaleString()} monedas
                   </div>
-                  <p className="text-[10px] text-zinc-400">2% aportado por minijuegos</p>
+                  <p className="text-[10px] text-neutral-400">2% aportado por minijuegos</p>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-black/[0.04] dark:border-white/[0.06] space-y-1">
-                  <div className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 text-[11px]">
+                <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/80 dark:border-neutral-700/60 space-y-1">
+                  <div className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400 text-[11px]">
                     <PieChart className="w-3.5 h-3.5 text-purple-500" />
                     <span>Valor Liquidativo (NAV)</span>
                   </div>
-                  <div className="font-mono font-bold text-sm text-zinc-900 dark:text-white">
+                  <div className="font-mono font-bold text-sm text-neutral-900 dark:text-white">
                     {(companyFinancials?.nav_per_share ?? 10.0).toFixed(2)} monedas/acc
                   </div>
-                  <p className="text-[10px] text-zinc-400">Respaldo real en activos</p>
+                  <p className="text-[10px] text-neutral-400">Respaldo real en activos</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-black/[0.04] dark:border-white/[0.06] text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              <div className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/80 dark:border-neutral-700/60 text-[11px] text-neutral-500 dark:text-neutral-400 leading-relaxed">
                 Cada vez que un jugador vende acciones o juega en el arcade, un porcentaje ingresa directamente en la tesorería de la empresa. A más monedas en caja, mayor es el valor intrínseco de cada acción.
               </div>
             </div>
