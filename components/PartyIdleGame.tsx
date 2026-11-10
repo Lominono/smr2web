@@ -484,9 +484,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 }) => {
   const storageKey = `${STORAGE_KEY_PREFIX}${userId || 'local'}`;
 
-  // Pestaña activa dentro del juego: 'suministros' | 'zonas' | 'habilidades' | 'beerpong' | 'inversiones'
+  // Pestaña activa dentro del juego: 4 secciones limpias y directas
   const [activeTab, setActiveTab] = useState<
-    'suministros' | 'zonas' | 'habilidades' | 'beerpong' | 'inversiones'
+    'suministros' | 'zonas' | 'after' | 'inversiones'
   >('suministros');
 
   // Estado del juego
@@ -539,7 +539,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     tierName: string;
   } | null>(null);
 
-  // Tutorial interactivo de primera visita
+  // Tutorial interactivo de primera visita (3 pasos simples)
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
 
@@ -571,38 +571,19 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const [isClaimingVault, setIsClaimingVault] = useState<boolean>(false);
   const isClaimingRef = useRef<boolean>(false);
   const lastCloudSyncRef = useRef<number>(0);
-  const cloudSyncDisabledRef = useRef<boolean>(false);
   const [buyMultiplier, setBuyMultiplier] = useState<1 | 5 | 10 | 'max'>(1);
   const [currentNewsIndex, setCurrentNewsIndex] = useState<number>(0);
-  const [cycleTick, setCycleTick] = useState<number>(Date.now());
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
   const lastClickTimeRef = useRef<number>(0);
 
-  // Beer pong mini-game state
+  // Estados de minijuegos y ciclo
+  const [cycleTick, setCycleTick] = useState<number>(Date.now());
+  const [hangoverLevel, setHangoverLevel] = useState<number>(0);
   const [pongAim, setPongAim] = useState<number>(50);
   const [pongDirection, setPongDirection] = useState<'right' | 'left'>('right');
   const [pongShooting, setPongShooting] = useState<boolean>(false);
   const [pongResult, setPongResult] = useState<{ success: boolean; reward: number; text: string } | null>(null);
   const [pongCooldown, setPongCooldown] = useState<number>(0);
-
-  // Estados de dificultad, riesgo y resaca (Nerf orgánico)
-  const [policeAlert, setPoliceAlert] = useState<{
-    secondsLeft: number;
-    penaltyResult?: string;
-  } | null>(null);
-  const [productionFrozenUntilMs, setProductionFrozenUntilMs] = useState<number>(0);
-  const [hangoverLevel, setHangoverLevel] = useState<number>(0);
-  const [waterCooldown, setWaterCooldown] = useState<number>(0);
-
-  // Sucesos espontáneos de colegas de fiesta
-  const [spontaneousEvent, setSpontaneousEvent] = useState<SpontaneousEvent | null>(null);
-  const [eventCooldown, setEventCooldown] = useState<number>(35);
-  const [discountActiveUntil, setDiscountActiveUntil] = useState<number>(0);
-
-  // Minijuego 2: El Vaso Misterioso (Ruleta de Chupitos)
-  const [glassCooldown, setGlassCooldown] = useState<number>(0);
-  const [glassResult, setGlassResult] = useState<{ type: string; text: string } | null>(null);
-  const [isSelectingGlass, setIsSelectingGlass] = useState<boolean>(false);
 
   // Zona actual y multiplicador de zona
   const activeZone = useMemo(() => {
@@ -627,20 +608,15 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const isUnderdog = userCoins < 50000;
   const underdogMultiplier = isUnderdog ? 4.0 : 1.0;
 
-  // Multiplicadores por perks y descuentos temporales
+  // Multiplicadores por perks permanentes
   const hasPerk = useCallback(
     (id: string) => purchasedPerks.includes(id),
     [purchasedPerks]
   );
 
-  const isFlashDiscount = Date.now() < discountActiveUntil;
-  const costDiscount = (hasPerk('descuento_chino') ? 0.85 : 1.0) * (isFlashDiscount ? 0.70 : 1.0);
+  const costDiscount = hasPerk('descuento_chino') ? 0.85 : 1.0;
   const drinkPowerMult = hasPerk('aguante_hierro') ? 3.0 : 1.0;
   const rankBonusMult = 1 + currentRank.bonusPercent / 100;
-
-  // Resaca y congelación de producción por patrulla
-  const isHungover = hangoverLevel >= 100;
-  const isProductionFrozen = productionFrozenUntilMs > Date.now();
 
   // Tasa de producción pasiva base (por segundo) con hitos, zona y rango
   const baseRatePerSecond = useMemo(() => {
@@ -653,15 +629,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     return rawRate * activeZone.multiplier * rankBonusMult;
   }, [levels, activeZone.multiplier, rankBonusMult]);
 
-  // Tasa real con multiplicadores aplicados (Prestigio + Producción Base Permanente + Beca Novatos x4 + Modo Fiesta Loca x3 - Resaca - Redada)
+  // Tasa real con multiplicadores aplicados (Prestigio + Producción Base Permanente + Beca Novatos x4 + Modo Fiesta Loca x3)
   const effectiveRatePerSecond = useMemo(() => {
-    if (isProductionFrozen) return 0;
     const frenzyMult = isCrazyParty ? 3 : 1;
-    const hangoverMult = isHungover ? 0.35 : 1.0;
-    const suppliesRate = baseRatePerSecond * prestigeMultiplier * frenzyMult * hangoverMult * underdogMultiplier;
-    const prestigeBaseRate = permanentPrestigeRate * frenzyMult * hangoverMult;
+    const suppliesRate = baseRatePerSecond * prestigeMultiplier * frenzyMult * underdogMultiplier;
+    const prestigeBaseRate = permanentPrestigeRate * frenzyMult;
     return suppliesRate + prestigeBaseRate;
-  }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, isProductionFrozen, isHungover, underdogMultiplier, permanentPrestigeRate]);
+  }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, underdogMultiplier, permanentPrestigeRate]);
 
   // Referencia actualizada del estado completo para evitar pérdida de propiedades al guardar
   const stateRef = useRef<BotellonState>({
@@ -677,7 +651,6 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     purchasedPerks,
     totalDrinksTaken,
     beerPongWins,
-    hangoverLevel,
     guardActiveUntilMs,
     lastSubsidioClaimMs,
   });
@@ -696,7 +669,6 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       purchasedPerks,
       totalDrinksTaken,
       beerPongWins,
-      hangoverLevel,
       guardActiveUntilMs,
       lastSubsidioClaimMs,
     };
@@ -712,7 +684,6 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     purchasedPerks,
     totalDrinksTaken,
     beerPongWins,
-    hangoverLevel,
     guardActiveUntilMs,
     lastSubsidioClaimMs,
   ]);
@@ -744,9 +715,6 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       setPurchasedPerks(stateToApply.purchasedPerks || []);
       setTotalDrinksTaken(stateToApply.totalDrinksTaken || 0);
       setBeerPongWins(stateToApply.beerPongWins || 0);
-      if (typeof stateToApply.hangoverLevel === 'number') {
-        setHangoverLevel(Math.min(100, Math.max(0, stateToApply.hangoverLevel)));
-      }
       if (typeof stateToApply.guardActiveUntilMs === 'number') {
         setGuardActiveUntilMs(stateToApply.guardActiveUntilMs);
       }
@@ -1005,11 +973,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     };
   }, [saveState]);
 
-  // 5. Temporizador para el modo fiesta loca (doble producción temporal)
+  // 5. Motor de Juego Unificado (1 tick por segundo): Fiesta Loca, enfriamiento de After, noticias y autosave
   useEffect(() => {
-    if (!isCrazyParty) return;
+    let autosaveCounter = 0;
+    let newsCounter = 0;
 
-    const timer = setInterval(() => {
+    const gameInterval = setInterval(() => {
+      // 1. Contador de Fiesta Loca
       setCrazyPartyTimeRemaining((prev) => {
         if (prev <= 1) {
           setIsCrazyParty(false);
@@ -1017,409 +987,39 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         }
         return prev - 1;
       });
-    }, 1000);
 
-    return () => clearInterval(timer);
-  }, [isCrazyParty]);
-
-  // 5.1 Sistema de Alerta Policial / Quejas Vecinales (Chequeo cada 12 segundos)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      if (policeAlert || productionFrozenUntilMs > now || pendingVault < 80) return;
-      if (activeZone.policeRisk <= 0) return;
-
-      // Probabilidad ajustada por zona, volumen del bote y sospecha policial del After
-      const vaultFactor = Math.min(2.0, pendingVault / 400);
-      const afterSuspicionFactor = 1 + afterSuspicionLevel * 0.2;
-      const raidChance = activeZone.policeRisk * 0.28 * vaultFactor * afterSuspicionFactor;
-
-      if (Math.random() < raidChance) {
-        sound.whoosh();
-        setPoliceAlert({ secondsLeft: 12 });
+      // 2. Enfriamiento de sospecha policial del After (1 nivel cada 90s)
+      if (afterSuspicionLevel > 0) {
+        setAfterCooldownSeconds((sec) => {
+          if (sec <= 1) {
+            setAfterSuspicionLevel((lvl) => {
+              const nextLvl = Math.max(0, lvl - 1);
+              saveState({ afterSuspicionLevel: nextLvl });
+              return nextLvl;
+            });
+            return 90;
+          }
+          return sec - 1;
+        });
       }
-    }, 12000);
 
-    return () => clearInterval(interval);
-  }, [policeAlert, productionFrozenUntilMs, pendingVault, activeZone.policeRisk]);
+      // 3. Ticker de noticias ambientales (cada 5.5s)
+      newsCounter++;
+      if (newsCounter >= 5) {
+        newsCounter = 0;
+        setCurrentNewsIndex((prev) => (prev + 1) % PARTY_NEWS.length);
+      }
 
-  // 5.2 Cuenta atrás de Alerta Policial (12s para actuar o sanción AFK)
-  useEffect(() => {
-    if (!policeAlert || policeAlert.secondsLeft <= 0) return;
-
-    const timer = setInterval(() => {
-      setPoliceAlert((prev) => {
-        if (!prev) return null;
-        if (prev.secondsLeft <= 1) {
-          // TIEMPO AGOTADO: Sanción automática por descuido
-          sound.broke();
-          const confiscated = Math.floor(pendingVault * 0.5);
-          setPendingVault((v) => Math.max(0, v - confiscated));
-          return {
-            secondsLeft: 0,
-            penaltyResult: `¡Tiempo agotado! La patrulla llegó sin avisar y requisó ${confiscated.toLocaleString()} fichas del bote.`,
-          };
-        }
-        return { ...prev, secondsLeft: prev.secondsLeft - 1 };
-      });
+      // 4. Autosave cada 5s
+      autosaveCounter++;
+      if (autosaveCounter >= 5) {
+        autosaveCounter = 0;
+        saveState();
+      }
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [policeAlert?.secondsLeft, pendingVault]);
-
-  // Cierre automático del resultado de alerta policial tras 4.5 segundos
-  useEffect(() => {
-    if (policeAlert?.penaltyResult) {
-      const t = setTimeout(() => {
-        setPoliceAlert(null);
-      }, 4500);
-      return () => clearTimeout(t);
-    }
-  }, [policeAlert?.penaltyResult]);
-
-  // 5.3 Descenso natural de resaca y cooldown de agua mineral
-  useEffect(() => {
-    const hangoverTimer = setInterval(() => {
-      setHangoverLevel((prev) => Math.max(0, prev - 1));
-    }, 4000);
-
-    return () => clearInterval(hangoverTimer);
-  }, []);
-
-  useEffect(() => {
-    if (waterCooldown <= 0) return;
-    const cooldownTimer = setInterval(() => {
-      setWaterCooldown((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(cooldownTimer);
-  }, [waterCooldown]);
-
-  // 5.4 Descenso natural de la sospecha policial acumulada por irse de After (se enfría 1 nivel cada 90s)
-  useEffect(() => {
-    if (afterSuspicionLevel <= 0) return;
-    const suspicionTimer = setInterval(() => {
-      setAfterCooldownSeconds((sec) => {
-        if (sec <= 1) {
-          setAfterSuspicionLevel((lvl) => {
-            const nextLvl = Math.max(0, lvl - 1);
-            saveState({ afterSuspicionLevel: nextLvl });
-            return nextLvl;
-          });
-          return 90;
-        }
-        return sec - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(suspicionTimer);
+    return () => clearInterval(gameInterval);
   }, [afterSuspicionLevel, saveState]);
-
-  // Cooldown del minijuego del Vaso Misterioso
-  useEffect(() => {
-    if (glassCooldown <= 0) return;
-    const timer = setInterval(() => {
-      setGlassCooldown((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [glassCooldown]);
-
-  // Temporizador para sucesos espontáneos entre colegas
-  useEffect(() => {
-    const eventInterval = setInterval(() => {
-      if (spontaneousEvent || policeAlert || pendingVault < 35) return;
-
-      setEventCooldown((prev) => {
-        if (prev <= 1) {
-          triggerRandomSpontaneousEvent();
-          return 50 + Math.floor(Math.random() * 30);
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(eventInterval);
-  }, [spontaneousEvent, policeAlert, pendingVault]);
-
-  // Cuenta atrás del suceso espontáneo activo (12s para responder)
-  useEffect(() => {
-    if (!spontaneousEvent || spontaneousEvent.secondsLeft <= 0 || spontaneousEvent.resultText) return;
-
-    const timer = setInterval(() => {
-      setSpontaneousEvent((prev) => {
-        if (!prev) return null;
-        if (prev.secondsLeft <= 1) {
-          return null; // Expira el evento sin consecuencias
-        }
-        return { ...prev, secondsLeft: prev.secondsLeft - 1 };
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [spontaneousEvent?.secondsLeft, spontaneousEvent?.resultText]);
-
-  // Cierre automático del resultado de suceso espontáneo
-  useEffect(() => {
-    if (spontaneousEvent?.resultText) {
-      const t = setTimeout(() => {
-        setSpontaneousEvent(null);
-      }, 3500);
-      return () => clearTimeout(t);
-    }
-  }, [spontaneousEvent?.resultText]);
-
-  // Lanzar un suceso espontáneo de fiesta aleatorio
-  const triggerRandomSpontaneousEvent = () => {
-    const eventTypes: Array<'altavoz' | 'chupito' | 'gasolinera'> = ['altavoz', 'chupito', 'gasolinera'];
-    const choice = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-
-    sound.whoosh();
-    if (choice === 'altavoz') {
-      setSpontaneousEvent({
-        id: 'altavoz',
-        title: '¡David saca el altavoz JBL!',
-        desc: 'Aparece en el banco del parque con la batería a tope y va a poner reguetón antiguo de 2012 para motivar a la peña.',
-        secondsLeft: 12,
-        optionA: {
-          label: '¡Que retumbe el parque!',
-          sublabel: '+70 fichas y combo directo',
-        },
-        optionB: {
-          label: 'Baja un poco los graves',
-          sublabel: '+25 fichas seguras',
-        },
-      });
-    } else if (choice === 'chupito') {
-      setSpontaneousEvent({
-        id: 'chupito',
-        title: '¡Ronda de chupito sorpresa!',
-        desc: 'Un colega saca un vaso de plástico con una mezcla misteriosa. "O te lo bebes de un trago o eres un rajado".',
-        secondsLeft: 12,
-        optionA: {
-          label: 'De un trago (A lo loco)',
-          sublabel: '60% ganar +140 fichas / 40% resaca',
-        },
-        optionB: {
-          label: 'Paso, dame agua fresca',
-          sublabel: '-20% de resaca gratis',
-        },
-      });
-    } else {
-      setSpontaneousEvent({
-        id: 'gasolinera',
-        title: '¡Falta hielo en la nevera!',
-        desc: 'Los chavales van a la tienda 24h a pillar hielos y vasos de plástico antes de que cierren.',
-        secondsLeft: 12,
-        optionA: {
-          label: 'Poner para el escote',
-          sublabel: '30% descuento en suministros (45s)',
-        },
-        optionB: {
-          label: 'Yo ya tengo mi vaso lleno',
-          sublabel: 'Seguir farmeando tranquilo',
-        },
-      });
-    }
-  };
-
-  const handleResolveEventOption = (option: 'A' | 'B') => {
-    if (!spontaneousEvent) return;
-
-    if (spontaneousEvent.id === 'altavoz') {
-      if (option === 'A') {
-        sound.toastClink();
-        confetti({ particleCount: 50, spread: 60 });
-        setPendingVault((v) => v + 70);
-        setTotalLifetimeProduced((t) => t + 70);
-        setPartyComboCount((c) => Math.min(10, c + 5));
-        setSpontaneousEvent((prev) => prev ? { ...prev, resultText: '¡El parque se viene arriba! Toda la peña bailando (+70 fichas al bote).' } : null);
-      } else {
-        sound.tap();
-        setPendingVault((v) => v + 25);
-        setTotalLifetimeProduced((t) => t + 25);
-        setSpontaneousEvent((prev) => prev ? { ...prev, resultText: 'Música tranquila de fondo. Ningún vecino se ha quejado (+25 fichas).' } : null);
-      }
-    } else if (spontaneousEvent.id === 'chupito') {
-      if (option === 'A') {
-        if (Math.random() < 0.6) {
-          sound.coinWin();
-          confetti({ particleCount: 80, spread: 70 });
-          setPendingVault((v) => v + 140);
-          setTotalLifetimeProduced((t) => t + 140);
-          setSpontaneousEvent((prev) => prev ? { ...prev, resultText: '¡Menudo trago te has pegado! Licor del bueno (+140 fichas al bote).' } : null);
-        } else {
-          sound.broke();
-          setHangoverLevel((h) => Math.min(100, h + 30));
-          setSpontaneousEvent((prev) => prev ? { ...prev, resultText: '¡Ufff, era garrafón puro! Te ha subido 30% la resaca.' } : null);
-        }
-      } else {
-        sound.toastClink();
-        setHangoverLevel((h) => Math.max(0, h - 20));
-        setSpontaneousEvent((prev) => prev ? { ...prev, resultText: 'Trago largo de agua fresca. -20% de resaca.' } : null);
-      }
-    } else if (spontaneousEvent.id === 'gasolinera') {
-      if (option === 'A') {
-        sound.coinWin();
-        setDiscountActiveUntil(Date.now() + 45000);
-        setSpontaneousEvent((prev) => prev ? { ...prev, resultText: '¡Hielo y vasos conseguidos! 30% de descuento activo durante 45 segundos.' } : null);
-      } else {
-        sound.tap();
-        setSpontaneousEvent((prev) => prev ? { ...prev, resultText: 'Te quedas en el banco vigilando las mochilas de la peña.' } : null);
-      }
-    }
-  };
-
-  // Minijuego 2: Elección de vaso misterioso (Ruleta de chupitos)
-  const handlePickMysteryGlass = (glassIdx: number) => {
-    if (glassCooldown > 0 || isSelectingGlass) return;
-
-    setIsSelectingGlass(true);
-    sound.tap();
-
-    setTimeout(() => {
-      setIsSelectingGlass(false);
-      setGlassCooldown(35);
-
-      const rand = Math.random();
-      if (rand < 0.50) {
-        sound.coinWin();
-        confetti({ particleCount: 90, spread: 60 });
-        const prize = Math.min(250, Math.max(30, Math.floor(effectiveRatePerSecond * 4 + 35)));
-        setPendingVault((prev) => prev + prize);
-        setTotalLifetimeProduced((prev) => prev + prize);
-        setGlassResult({
-          type: 'gold',
-          text: `¡CHUPITO DORADO! Has encontrado el vaso premium de la fiesta (+${prize.toLocaleString()} fichas al bote).`,
-        });
-      } else if (rand < 0.80) {
-        sound.toastClink();
-        setHangoverLevel((prev) => Math.max(0, prev - 40));
-        setGlassResult({
-          type: 'water',
-          text: '¡AGUA FRESCA CON HIELO! Te has hidratado a tiempo (-40% de resaca al instante).',
-        });
-      } else {
-        sound.crashExplode();
-        setHangoverLevel((prev) => Math.min(100, prev + 25));
-        setIsCrazyParty(true);
-        setCrazyPartyTimeRemaining(12);
-        setGlassResult({
-          type: 'spicy',
-          text: '¡MEZCLA PICANTE! Ufff garrafón, pero... ¡te pega un SUBIDÓN x3 de fiesta durante 12s (+25% resaca)!',
-        });
-      }
-    }, 450);
-  };
-
-  // Acciones tácticas ante la alerta policial:
-  const handlePoliceHide = () => {
-    if (!policeAlert || policeAlert.secondsLeft <= 0) return;
-    sound.tap();
-    setProductionFrozenUntilMs(Date.now() + 40000);
-    setPoliceAlert({
-      secondsLeft: 0,
-      penaltyResult: '¡Habéis escondido los vasos a tiempo! La patrulla pasó de largo. Producción pausada durante 40 segundos.',
-    });
-  };
-
-  const handlePoliceRun = () => {
-    if (!policeAlert || policeAlert.secondsLeft <= 0) return;
-    sound.tap();
-    const lost = Math.floor(pendingVault * 0.4);
-    setPendingVault((v) => Math.max(0, v - lost));
-    setPoliceAlert({
-      secondsLeft: 0,
-      penaltyResult: `¡Salisteis corriendo! Salvaste el 60% del bote, pero se cayeron ${lost.toLocaleString()} fichas en la huida.`,
-    });
-  };
-
-  const handlePoliceBluff = () => {
-    if (!policeAlert || policeAlert.secondsLeft <= 0) return;
-    sound.tap();
-    const isSuccess = Math.random() < 0.5;
-
-    if (isSuccess) {
-      sound.coinWin();
-      setPoliceAlert({
-        secondsLeft: 0,
-        penaltyResult: '¡Increíble! Les dijisteis que estabais esperando el autobús y os dejaron marchar sin sanción.',
-      });
-    } else {
-      sound.broke();
-      const lost = Math.floor(pendingVault * 0.75);
-      setPendingVault((v) => Math.max(0, v - lost));
-
-      // Reducir 1 nivel del suministro más alto
-      const tierKeys = Object.keys(levels).reverse();
-      const highestKey = tierKeys.find((k) => (levels[k] || 0) > 0);
-      if (highestKey) {
-        setLevels((prev) => ({
-          ...prev,
-          [highestKey]: Math.max(0, (prev[highestKey] || 0) - 1),
-        }));
-      }
-
-      setPoliceAlert({
-        secondsLeft: 0,
-        penaltyResult: `¡No coló! Multa municipal grave: requisan ${lost.toLocaleString()} fichas del bote y 1 nivel de suministros.`,
-      });
-    }
-  };
-
-  // Acción: Beber vaso de agua mineral para aliviar resaca
-  const handleDrinkWater = () => {
-    if (waterCooldown > 0 || hangoverLevel <= 0) return;
-    sound.tap();
-    setHangoverLevel((prev) => Math.max(0, prev - 45));
-    setWaterCooldown(45);
-  };
-
-  // 6. Ticker de noticias y oscilador de ciclo visual
-  useEffect(() => {
-    const newsTimer = setInterval(() => {
-      setCurrentNewsIndex((prev) => (prev + 1) % PARTY_NEWS.length);
-    }, 4500);
-
-    const tickTimer = setInterval(() => {
-      setCycleTick(Date.now());
-    }, 80);
-
-    return () => {
-      clearInterval(newsTimer);
-      clearInterval(tickTimer);
-    };
-  }, []);
-
-  // 7. Beer pong oscilador de mira
-  useEffect(() => {
-    const pongInterval = setInterval(() => {
-      setPongAim((prev) => {
-        if (pongDirection === 'right') {
-          if (prev >= 95) {
-            setPongDirection('left');
-            return 95;
-          }
-          return prev + 3;
-        } else {
-          if (prev <= 5) {
-            setPongDirection('right');
-            return 5;
-          }
-          return prev - 3;
-        }
-      });
-    }, 35);
-
-    return () => clearInterval(pongInterval);
-  }, [pongDirection]);
-
-  // Cooldown de Beer Pong
-  useEffect(() => {
-    if (pongCooldown <= 0) return;
-    const t = setInterval(() => {
-      setPongCooldown((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(t);
-  }, [pongCooldown]);
 
   // Acción: Clic manual ("Echar un trago")
   const handleManualDrink = () => {
@@ -1455,7 +1055,6 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     setTotalLifetimeProduced((prev) => prev + clickPower);
     setCurrentRunProduced((prev) => prev + clickPower);
     setTotalDrinksTaken((prev) => prev + 1);
-    setHangoverLevel((prev) => Math.min(100, prev + 2.5));
 
     // Partícula visual flotante
     const pId = Date.now() + Math.random();
@@ -1630,54 +1229,6 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     });
   };
 
-  // Acción: Lanzar bola de Beer Pong
-  const handleShootBeerPong = () => {
-    if (pongShooting || pongCooldown > 0) return;
-
-    setPongShooting(true);
-    sound.tap();
-
-    // Sweet spot entre 42% y 58%
-    const isBullseye = pongAim >= 45 && pongAim <= 55;
-    const isNearHit = (pongAim >= 38 && pongAim < 45) || (pongAim > 55 && pongAim <= 62);
-
-    setTimeout(() => {
-      setPongShooting(false);
-      setPongCooldown(25);
-
-      if (isBullseye) {
-        sound.coinWin();
-        confetti({ particleCount: 100, spread: 70 });
-        const prize = Math.min(200, Math.max(15, Math.floor(effectiveRatePerSecond * 3.5)));
-        setPendingVault((prev) => prev + prize);
-        setTotalLifetimeProduced((prev) => prev + prize);
-        setBeerPongWins((prev) => prev + 1);
-        setPongResult({
-          success: true,
-          reward: prize,
-          text: `¡CANASTA LIMPIA! Tiro perfecto en el vaso central (+${prize.toLocaleString()} fichas al bote).`,
-        });
-      } else if (isNearHit) {
-        sound.coinWin();
-        const prize = Math.min(80, Math.max(8, Math.floor(effectiveRatePerSecond * 1.5)));
-        setPendingVault((prev) => prev + prize);
-        setTotalLifetimeProduced((prev) => prev + prize);
-        setPongResult({
-          success: true,
-          reward: prize,
-          text: `¡Rebote y adentro! Entró rozando el borde (+${prize.toLocaleString()} fichas).`,
-        });
-      } else {
-        sound.tap();
-        setPongResult({
-          success: false,
-          reward: 0,
-          text: '¡Agua! La bola rebotó en la mesa y se fue fuera. ¡Prueba en 25s!',
-        });
-      }
-    }, 600);
-  };
-
   // Acción: Interacción con personajes en vivo en la escena
   const handleCharacterClick = (char: CharacterItem) => {
     sound.toastClink();
@@ -1844,7 +1395,6 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
     setLevels(resetLevels);
     setPendingVault(startingSeedFichas);
-    setHangoverLevel(0);
     setCurrentRunProduced(0);
     setLastAfterTimestamp(afterTimestamp);
     setAfterPrestigeCount(nextPrestigeCount);
@@ -1915,134 +1465,6 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-5">
-      {/* Alerta de Redada Policial / Vecinos (Estilo Apple System Alert) */}
-      {policeAlert && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 shadow-xs animate-in fade-in zoom-in-95 duration-200 space-y-3">
-          <div className="flex items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center justify-center shrink-0">
-                <Siren className="w-5 h-5 animate-pulse" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-sm font-semibold text-red-900 dark:text-red-100 tracking-tight">
-                    Control Policial / Quejas de Vecinos
-                  </h3>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/25 font-semibold">
-                    {policeAlert.secondsLeft > 0 ? `${policeAlert.secondsLeft}s para actuar` : 'Resolviendo'}
-                  </span>
-                </div>
-                <p className="text-xs text-red-800/80 dark:text-red-300/80 mt-0.5">
-                  {policeAlert.penaltyResult || 'La patrulla se acerca por la esquina. Si no reaccionas a tiempo te requisarán el 50% del bote acumulado.'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {!policeAlert.penaltyResult && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handlePoliceHide}
-                className="rounded-xl text-xs h-10 px-3 flex items-center justify-center font-medium bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 border border-red-200 dark:border-red-900/50 text-zinc-900 dark:text-zinc-100 cursor-pointer transition-all active:scale-[0.98] shadow-2xs"
-              >
-                <span>Esconder vasos (Pausa 40s)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handlePoliceRun}
-                className="rounded-xl text-xs h-10 px-3 flex items-center justify-center font-medium bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 border border-red-200 dark:border-red-900/50 text-amber-700 dark:text-amber-400 cursor-pointer transition-all active:scale-[0.98] shadow-2xs"
-              >
-                <span>Correr y dispersarse (-40%)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handlePoliceBluff}
-                className="rounded-xl text-xs h-10 px-3 flex items-center justify-center font-medium bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 cursor-pointer transition-all active:scale-[0.98] shadow-2xs"
-              >
-                <span>Hacerse el loco (50/50)</span>
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Aviso de Producción Congelada por Redada */}
-      {isProductionFrozen && (
-        <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between shadow-2xs">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <span>Fiesta en silencio: La policía está patrullando cerca. La música y farmeo están pausados.</span>
-          </div>
-          <span className="font-mono text-[11px] shrink-0 font-semibold px-2 py-0.5 rounded-full bg-amber-500/15">
-            {Math.ceil((productionFrozenUntilMs - Date.now()) / 1000)}s
-          </span>
-        </div>
-      )}
-
-      {/* Suceso Espontáneo entre Colegas (Evento en Vivo) */}
-      {spontaneousEvent && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm animate-in fade-in zoom-in-95 duration-200 space-y-3">
-          <div className="flex items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 tracking-tight">
-                    {spontaneousEvent.title}
-                  </h3>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 font-semibold">
-                    {spontaneousEvent.secondsLeft > 0 ? `${spontaneousEvent.secondsLeft}s` : '¡Ya!'}
-                  </span>
-                </div>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 font-sans">
-                  {spontaneousEvent.resultText || spontaneousEvent.desc}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {!spontaneousEvent.resultText && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => handleResolveEventOption('A')}
-                className="p-3 rounded-2xl bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold text-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-[0.98] shadow-xs"
-              >
-                <span>{spontaneousEvent.optionA.label}</span>
-                <span className="text-[10px] font-mono opacity-80 mt-0.5">{spontaneousEvent.optionA.sublabel}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleResolveEventOption('B')}
-                className="p-3 rounded-2xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200/80 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 font-semibold text-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-[0.98]"
-              >
-                <span>{spontaneousEvent.optionB.label}</span>
-                <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400 mt-0.5">{spontaneousEvent.optionB.sublabel}</span>
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Descuento relámpago de la gasolinera */}
-      {isFlashDiscount && (
-        <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200 text-xs flex items-center justify-between animate-in fade-in shadow-2xs">
-          <div className="flex items-center gap-2">
-            <Tag className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <span>Descuento de escote activo: 30% menos en todas las compras de bebidas.</span>
-          </div>
-          <span className="font-mono text-[11px] shrink-0 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15">
-            {Math.ceil((discountActiveUntil - Date.now()) / 1000)}s
-          </span>
-        </div>
-      )}
-
       {/* Aviso de farmeo offline */}
       {offlineReport && (
         <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm animate-in fade-in slide-in-from-top-2">
@@ -2311,7 +1733,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm flex flex-col justify-between space-y-3 sm:space-y-4 transition-colors">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-mono font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
-              <TrendingUp className={`w-3.5 h-3.5 ${isProductionFrozen ? 'text-red-500' : isHungover ? 'text-amber-500' : 'text-emerald-500'}`} />
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
               <span>Producción pasiva</span>
             </span>
             {afterPrestigeCount > 0 && (
@@ -2323,53 +1745,41 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
           <div>
             <div className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-950 dark:text-neutral-50 font-mono">
-              {isProductionFrozen ? '0.0' : `+${effectiveRatePerSecond.toFixed(1)}`}{' '}
+              +{effectiveRatePerSecond.toFixed(1)}{' '}
               <span className="text-xs font-sans text-neutral-500 dark:text-neutral-400 font-normal">fichas / seg</span>
             </div>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-              {isProductionFrozen ? (
-                <span className="text-amber-600 dark:text-amber-400 font-medium">Pausa por presencia policial</span>
-              ) : isHungover ? (
-                <span className="text-red-600 dark:text-red-400 font-medium">Resaca activa (-65% velocidad)</span>
-              ) : (
-                `Zona: x${activeZone.multiplier.toFixed(1)} · Rango: +${currentRank.bonusPercent}%`
-              )}
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 font-mono">
+              Base: +{baseRatePerSecond.toFixed(1)}/s · Zona: x{activeZone.multiplier.toFixed(1)}
             </p>
           </div>
 
-          {/* Estado de Resaca y Botón de Agua */}
-          <div className="space-y-1.5 pt-1">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
-                <Activity className="w-3.5 h-3.5 text-neutral-400" />
-                <span>Resaca:</span>
-              </span>
-              <span className={`font-mono font-semibold ${isHungover ? 'text-red-600 dark:text-red-400' : 'text-neutral-900 dark:text-neutral-100'}`}>
-                {Math.round(hangoverLevel)}% {isHungover && '(Mortal)'}
-              </span>
-            </div>
-
-            <div className="w-full h-1 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  isHungover ? 'bg-red-500' : hangoverLevel > 60 ? 'bg-amber-500' : 'bg-emerald-500'
-                }`}
-                style={{ width: `${Math.min(100, hangoverLevel)}%` }}
-              />
+          {/* Desglose de Bonificaciones Activas (Estilo Apple System Badges) */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {isUnderdog && (
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
+                  Beca Novatos x4.0
+                </span>
+              )}
+              {isCrazyParty && (
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25 animate-pulse">
+                  Fiesta Loca x3 ({crazyPartyTimeRemaining}s)
+                </span>
+              )}
+              {afterPrestigeCount > 0 && (
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/25">
+                  +{permanentPrestigeRate.toFixed(0)}/s Base Garantizada
+                </span>
+              )}
             </div>
 
             <button
               type="button"
-              disabled={waterCooldown > 0 || hangoverLevel <= 0}
-              onClick={handleDrinkWater}
-              className={`w-full py-1.5 px-3 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[32px] border ${
-                waterCooldown > 0 || hangoverLevel <= 0
-                  ? 'bg-neutral-100/50 dark:bg-neutral-800/40 text-neutral-400 dark:text-neutral-500 border-neutral-200/50 dark:border-neutral-800/50 cursor-not-allowed opacity-50'
-                  : 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/40 hover:bg-blue-100/70 dark:hover:bg-blue-900/40 active:scale-[0.98]'
-              }`}
+              onClick={() => setActiveTab('after')}
+              className="w-full py-1.5 px-3 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[32px] border bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-800/60 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700/60"
             >
-              <Droplets className="w-3.5 h-3.5" />
-              <span>{waterCooldown > 0 ? `Agua en ${waterCooldown}s` : 'Vaso de agua (-45% resaca)'}</span>
+              <RotateCcw className="w-3.5 h-3.5 text-purple-500" />
+              <span>Ver Progresión del After (Prestigio)</span>
             </button>
           </div>
         </div>
@@ -2456,10 +1866,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       <div className="flex items-center p-1.5 rounded-2xl bg-neutral-200/70 dark:bg-neutral-800/70 border border-neutral-300/80 dark:border-neutral-700/60 overflow-x-auto scrollbar-none gap-1 touch-pan-x">
         {[
           { id: 'suministros', label: 'Bebidas & Suministros', icon: Wine },
-          { id: 'zonas', label: 'Fases & Zonas', icon: MapPin },
-          { id: 'habilidades', label: 'Perks de la Noche', icon: Award },
-          { id: 'beerpong', label: 'Juegos de Fiesta', icon: Target },
-          { id: 'inversiones', label: 'Fondo Botellón', icon: TrendingUp },
+          { id: 'zonas', label: 'Fases de la Noche', icon: MapPin },
+          { id: 'after', label: 'El After (Prestigio)', icon: RotateCcw },
+          { id: 'inversiones', label: 'Bolsa de Valores', icon: TrendingUp },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -2479,6 +1888,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             >
               <Icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
+              {tab.id === 'after' && canPrestige && (
+                <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse ml-0.5" />
+              )}
             </button>
           );
         })}
@@ -2486,7 +1898,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       {/* PESTAÑA 1: BEBIDAS & SUMINISTROS */}
       {activeTab === 'suministros' && (
-        <div className="space-y-3 animate-in fade-in duration-150">
+        <div className="space-y-4 animate-in fade-in duration-150">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
             <div>
               <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Suministros del Botellón</h2>
@@ -2525,21 +1937,21 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
               <button
                 type="button"
-                onClick={handleOpenAfterModal}
+                onClick={() => setActiveTab('after')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-95 cursor-pointer ${
                   canPrestige
                     ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 border-neutral-900 dark:border-white hover:opacity-90 shadow-xs'
                     : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700/60 hover:bg-neutral-200/70 dark:hover:bg-neutral-700/60'
                 }`}
-                title="Abrir detalles de Renacimiento y multiplicador permanente"
+                title="Ir al After y consultar el multiplicador de prestigio"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${canPrestige ? 'text-purple-400' : 'text-neutral-400'}`} />
                 <span>
                   {canPrestige
                     ? '¡Renacer listo! (+bonus)'
                     : isAfterOnCooldown
-                    ? `Renacimiento (${Math.ceil(afterCooldownRemainingMs / 1000)}s)`
-                    : `Renacimiento (${Math.floor(currentRunProduced).toLocaleString()} / ${requiredRunProd.toLocaleString()})`}
+                    ? `After (${Math.ceil(afterCooldownRemainingMs / 1000)}s)`
+                    : `After (${Math.floor(currentRunProduced).toLocaleString()} / ${requiredRunProd.toLocaleString()})`}
                 </span>
                 {afterPrestigeCount > 0 && (
                   <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/20">
@@ -2550,47 +1962,6 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             </div>
           </div>
 
-          {/* Banner de Sospecha Policial del After con cuenta atrás y botón de reversión */}
-          {afterSuspicionLevel > 0 && (() => {
-            const stats = getAfterRiskStats(afterSuspicionLevel, userCoins);
-            return (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 shadow-xs">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-red-500/15 border border-red-500/25 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
-                    <Siren className="w-4 h-4 animate-pulse" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-semibold text-red-900 dark:text-red-100">
-                        Sospecha Policial del After: Nivel {afterSuspicionLevel}
-                      </span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/25 text-red-700 dark:text-red-300 font-semibold">
-                        {stats.raidChancePct}% Redada · {stats.confiscatePct}% Confiscación
-                      </span>
-                      {stats.wealthSurcharge > 0 && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300 font-semibold border border-amber-500/25">
-                          Recargo a Gran Fortuna
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-red-800/80 dark:text-red-300/80 leading-relaxed mt-0.5">
-                      La policía patrulla el After. Se enfría 1 nivel en <strong className="font-mono">{afterCooldownSeconds}s</strong> o puedes revertir la sospecha pagando una fianza.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleRevertSuspicion}
-                  className="self-end sm:self-center px-3.5 py-2 rounded-xl bg-white dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-neutral-700 border border-red-200 dark:border-red-800 text-xs font-semibold text-red-900 dark:text-red-100 flex items-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] shrink-0 shadow-2xs"
-                >
-                  <Coins className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Revertir a 0% (-{stats.bribeCost.toLocaleString()} monedas)</span>
-                </button>
-              </div>
-            );
-          })()}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             {TIERS.map((tier) => {
               const currentLevel = levels[tier.id] || 0;
@@ -2598,9 +1969,6 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               const milestone = getTierMilestoneMultiplier(currentLevel);
               const currentTotalRate =
                 currentLevel * tier.baseRate * milestone * activeZone.multiplier * prestigeMultiplier;
-              const cycleMs = TIER_CYCLE_MS[tier.id] || 3000;
-              const progressPercent =
-                currentLevel > 0 ? ((cycleTick % cycleMs) / cycleMs) * 100 : 0;
               const Icon = tier.icon;
 
               return (
@@ -2672,6 +2040,73 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                 </div>
               );
             })}
+          </div>
+
+          {/* Ventajas y Perks Permanentes de Fiesta */}
+          <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 space-y-3">
+            <div className="px-1">
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Ventajas de la Noche (Perks)</h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                Mejoras permanentes para toda la noche. Se adquieren una sola vez con fichas del botellón.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {PERKS.map((perk) => {
+                const bought = hasPerk(perk.id);
+                const canAfford = userCoins >= perk.cost;
+
+                return (
+                  <div
+                    key={perk.id}
+                    className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                      bought
+                        ? 'bg-white dark:bg-neutral-900 border-emerald-500/40 dark:border-emerald-500/30 shadow-xs'
+                        : 'bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-xs'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0 text-neutral-800 dark:text-neutral-200">
+                        {renderPerkIcon(perk.icon)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-neutral-900 dark:text-white truncate">
+                          {perk.name}
+                        </div>
+                        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5 leading-snug">
+                          {perk.desc}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      {bought ? (
+                        <span className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Activo</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!canAfford}
+                          onClick={() => handleBuyPerk(perk)}
+                          className={`min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] flex flex-col items-end justify-center touch-manipulation ${
+                            canAfford
+                              ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 shadow-xs hover:opacity-90'
+                              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border border-neutral-200 dark:border-neutral-700/60 cursor-not-allowed opacity-50'
+                          }`}
+                        >
+                          <span>Aprender</span>
+                          <span className="text-[10px] font-mono opacity-80">
+                            {perk.cost.toLocaleString()} fichas
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -2755,210 +2190,165 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       )}
 
-      {/* PESTAÑA 3: PERKS & HABILIDADES DE LA NOCHE */}
-      {activeTab === 'habilidades' && (
-        <div className="space-y-3 animate-in fade-in duration-150">
-          <div className="px-1">
-            <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Habilidades y Ventajas de Fiesta</h2>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              Compradas una sola vez. Otorgan ventajas permanentes para toda la noche.
-            </p>
-          </div>
+      {/* PESTAÑA 3: EL AFTER (SISTEMA DE PRESTIGIO Y RENACIMIENTO) */}
+      {activeTab === 'after' && (() => {
+        const nextPrestigeCount = afterPrestigeCount + 1;
+        const currentMultiplier = prestigeMultiplier;
+        const nextMultiplier = calculatePrestigeMultiplier(nextPrestigeCount);
+        const coinsReward = Math.floor(pendingVault / 5);
+        const progressPct = Math.min(100, Math.round((currentRunProduced / requiredRunProd) * 100));
+        const nextPermanentRate = Math.round(nextPrestigeCount * 25 * nextMultiplier);
+        const nextBaseClick = Math.round((1 + nextPrestigeCount * 5) * nextMultiplier);
+        const startingSeedFichas = Math.max(2500, nextPrestigeCount * 5000);
+        const riskStats = getAfterRiskStats(afterSuspicionLevel, userCoins);
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-            {PERKS.map((perk) => {
-              const bought = hasPerk(perk.id);
-              const canAfford = userCoins >= perk.cost;
+        return (
+          <div className="space-y-4 animate-in fade-in duration-150">
+            <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
+                      Sistema de Prestigio
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-300 font-bold border border-purple-500/20">
+                      Nivel {afterPrestigeCount}
+                    </span>
+                  </div>
+                  <h2 className="text-base sm:text-lg font-bold text-neutral-950 dark:text-white">
+                    El After Clandestino (Renacimiento)
+                  </h2>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-xl">
+                    Reinicia los suministros de esta ronda a cambio de un multiplicador global permanente para toda la noche, producción base garantizada y capital de arranque inmediato.
+                  </p>
+                </div>
 
-              return (
-                <div
-                  key={perk.id}
-                  className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-                    bought
-                      ? 'bg-white dark:bg-neutral-900 border-emerald-500/40 dark:border-emerald-500/30 shadow-xs'
-                      : 'bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-xs'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0 text-neutral-800 dark:text-neutral-200">
-                      {renderPerkIcon(perk.icon)}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="px-3 py-1.5 rounded-2xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 font-mono text-center">
+                    <div className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase">Multiplicador</div>
+                    <div className="text-base font-bold text-purple-600 dark:text-purple-400">x{currentMultiplier.toFixed(2)}</div>
+                  </div>
+                  <div className="text-xs text-neutral-400">→</div>
+                  <div className="px-3 py-1.5 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 font-mono text-center">
+                    <div className="text-[10px] text-purple-600 dark:text-purple-400 uppercase">Siguiente</div>
+                    <div className="text-base font-bold text-emerald-600 dark:text-emerald-400">x{nextMultiplier.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Barra de Progreso de la Ronda Actual */}
+              <div className="space-y-1.5 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200 dark:border-neutral-700/60">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-neutral-500 dark:text-neutral-400">Recaudación de esta ronda:</span>
+                  <span className="font-bold text-neutral-900 dark:text-white">
+                    {Math.floor(currentRunProduced).toLocaleString()} / {requiredRunProd.toLocaleString()} fichas
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+                  <div
+                    className="h-full bg-neutral-900 dark:bg-white rounded-full transition-all duration-300"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400 pt-0.5">
+                  <span>{progressPct >= 100 ? '✅ Requisito de producción alcanzado' : `Faltan ${(requiredRunProd - Math.floor(currentRunProduced)).toLocaleString()} fichas`}</span>
+                  <span>{progressPct}% completado</span>
+                </div>
+              </div>
+
+              {/* Tarjetas de Beneficios al Renacer */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200 dark:border-neutral-700/60 space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block">
+                    Producción Base
+                  </span>
+                  <div className="font-mono text-sm font-bold text-neutral-900 dark:text-white">
+                    +{nextPermanentRate}/s <span className="text-[10px] text-neutral-400 font-normal">garantizado</span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200 dark:border-neutral-700/60 space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block">
+                    Potencia de Clic
+                  </span>
+                  <div className="font-mono text-sm font-bold text-neutral-900 dark:text-white">
+                    +{nextBaseClick}/clic <span className="text-[10px] text-neutral-400 font-normal">por trago</span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/20 space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-purple-700 dark:text-purple-300 block font-semibold">
+                    Capital de Arranque
+                  </span>
+                  <div className="font-mono text-sm font-bold text-purple-700 dark:text-purple-300">
+                    +{startingSeedFichas.toLocaleString()} fichas
+                  </div>
+                </div>
+              </div>
+
+              {/* Panel de Riesgo Policial y Fianza */}
+              <div className="p-4 rounded-2xl bg-red-50/70 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-red-500/15 border border-red-500/25 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
+                      <Siren className="w-4 h-4" />
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-neutral-900 dark:text-white truncate">
-                        {perk.name}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-red-900 dark:text-red-100">
+                          Vigilancia Policial del After: {afterSuspicionLevel > 0 ? `Nivel ${afterSuspicionLevel}` : 'Zona Despejada (Nivel 0)'}
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/15 text-red-700 dark:text-red-300 font-semibold border border-red-500/25">
+                          {riskStats.raidChancePct}% Riesgo · {riskStats.confiscatePct}% Confiscación
+                        </span>
                       </div>
-                      <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5 leading-snug">
-                        {perk.desc}
+                      <p className="text-[11px] text-red-800/80 dark:text-red-300/80 mt-0.5">
+                        {afterSuspicionLevel > 0
+                          ? `La patrulla ronda el local. Se enfría 1 nivel en ${afterCooldownSeconds}s o puedes pagar la fianza para dejar el riesgo a 0%.`
+                          : 'El After no tiene sospechas acumuladas. Riesgo base mínimo.'}
                       </p>
                     </div>
                   </div>
 
-                  <div className="shrink-0">
-                    {bought ? (
-                      <span className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Activo</span>
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={!canAfford}
-                        onClick={() => handleBuyPerk(perk)}
-                        className={`min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] flex flex-col items-end justify-center touch-manipulation ${
-                          canAfford
-                            ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 shadow-xs hover:opacity-90'
-                            : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border border-neutral-200 dark:border-neutral-700/60 cursor-not-allowed opacity-50'
-                        }`}
-                      >
-                        <span>Aprender</span>
-                        <span className="text-[10px] font-mono opacity-80">
-                          {perk.cost.toLocaleString()} fichas
-                        </span>
-                      </button>
-                    )}
-                  </div>
+                  {afterSuspicionLevel > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRevertSuspicion}
+                      className="px-3.5 py-2 rounded-xl bg-white dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-neutral-700 border border-red-200 dark:border-red-800 text-xs font-semibold text-red-900 dark:text-red-100 flex items-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] shrink-0 shadow-2xs"
+                    >
+                      <Coins className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Limpiar a 0% (-{riskStats.bribeCost.toLocaleString()} monedas)</span>
+                    </button>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* PESTAÑA 4: MINIJUEGO BEER PONG SMR */}
-      {activeTab === 'beerpong' && (
-        <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="px-1">
-            <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Minijuegos de la Fiesta</h2>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              Desafía tu puntería o prueba suerte en la mesa para ganar botines instantáneos de fichas.
-            </p>
-          </div>
-
-          <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm text-center space-y-5">
-            <div className="flex items-center justify-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center text-neutral-900 dark:text-white">
-                <Target className="w-6 h-6" />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-white">Beer Pong de Clase</h3>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mx-auto">
-                Apunta cuando el cursor pase por la zona verde central para encestar en el vaso.
-              </p>
-            </div>
-
-            {/* Barra de puntería interactiva */}
-            <div className="max-w-md mx-auto space-y-2">
-              <div className="flex items-center justify-between text-[11px] text-neutral-400 dark:text-neutral-500 font-mono">
-                <span>Fallo</span>
-                <span className="text-emerald-700 dark:text-emerald-300 font-bold">ZONA DE ENCESTE (45% - 55%)</span>
-                <span>Fallo</span>
               </div>
 
-              <div className="relative w-full h-8 rounded-full bg-neutral-100 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700 overflow-hidden shadow-inner flex items-center">
-                {/* Zona dulce verde (Sweet spot) */}
-                <div className="absolute left-[40%] w-[20%] h-full bg-emerald-500/20 dark:bg-emerald-400/25 border-x border-emerald-500/30" />
-                <div className="absolute left-[45%] w-[10%] h-full bg-emerald-500/40" />
-
-                {/* Cursor móvil */}
-                <div
-                  className="absolute top-1 bottom-1 w-3 rounded-full bg-neutral-950 dark:bg-white shadow-md transition-none"
-                  style={{ left: `calc(${pongAim}% - 6px)` }}
-                />
-              </div>
-            </div>
-
-            {/* Botón de disparo */}
-            <div className="space-y-2">
-              <button
-                type="button"
-                disabled={pongShooting || pongCooldown > 0}
-                onClick={handleShootBeerPong}
-                className={`w-full max-w-sm mx-auto min-h-[48px] py-3 px-6 rounded-2xl text-xs font-semibold tracking-tight transition-all cursor-pointer active:scale-[0.98] shadow-xs touch-manipulation ${
-                  pongCooldown > 0
-                    ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed opacity-60'
-                    : 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:opacity-90'
-                }`}
-              >
-                {pongShooting
-                  ? '¡Lanzando bola...!'
-                  : pongCooldown > 0
-                  ? `Recuperando bola (${pongCooldown}s)...`
-                  : '¡Lanzar Bola de Beer Pong!'}
-              </button>
-
-              <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                Victorias en Beer Pong: <span className="font-mono font-bold text-neutral-900 dark:text-white">{beerPongWins}</span>
-              </div>
-            </div>
-
-            {/* Resultado del tiro */}
-            {pongResult && (
-              <div
-                className={`p-3.5 rounded-2xl text-xs font-medium max-w-md mx-auto border animate-in fade-in duration-200 ${
-                  pongResult.success
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/40'
-                    : 'bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800/40'
-                }`}
-              >
-                {pongResult.text}
-              </div>
-            )}
-          </div>
-
-          {/* Minijuego 2: El Vaso Misterioso (Ruleta de Chupitos) */}
-          <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
-              <div>
-                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">El Vaso Misterioso (Ruleta de Chupitos)</h3>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  Elige uno de los tres vasos: Chupito Dorado (+fichas), Agua Fresca (-resaca) o Mezcla Picante (Subidón x3).
-                </p>
-              </div>
-              <span className="text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 shrink-0 self-start sm:self-auto">
-                {glassCooldown > 0 ? `Enfriando: ${glassCooldown}s` : '¡Listo para beber!'}
-              </span>
-            </div>
-
-            {/* 3 Vasos boca abajo interactivos */}
-            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto pt-1">
-              {[0, 1, 2].map((idx) => (
+              {/* Botón Principal de Confirmación */}
+              <div className="pt-2">
                 <button
-                  key={idx}
                   type="button"
-                  disabled={glassCooldown > 0 || isSelectingGlass}
-                  onClick={() => handlePickMysteryGlass(idx)}
-                  className={`min-h-[84px] p-3.5 rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-[0.98] touch-manipulation cursor-pointer ${
-                    glassCooldown > 0
-                      ? 'bg-neutral-100/50 dark:bg-neutral-900/30 border-neutral-200 dark:border-neutral-800 opacity-50 cursor-not-allowed'
-                      : 'bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-800/60 dark:hover:bg-neutral-800 border-neutral-200 dark:border-neutral-700 shadow-xs'
+                  disabled={!canPrestige}
+                  onClick={handleConfirmAfter}
+                  className={`w-full py-3.5 px-6 rounded-2xl text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-sm active:scale-[0.98] flex items-center justify-center gap-2 ${
+                    canPrestige
+                      ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:opacity-90'
+                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed opacity-60'
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/40 flex items-center justify-center text-red-600 dark:text-red-400">
-                    <CupSoda className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-bold text-neutral-900 dark:text-white font-mono">
-                    Vaso #{idx + 1}
+                  <RotateCcw className="w-4 h-4" />
+                  <span>
+                    {canPrestige
+                      ? `Confirmar Renacimiento #${nextPrestigeCount} (+${nextMultiplier.toFixed(2)}x multiplicador)`
+                      : isAfterOnCooldown
+                      ? `En descanso del After (${Math.ceil(afterCooldownRemainingMs / 1000)}s)...`
+                      : `Faltan ${Math.max(0, Math.ceil(requiredRunProd - currentRunProduced)).toLocaleString()} fichas recaudadas en esta ronda`}
                   </span>
                 </button>
-              ))}
-            </div>
-
-            {glassResult && (
-              <div className={`p-3.5 rounded-2xl text-xs font-medium max-w-md mx-auto border text-center animate-in fade-in duration-200 ${
-                glassResult.type === 'gold'
-                  ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/40'
-                  : glassResult.type === 'water'
-                  ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/40'
-                  : 'bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800/40'
-              }`}>
-                {glassResult.text}
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Puente con el Casino: Farmea y Apuesta */}
       {onNavigateGame && (
@@ -3049,63 +2439,35 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                     1. Bebidas y Generación Continua
                   </h4>
                   <p className="leading-relaxed text-center">
-                    Pulsa la litrona central para ganar fichas manuales. Compra y sube de nivel los suministros (hielos, chupitos, botellas...) para generar fichas automáticamente por segundo, incluso mientras estás en clase o desconectado.
+                    Haz clic en la litrona central para acumular fichas manuales. Compra y sube de nivel tus suministros (hielos, kalimotxo, botellas) y desbloquea Perks para producir fichas por segundo de forma continua, incluso cuando cierres la ventana.
                   </p>
                 </div>
               )}
 
               {tutorialStep === 1 && (
                 <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
-                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-cyan-500/30 flex items-center justify-center text-cyan-400 mx-auto mb-2">
-                    <Droplets className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-amber-500/30 flex items-center justify-center text-amber-500 mx-auto mb-2">
+                    <Coins className="w-5 h-5" />
                   </div>
                   <h4 className="text-sm font-semibold text-foreground text-center">
-                    2. Medidor de Resaca y Vaso de Agua
+                    2. Canje Oficial 5 a 1 a tu Cartera
                   </h4>
                   <p className="leading-relaxed text-center">
-                    Cuidado con abusar: los tragos y la alta producción llenan tu barra de resaca. Si llega al 100% entras en <strong>Resaca Mortal</strong> y tu farmeo cae un <strong>-65%</strong>. Pulsa el botón <strong>&quot;Beber vaso de agua&quot;</strong> para bajarte la resaca y recuperar tu velocidad.
+                    Tus fichas se acumulan en el panel principal. La tasa de cambio oficial es fija: <strong>5 fichas = 1 moneda real</strong>. Pulsa <strong>&quot;Meter a la saca&quot;</strong> cuando quieras para ingresar el saldo directamente a tu cuenta y usarlo en el Casino o subir en el Ranking.
                   </p>
                 </div>
               )}
 
               {tutorialStep === 2 && (
                 <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
-                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-red-500/30 flex items-center justify-center text-red-400 mx-auto mb-2">
-                    <Siren className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-purple-500/30 flex items-center justify-center text-purple-400 mx-auto mb-2">
+                    <RotateCcw className="w-5 h-5" />
                   </div>
                   <h4 className="text-sm font-semibold text-foreground text-center">
-                    3. Las 7 Fases y Batidas Policiales
+                    3. El After (Rebirth) y Solidaridad
                   </h4>
                   <p className="leading-relaxed text-center">
-                    Avanzar de zona multiplica tu dinero, pero atrae a la policía. Si salta la sirena, tienes <strong>12 segundos</strong> para reaccionar: esconder vasos (pausa), correr (-40%) o negociar. ¡Si estás ausente (AFK), la policía te requisará el <strong>50% del bote</strong> acumulado!
-                  </p>
-                </div>
-              )}
-
-              {tutorialStep === 3 && (
-                <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
-                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-amber-500/30 flex items-center justify-center text-amber-500 mx-auto mb-2">
-                    <Coins className="w-5 h-5" />
-                  </div>
-                  <h4 className="text-sm font-semibold text-foreground text-center">
-                    4. Canje Oficial 5 a 1 a tu Cuenta Real
-                  </h4>
-                  <p className="leading-relaxed text-center">
-                    Tus fichas se acumulan en <strong>&quot;En la saca&quot;</strong>. La tasa oficial es de <strong>5 fichas = 1 moneda real</strong>. Pulsa <strong>&quot;Meter a la saca&quot;</strong> cuando quieras para transferir el 100% íntegro a tu saldo de Supabase para apostar o subir en el ranking.
-                  </p>
-                </div>
-              )}
-
-              {tutorialStep === 4 && (
-                <div className="space-y-2 text-xs text-foreground-muted animate-in fade-in duration-150">
-                  <div className="w-10 h-10 rounded-xl bg-surface-raised border border-border flex items-center justify-center text-emerald-400 mx-auto mb-2">
-                    <Trophy className="w-5 h-5" />
-                  </div>
-                  <h4 className="text-sm font-semibold text-foreground text-center">
-                    5. Estrategia y Supervivencia SMR
-                  </h4>
-                  <p className="leading-relaxed text-center">
-                    No dejes millones en el bote sin cobrar o te desplumarán en una redada. Juega al <strong>Beer Pong</strong> para ganar botes extra y compra <strong>Perks</strong> en la tienda para potenciar tu aguante. ¡Que empiece la fiesta!
+                    Cuando alcances el coste del After, renace para multiplicar de por vida toda tu producción y clics, recibiendo capital semilla al empezar. Además, para mantener la economía justa, las fortunas inactivas aportan al fondo común para que los nuevos crezcan.
                   </p>
                 </div>
               )}
@@ -3114,7 +2476,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
             {/* Step Indicators and Nav Buttons */}
             <div className="flex items-center justify-between pt-2 border-t border-border/60">
               <div className="flex items-center gap-1.5">
-                {[0, 1, 2, 3, 4].map((s) => (
+                {[0, 1, 2].map((s) => (
                   <span
                     key={s}
                     className={`h-1.5 rounded-full transition-all ${
@@ -3138,7 +2500,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                   </button>
                 )}
 
-                {tutorialStep < 4 ? (
+                {tutorialStep < 2 ? (
                   <button
                     type="button"
                     onClick={() => {

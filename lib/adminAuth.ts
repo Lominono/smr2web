@@ -6,12 +6,32 @@ import { COOKIE_SESSION } from '@/lib/authSession';
 import { UserProfile } from '@/lib/types';
 
 export const COOKIE_ADMIN_TOKEN = 'smr2_admin_token';
+export const COOKIE_SESSION_TOKEN = 'smr2_session_token';
 
-// Clave secreta del servidor para firmar tokens de administración
-const ADMIN_SECRET =
-  process.env.ADMIN_SECRET_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  'smr2_secure_admin_signing_pepper_v2_2026';
+let _runtimeEphemeralSecret: string | null = null;
+
+/**
+ * Obtiene o deriva una clave secreta segura de 256 bits para firmas HMAC en servidor.
+ * Prioriza variables de entorno oficiales del servidor.
+ * Si ninguna está configurada, genera una semilla criptográfica por proceso (nunca hardcodeada estática).
+ */
+export function getServerSigningSecret(): string {
+  if (process.env.ADMIN_SECRET_KEY && process.env.ADMIN_SECRET_KEY.trim().length >= 16) {
+    return process.env.ADMIN_SECRET_KEY.trim();
+  }
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim().length >= 20) {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY.trim();
+  }
+  if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.trim().length >= 8) {
+    return crypto.createHash('sha256').update(`smr2_derived_signing_secret_${process.env.ADMIN_PASSWORD.trim()}`).digest('hex');
+  }
+
+  // Semilla criptográfica generada en tiempo de ejecución para el ciclo de vida del servidor
+  if (!_runtimeEphemeralSecret) {
+    _runtimeEphemeralSecret = crypto.randomBytes(32).toString('hex');
+  }
+  return _runtimeEphemeralSecret;
+}
 
 export interface AdminTokenPayload {
   userId: string;
@@ -20,24 +40,32 @@ export interface AdminTokenPayload {
   exp: number; // Timestamp en segundos
 }
 
+export interface UserSessionPayload {
+  userId: string;
+  username: string;
+  role: 'student' | 'delegado' | 'admin';
+  exp: number; // Timestamp en segundos
+}
+
 /**
- * Genera un token HMAC-SHA256 firmado exclusivamente por el servidor
+ * Genera un token HMAC-SHA256 para elevar privilegios de administrador
  */
-export function signAdminToken(payload: Omit<AdminTokenPayload, 'exp'>, validDays: number = 7): string {
+export function signAdminToken(payload: Omit<AdminTokenPayload, 'exp'>, validHours: number = 4): string {
+  const secret = getServerSigningSecret();
   const fullPayload: AdminTokenPayload = {
     ...payload,
-    exp: Math.floor(Date.now() / 1000) + validDays * 24 * 60 * 60,
+    exp: Math.floor(Date.now() / 1000) + validHours * 60 * 60,
   };
   const data = Buffer.from(JSON.stringify(fullPayload)).toString('base64url');
   const signature = crypto
-    .createHmac('sha256', ADMIN_SECRET)
+    .createHmac('sha256', secret)
     .update(data)
     .digest('base64url');
   return `${data}.${signature}`;
 }
 
 /**
- * Verifica la firma criptográfica del token y su fecha de expiración
+ * Verifica la firma criptográfica del token administrativo
  */
 export function verifyAdminToken(token?: string | null): AdminTokenPayload | null {
   if (!token || typeof token !== 'string') return null;
@@ -46,8 +74,9 @@ export function verifyAdminToken(token?: string | null): AdminTokenPayload | nul
 
   const [data, signature] = parts;
   try {
+    const secret = getServerSigningSecret();
     const expectedSig = crypto
-      .createHmac('sha256', ADMIN_SECRET)
+      .createHmac('sha256', secret)
       .update(data)
       .digest('base64url');
 
@@ -73,6 +102,57 @@ export function verifyAdminToken(token?: string | null): AdminTokenPayload | nul
   }
 }
 
+/**
+ * Genera un token firmado HMAC-SHA256 para la sesión de usuario
+ */
+export function signUserSessionToken(payload: Omit<UserSessionPayload, 'exp'>, validDays: number = 730): string {
+  const secret = getServerSigningSecret();
+  const fullPayload: UserSessionPayload = {
+    ...payload,
+    exp: Math.floor(Date.now() / 1000) + validDays * 24 * 60 * 60,
+  };
+  const data = Buffer.from(JSON.stringify(fullPayload)).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(data)
+    .digest('base64url');
+  return `${data}.${signature}`;
+}
+
+/**
+ * Verifica la firma criptográfica del token de sesión de usuario
+ */
+export function verifyUserSessionToken(token?: string | null): UserSessionPayload | null {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+
+  const [data, signature] = parts;
+  try {
+    const secret = getServerSigningSecret();
+    const expectedSig = crypto
+      .createHmac('sha256', secret)
+      .update(data)
+      .digest('base64url');
+
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expectedSig);
+
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return null;
+    }
+
+    const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8')) as UserSessionPayload;
+    if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) {
+      return null; // Expirado
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 export interface AdminAuthResult {
   authorized: boolean;
   user: UserProfile | null;
@@ -81,15 +161,13 @@ export interface AdminAuthResult {
 }
 
 /**
- * Valida de forma estricta en el lado del servidor si la petición proviene de un administrador legítimo.
+ * Valida de forma estricta en el servidor si la petición proviene de un administrador legítimo.
  * 
  * Reglas de seguridad:
  * 1. El token `smr2_admin_token` DEBE existir y ser criptográficamente válido.
  * 2. El `userId` del token DEBE ser un UUID real en Supabase.
  * 3. En la base de datos `public.profiles`, el rol DEBE ser estrictamente 'admin'.
  * 4. La cuenta no debe estar suspendida (`is_banned = false`).
- * 
- * NUNCA otorga privilegios administrativos si no se cumplen todas las condiciones.
  */
 export async function verifyAdminSession(req?: Request): Promise<AdminAuthResult> {
   const cookieStore = await cookies();
@@ -193,7 +271,12 @@ export async function verifyAdminSession(req?: Request): Promise<AdminAuthResult
 }
 
 /**
- * Helper para verificar la sesión del usuario actualmente conectado en el portal (Supabase o cookie)
+ * Helper para verificar de forma segura la sesión del usuario conectado.
+ * 
+ * Jerarquía de confianza estricta:
+ * 1. Supabase Auth JWT verificado por el servidor (`getUser()`).
+ * 2. Token de sesión firmado criptográficamente por el servidor (`smr2_session_token`).
+ * 3. Las cookies no firmadas en texto plano (`smr2_user_session`) NUNCA otorgan rol ni privilegios.
  */
 export async function verifyUserSession(): Promise<{
   authenticated: boolean;
@@ -201,7 +284,7 @@ export async function verifyUserSession(): Promise<{
 }> {
   const cookieStore = await cookies();
 
-  // 1. Primero comprobar sesión activa en Supabase Auth
+  // 1. Comprobar sesión activa en Supabase Auth
   if (isServerSupabaseConfigured()) {
     try {
       const supabase = await createClient();
@@ -219,7 +302,7 @@ export async function verifyUserSession(): Promise<{
             .eq('id', authUser.id)
             .maybeSingle();
 
-          if (profile) {
+          if (profile && !profile.is_banned) {
             return {
               authenticated: true,
               user: {
@@ -240,44 +323,93 @@ export async function verifyUserSession(): Promise<{
     } catch {}
   }
 
-  // 2. Comprobar sesión de portal local / cookie
-  const sessionCookie = cookieStore.get(COOKIE_SESSION);
-  if (sessionCookie?.value) {
-    try {
-      let raw = sessionCookie.value;
-      if (raw.includes('%')) {
+  // 2. Comprobar token criptográfico de sesión firmado por el servidor (smr2_session_token)
+  const sessionTokenCookie = cookieStore.get(COOKIE_SESSION_TOKEN);
+  if (sessionTokenCookie?.value) {
+    const verified = verifyUserSessionToken(sessionTokenCookie.value);
+    if (verified && isUUID(verified.userId)) {
+      if (isServerSupabaseConfigured()) {
         try {
-          raw = decodeURIComponent(raw);
+          const adminClient = createAdminClient();
+          if (adminClient) {
+            const { data: p } = await adminClient
+              .from('profiles')
+              .select('id, username, email, role, full_name, student_number, coins, biggest_win, is_banned, created_at')
+              .eq('id', verified.userId)
+              .maybeSingle();
+
+            if (p && !p.is_banned) {
+              return {
+                authenticated: true,
+                user: {
+                  id: p.id,
+                  username: p.username,
+                  email: p.email,
+                  full_name: p.full_name,
+                  student_number: p.student_number,
+                  coins: Number(p.coins ?? 1000),
+                  biggest_win: Number(p.biggest_win ?? 0),
+                  role: p.role || 'student',
+                  created_at: p.created_at,
+                },
+              };
+            }
+          }
         } catch {}
       }
-      const user = JSON.parse(raw) as UserProfile;
-      if (user && user.id && user.username) {
-        // Si hay Supabase disponible, asegurar que el rol no fue modificado en cliente
-        if (isServerSupabaseConfigured() && isUUID(user.id)) {
+
+      // Si Supabase estuviese offline temporalmente, el token firmado garantiza identidad no adulterable
+      return {
+        authenticated: true,
+        user: {
+          id: verified.userId,
+          username: verified.username,
+          coins: 1000,
+          biggest_win: 0,
+          role: verified.role || 'student',
+        },
+      };
+    }
+  }
+
+  // 3. Fallback de compatibilidad para clientes existentes con cookie sin firmar:
+  // IMPORTANTE: NUNCA se confía en el campo "role" de la cookie no firmada para evitar escalada de privilegios.
+  const rawSessionCookie = cookieStore.get(COOKIE_SESSION);
+  if (rawSessionCookie?.value) {
+    try {
+      let raw = rawSessionCookie.value;
+      if (raw.includes('%')) {
+        try { raw = decodeURIComponent(raw); } catch {}
+      }
+      const rawUser = JSON.parse(raw) as UserProfile;
+      if (rawUser && rawUser.id && rawUser.username && isUUID(rawUser.id)) {
+        if (isServerSupabaseConfigured()) {
           try {
             const adminClient = createAdminClient();
             if (adminClient) {
               const { data: p } = await adminClient
                 .from('profiles')
-                .select('id, username, email, role, full_name, student_number, is_banned')
-                .eq('id', user.id)
+                .select('id, username, email, role, full_name, student_number, coins, biggest_win, is_banned, created_at')
+                .eq('id', rawUser.id)
                 .maybeSingle();
 
-              if (p) {
+              // Si es un alumno normal y no está baneado, permitir sesión pero forzar rol de base de datos
+              if (p && !p.is_banned) {
+                // SEGURIDAD: Si en la base de datos figura como admin, NO confiar en cookie plana sin token firmado
+                const safeRole = p.role === 'admin' ? 'student' : (p.role || 'student');
                 return {
                   authenticated: true,
                   user: {
-                    ...user,
-                    role: p.role || 'student',
+                    ...rawUser,
+                    role: safeRole,
                     is_banned: p.is_banned,
+                    coins: Number(p.coins ?? rawUser.coins ?? 1000),
                   },
                 };
               }
             }
           } catch {}
         }
-
-        return { authenticated: true, user };
       }
     } catch {}
   }

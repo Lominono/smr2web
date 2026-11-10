@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.4.1';
+let CURRENT_APP_VERSION = '1.5.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,22 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.5.0',
+    title: 'SMR2 v1.5.0 · El Botellón Definitivo: Claridad Total, Balance Económico y Motor Unificado',
+    badge: 'ACTUALIZACIÓN OBLIGATORIA',
+    date: 'Martes, 10 de Noviembre, 2026',
+    description:
+      'Actualización obligatoria para toda la clase. Se simplifica radicalmente El Botellón eliminando mecánicas frustrantes (resacas y redadas aleatorias a jugadores ausentes), se unifica el motor de juego en tiempo real y se activa el balance de goteo económico justo para grandes fortunas y novatos.',
+    changes: [
+      'Eliminación de Resacas y Popups de Interrupción: El farmeo es 100% fluido y directo. Sin barras de resaca que resten producción ni eventos con cuentas atrás invasivas.',
+      'Fin de las Redadas Aleatorias a Jugadores AFK: Progresa en segundo plano sin miedo a que una patrulla sorpresa te quite el 50% de las fichas mientras estás en clase o desconectado.',
+      'Suministros con Hitos x2 Visibles: Hitos de producción al alcanzar los niveles 10, 25, 50 y 100 en cada bebida para un progreso mucho más gratificante.',
+      'El After (Rebirth) Transparente: Multiplicadores permanentes claros (x2.00, x3.50, x5.00...), capital de arranque garantizado y sistema de riesgo policial predecible.',
+      'Goteo Solidario y Beca de Novatos: Las cuentas con grandes fortunas (>100k) inactivas aportan una pequeña tasa solidaria al fondo común si no custodian su alijo, ayudando a crecer a los nuevos alumnos.',
+      'Motor Unificado Ultraligero: Reducción masiva de intervalos para máxima fluidez táctil y cero consumo innecesario de batería.',
+    ],
+  },
   {
     version: '1.4.1',
     title: 'SMR2 v1.4.1 · Multiplicador Real de Renacimiento y Mercado en Tiempo Real',

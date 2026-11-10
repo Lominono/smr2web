@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { UserProfile } from '@/lib/types';
-import { signAdminToken } from '@/lib/adminAuth';
+import { signAdminToken, signUserSessionToken, COOKIE_SESSION_TOKEN } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -222,6 +222,21 @@ export async function POST(req: NextRequest) {
     response.cookies.set('smr2_user_session', JSON.stringify(userProfile), cookieOptions);
     response.cookies.set('smr2_remember_me', 'true', cookieOptions);
     response.cookies.set('smr2_last_user', targetEmail, cookieOptions);
+
+    // Token criptográfico HttpOnly inviolable firmado por el servidor
+    try {
+      const userSessionToken = signUserSessionToken({
+        userId: userProfile.id,
+        username: userProfile.username,
+        role: userProfile.role as 'student' | 'delegado' | 'admin',
+      });
+      response.cookies.set(COOKIE_SESSION_TOKEN, userSessionToken, {
+        ...cookieOptions,
+        httpOnly: true,
+      });
+    } catch (err) {
+      console.warn('No se pudo firmar el token de sesión:', err);
+    }
 
     // Si es administrador, firmar y asignar el token HttpOnly de administración
     if (role === 'admin') {
