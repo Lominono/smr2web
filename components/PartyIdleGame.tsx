@@ -2699,39 +2699,30 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                 ))}
               </div>
 
-              {totalLifetimeProduced >= 15000 && (
-                <button
-                  type="button"
-                  onClick={canPrestige ? handleOpenAfterModal : undefined}
-                  disabled={!canPrestige}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-95 ${
-                    canPrestige
-                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 border-neutral-900 dark:border-white hover:opacity-90 cursor-pointer shadow-xs'
-                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border border-neutral-200 dark:border-neutral-700/60 cursor-not-allowed opacity-75'
-                  }`}
-                  title={
-                    isAfterOnCooldown
-                      ? `Espera ${Math.ceil(afterCooldownRemainingMs / 1000)}s para el siguiente renacimiento`
-                      : currentRunProduced < requiredRunProd
-                      ? `Necesitas producir ${Math.floor(currentRunProduced).toLocaleString()} / ${requiredRunProd.toLocaleString()} fichas en esta ronda`
-                      : 'Ejecutar Renacimiento'
-                  }
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>
-                    {isAfterOnCooldown
-                      ? `Renacimiento (${Math.ceil(afterCooldownRemainingMs / 1000)}s)`
-                      : currentRunProduced < requiredRunProd
-                      ? `Renacer: ${Math.floor(currentRunProduced).toLocaleString()} / ${requiredRunProd.toLocaleString()}`
-                      : 'Renacer (+bonus)'}
+              <button
+                type="button"
+                onClick={handleOpenAfterModal}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-95 cursor-pointer ${
+                  canPrestige
+                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 border-neutral-900 dark:border-white hover:opacity-90 shadow-xs'
+                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700/60 hover:bg-neutral-200/70 dark:hover:bg-neutral-700/60'
+                }`}
+                title="Abrir detalles de Renacimiento y multiplicador permanente"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${canPrestige ? 'text-purple-400' : 'text-neutral-400'}`} />
+                <span>
+                  {canPrestige
+                    ? '¡Renacer listo! (+bonus)'
+                    : isAfterOnCooldown
+                    ? `Renacimiento (${Math.ceil(afterCooldownRemainingMs / 1000)}s)`
+                    : `Renacimiento (${Math.floor(currentRunProduced).toLocaleString()} / ${requiredRunProd.toLocaleString()})`}
+                </span>
+                {afterPrestigeCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+                    x{prestigeMultiplier.toFixed(2)}
                   </span>
-                  {afterPrestigeCount > 0 && (
-                    <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-neutral-200 text-neutral-800 dark:bg-neutral-700 dark:text-neutral-200">
-                      x{prestigeMultiplier.toFixed(2)}
-                    </span>
-                  )}
-                </button>
-              )}
+                )}
+              </button>
             </div>
           </div>
 
@@ -2779,7 +2770,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             {TIERS.map((tier) => {
               const currentLevel = levels[tier.id] || 0;
-              const quote = getBuyQuote(tier, currentLevel, buyMultiplier, userCoins);
+              const quote = getBuyQuote(tier, currentLevel, buyMultiplier, pendingVault);
               const milestone = getTierMilestoneMultiplier(currentLevel);
               const currentTotalRate =
                 currentLevel * tier.baseRate * milestone * activeZone.multiplier * prestigeMultiplier;
@@ -2815,14 +2806,21 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                         <p className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
                           {tier.desc}
                         </p>
-                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 font-medium">
-                          +{(tier.baseRate * milestone * activeZone.multiplier * prestigeMultiplier).toFixed(1)}/s c/u{' '}
-                          {currentLevel > 0 && (
-                            <span className="text-neutral-400 dark:text-neutral-500 font-normal">
-                              (total: +{currentTotalRate.toFixed(1)}/s)
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium">
+                            +{(tier.baseRate * milestone * activeZone.multiplier * prestigeMultiplier).toFixed(1)}/s c/u{' '}
+                            {currentLevel > 0 && (
+                              <span className="text-neutral-400 dark:text-neutral-500 font-normal">
+                                (total: +{currentTotalRate.toFixed(1)}/s)
+                              </span>
+                            )}
+                          </p>
+                          {prestigeMultiplier > 1 && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold border border-purple-500/25">
+                              x{prestigeMultiplier.toFixed(2)} After
                             </span>
                           )}
-                        </p>
+                        </div>
                       </div>
                     </div>
 
@@ -2835,6 +2833,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                           ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs hover:opacity-90'
                           : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border border-neutral-200 dark:border-neutral-700/60 cursor-not-allowed opacity-60'
                       }`}
+                      title={
+                        quote.canAfford
+                          ? `Comprar con ${quote.totalCost.toLocaleString()} fichas del bote`
+                          : `Necesitas ${quote.totalCost.toLocaleString()} fichas en el bote (tienes ${roundedVault.toLocaleString()})`
+                      }
                     >
                       <span>Pillar {quote.count > 1 ? `x${quote.count}` : ''}</span>
                       <span className="text-[10px] font-mono opacity-80">
@@ -3420,6 +3423,20 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                     <span className="text-base font-bold text-neutral-900 dark:text-white">x{nextMultiplier.toFixed(2)}</span>
                   </div>
                 </div>
+
+                <div className="p-3.5 rounded-2xl bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/20 space-y-1 col-span-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-purple-700 dark:text-purple-300 block font-semibold">
+                    Capital de Arranque Inmediato
+                  </span>
+                  <div className="flex items-baseline justify-between font-mono">
+                    <span className="text-base font-bold text-purple-700 dark:text-purple-300">
+                      +{Math.max(800, nextPrestigeCount * 1500).toLocaleString()} fichas
+                    </span>
+                    <span className="text-[10px] text-purple-600/90 dark:text-purple-400/90">
+                      en el bote al renacer
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* Recompensa en monedas de la ronda actual */}
@@ -3451,12 +3468,12 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               {/* Reglas claras y concisas */}
               <div className="space-y-1.5 text-xs text-neutral-600 dark:text-neutral-400 font-sans border-t border-neutral-200 dark:border-neutral-800 pt-3">
                 <div className="flex items-start gap-2">
-                  <span className="font-semibold text-neutral-900 dark:text-neutral-200 shrink-0">Se reinicia:</span>
-                  <span>Suministros (litronas, hielos, etc.) y fichas acumuladas en la ronda actual.</span>
+                  <span className="font-semibold text-neutral-900 dark:text-neutral-200 shrink-0">Suministros:</span>
+                  <span>Se compran exclusivamente con fichas del botellón. ¡Tus monedas reales de la cartera nunca se descuentan al mejorar!</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="font-semibold text-neutral-900 dark:text-neutral-200 shrink-0">Se conserva:</span>
-                  <span>Monedas en cartera, rango, estadísticas totales y el nuevo multiplicador permanente.</span>
+                  <span className="font-semibold text-neutral-900 dark:text-neutral-200 shrink-0">Al Renacer:</span>
+                  <span>Consigues el multiplicador permanente acumulativo y capital de arranque para comprar suministros de inmediato.</span>
                 </div>
               </div>
 
@@ -3472,11 +3489,22 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
                 <button
                   type="button"
+                  disabled={!canPrestige}
                   onClick={handleConfirmAfter}
-                  className="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-neutral-900 hover:bg-black dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-100 transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center gap-1.5"
+                  className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center gap-1.5 ${
+                    canPrestige
+                      ? 'text-white bg-neutral-900 hover:bg-black dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-100'
+                      : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed opacity-60'
+                  }`}
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Confirmar Renacimiento</span>
+                  <span>
+                    {canPrestige
+                      ? 'Confirmar Renacimiento'
+                      : isAfterOnCooldown
+                      ? `En descanso (${Math.ceil(afterCooldownRemainingMs / 1000)}s)`
+                      : `Faltan ${Math.max(0, Math.ceil(requiredRunProd - currentRunProduced)).toLocaleString()} fichas`}
+                  </span>
                 </button>
               </div>
             </div>
