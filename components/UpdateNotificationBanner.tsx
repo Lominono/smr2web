@@ -148,7 +148,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
 
   const handleReload = async () => {
     sound.tap();
-    const v = updateDetails?.version || '1.5.0';
+    const v = updateDetails?.version || '1.5.1';
     try {
       localStorage.setItem('smr2_last_seen_version', v);
     } catch {}
@@ -413,11 +413,11 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
                   Actualización obligatoria
                 </span>
                 <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-300 ml-auto">
-                  v{updateDetails?.version || '1.5.0'}
+                  v{updateDetails?.version || '1.5.1'}
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans">
-                {updateDetails?.title || `Nueva versión ${updateDetails?.version || '1.5.0'} disponible`}
+                {updateDetails?.title || `Nueva versión ${updateDetails?.version || '1.5.1'} disponible`}
               </h2>
               <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed font-sans">
                 Debes actualizar a la última versión para poder continuar. Esta actualización es obligatoria para que el juego funcione correctamente y mantenga las mismas reglas y condiciones justas para todos los alumnos.
@@ -455,7 +455,7 @@ export const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> =
                 className="w-full min-h-[50px] py-3.5 px-5 rounded-2xl bg-white hover:bg-neutral-200 text-black font-semibold text-sm transition-all active:scale-[0.99] flex items-center justify-center gap-2.5 cursor-pointer shadow-lg"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>Actualizar a la versión {updateDetails?.version || '1.5.0'}</span>
+                <span>Actualizar a la versión {updateDetails?.version || '1.5.1'}</span>
               </button>
               <p className="text-[11px] text-center text-neutral-500 font-mono">
                 Se limpiará la caché y se cargará la versión oficial más reciente.

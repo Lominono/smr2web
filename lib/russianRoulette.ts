@@ -72,6 +72,7 @@ export type EventType =
   | 'player_eliminated'
   | 'game_won'
   | 'balance_adjusted'
+  | 'donation'
   | 'user_banned'
   | 'user_unbanned'
   | 'admin_action'

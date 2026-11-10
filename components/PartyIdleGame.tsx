@@ -44,6 +44,8 @@ import {
   AlertTriangle,
   Droplets,
   Activity,
+  HeartHandshake,
+  Dice5,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { BotellonInvestments } from '@/components/BotellonInvestments';
@@ -386,13 +388,34 @@ export function getRequiredAfterProduction(afterCount: number): number {
   return Math.floor(15000 * Math.pow(2.5, 4) * Math.pow(1.75, Math.min(10, afterCount - 4)));
 }
 
-// Coste progresivo para contratar seguridad privada y custodiar el alijo (evita acumulación gratuita infinita)
+// Coste proporcional y severo para blindar el alijo (escala masiva para que a las grandes fortunas les cueste de verdad)
+export function getVaultGuardCost(userCoins: number, vaultFichas: number = 0): { costCoins: number; costFichas: number } {
+  let costCoins = 50;
+  let costFichas = 250;
+
+  if (userCoins >= 100000000) {
+    // Absurdo para fortunas titánicas (>100M, como la cuenta de 621M):
+    costCoins = Math.floor(userCoins * 0.08); // 8% de la fortuna total (~49.6M para 621M)
+    costFichas = Math.floor(Math.max(10000000, vaultFichas * 0.35));
+  } else if (userCoins >= 10000000) {
+    costCoins = Math.floor(userCoins * 0.06);
+    costFichas = Math.floor(Math.max(2000000, vaultFichas * 0.25));
+  } else if (userCoins >= 1000000) {
+    costCoins = Math.floor(userCoins * 0.045);
+    costFichas = Math.floor(Math.max(250000, vaultFichas * 0.18));
+  } else if (userCoins >= 100000) {
+    costCoins = Math.floor(userCoins * 0.03);
+    costFichas = Math.floor(Math.max(25000, vaultFichas * 0.12));
+  } else if (userCoins >= 10000) {
+    costCoins = Math.floor(userCoins * 0.015);
+    costFichas = Math.floor(Math.max(2500, vaultFichas * 0.08));
+  }
+
+  return { costCoins, costFichas };
+}
+
 export function getGuardCost(userCoins: number): number {
-  if (userCoins < 50000) return 0; // Novatos gratis
-  if (userCoins < 500000) return Math.floor(userCoins * 0.015); // 1.5%
-  if (userCoins < 5000000) return Math.floor(userCoins * 0.025); // 2.5%
-  if (userCoins < 50000000) return Math.floor(userCoins * 0.04); // 4.0%
-  return Math.floor(userCoins * 0.06); // 6.0% para las mega fortunas (>50M)
+  return getVaultGuardCost(userCoins, 0).costCoins;
 }
 
 export function getAfterRiskStats(suspicionLevel: number, userCoins: number = 0): AfterRiskStats {
@@ -484,9 +507,9 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 }) => {
   const storageKey = `${STORAGE_KEY_PREFIX}${userId || 'local'}`;
 
-  // Pestaña activa dentro del juego: 4 secciones limpias y directas
+  // Pestaña activa dentro del juego: 5 secciones limpias y directas
   const [activeTab, setActiveTab] = useState<
-    'suministros' | 'zonas' | 'after' | 'inversiones'
+    'suministros' | 'zonas' | 'after' | 'mecenazgo' | 'inversiones'
   >('suministros');
 
   // Estado del juego
@@ -523,13 +546,27 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   // Estado de sincronización en la nube Supabase
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'saved' | 'saving' | 'offline'>('saved');
 
-  // Estados de Goteo Comunista y Custodia del Alijo
+  // Estados de Bóveda Blindada (Alijo Custodiado) y Riesgo
   const [guardActiveUntilMs, setGuardActiveUntilMs] = useState<number>(0);
   const [lastSubsidioClaimMs, setLastSubsidioClaimMs] = useState<number>(0);
-  const [communistDripReport, setCommunistDripReport] = useState<{
+  const [policeRaidReport, setPoliceRaidReport] = useState<{
+    fichasLost: number;
     coinsLost: number;
     hours: number;
   } | null>(null);
+
+  // Estado de riesgo activo: Doble o Nada en el trago
+  const [gambleResult, setGambleResult] = useState<{
+    won: boolean;
+    amount: number;
+  } | null>(null);
+
+  // Estados de la Zona de Mecenazgo y Donaciones de Clase
+  const [donationsPool, setDonationsPool] = useState<number>(150000);
+  const [donorsList, setDonorsList] = useState<any[]>([]);
+  const [isDonating, setIsDonating] = useState<boolean>(false);
+  const [donationAmountInput, setDonationAmountInput] = useState<number>(50000);
+  const [myTotalDonated, setMyTotalDonated] = useState<number>(0);
 
   // Estado para la burbuja de habla de personajes interactivos
   const [activeCharacterSpeech, setActiveCharacterSpeech] = useState<{
@@ -629,13 +666,17 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     return rawRate * activeZone.multiplier * rankBonusMult;
   }, [levels, activeZone.multiplier, rankBonusMult]);
 
-  // Tasa real con multiplicadores aplicados (Prestigio + Producción Base Permanente + Beca Novatos x4 + Modo Fiesta Loca x3)
+  // Tasa real con multiplicadores aplicados (Prestigio + Bóveda Blindada +20% + Beca Novatos x4 + Modo Fiesta Loca x3)
+  const isStashGuarded = guardActiveUntilMs > Date.now();
+  const stashBonusMult = isStashGuarded ? 1.20 : 1.0;
+
   const effectiveRatePerSecond = useMemo(() => {
     const frenzyMult = isCrazyParty ? 3 : 1;
-    const suppliesRate = baseRatePerSecond * prestigeMultiplier * frenzyMult * underdogMultiplier;
-    const prestigeBaseRate = permanentPrestigeRate * frenzyMult;
+    const stashMult = guardActiveUntilMs > Date.now() ? 1.20 : 1.0;
+    const suppliesRate = baseRatePerSecond * prestigeMultiplier * frenzyMult * underdogMultiplier * stashMult;
+    const prestigeBaseRate = permanentPrestigeRate * frenzyMult * stashMult;
     return suppliesRate + prestigeBaseRate;
-  }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, underdogMultiplier, permanentPrestigeRate]);
+  }, [baseRatePerSecond, prestigeMultiplier, isCrazyParty, underdogMultiplier, permanentPrestigeRate, guardActiveUntilMs]);
 
   // Referencia actualizada del estado completo para evitar pérdida de propiedades al guardar
   const stateRef = useRef<BotellonState>({
@@ -722,32 +763,47 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         setLastSubsidioClaimMs(stateToApply.lastSubsidioClaimMs);
       }
 
-      // Comprobar Goteo Comunista para fortunas >= 100.000 monedas si el alijo no estaba custodiado
-      if (userCoins >= 100000 && stateToApply.lastTickMs && stateToApply.lastTickMs < now) {
+      // Inspección policial y riesgo de requisa por Alijo Desprotegido
+      if (stateToApply.lastTickMs && stateToApply.lastTickMs < now) {
         const guardUntil = stateToApply.guardActiveUntilMs || 0;
-        if (guardUntil < now) {
-          const hoursUnguarded = Math.min(48, (now - Math.max(stateToApply.lastTickMs, guardUntil)) / 3600000);
-          if (hoursUnguarded >= 0.5) {
-            let hourlyRate = 0.01; // 1% por hora para fortunas >100k
-            if (userCoins >= 50000000) hourlyRate = 0.07; // 7% por hora para megafortunas (>50M)
-            else if (userCoins >= 10000000) hourlyRate = 0.045; // 4.5% por hora (>10M)
-            else if (userCoins >= 1000000) hourlyRate = 0.025; // 2.5% por hora (>1M)
+        const isCurrentlyGuarded = guardUntil > now;
 
-            const decayRate = 1 - Math.pow(1 - hourlyRate, hoursUnguarded);
-            const decayedCoins = Math.max(500, Math.floor(userCoins * decayRate));
-            if (decayedCoins > 0 && allowOfflineReport) {
-              onUpdateCoins(-decayedCoins);
-              setCommunistDripReport({
-                coinsLost: decayedCoins,
-                hours: Math.round(hoursUnguarded),
-              });
+        if (!isCurrentlyGuarded) {
+          const hoursUnguarded = Math.min(48, (now - Math.max(stateToApply.lastTickMs, guardUntil)) / 3600000);
+          if (hoursUnguarded >= 1) {
+            const vaultAtRisk = stateToApply.pendingVault || 0;
+            if (vaultAtRisk > 500) {
+              const raidPct = Math.min(0.40, 0.15 + Math.floor(hoursUnguarded) * 0.05);
+              const confiscatedFichas = Math.floor(vaultAtRisk * raidPct);
+              stateToApply.pendingVault = Math.max(50, vaultAtRisk - confiscatedFichas);
+
+              let confiscatedCoins = 0;
+              if (userCoins >= 100000) {
+                const fineRate = userCoins >= 50000000 ? 0.03 : userCoins >= 10000000 ? 0.02 : 0.01;
+                confiscatedCoins = Math.floor(userCoins * fineRate);
+                if (confiscatedCoins > 0 && allowOfflineReport) {
+                  onUpdateCoins(-confiscatedCoins);
+                }
+              }
+
+              if (allowOfflineReport) {
+                setPoliceRaidReport({
+                  fichasLost: confiscatedFichas,
+                  coinsLost: confiscatedCoins,
+                  hours: Math.round(hoursUnguarded),
+                });
+              }
             }
           }
         }
       }
 
-      // Calcular farmeo offline con límite de horas del perk
-      const maxOfflineHours = (stateToApply.purchasedPerks || []).includes('pase_vip') ? 8 : 4;
+      // Farmeo offline: si el alijo estaba custodiado, hasta 12h de farmeo a pleno rendimiento (+20% bonus)
+      const isOfflineGuarded = (stateToApply.guardActiveUntilMs || 0) > stateToApply.lastTickMs;
+      const baseOfflineHours = (stateToApply.purchasedPerks || []).includes('pase_vip') ? 8 : 4;
+      const maxOfflineHours = isOfflineGuarded ? Math.max(12, baseOfflineHours + 4) : baseOfflineHours;
+      const offlineMultiplier = isOfflineGuarded ? 1.20 : 1.0;
+
       if (stateToApply.lastTickMs && stateToApply.lastTickMs < now) {
         const elapsedSec = Math.min(
           Math.floor((now - stateToApply.lastTickMs) / 1000),
@@ -758,14 +814,13 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           const zoneObj = ZONES.find((z) => z.id === stateToApply.currentZoneId) || ZONES[0];
           const prestigeCount = Number(stateToApply.afterPrestigeCount || (stateToApply as any).rebirths || 0);
           const mult = calculatePrestigeMultiplier(prestigeCount);
-          const hangoverDebuff = (stateToApply.hangoverLevel || 0) >= 80 ? 0.35 : 1.0;
           const savedBaseRate = TIERS.reduce((acc, tier) => {
             const lvl = stateToApply.levels?.[tier.id] || 0;
             return acc + lvl * tier.baseRate * getTierMilestoneMultiplier(lvl);
           }, 0) * zoneObj.multiplier;
           const permanentOfflineRate = prestigeCount > 0 ? (prestigeCount * 25) * mult : 0;
 
-          const offlineEarned = Math.floor(elapsedSec * (savedBaseRate * mult + permanentOfflineRate) * hangoverDebuff);
+          const offlineEarned = Math.floor(elapsedSec * (savedBaseRate * mult + permanentOfflineRate) * offlineMultiplier);
           if (offlineEarned > 0 && isFinite(offlineEarned)) {
             setPendingVault((prev) => prev + offlineEarned);
             setTotalLifetimeProduced((prev) => prev + offlineEarned);
@@ -1253,24 +1308,122 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     ]);
   };
 
-  // Acción: Custodiar el alijo para grandes fortunas (servicio de seguridad privada de 6h con tasa progresiva)
-  const handleGuardStash = () => {
-    const cost = getGuardCost(userCoins);
-    if (userCoins < cost) return;
+  // Acción: Blindar el alijo (servicio de seguridad privada de 8h con coste proporcional severo)
+  const handleGuardStash = (mode: 'fichas' | 'coins' = 'coins') => {
+    const { costCoins, costFichas } = getVaultGuardCost(userCoins, pendingVault);
 
-    sound.toastClink();
-    if (cost > 0) {
-      onUpdateCoins(-cost);
+    if (mode === 'fichas') {
+      if (pendingVault < costFichas) {
+        sound.broke();
+        alert(`Fichas insuficientes en el bote. Necesitas ${costFichas.toLocaleString()} fichas (o puedes pagar ${costCoins.toLocaleString()} monedas).`);
+        return;
+      }
+      sound.toastClink();
+      setPendingVault((prev) => Math.max(0, prev - costFichas));
+    } else {
+      if (userCoins < costCoins) {
+        sound.broke();
+        alert(`Saldo insuficiente. Necesitas al menos ${costCoins.toLocaleString()} monedas en tu cartera.`);
+        return;
+      }
+      sound.toastClink();
+      if (costCoins > 0) {
+        onUpdateCoins(-costCoins);
+      }
     }
-    const newGuard = Date.now() + 6 * 3600 * 1000;
+
+    const newGuard = Date.now() + 8 * 3600 * 1000; // 8 horas de protección completa
     setGuardActiveUntilMs(newGuard);
-    saveState({ guardActiveUntilMs: newGuard }, true);
+    saveState({
+      guardActiveUntilMs: newGuard,
+      pendingVault: mode === 'fichas' ? Math.max(0, pendingVault - costFichas) : pendingVault,
+    }, true);
+
     confetti({
-      particleCount: 45,
-      spread: 60,
+      particleCount: 55,
+      spread: 70,
       origin: { y: 0.6 },
-      colors: ['#10B981', '#3B82F6', '#F59E0B'],
+      colors: ['#10B981', '#3B82F6', '#8B5CF6'],
     });
+  };
+
+  // Acción: Trago Doble o Nada (Riesgo voluntario del 20% del bote)
+  const handleGambleVault = () => {
+    if (pendingVault < 100) {
+      alert('Necesitas al menos 100 fichas en el bote para jugar al Doble o Nada.');
+      return;
+    }
+    const wager = Math.floor(pendingVault * 0.20);
+    const win = Math.random() >= 0.50;
+
+    if (win) {
+      sound.coinWin();
+      confetti({ particleCount: 80, spread: 70 });
+      setPendingVault((prev) => prev + wager);
+      setTotalLifetimeProduced((prev) => prev + wager);
+      setGambleResult({ won: true, amount: wager });
+    } else {
+      sound.broke();
+      setPendingVault((prev) => Math.max(0, prev - wager));
+      setGambleResult({ won: false, amount: wager });
+    }
+
+    setTimeout(() => {
+      setGambleResult(null);
+    }, 4000);
+  };
+
+  // Acción: Cargar donaciones y donar al Fondo Social (Zona de Mecenazgo)
+  const loadDonationsData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/donations');
+      const data = await res.json();
+      if (data.success) {
+        setDonationsPool(data.poolTotal || 150000);
+        setDonorsList(data.donors || []);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadDonationsData();
+  }, [loadDonationsData]);
+
+  const handleDonateToClass = async (amountToDonate: number) => {
+    if (userCoins < amountToDonate) {
+      sound.broke();
+      alert(`Saldo insuficiente. Tienes ${userCoins.toLocaleString()} monedas.`);
+      return;
+    }
+
+    setIsDonating(true);
+    try {
+      const res = await fetch('/api/donations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          username: username || 'Estudiante SMR',
+          amount: amountToDonate,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Error al procesar la donación');
+      }
+
+      sound.jackpot();
+      confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
+      onUpdateCoins(-amountToDonate);
+      setDonationsPool(data.poolTotal);
+      setMyTotalDonated(data.totalDonated);
+      loadDonationsData();
+    } catch (err: any) {
+      alert(err.message || 'Error al donar');
+    } finally {
+      setIsDonating(false);
+    }
   };
 
   // Acción: Reclamar subsidio social de la clase (para novatos <50.000 monedas financiado por tasas a ballenas)
@@ -1385,13 +1538,59 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
     const afterTimestamp = Date.now();
     const leftoverCoins = Math.floor(pendingVault / 5);
-    if (leftoverCoins > 0) {
-      onUpdateCoins(leftoverCoins);
-    }
-
     const nextPrestigeCount = afterPrestigeCount + 1;
-    // Capital de siembra en fichas para arrancar produciendo inmediatamente tras renacer
-    const startingSeedFichas = Math.max(2500, nextPrestigeCount * 5000);
+    const isGuardedAtAfter = guardActiveUntilMs > Date.now();
+
+    // Si el alijo estaba custodiado, inmunidad total y doble capital de siembra
+    let startingSeedFichas = Math.max(2500, nextPrestigeCount * 5000);
+    if (isGuardedAtAfter) {
+      startingSeedFichas = Math.max(5000, nextPrestigeCount * 10000);
+      if (leftoverCoins > 0) {
+        onUpdateCoins(leftoverCoins);
+      }
+      setAfterRaidResult({
+        type: 'success',
+        raidChancePct: 0,
+        confiscatePct: 0,
+        coinsLost: 0,
+        vaultLost: 0,
+        nextLevel: nextPrestigeCount,
+      });
+    } else {
+      // Riesgo real de redada policial si el alijo estaba desprotegido
+      const raidChance = Math.min(75, 35 + afterSuspicionLevel * 10);
+      const isRaidTriggered = Math.random() * 100 < raidChance;
+
+      if (isRaidTriggered) {
+        const confiscatedPct = 30;
+        const confiscatedCoins = Math.floor(leftoverCoins * 0.30);
+        const netCoins = leftoverCoins - confiscatedCoins;
+        if (netCoins > 0) {
+          onUpdateCoins(netCoins);
+        }
+        sound.broke();
+        setAfterRaidResult({
+          type: 'raid',
+          raidChancePct: raidChance,
+          confiscatePct: confiscatedPct,
+          coinsLost: confiscatedCoins,
+          vaultLost: Math.floor(pendingVault * 0.30),
+          nextLevel: nextPrestigeCount,
+        });
+      } else {
+        if (leftoverCoins > 0) {
+          onUpdateCoins(leftoverCoins);
+        }
+        setAfterRaidResult({
+          type: 'success',
+          raidChancePct: raidChance,
+          confiscatePct: 0,
+          coinsLost: 0,
+          vaultLost: 0,
+          nextLevel: nextPrestigeCount,
+        });
+      }
+    }
 
     setLevels(resetLevels);
     setPendingVault(startingSeedFichas);
@@ -1577,88 +1776,94 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       </div>
 
-      {/* Banner de Goteo Comunista (Grandes Fortunas) o Subsidio Proletario (Novatos) */}
-      {userCoins >= 100000 ? (
-        guardActiveUntilMs > Date.now() ? (
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs shadow-xs animate-in fade-in">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 flex items-center justify-center shrink-0">
-                <Shield className="w-4 h-4" />
+      {/* Banner de Bóveda Blindada (Alijo Custodiado v1.5.1) */}
+      {(() => {
+        const { costCoins, costFichas } = getVaultGuardCost(userCoins, pendingVault);
+        const isGuarded = guardActiveUntilMs > Date.now();
+        const hoursRemaining = isGuarded ? Math.ceil((guardActiveUntilMs - Date.now()) / 3600000) : 0;
+        const minutesRemaining = isGuarded ? Math.ceil((guardActiveUntilMs - Date.now()) / 60000) % 60 : 0;
+
+        return isGuarded ? (
+          <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/90 dark:border-emerald-800/50 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                <Shield className="w-5 h-5" />
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-emerald-950 dark:text-emerald-100">Alijo Custodiado</span>
-                  <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 font-semibold">
-                    {Math.ceil((guardActiveUntilMs - Date.now()) / 3600000)}h restantes
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-emerald-950 dark:text-emerald-100 text-sm">Bóveda Blindada Activa</span>
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30 font-semibold">
+                    🛡️ {hoursRemaining}h {minutesRemaining}m restantes
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-500/20">
+                    +20% Producción Pasiva
                   </span>
                 </div>
-                <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80 truncate">
-                  Tu fortuna está protegida contra el Goteo Comunista.
+                <p className="text-[11px] text-emerald-900/80 dark:text-emerald-300/80 leading-relaxed">
+                  Tu bote está 100% blindado contra inspecciones policiales. Farmeo offline nocturno extendido a 12 horas.
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleGuardStash}
-              className="px-3 py-1.5 rounded-xl bg-white dark:bg-neutral-800 hover:bg-emerald-100/50 dark:hover:bg-neutral-700 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100 font-semibold text-xs cursor-pointer transition-colors shrink-0 shadow-2xs active:scale-[0.98]"
-            >
-              Renovar (+6h) {getGuardCost(userCoins) > 0 ? `· -${getGuardCost(userCoins).toLocaleString()} 🪙` : '· Gratis'}
-            </button>
+
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleGuardStash('fichas')}
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-neutral-800 hover:bg-emerald-100/60 dark:hover:bg-neutral-700 border border-emerald-300 dark:border-emerald-700 text-emerald-950 dark:text-emerald-100 font-semibold text-xs cursor-pointer transition-all active:scale-[0.98] shadow-2xs"
+                title="Extiende 8 horas la protección usando fichas del botellón"
+              >
+                +8h con Bote ({costFichas.toLocaleString()} fichas)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleGuardStash('coins')}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs cursor-pointer transition-all active:scale-[0.98] shadow-xs"
+                title="Extiende 8 horas la protección usando monedas de tu cartera"
+              >
+                +8h con Cartera ({costCoins.toLocaleString()} 🪙)
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs shadow-xs animate-in fade-in">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-4 h-4" />
+          <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200/90 dark:border-amber-800/60 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-5 h-5" />
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-amber-950 dark:text-amber-100">Goteo Comunista Activo</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-red-500/15 text-red-700 dark:text-red-300 font-semibold border border-red-500/25">
-                    Alijo desprotegido
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-amber-950 dark:text-amber-100 text-sm">Alijo Desprotegido · Riesgo de Inspección</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/15 text-red-700 dark:text-red-300 font-bold border border-red-500/25">
+                    Riesgo Alto
                   </span>
                 </div>
-                <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 truncate">
-                  Las fortunas ociosas gotean al Fondo Social para alumnos novatos.
+                <p className="text-[11px] text-amber-900/80 dark:text-amber-300/80 leading-relaxed">
+                  Las ausencias prolongadas sin custodia sufren redadas policiales nocturnas y el After corre un 45% de peligro de requisa.
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleGuardStash}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs cursor-pointer transition-colors shrink-0 shadow-xs active:scale-[0.98]"
-            >
-              🛡️ Custodiar (+6h) {getGuardCost(userCoins) > 0 ? `· -${getGuardCost(userCoins).toLocaleString()} 🪙` : '· Gratis'}
-            </button>
-          </div>
-        )
-      ) : isUnderdog && Date.now() - (lastSubsidioClaimMs || 0) >= 2 * 3600 * 1000 ? (
-        <div className="p-3 sm:p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 flex items-center justify-between gap-2.5 text-xs shadow-xs animate-in fade-in">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-[#0071e3] dark:text-blue-400 border border-blue-500/25 flex items-center justify-center shrink-0">
-              <Coins className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-blue-950 dark:text-blue-100">Fondo Social Proletario</span>
-                <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-500/20">
-                  +{Math.min(15000, Math.max(3500, Math.floor((50000 - userCoins) * 0.25))).toLocaleString()} 🪙
-                </span>
-              </div>
-              <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80 truncate">
-                Subvención social de impulso para alumnos novatos.
-              </p>
+
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleGuardStash('fichas')}
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-neutral-800 hover:bg-amber-100/60 dark:hover:bg-neutral-700 border border-amber-300 dark:border-amber-700 text-amber-950 dark:text-amber-100 font-semibold text-xs cursor-pointer transition-all active:scale-[0.98] shadow-2xs"
+                title="Blindar el alijo durante 8h usando fichas del botellón"
+              >
+                🛡️ Blindar con Bote ({costFichas.toLocaleString()} fichas)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleGuardStash('coins')}
+                className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs cursor-pointer transition-all active:scale-[0.98] shadow-xs"
+                title="Blindar el alijo durante 8h usando monedas de cartera"
+              >
+                🛡️ Blindar con Cartera ({costCoins.toLocaleString()} 🪙)
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleClaimSubsidio}
-            className="px-3.5 py-1.5 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold text-xs cursor-pointer transition-colors shrink-0 active:scale-[0.98] shadow-xs"
-          >
-            Reclamar Subsidio
-          </button>
-        </div>
-      ) : null}
+        );
+      })()}
 
       {/* DASHBOARD RESPONSIVO UNIFICADO (Estilo Apple Grouped Cards 3 Columnas) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1713,19 +1918,50 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               )}
             </button>
 
-            <button
-              type="button"
-              disabled={userCoins < 50}
-              onClick={() => handleFundVaultWithCoins(50)}
-              className={`w-full py-1.5 px-3 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] border ${
-                userCoins >= 50
-                  ? 'bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-800/80 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700/60'
-                  : 'bg-neutral-100/50 dark:bg-neutral-800/40 text-neutral-400 dark:text-neutral-500 border-neutral-200/50 dark:border-neutral-800/50 cursor-not-allowed opacity-50'
-              }`}
-              title="Aportar 50 monedas de tu cartera para recibir +250 fichas al bote"
-            >
-              <span>Aportar al bote (-50 🪙 → +250 fichas)</span>
-            </button>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                disabled={userCoins < 50}
+                onClick={() => handleFundVaultWithCoins(50)}
+                className={`py-1.5 px-2 rounded-lg text-[10px] font-medium flex items-center justify-center gap-1 transition-all cursor-pointer active:scale-[0.98] border truncate ${
+                  userCoins >= 50
+                    ? 'bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-800/80 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700/60'
+                    : 'bg-neutral-100/50 dark:bg-neutral-800/40 text-neutral-400 dark:text-neutral-500 border-neutral-200/50 dark:border-neutral-800/50 cursor-not-allowed opacity-50'
+                }`}
+                title="Aportar 50 monedas de tu cartera para recibir +250 fichas al bote"
+              >
+                <span>Aportar (-50🪙)</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={roundedVault < 50}
+                onClick={handleGambleVault}
+                className={`py-1.5 px-2 rounded-lg text-[10px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer active:scale-[0.98] border truncate ${
+                  roundedVault >= 50
+                    ? 'bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800/60 shadow-2xs'
+                    : 'bg-neutral-100/50 dark:bg-neutral-800/40 text-neutral-400 dark:text-neutral-500 border-neutral-200/50 dark:border-neutral-800/50 cursor-not-allowed opacity-50'
+                }`}
+                title="Arriesga el 20% del bote en un trago a cara o cruz"
+              >
+                <Dice5 className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                <span>Doble o Nada</span>
+              </button>
+            </div>
+
+            {gambleResult && (
+              <div
+                className={`p-1.5 rounded-lg text-center text-[11px] font-medium animate-in fade-in duration-150 border ${
+                  gambleResult.won
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800'
+                    : 'bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-200 border-red-300 dark:border-red-800'
+                }`}
+              >
+                {gambleResult.won
+                  ? `🎉 ¡Ganaste! +${gambleResult.amount.toLocaleString()} fichas`
+                  : `💥 ¡Perdiste! -${gambleResult.amount.toLocaleString()} fichas`}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1868,6 +2104,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           { id: 'suministros', label: 'Bebidas & Suministros', icon: Wine },
           { id: 'zonas', label: 'Fases de la Noche', icon: MapPin },
           { id: 'after', label: 'El After (Prestigio)', icon: RotateCcw },
+          { id: 'mecenazgo', label: 'Mecenazgo & Donaciones', icon: Award },
           { id: 'inversiones', label: 'Bolsa de Valores', icon: TrendingUp },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
@@ -2391,6 +2628,168 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       )}
 
+      {/* PESTAÑA: ZONA DE MECENAZGO & FONDO SOCIAL DE LA CLASE */}
+      {activeTab === 'mecenazgo' && (
+        <div className="space-y-4 animate-in fade-in duration-150">
+          {/* Header del Fondo Social */}
+          <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-amber-500/10 via-purple-500/5 to-blue-500/10 border border-amber-500/20 dark:border-amber-500/30 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+                  <Award className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-neutral-950 dark:text-neutral-50 tracking-tight flex items-center gap-2">
+                    <span>Mecenazgo y Fondo Social SMR2</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/30">
+                      Solidaridad
+                    </span>
+                  </h2>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
+                    Las mayores fortunas donan monedas para ayudar a los nuevos alumnos y grabar su nombre en el Muro de Honor.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-white dark:bg-neutral-900 border border-amber-500/20 shadow-xs sm:text-right">
+                <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400 block uppercase">
+                  Bote Social de la Clase
+                </span>
+                <span className="text-xl sm:text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">
+                  {donationsPool.toLocaleString()} 🪙
+                </span>
+              </div>
+            </div>
+
+            {/* Panel de Donación Voluntaria para Jugadores con Fondos */}
+            <div className="p-4 rounded-2xl bg-white/80 dark:bg-neutral-900/80 border border-neutral-200 dark:border-neutral-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
+                  <HeartHandshake className="w-4 h-4 text-rose-500" />
+                  <span>Hacer una donación al fondo común</span>
+                </span>
+                <span className="text-xs font-mono text-neutral-500">
+                  Tu saldo: {userCoins.toLocaleString()} 🪙
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[10000, 100000, 1000000, 10000000, 50000000].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    disabled={userCoins < amt}
+                    onClick={() => setDonationAmountInput(amt)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium border transition-all cursor-pointer ${
+                      donationAmountInput === amt
+                        ? 'bg-amber-500 text-black border-amber-500 font-bold shadow-xs'
+                        : userCoins >= amt
+                        ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-200'
+                        : 'opacity-40 cursor-not-allowed bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border-neutral-200'
+                    }`}
+                  >
+                    {amt >= 1000000 ? `${amt / 1000000}M` : `${amt / 1000}k`} 🪙
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="number"
+                  min="1000"
+                  step="1000"
+                  value={donationAmountInput}
+                  onChange={(e) => setDonationAmountInput(Math.max(1000, Number(e.target.value)))}
+                  className="w-full px-3 py-2 rounded-xl text-xs font-mono bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 outline-none"
+                  placeholder="Cantidad a donar..."
+                />
+                <button
+                  type="button"
+                  disabled={isDonating || userCoins < donationAmountInput}
+                  onClick={() => handleDonateToClass(donationAmountInput)}
+                  className="px-5 py-2 rounded-xl bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-bold shrink-0 cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDonating ? 'Donando...' : `Donar ${donationAmountInput.toLocaleString()} 🪙`}
+                </button>
+              </div>
+
+              {myTotalDonated > 0 && (
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
+                  ✨ Has aportado un total histórico de {myTotalDonated.toLocaleString()} 🪙 a la clase.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Muro de Honor de Donantes (Leaderboard de Mecenas) */}
+          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-200 dark:border-neutral-800">
+              <div className="flex items-center gap-2">
+                <Crown className="w-4 h-4 text-amber-500" />
+                <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
+                  Muro de Honor de Mecenas (Top Donantes)
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono text-neutral-400">
+                {donorsList.length} Mecenas registrados
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+              {donorsList.map((donor, idx) => {
+                const badgeTitle =
+                  donor.badge === 'magnate'
+                    ? '👑 Magnate Filántropo'
+                    : donor.badge === 'padrino'
+                    ? '💎 Padrino SMR2'
+                    : donor.badge === 'mecenas'
+                    ? '🥇 Mecenas de la Clase'
+                    : '🎖️ Colaborador';
+
+                const badgeBg =
+                  donor.badge === 'magnate'
+                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                    : donor.badge === 'padrino'
+                    ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30'
+                    : donor.badge === 'mecenas'
+                    ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700';
+
+                return (
+                  <div
+                    key={donor.userId || idx}
+                    className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700/60 flex items-center justify-between gap-2 shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 flex items-center justify-center font-bold font-mono text-xs text-neutral-900 dark:text-neutral-100 shrink-0">
+                        #{idx + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-neutral-900 dark:text-neutral-100 truncate">
+                          @{donor.username}
+                        </div>
+                        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full border inline-block mt-0.5 ${badgeBg}`}>
+                          {badgeTitle}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-bold font-mono text-amber-600 dark:text-amber-400">
+                        {donor.totalDonated >= 1000000
+                          ? `${(donor.totalDonated / 1000000).toFixed(1)}M 🪙`
+                          : `${(donor.totalDonated / 1000).toFixed(0)}k 🪙`}
+                      </div>
+                      <span className="text-[9px] text-neutral-400 font-mono">donadas</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PESTAÑA 5: FONDO BOTELLÓN (SISTEMA DE INVERSIONES COMPARTIDO) */}
       {activeTab === 'inversiones' && (
         <BotellonInvestments
@@ -2807,8 +3206,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       )}
 
-      {/* Modal de Reporte de Goteo Comunista (Desgaste por Inactividad) */}
-      {communistDripReport && (
+      {/* Modal de Reporte de Inspección Policial Nocturna (Alijo Desprotegido) */}
+      {policeRaidReport && (
         <div
           role="dialog"
           aria-modal="true"
@@ -2816,38 +3215,59 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         >
           <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-neutral-900 border border-red-200 dark:border-red-900/50 p-6 space-y-4 shadow-2xl text-xs text-neutral-900 dark:text-neutral-100">
             <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 flex items-center justify-center mx-auto">
-              <TrendingDown className="w-6 h-6" />
+              <ShieldAlert className="w-6 h-6" />
             </div>
 
             <div className="text-center space-y-1">
               <h3 className="text-base font-bold text-neutral-900 dark:text-white">
-                Tasa de Solidaridad · Goteo Comunista
+                Inspección Policial Nocturna
               </h3>
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Has estado {communistDripReport.hours}h desconectado con una gran fortuna (&gt;100k) sin custodiar tu alijo.
+                Estuviste ausente {policeRaidReport.hours}h con el <strong>alijo desprotegido</strong>. La patrulla municipal intervino el botellón:
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-center space-y-1.5">
-              <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">Aportación al Fondo Común:</span>
-              <div className="text-xl font-bold font-mono text-red-700 dark:text-red-400">
-                -{communistDripReport.coinsLost.toLocaleString()} monedas
+            <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-center space-y-2">
+              <div className="space-y-0.5">
+                <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">Fichas requisadas del bote:</span>
+                <div className="text-xl font-bold font-mono text-red-700 dark:text-red-400">
+                  -{policeRaidReport.fichasLost.toLocaleString()} fichas
+                </div>
               </div>
-              <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
-                Estas monedas se han repartido entre los alumnos con menos de 25k monedas para equilibrar la clase.
+
+              {policeRaidReport.coinsLost > 0 && (
+                <div className="pt-2 border-t border-red-200/60 dark:border-red-900/40 space-y-0.5">
+                  <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">Tasa por abandono sin seguridad:</span>
+                  <div className="text-sm font-bold font-mono text-red-600 dark:text-red-400">
+                    -{policeRaidReport.coinsLost.toLocaleString()} monedas
+                  </div>
+                </div>
+              )}
+
+              <p className="text-[10px] text-neutral-500 dark:text-neutral-400 pt-1">
+                Para evitar requisas futuras y obtener +20% de producción, mantén blindada la bóveda con el servicio de seguridad.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setCommunistDripReport(null);
-                handleGuardStash();
-              }}
-              className="w-full min-h-[44px] py-2.5 rounded-xl bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-semibold text-xs cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all shadow-sm touch-manipulation"
-            >
-              Entendido · Custodiar Alijo Ahora (8h)
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPoliceRaidReport(null)}
+                className="flex-1 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-medium text-xs cursor-pointer transition-all"
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPoliceRaidReport(null);
+                  handleGuardStash('fichas');
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-semibold text-xs cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all shadow-sm touch-manipulation"
+              >
+                Blindar Alijo
+              </button>
+            </div>
           </div>
         </div>
       )}

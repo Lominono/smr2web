@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.5.0';
+let CURRENT_APP_VERSION = '1.5.1';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,21 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.5.1',
+    title: 'SMR2 v1.5.1 · Bóveda Blindada Proporcional, Zona de Mecenazgo y Sistema de Riesgo Dinámico',
+    badge: 'ACTUALIZACIÓN',
+    date: 'Martes, 10 de Noviembre, 2026',
+    description:
+      'Llega la Bóveda Blindada (Alijo Custodiado) con coste proporcional severo para grandes fortunas, Zona de Mecenazgo con Muro de Honor de Donantes, y riesgo real dinámico de inspección policial y Doble o Nada.',
+    changes: [
+      'Bóveda Blindada Proporcional: Ahora puedes blindar tu alijo con fichas o monedas. El coste escala drásticamente con la fortuna del jugador (¡hasta decenas de millones para los más ricos!), otorgando +20% de producción, farmeo nocturno de 12 horas e inmunidad total.',
+      'Riesgo Real de Pérdida si está Desprotegido: Si dejas el alijo sin custodia y pasas tiempo ausente o entras al After, la policía puede requisar parte del bote y aplicar sanciones por desorden público.',
+      'Trago Doble o Nada: Nueva acción en el panel principal que te permite arriesgar voluntariamente el 20% de tu bote a cara o cruz.',
+      'Zona de Mecenazgo y Muro de Honor: Nueva pestaña en El Botellón donde las grandes fortunas donan voluntariamente al Fondo Social de la clase a cambio de títulos legendarios (Magnate Filántropo, Padrino SMR2, Mecenas de la Clase).',
+      'Fondo Social para Alumnos: Los alumnos con menos de 25k monedas pueden reclamar subsidios periódicos financiados por los donantes de la clase.',
+    ],
+  },
   {
     version: '1.5.0',
     title: 'SMR2 v1.5.0 · El Botellón Definitivo: Claridad Total, Balance Económico y Motor Unificado',
