@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.6.0';
+let CURRENT_APP_VERSION = '1.6.1';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,20 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.6.1',
+    title: 'SMR2 v1.6.1 · Mejoras de Rendimiento, Integridad de Sesión y Estabilidad General',
+    badge: 'ESTABILIDAD Y RENDIMIENTO',
+    date: 'Martes, 10 de Noviembre, 2026',
+    description:
+      'Actualización de optimización y mantenimiento del portal con mejoras profundas en la sincronización de sesión, mayor rapidez de respuesta, blindaje de integridad de datos y refuerzo de las cabeceras de navegación.',
+    changes: [
+      'Integridad y Persistencia de Sesión: Optimización del sistema de tokens para una conexión más robusta y sin interrupciones entre sesiones y dispositivos.',
+      'Sincronización Autoritativa: Refuerzo de las transacciones de saldo, mercado y botellón para garantizar que todas las operaciones se registren de forma consistente y sin desajustes.',
+      'Protección del Portal y Cabeceras Web: Incorporación de estándares modernos de navegación que protegen la visualización contra incrustaciones indebidas y mejoran la compatibilidad entre navegadores.',
+      'Optimización de Respuestas del Servidor: Reducción de latencia en peticiones frecuentes de autenticación e identificación del alumnado.',
+    ],
+  },
   {
     version: '1.6.0',
     title: 'SMR2 v1.6.0 · Tienda de Mascotas Exclusivas, Desbloqueo de 28B y Habilidades Pasivas',

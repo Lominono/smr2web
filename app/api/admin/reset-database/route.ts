@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { verifyAdminSession } from '@/lib/adminAuth';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { logEvent } from '@/lib/logger';
@@ -18,11 +19,21 @@ export async function POST(req: NextRequest) {
       process.env.ADMIN_SECRET_KEY,
     ]
       .filter(Boolean)
-      .map((k) => String(k).trim().toLowerCase());
+      .map((k) => String(k).trim());
 
-    const isMasterAuthorized =
-      providedKey &&
-      authorizedMasterKeys.some((k) => k === providedKey.toLowerCase());
+    let isMasterAuthorized = false;
+    if (providedKey) {
+      for (const masterKey of authorizedMasterKeys) {
+        if (providedKey.length === masterKey.length) {
+          try {
+            if (crypto.timingSafeEqual(Buffer.from(providedKey), Buffer.from(masterKey))) {
+              isMasterAuthorized = true;
+              break;
+            }
+          } catch {}
+        }
+      }
+    }
 
     let actingUser: { id: string; username: string; role?: string } | null = null;
 
