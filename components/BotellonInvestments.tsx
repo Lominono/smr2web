@@ -409,13 +409,16 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
     };
   }, []);
 
-  // 3. Sincronización continua de respaldo (cada 4s) para móviles y reconexiones automáticas
+  // 3. Sincronización continua en tiempo real de alta fidelidad (cada 3.5s)
   useEffect(() => {
     const syncInterval = setInterval(async () => {
       try {
-        const [freshHistory, freshTrades] = await Promise.all([
+        const [freshHistory, freshTrades, freshMarket, freshStocks, freshFin] = await Promise.all([
           fetchPriceHistory(80, selectedTickerRef.current),
           fetchRecentMarketTrades(30),
+          fetchMarketState(),
+          fetchParodyStocks(),
+          fetchCompanyFinancials(),
         ]);
         if (freshHistory && freshHistory.length > 0) {
           setPriceHistory(freshHistory);
@@ -423,8 +426,17 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
         if (freshTrades && freshTrades.length > 0) {
           setTransactions(freshTrades);
         }
+        if (freshMarket && typeof freshMarket.current_price === 'number') {
+          setMarketState(freshMarket);
+        }
+        if (freshStocks && freshStocks.length > 0) {
+          setParodyStocks(freshStocks);
+        }
+        if (freshFin && typeof freshFin.treasury_balance === 'number') {
+          setCompanyFinancials(freshFin);
+        }
       } catch (_) {}
-    }, 4000);
+    }, 3500);
 
     return () => clearInterval(syncInterval);
   }, []);
@@ -885,9 +897,13 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               preserveAspectRatio="none"
             >
               <defs>
-                <linearGradient id="titaniumGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="currentColor" stopOpacity="0.08" />
-                  <stop offset="100%" stopColor="currentColor" stopOpacity="0.0" />
+                <linearGradient id="chartGradGreen" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.16" />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                </linearGradient>
+                <linearGradient id="chartGradRed" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.16" />
+                  <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
 
@@ -896,8 +912,13 @@ export const BotellonInvestments: React.FC<BotellonInvestmentsProps> = ({
               <line x1="14" y1="90" x2="586" y2="90" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="3 3" />
               <line x1="14" y1="160" x2="586" y2="160" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="3 3" />
 
-              {/* Área y Línea continua */}
-              {chartData.area && <path d={chartData.area} fill="url(#titaniumGrad)" className="text-neutral-900 dark:text-white" />}
+              {/* Área y Línea continua estilo Apple Stocks */}
+              {chartData.area && (
+                <path
+                  d={chartData.area}
+                  fill={isPriceUp ? 'url(#chartGradGreen)' : 'url(#chartGradRed)'}
+                />
+              )}
               {chartData.line && (
                 <path
                   d={chartData.line}

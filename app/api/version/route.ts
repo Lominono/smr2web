@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.4.0';
+let CURRENT_APP_VERSION = '1.4.1';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,21 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.4.1',
+    title: 'SMR2 v1.4.1 · Multiplicador Real de Renacimiento y Mercado en Tiempo Real',
+    badge: 'ACTUALIZACIÓN CRÍTICA',
+    date: 'Martes, 10 de Noviembre, 2026',
+    description:
+      'Actualización obligatoria para aplicar el multiplicador masivo y real de los renacimientos (rebirths), farmeo base permanente, potencia de trago garantizada y replicación en vivo absoluta del mercado de inversiones entre todos los dispositivos de la clase.',
+    changes: [
+      'Multiplicador de Renacimiento Real (Idle Scaling): Se eliminan los límites artificiales. Nivel 1 otorga x2.00 (+100%), Nivel 2 otorga x3.50 (+150%), Nivel 3 otorga x5.00 (+150%), escalando progresivamente hasta x18.50+ en niveles altos.',
+      'Farmeo Base y Clic Permanente al Renacer: Al renacer NUNCA vuelves a 0/s. Cada nivel de renacimiento otorga una tasa de producción base permanente (+25 fichas/s escaladas) y +5 fichas base por cada clic manual, garantizando progreso visible e instantáneo desde el segundo cero.',
+      'Capital de Arranque Mejorado: Al renacer comienzas con hasta 15.000+ fichas en el bote para comprar suministros inmediatamente y sentir la velocidad del multiplicador.',
+      'Mercado de Inversiones con Replicación en Tiempo Real: Sincronización continua de 3.5 segundos entre todos los alumnos y terminales para cotizaciones, cinta de órdenes, tesorería y carteras, junto a canales instantáneos de Supabase Realtime.',
+      'Estética Apple y Contraste Perfeccionado: Gráfica interactiva de alta fidelidad con gradientes dinámicos verde/rojo según tendencia, tipografía sobria y legibilidad impecable tanto en Modo Claro como en Modo Oscuro.',
+    ],
+  },
   {
     version: '1.4.0',
     title: 'SMR2 v1.4.0 · El Botellón 2.0: Rediseño Apple Minimalista, Nube Supabase y Optimización Móvil',
