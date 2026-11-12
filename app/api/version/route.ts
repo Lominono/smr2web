@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.7.2';
+let CURRENT_APP_VERSION = '1.7.3';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,17 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.7.3',
+    title: 'SMR2 v1.7.3 · Aviso Automático de Compensación Chococrispi',
+    badge: 'ACTUALIZACIÓN OBLIGATORIA',
+    date: 'Jueves, 12 de Noviembre, 2026',
+    description:
+      'Las cuentas reajustadas a 20 rebirths ya reciben un aviso en grande al entrar confirmando que la mascota exclusiva Chococrispi (+65% producción) se ha añadido automáticamente a su cuenta.',
+    changes: [
+      'Aviso en Grande Automático: Al iniciar sesión o entrar, quienes recibieron el reajuste verán el cartel de regalo de Chococrispi sin tener que reclamar nada.',
+    ],
+  },
   {
     version: '1.7.2',
     title: 'SMR2 v1.7.2 · Reajuste a 20 Rebirths y Mascota Exclusiva Chococrispi',

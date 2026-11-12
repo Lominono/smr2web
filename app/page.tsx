@@ -34,6 +34,7 @@ import { PutoIsaacTour } from '@/components/PutoIsaacTour';
 import { StudentIdentificationModal } from '@/components/StudentIdentificationModal';
 import { StudentCardModal } from '@/components/StudentCardModal';
 import { PetShopModal } from '@/components/PetShopModal';
+import { ChococrispiCompensationModal } from '@/components/ChococrispiCompensationModal';
 import { VipShopView } from '@/components/VipShopView';
 import { OnlineUsersModal } from '@/components/OnlineUsersModal';
 import { PushNotificationModal } from '@/components/PushNotificationModal';
@@ -2785,6 +2786,15 @@ export default function Home() {
           fetchLeaderboard();
         }}
         onUpdateCoins={handleUpdateCoins}
+      />
+
+      <ChococrispiCompensationModal
+        currentUser={user}
+        isBlocked={isTourActive || isIsaacTourOpen}
+        onUpdateUser={(updated) => {
+          setUser(updated);
+          fetchLeaderboard();
+        }}
       />
 
       <CookieBanner
