@@ -10,6 +10,7 @@ export interface PetItem {
   category: 'drop' | 'bolsa' | 'botellon' | 'exclusive';
   tierColor: string;
   tierBadge: string;
+  notForSale?: boolean;
 }
 
 export const PETS_REGISTRY: PetItem[] = [
@@ -155,6 +156,22 @@ export const PETS_REGISTRY: PetItem[] = [
     category: 'exclusive',
     tierColor: 'border-yellow-300 text-yellow-200 shadow-lg shadow-yellow-500/20',
     tierBadge: 'DIVINIDAD RIDÍCULA · 1 TRILLÓN 🪙',
+  },
+  {
+    id: 'chococrispi',
+    name: 'Chococrispi',
+    subtitle: 'Reliquia Exclusiva del Reajuste de Rebirths',
+    price: 0,
+    notForSale: true,
+    image: '/mascotas/chococrispi.png',
+    description:
+      'Entregada únicamente como compensación oficial a los jugadores cuyos Afters/Rebirths desorbitados fueron reajustados a 20 para equilibrar El Botellón.',
+    perkName: 'Bendición Chococrispi',
+    perkDescription:
+      'Mascota imposible de comprar en tienda: otorga +65% permanente a toda la producción de El Botellón y símbolo exclusivo de compensación.',
+    category: 'exclusive',
+    tierColor: 'border-purple-400 text-purple-200 shadow-lg shadow-purple-500/20',
+    tierBadge: 'COMPENSACIÓN EXCLUSIVA · CHOCOCRISPI',
   },
 ];
 

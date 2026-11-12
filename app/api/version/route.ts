@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.7.1';
+let CURRENT_APP_VERSION = '1.7.2';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,19 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.7.2',
+    title: 'SMR2 v1.7.2 · Reajuste a 20 Rebirths y Mascota Exclusiva Chococrispi',
+    badge: 'ACTUALIZACIÓN OBLIGATORIA',
+    date: 'Jueves, 12 de Noviembre, 2026',
+    description:
+      'Aviso importante: para equilibrar El Botellón, las cuentas con demasiados rebirths acumulados se han reajustado a 20 Afters y han recibido gratis la mascota exclusiva "Chococrispi" (+65% producción) como compensación.',
+    changes: [
+      'Compensación Chococrispi: Si tenías demasiados rebirths y tu cuenta se reajustó a 20 Afters, ya tienes desbloqueada en tu Tienda de Mascotas la reliquia exclusiva "Chococrispi" (no se puede comprar en tienda, +65% producción).',
+      'Reajuste Justo a 20 Afters: Se equilibran las cuentas con exceso de rebirths manteniendo su progreso y sin límite futuro de rebirths.',
+      'Aviso Directo en Notificaciones: Revisa tu campana de avisos si tu cuenta recibió la compensación.',
+    ],
+  },
   {
     version: '1.7.1',
     title: 'SMR2 v1.7.1 · Rebirths Infinitos Inteligentes y Validación de Producción Real',

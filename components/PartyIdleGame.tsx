@@ -806,6 +806,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     const frenzyMult = isCrazyParty ? 3 : 1;
     const stashMult = guardActiveUntilMs > Date.now() ? 1.20 : 1.0;
     const petProdMult =
+      mascotaEquipada === 'chococrispi' ? 1.65 :
       mascotaEquipada === 'androide_18' ? 1.50 :
       mascotaEquipada === 'toy_chica' ? 1.20 :
       mascotaEquipada === 'baldi' ? 1.10 : 1.0;

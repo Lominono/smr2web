@@ -48,6 +48,9 @@ export async function POST(req: NextRequest) {
   if (!pet) {
     return fail('Esa mascota no existe en el catálogo.', 400);
   }
+  if (pet.notForSale) {
+    return fail('Esta mascota es una recompensa exclusiva de compensación y no se puede comprar en tienda.', 403);
+  }
 
   const { data: profile, error: profileError } = await client
     .from('profiles')

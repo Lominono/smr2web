@@ -282,6 +282,10 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
                         <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.08] text-neutral-400">
                           Comprada
                         </span>
+                      ) : pet.notForSale ? (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300">
+                          Exclusiva
+                        </span>
                       ) : (
                         <span className={`text-[10px] font-mono ${canAfford ? 'text-amber-400' : 'text-neutral-500'}`}>
                           {formatCoinsAbbreviated(pet.price)}
@@ -380,6 +384,15 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
                         <span>Equipar</span>
                       </>
                     )}
+                  </button>
+                ) : selectedPet.notForSale ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full py-2.5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 bg-purple-500/10 text-purple-300 border border-purple-500/25 cursor-not-allowed"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Exclusiva por compensación (no en venta)</span>
                   </button>
                 ) : (
                   <button
