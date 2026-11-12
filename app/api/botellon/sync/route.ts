@@ -3,7 +3,10 @@ import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/se
 import { verifyUserSession } from '@/lib/adminAuth';
 import { enforceRateLimit, fail, guardOrigin, readJsonBody } from '@/lib/security/http';
 import { isUUID } from '@/lib/uuid';
-import { BOTELLON_ZONE_REQUIREMENTS } from '@/lib/botellonEconomy';
+import {
+  BOTELLON_ZONE_REQUIREMENTS,
+  estimateMaxBotellonRatePerSecond,
+} from '@/lib/botellonEconomy';
 
 export const dynamic = 'force-dynamic';
 
@@ -201,8 +204,23 @@ export async function POST(req: NextRequest) {
     const reqDrinks = Math.trunc(sanitizeFinitePositive(incoming.totalDrinksTaken, currentDrinks));
     const reqBeerPong = Math.trunc(sanitizeFinitePositive(incoming.beerPongWins, currentBeerPong));
 
-    // Límite por sincronización: como máximo +35% del acumulado actual + 250_000 fichas base
-    const maxDelta = Math.max(250_000, Math.floor(Math.max(currentLifetime, currentVault, 1) * 0.35));
+    // Límite inteligente por sincronización: calcula la tasa máxima teórica del jugador
+    // según sus niveles, prestigio, zona y perks + tiempo transcurrido (acotado a 8h offline).
+    const lastTick = existingRow ? Number(existingRow.last_tick_ms || now) : now;
+    const elapsedSec = Math.max(5, Math.min(8 * 3600, Math.floor((now - lastTick) / 1000)));
+    const maxRate = existingRow
+      ? estimateMaxBotellonRatePerSecond({
+          levels: existingRow.levels || DEFAULT_LEVELS,
+          afterPrestigeCount: Number(existingRow.after_prestige_count || 0),
+          currentZoneId: existingRow.current_zone_id || 'parque',
+          purchasedPerks: Array.isArray(existingRow.purchased_perks) ? existingRow.purchased_perks : [],
+        })
+      : 500;
+    const maxDelta = Math.max(
+      250_000,
+      Math.floor(maxRate * elapsedSec * 1.5),
+      Math.floor(Math.max(currentLifetime, currentVault, 1) * 0.25)
+    );
     const safeLifetime = existingRow
       ? Math.max(currentLifetime, Math.min(reqLifetime, currentLifetime + maxDelta))
       : Math.min(reqLifetime, 250_000);

@@ -8,6 +8,7 @@ import type { CoinClaimType } from '@/lib/types';
 import {
   BOTELLON_PERK_COSTS,
   BOTELLON_ZONE_REQUIREMENTS,
+  calculatePrestigeMultiplier as getEconomyPrestigeMultiplier,
   getRequiredAfterProduction as getEconomyRequiredAfterProduction,
   getTierUpgradeCost,
   getVaultGuardCost as getEconomyVaultGuardCost,
@@ -427,20 +428,7 @@ export function getTierMilestoneMultiplier(level: number): number {
 }
 
 export function calculatePrestigeMultiplier(count: number): number {
-  const c = Math.min(100, Math.max(0, Math.floor(Number.isFinite(count) ? count : 0)));
-  if (c <= 0) return 1.0;
-  // Escalado gratificante y progresivo para Idle Game (máx 100 Afters):
-  // Rebirth 1: x2.00 (+100% producción total)
-  // Rebirth 2: x3.50 (+150%)
-  // Rebirth 3: x5.00 (+150%)
-  // Rebirth 4: x6.50 (+150%)
-  // Rebirth 5: x8.50 (+200%)
-  // Rebirth 10: x18.50
-  let mult = 1.0 + c * 1.0;
-  if (c >= 2) mult += (c - 1) * 0.5;
-  if (c >= 4) mult += (c - 3) * 0.5;
-  if (c >= 7) mult += (c - 6) * 0.5;
-  return Number(mult.toFixed(2));
+  return getEconomyPrestigeMultiplier(count);
 }
 
 export const TIER_CYCLE_MS: Record<string, number> = {

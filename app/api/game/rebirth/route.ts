@@ -4,28 +4,15 @@ import { isUUID } from '@/lib/uuid';
 import { verifyUserSession } from '@/lib/adminAuth';
 import { enforceRateLimit, fail, guardOrigin } from '@/lib/security/http';
 import { securityEvent } from '@/lib/security/audit';
-import { getRequiredAfterProduction } from '@/lib/botellonEconomy';
+import {
+  calculatePrestigeMultiplier,
+  getRequiredAfterProduction,
+} from '@/lib/botellonEconomy';
 
 export const dynamic = 'force-dynamic';
 
 /** Tiempo mínimo entre renacimientos (evita farmear el bono en bucle). */
 const REBIRTH_COOLDOWN_MS = 2 * 60 * 1000;
-
-function calculatePrestigeMultiplier(count: number): number {
-  if (count <= 0) return 1.0;
-  // Escalado gratificante y progresivo para Idle Game:
-  // Rebirth 1: x2.00 (+100% producción total)
-  // Rebirth 2: x3.50 (+150%)
-  // Rebirth 3: x5.00 (+150%)
-  // Rebirth 4: x6.50 (+150%)
-  // Rebirth 5: x8.50 (+200%)
-  // Rebirth 10: x18.50
-  let mult = 1.0 + count * 1.0;
-  if (count >= 2) mult += (count - 1) * 0.5;
-  if (count >= 4) mult += (count - 3) * 0.5;
-  if (count >= 7) mult += (count - 6) * 0.5;
-  return Number(mult.toFixed(2));
-}
 
 export async function POST(req: NextRequest) {
   const originError = guardOrigin(req);
@@ -110,9 +97,6 @@ export async function POST(req: NextRequest) {
     const currentPrestige = Number(
       botellonRow?.after_prestige_count ?? currentFarm.afterPrestigeCount ?? currentFarm.rebirths ?? 0
     );
-    if (currentPrestige >= 100) {
-      return fail('Has alcanzado el prestigio máximo de El Botellón (100 Afters).', 400);
-    }
     const currentRunProduced = Number(
       botellonRow?.current_run_produced ?? currentFarm.currentRunProduced ?? 0
     );

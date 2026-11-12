@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.7.0';
+let CURRENT_APP_VERSION = '1.7.1';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,19 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.7.1',
+    title: 'SMR2 v1.7.1 · Rebirths Infinitos Inteligentes y Validación de Producción Real',
+    badge: 'ACTUALIZACIÓN OBLIGATORIA',
+    date: 'Jueves, 12 de Noviembre, 2026',
+    description:
+      'Actualización obligatoria: se elimina el límite máximo de Afters/Rebirths y se activa el nuevo sistema inteligente con rendimientos decrecientes suaves, requisito escalado sin bloqueos y validación real de producción en servidor.',
+    changes: [
+      'Sin Límite de Rebirths: Puedes seguir haciendo Afters indefinidamente sin tope artificial.',
+      'Multiplicador Inteligente: Crecimiento rápido hasta el After 15 y rendimientos decrecientes suaves a partir del 16 para mantener la economía equilibrada.',
+      'Validación Real de Producción: El servidor calcula tu capacidad real por segundo según niveles, zona y ventajas para evitar saltos manipulados sin frenar a jugadores legítimos.',
+    ],
+  },
   {
     version: '1.7.0',
     title: 'SMR2 v1.7.0 · Reajuste de Rebirths, Canjes de Bote Sin Bloqueos y Precios Absurdos',
