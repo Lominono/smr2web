@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     await client.from('chat_messages').insert([
       {
         username: 'SMR2',
-        text: `🐾 ¡Nueva adopción en la Tienda de Mascotas! @${user.username} ha adoptado a ${pet.name} por ${pet.price.toLocaleString('es-ES')} monedas.`,
+        text: `Nueva adopción en la Tienda de Mascotas: @${user.username} ha adoptado a ${pet.name} por ${pet.price.toLocaleString('es-ES')} monedas.`,
         tag: 'aviso',
         pinned: false,
       },

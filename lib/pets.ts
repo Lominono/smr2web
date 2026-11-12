@@ -155,7 +155,7 @@ export const PETS_REGISTRY: PetItem[] = [
     perkDescription: 'Aura ciber-dorada cósmica con destellos celestiales en tu perfil, posts y barra superior. +50% permanente a toda la producción del botellón y transferencias espontáneas de 25M a 50M de monedas.',
     category: 'exclusive',
     tierColor: 'border-yellow-300 text-yellow-200 shadow-lg shadow-yellow-500/20',
-    tierBadge: 'DIVINIDAD RIDÍCULA · 1 TRILLÓN 🪙',
+    tierBadge: 'DIVINIDAD RIDÍCULA · 1 TRILLÓN',
   },
   {
     id: 'chococrispi',

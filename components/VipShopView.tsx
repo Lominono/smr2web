@@ -535,18 +535,18 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
       </div>
 
       {petSuccessMessage && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs flex items-center justify-between font-medium">
+        <div className="p-3.5 rounded-xl bg-success-subtle border border-success/30 text-success text-xs flex items-center justify-between font-medium">
           <span>{petSuccessMessage}</span>
-          <button type="button" onClick={() => setPetSuccessMessage(null)} className="text-emerald-400 hover:text-emerald-200 cursor-pointer">
+          <button type="button" onClick={() => setPetSuccessMessage(null)} className="text-success opacity-70 hover:opacity-100 cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {errorMessage && (
-        <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center justify-between font-medium">
+        <div className="p-3.5 rounded-xl bg-danger-subtle border border-danger/30 text-danger text-xs flex items-center justify-between font-medium">
           <span>{errorMessage}</span>
-          <button type="button" onClick={() => setErrorMessage(null)} className="text-rose-400 hover:text-rose-200 cursor-pointer">
+          <button type="button" onClick={() => setErrorMessage(null)} className="text-danger opacity-70 hover:opacity-100 cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -605,7 +605,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                           : 'bg-surface border-border hover:bg-surface-raised/40 hover:border-neutral-500'
                       }`}
                     >
-                      <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-border shrink-0 p-1 flex items-center justify-center">
+                      <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-surface-raised border border-border shrink-0 p-1 flex items-center justify-center">
                         <Image
                           src={pet.image}
                           alt={pet.name}
@@ -622,7 +622,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                         <div className="flex items-center justify-between gap-1">
                           <span className="font-semibold text-xs text-foreground truncate">{pet.name}</span>
                           {isEquipped ? (
-                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 font-bold">
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shrink-0 font-bold">
                               Equipada
                             </span>
                           ) : isOwned ? (
@@ -630,8 +630,8 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                               En propiedad
                             </span>
                           ) : (
-                            <span className="text-[10px] font-mono font-bold text-amber-500 shrink-0">
-                              {formatCoinsAbbreviated(pet.price)} 🪙
+                            <span className="text-[10px] font-mono font-bold text-foreground-muted shrink-0">
+                              {formatCoinsAbbreviated(pet.price)}
                             </span>
                           )}
                         </div>
@@ -648,7 +648,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
               {/* Ficha de detalle de la mascota seleccionada */}
               <div className="md:col-span-7 flex flex-col rounded-2xl bg-surface-raised/40 border border-border p-5 space-y-4">
                 <div className="flex items-start gap-4">
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-black/50 border border-border p-2 flex items-center justify-center shrink-0 shadow-inner">
+                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-surface-raised border border-border p-2 flex items-center justify-center shrink-0">
                     <Image
                       src={selectedPet.image}
                       alt={selectedPet.name}
@@ -671,7 +671,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                       {selectedPet.name}
                     </h3>
                     <p className="text-xs text-foreground-muted">{selectedPet.subtitle}</p>
-                    <div className="pt-1 flex items-center gap-1.5 text-xs font-mono font-bold text-amber-500">
+                    <div className="pt-1 flex items-center gap-1.5 text-xs font-mono font-bold text-foreground-muted">
                       <Coins className="w-3.5 h-3.5" />
                       <span>{selectedPet.price.toLocaleString('es-ES')} monedas</span>
                     </div>
@@ -684,7 +684,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
 
                 <div className="p-3.5 rounded-xl bg-surface border border-border space-y-1">
                   <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <Sparkles className="w-3.5 h-3.5 text-accent" />
                     <span>Habilidad: {selectedPet.perkName}</span>
                   </div>
                   <p className="text-xs text-foreground-muted leading-normal">
@@ -723,13 +723,13 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                       disabled={isPetProcessing}
                       className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95 ${
                         isSelectedPetEquipped
-                          ? 'bg-surface-raised text-foreground border border-border hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-400'
-                          : 'bg-foreground text-background hover:opacity-90'
+                          ? 'bg-surface-raised text-foreground border border-border hover:bg-danger-subtle hover:border-danger/30 hover:text-danger'
+                          : 'bg-accent text-accent-foreground hover:opacity-90'
                       }`}
                     >
                       {isSelectedPetEquipped ? (
                         <>
-                          <Check className="w-4 h-4 text-emerald-500" />
+                          <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                           <span>Equipada (Clic para desequipar)</span>
                         </>
                       ) : (
@@ -746,7 +746,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                       disabled={isPetProcessing || !canAffordSelectedPet}
                       className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 ${
                         canAffordSelectedPet
-                          ? 'bg-foreground text-background hover:opacity-90 cursor-pointer active:scale-95 shadow-xs'
+                          ? 'bg-accent text-accent-foreground hover:opacity-90 cursor-pointer active:scale-95'
                           : 'bg-surface-raised text-foreground-subtle border border-border cursor-not-allowed opacity-50'
                       }`}
                     >

@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.7.3';
+let CURRENT_APP_VERSION = '1.8.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,19 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.8.0',
+    title: 'SMR2 v1.8.0 · Nueva Tienda de Mascotas y Feed Rediseñado',
+    badge: 'NOVEDAD',
+    date: 'Jueves, 12 de Noviembre, 2026',
+    description:
+      'Estrenamos imagen nueva: la Tienda de Mascotas se ha rediseñado por completo y el Feed de Clase ahora luce perfecto tanto con tema claro como con tema oscuro.',
+    changes: [
+      'Tienda de Mascotas Nueva: lista lateral con ficha de detalle, compra con confirmación en dos toques y un diseño limpio y minimalista, idéntico en tema claro y oscuro.',
+      'Feed de Clase Renovado: publicaciones, comentarios, comandos y enlaces se ven nítidos y elegantes en claro y oscuro, con colores y botones más legibles.',
+      'Mascotas en el Mecenazgo VIP: la sección de mascotas estrena el mismo estilo nuevo y se elimina el emoji de monedas que se veía mal en tema claro.',
+    ],
+  },
   {
     version: '1.7.3',
     title: 'SMR2 v1.7.3 · Aviso Automático de Compensación Chococrispi',

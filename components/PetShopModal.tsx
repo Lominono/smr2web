@@ -1,18 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import {
-  X,
-  Sparkles,
-  Coins,
-  Check,
-  Lock,
-  Shield,
-} from 'lucide-react';
+import { X, Check, Lock } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { PETS_REGISTRY, PetItem, formatCoinsAbbreviated } from '@/lib/pets';
 import { sound } from '@/lib/audio';
+import { Button } from '@/components/ui/Button';
 import confetti from 'canvas-confetti';
 
 interface PetShopModalProps {
@@ -31,6 +25,8 @@ const CATEGORY_LABELS: Record<PetItem['category'], string> = {
   exclusive: 'Exclusiva',
 };
 
+const CONFETTI_COLORS = ['#0071e3', '#4a9de0', '#9cc4e8'];
+
 export const PetShopModal: React.FC<PetShopModalProps> = ({
   isOpen,
   onClose,
@@ -41,9 +37,9 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
 }) => {
   const [selectedPetId, setSelectedPetId] = useState<string>(PETS_REGISTRY[0].id);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
-
-  if (!isOpen) return null;
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const userCoins = currentUser ? Number(currentUser.coins || 0) : 0;
   const unlockedPets = Array.isArray(currentUser?.mascotas_desbloqueadas)
@@ -57,7 +53,24 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
   const canAfford = userCoins >= selectedPet.price;
   const ownedCount = unlockedPets.length;
 
-  const notify = (type: 'error' | 'success', text: string) => setMessage({ type, text });
+  // La confirmación de compra expira sola: el botón vuelve a su estado armado.
+  useEffect(() => {
+    setIsConfirming(false);
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+  }, [selectedPetId, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  const notify = useCallback((type: 'error' | 'success', text: string) => {
+    setMessage({ type, text });
+  }, []);
 
   const handleSelectPet = (petId: string) => {
     setSelectedPetId(petId);
@@ -78,9 +91,17 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
       return;
     }
 
-    if (!window.confirm(`¿Confirmas la adopción de ${pet.name} por ${formatCoinsAbbreviated(pet.price)} monedas?`)) {
+    // Confirmación en dos toques en lugar de window.confirm: el primer toque
+    // arma el botón y el segundo ejecuta. A los 4s se desarma solo.
+    if (!isConfirming) {
+      setIsConfirming(true);
+      sound.tap();
+      if (confirmTimer.current) clearTimeout(confirmTimer.current);
+      confirmTimer.current = setTimeout(() => setIsConfirming(false), 4000);
       return;
     }
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    setIsConfirming(false);
 
     setIsProcessing(true);
     setMessage(null);
@@ -116,16 +137,16 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
 
       try {
         confetti({
-          particleCount: 90,
-          spread: 70,
+          particleCount: 80,
+          spread: 65,
           origin: { y: 0.55 },
-          colors: ['#f59e0b', '#10b981', '#3b82f6'],
+          colors: CONFETTI_COLORS,
         });
       } catch {
         /* el confetti es cosmético */
       }
 
-      notify('success', data.message || `¡Has adoptado a ${pet.name}! Ya está equipada en tu perfil.`);
+      notify('success', data.message || `Has adoptado a ${pet.name}. Ya está equipada en tu perfil.`);
     } catch (err: any) {
       console.error('Error al comprar mascota:', err);
       notify('error', err?.message || 'Error al procesar la compra.');
@@ -167,262 +188,239 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl rounded-3xl bg-neutral-950 border border-white/10 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-neutral-200">
+  if (!isOpen) return null;
 
-        {/* ── Cabecera ─────────────────────────────────────────────── */}
-        <header className="flex items-center justify-between px-5 sm:px-7 py-4 border-b border-white/10">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-amber-400 shrink-0">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-white tracking-tight leading-none">
-                Tienda de Mascotas
-              </h2>
-              <p className="text-[11px] text-neutral-500 mt-1 truncate">
-                {ownedCount > 0
-                  ? `${ownedCount} de ${PETS_REGISTRY.length} en tu colección`
-                  : 'Compañeros exclusivos con habilidades pasivas'}
-              </p>
-            </div>
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 bg-black/40 animate-in fade-in duration-200">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Tienda de mascotas"
+        className="relative w-full sm:max-w-4xl rounded-t-3xl sm:rounded-3xl bg-surface border border-border/80 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden text-foreground animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 duration-200"
+      >
+        {/* ── Cabecera ─────────────────────────────────────────────────── */}
+        <header className="flex items-center justify-between px-5 sm:px-7 py-4 border-b border-border/60 shrink-0">
+          <div className="min-w-0">
+            <h2 className="text-[15px] font-semibold tracking-tight leading-none">Mascotas</h2>
+            <p className="text-xs text-foreground-muted mt-1.5 truncate">
+              {ownedCount > 0
+                ? `${ownedCount} de ${PETS_REGISTRY.length} en tu colección`
+                : 'Compañeros con habilidades pasivas'}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] border border-white/10 font-mono text-xs font-semibold text-amber-400">
-              <Coins className="w-3.5 h-3.5" />
-              <span>{formatCoinsAbbreviated(userCoins)}</span>
-            </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="font-mono text-xs tabular-nums text-foreground-muted px-2.5 py-1 rounded-[var(--radius-sm)] bg-surface-raised">
+              {formatCoinsAbbreviated(userCoins)}
+            </span>
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised border border-border/60 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
               aria-label="Cerrar tienda"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </header>
-
-        {/* ── Avisos ───────────────────────────────────────────────── */}
-        {message && (
-          <div
-            className={`mx-5 sm:mx-7 mt-3 px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between ${
-              message.type === 'error'
-                ? 'bg-rose-500/10 border border-rose-500/25 text-rose-300'
-                : 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-300'
-            }`}
-          >
-            <span className="min-w-0 truncate">{message.text}</span>
-            <button
-              type="button"
-              onClick={() => setMessage(null)}
-              className="ml-3 shrink-0 opacity-60 hover:opacity-100"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-        )}
+        </header>
 
-        {/* ── Contenido: grid + detalle ───────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-5 grid grid-cols-1 md:grid-cols-12 gap-5">
-
-          {/* Columna izquierda — catálogo */}
-          <div className="md:col-span-5">
-            <div className="flex items-baseline justify-between mb-2.5">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+        {/* ── Contenido: lista maestra + detalle ───────────────────────── */}
+        <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden grid grid-cols-1 md:grid-cols-12 md:divide-x md:divide-border/60">
+          {/* Columna izquierda — lista */}
+          <nav className="md:col-span-5 md:overflow-y-auto pb-2" aria-label="Catálogo de mascotas">
+            <div className="flex items-baseline justify-between px-5 sm:px-6 pt-4 pb-2">
+              <span className="text-[11px] font-medium uppercase tracking-widest text-foreground-subtle">
                 Catálogo
               </span>
-              <span className="text-[10px] font-mono text-neutral-600">
-                {PETS_REGISTRY.length} mascotas
+              <span className="text-[11px] font-mono tabular-nums text-foreground-subtle">
+                {PETS_REGISTRY.length}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 xl:grid-cols-3 md:grid-cols-2 gap-2.5 max-h-[64vh] md:max-h-[62vh] overflow-y-auto pr-1">
+            <ul className="divide-y divide-border/50">
               {PETS_REGISTRY.map((pet) => {
                 const isSelected = pet.id === selectedPetId;
                 const isOwned = unlockedPets.includes(pet.id);
                 const isEquipped = equippedPetId === pet.id;
+                const petAffordable = userCoins >= pet.price;
 
                 return (
-                  <button
-                    key={pet.id}
-                    type="button"
-                    onClick={() => handleSelectPet(pet.id)}
-                    className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer group ${
-                      isSelected
-                        ? 'bg-white/[0.08] border-white/25'
-                        : 'bg-neutral-900/40 border-white/5 hover:border-white/15 hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    <div className="relative w-full aspect-square mb-2 rounded-xl overflow-hidden bg-black/40 border border-white/[0.06] flex items-center justify-center p-1.5">
-                      <Image
-                        src={pet.image}
-                        alt={pet.name}
-                        width={72}
-                        height={72}
-                        className="object-contain transition-transform duration-200 group-hover:scale-105"
-                      />
-                      {isEquipped && (
-                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
-                      )}
-                    </div>
+                  <li key={pet.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPet(pet.id)}
+                      aria-current={isSelected ? 'true' : undefined}
+                      className={`w-full flex items-center gap-3 px-5 sm:px-6 py-2.5 text-left transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50 ${
+                        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-surface-hover'
+                      }`}
+                    >
+                      <span
+                        className={`w-10 h-10 rounded-[var(--radius-sm)] shrink-0 flex items-center justify-center p-1 ${
+                          isSelected ? 'bg-accent-foreground/15' : 'bg-surface-raised'
+                        }`}
+                      >
+                        <Image src={pet.image} alt="" width={32} height={32} className="object-contain" />
+                      </span>
 
-                    <span className="block text-[11px] font-semibold text-white truncate leading-tight">
-                      {pet.name}
-                    </span>
+                      <span className="flex-1 min-w-0">
+                        <span className={`block text-sm font-medium truncate leading-snug ${isSelected ? '' : 'text-foreground'}`}>
+                          {pet.name}
+                        </span>
+                        <span
+                          className={`block text-xs truncate mt-0.5 ${
+                            isSelected ? 'text-accent-foreground/75' : 'text-foreground-subtle'
+                          }`}
+                        >
+                          {isEquipped
+                            ? 'Equipada'
+                            : isOwned
+                              ? 'En propiedad'
+                              : pet.notForSale
+                                ? 'Exclusiva'
+                                : formatCoinsAbbreviated(pet.price)}
+                        </span>
+                      </span>
 
-                    <div className="mt-1 flex items-center justify-between gap-1">
                       {isEquipped ? (
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300">
-                          Activa
-                        </span>
-                      ) : isOwned ? (
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.08] text-neutral-400">
-                          Comprada
-                        </span>
-                      ) : pet.notForSale ? (
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300">
-                          Exclusiva
-                        </span>
-                      ) : (
-                        <span className={`text-[10px] font-mono ${canAfford ? 'text-amber-400' : 'text-neutral-500'}`}>
-                          {formatCoinsAbbreviated(pet.price)}
-                        </span>
-                      )}
-                    </div>
-                  </button>
+                        <Check
+                          className={`w-4 h-4 shrink-0 ${isSelected ? 'text-accent-foreground' : 'text-success'}`}
+                          aria-label="Equipada"
+                        />
+                      ) : !isOwned && !pet.notForSale && !petAffordable ? (
+                        <Lock
+                          className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-accent-foreground/60' : 'text-foreground-subtle/60'}`}
+                          aria-label="Sin saldo suficiente"
+                        />
+                      ) : null}
+                    </button>
+                  </li>
                 );
               })}
-            </div>
-          </div>
+            </ul>
+          </nav>
 
           {/* Columna derecha — detalle */}
-          <div className="md:col-span-7">
-            <div className="flex items-baseline justify-between mb-2.5">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
-                Detalle
-              </span>
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${selectedPet.tierColor || 'border-white/10 text-neutral-400'} bg-white/[0.03]`}>
-                {selectedPet.tierBadge}
-              </span>
+          <section
+            className="md:col-span-7 p-5 sm:p-7 md:overflow-y-auto flex flex-col"
+            aria-label="Detalle de la mascota"
+          >
+            <div className="flex items-start gap-4 sm:gap-5">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-[var(--radius-lg)] bg-surface-raised border border-border/50 p-3 flex items-center justify-center shrink-0">
+                <Image
+                  src={selectedPet.image}
+                  alt={selectedPet.name}
+                  width={88}
+                  height={88}
+                  className="object-contain"
+                />
+              </div>
+
+              <div className="flex-1 min-w-0 pt-1">
+                <h3 className="text-lg sm:text-[22px] font-semibold tracking-tight leading-tight">
+                  {selectedPet.name}
+                </h3>
+                <p className="text-xs sm:text-sm text-foreground-muted mt-1 leading-snug">
+                  {selectedPet.subtitle}
+                </p>
+
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-full border border-border text-[10px] font-medium text-foreground-muted">
+                    {CATEGORY_LABELS[selectedPet.category]}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full border border-border text-[10px] font-mono text-foreground-subtle">
+                    {selectedPet.tierBadge}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="rounded-2xl bg-neutral-900/50 border border-white/10 p-5 flex flex-col gap-4 max-h-[62vh] md:max-h-[64vh] overflow-y-auto">
+            {/* Habilidad pasiva */}
+            <div className="mt-6 rounded-[var(--radius)] border border-border/60 p-4">
+              <p className="text-xs font-semibold">{selectedPet.perkName}</p>
+              <p className="text-xs text-foreground-muted mt-1.5 leading-relaxed">
+                {selectedPet.perkDescription}
+              </p>
+            </div>
 
-              {/* Identidad */}
-              <div className="flex items-start gap-4">
-                <div className="relative w-20 h-20 rounded-2xl bg-black/50 border border-white/10 p-2 flex items-center justify-center shrink-0">
-                  <Image
-                    src={selectedPet.image}
-                    alt={selectedPet.name}
-                    width={72}
-                    height={72}
-                    className="object-contain"
-                  />
-                </div>
+            <p className="mt-4 text-xs sm:text-sm text-foreground-muted leading-relaxed">
+              {selectedPet.description}
+            </p>
 
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-white tracking-tight leading-tight">
-                    {selectedPet.name}
-                  </h3>
-                  <p className="text-xs text-neutral-400 mt-0.5">{selectedPet.subtitle}</p>
-
-                  <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-mono text-neutral-300">
-                      {CATEGORY_LABELS[selectedPet.category]}
-                    </span>
-                    {!isSelectedOwned && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-amber-400">
-                        <Coins className="w-3 h-3" />
-                        {selectedPet.price.toLocaleString('es-ES')}
-                      </span>
-                    )}
-                  </div>
-                </div>
+            {/* Aviso contextual */}
+            {message && (
+              <div
+                role="status"
+                className={`mt-6 px-3.5 py-2.5 rounded-[var(--radius-sm)] text-xs leading-relaxed flex items-start justify-between gap-3 ${
+                  message.type === 'error'
+                    ? 'bg-danger-subtle text-danger'
+                    : 'bg-success-subtle text-success'
+                }`}
+              >
+                <span className="min-w-0">{message.text}</span>
+                <button
+                  type="button"
+                  onClick={() => setMessage(null)}
+                  className="shrink-0 opacity-60 hover:opacity-100 cursor-pointer mt-0.5"
+                  aria-label="Descartar aviso"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
+            )}
 
-              {/* Habilidad / Descripción */}
-              <div className="space-y-2.5">
-                <div className="flex items-start gap-2">
-                  <Shield className="w-3.5 h-3.5 text-amber-400/80 mt-0.5 shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold text-white">{selectedPet.perkName}</div>
-                    <p className="text-xs text-neutral-400 leading-relaxed mt-0.5">
-                      {selectedPet.perkDescription}
-                    </p>
-                  </div>
-                </div>
-
-                <p className="pl-5 text-[11px] text-neutral-500 leading-relaxed">
-                  {selectedPet.description}
-                </p>
-              </div>
-
-              {/* Acción */}
-              <div className="mt-auto pt-1">
-                {isSelectedOwned ? (
-                  <button
-                    type="button"
+            {/* Acción */}
+            <div className="mt-auto pt-6">
+              {isSelectedOwned ? (
+                isSelectedEquipped ? (
+                  <Button
+                    variant="secondary"
+                    className="w-full"
                     onClick={() => handleToggleEquip(selectedPet)}
                     disabled={isProcessing}
-                    className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] ${
-                      isSelectedEquipped
-                        ? 'bg-white/[0.08] text-neutral-200 border border-white/15 hover:border-rose-500/40 hover:text-rose-200'
-                        : 'bg-white text-black hover:bg-neutral-200'
-                    }`}
                   >
-                    {isSelectedEquipped ? (
-                      <>
-                        <Check className="w-4 h-4 text-emerald-400" />
-                        <span>Equipada · desequipar</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        <span>Equipar</span>
-                      </>
-                    )}
-                  </button>
-                ) : selectedPet.notForSale ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full py-2.5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 bg-purple-500/10 text-purple-300 border border-purple-500/25 cursor-not-allowed"
-                  >
-                    <Lock className="w-4 h-4" />
-                    <span>Exclusiva por compensación (no en venta)</span>
-                  </button>
+                    <Check className="w-4 h-4 text-success" />
+                    Equipada · desequipar
+                  </Button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleBuyPet(selectedPet)}
-                    disabled={isProcessing || !canAfford}
-                    className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 ${
-                      canAfford
-                        ? 'bg-amber-400 text-black hover:bg-amber-300 cursor-pointer active:scale-[0.98] shadow-lg shadow-amber-400/20'
-                        : 'bg-white/[0.06] text-neutral-500 border border-white/[0.08] cursor-not-allowed'
-                    }`}
+                  <Button
+                    variant="accent"
+                    className="w-full"
+                    onClick={() => handleToggleEquip(selectedPet)}
+                    disabled={isProcessing}
+                    isLoading={isProcessing}
                   >
-                    {isProcessing ? (
-                      <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                    ) : canAfford ? (
-                      <>
-                        <Coins className="w-4 h-4" />
-                        <span>Adoptar por {selectedPet.price.toLocaleString('es-ES')}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        <span>Faltan {(selectedPet.price - userCoins).toLocaleString('es-ES')} monedas</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
+                    Equipar
+                  </Button>
+                )
+              ) : selectedPet.notForSale ? (
+                <Button variant="secondary" className="w-full" disabled>
+                  <Lock className="w-4 h-4" />
+                  Compensación exclusiva · no en venta
+                </Button>
+              ) : (
+                <Button
+                  variant="accent"
+                  className="w-full"
+                  onClick={() => handleBuyPet(selectedPet)}
+                  disabled={isProcessing || (!canAfford && !isConfirming)}
+                  isLoading={isProcessing}
+                >
+                  {!currentUser ? (
+                    'Inicia sesión para adoptar'
+                  ) : isConfirming ? (
+                    `Confirmar adopción · ${formatCoinsAbbreviated(selectedPet.price)}`
+                  ) : canAfford ? (
+                    `Adoptar por ${formatCoinsAbbreviated(selectedPet.price)}`
+                  ) : (
+                    <>
+                      <Lock className="w-4 h-4" />
+                      Faltan {formatCoinsAbbreviated(selectedPet.price - userCoins)}
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>
