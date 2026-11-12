@@ -541,7 +541,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
           <div className="space-y-2.5">
             <div className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.16em] text-foreground-subtle">
               <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Tienda Oficial · Aula 35</span>
+              <span>Aula 35 · 2º SMR</span>
             </div>
             <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               Tienda
@@ -1137,7 +1137,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                 <ul className="space-y-3 pt-1">
                   {[
                     'Cabecera personalizada en tu credencial y en cada publicación.',
-                    'Seis estilos de fondo o una imagen propia mediante URL.',
+                    'Cinco estilos de fondo o una imagen propia mediante URL.',
                     'Título honorífico y frase editables cuando quieras.',
                   ].map((benefit) => (
                     <li
