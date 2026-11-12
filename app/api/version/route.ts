@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.9.0';
+let CURRENT_APP_VERSION = '2.0.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,20 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '2.0.0',
+    title: 'SMR2 v2.0.0 · Tienda rediseñada: cada cosa en su sitio',
+    badge: 'NOVEDAD',
+    date: 'Jueves, 12 de Noviembre, 2026',
+    description:
+      'La tienda estrena una distribución nueva: las mascotas se exploran en un catálogo limpio con su ficha al lado, y el banner VIP separa la vista previa de los estilos y los textos. Menos paneles apilados y más espacio para elegir con calma.',
+    changes: [
+      'Mascotas: catálogo lateral y ficha de detalle independiente, con la compra y el equipamiento siempre a la vista. En móvil, al elegir una mascota la ficha se abre automáticamente.',
+      'Banner VIP: vista previa a todo el ancho y editor en dos columnas. Los estilos y los textos dejan de competir en la misma tarjeta.',
+      'Compra más clara: confirmación en dos toques para mascotas y banners, sin ventanas del navegador, y precios expresados siempre en monedas.',
+      'Acabado consistente en tema claro y oscuro: bordes finos, una sola tinta de acento y avisos junto al botón que los provoca.',
+    ],
+  },
   {
     version: '1.9.0',
     title: 'SMR2 v1.9.0 · El Botellón, más claro y mejor organizado',
