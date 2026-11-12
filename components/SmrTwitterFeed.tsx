@@ -896,7 +896,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   return (
     <div className="w-full flex flex-col sm:rounded-3xl border border-border/80 bg-surface text-foreground font-sans shadow-sm overflow-hidden">
       {/* 1. Cabecera Minimalista */}
-      <div className="px-4 sm:px-6 pt-4 pb-3 border-b border-border/60 space-y-3">
+      <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-border/60 space-y-3.5">
         <div className="flex items-center justify-between gap-3">
           {/* Título e indicador sutil de estado */}
           <div className="flex items-center gap-2.5">
@@ -1010,8 +1010,8 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
           </div>
         )}
 
-        {/* Pestañas limpias tipo cápsula / underline minimalista */}
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none pt-0.5">
+        {/* Segmentado tipo iOS */}
+        <div className="flex items-center p-1 rounded-[var(--radius)] bg-surface-raised/70 border border-border/50 overflow-x-auto scrollbar-none">
           {FEED_TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const count = getTabCount(tab.id);
@@ -1023,17 +1023,18 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                   sound.tap();
                   setActiveTab(tab.id);
                 }}
-                className={`py-1 px-2.5 rounded-lg text-xs transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
+                aria-pressed={isActive}
+                className={`py-1 px-3 rounded-[var(--radius-sm)] text-xs transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
                   isActive
-                    ? 'text-foreground font-medium bg-foreground/[0.07]'
-                    : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
+                    ? 'bg-surface text-foreground font-medium shadow-xs'
+                    : 'text-foreground-muted hover:text-foreground'
                 }`}
               >
                 <span>{tab.label}</span>
                 {count > 0 && (
                   <span
                     className={`text-[10px] font-mono ${
-                      isActive ? 'text-foreground font-semibold' : 'text-foreground-subtle'
+                      isActive ? 'text-foreground-muted' : 'text-foreground-subtle'
                     }`}
                   >
                     {count}
@@ -1265,17 +1266,27 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             const likesCount = Number(msg.likes_count || 0);
             const commentsCount = localCommentsCount[msg.id] ?? Number(msg.comments_count || 0);
             const isThreadOpen = Boolean(expandedComments[msg.id]);
+            const authorPet = resolveUserPet(msg.user_id, msg.username, msg.mascota_equipada);
+            const isAdminMsg =
+              msg.username === 'admin' ||
+              msg.username.toLowerCase().includes('delegado') ||
+              msg.user_id === 'ed922205-b961-487c-a13b-93b5ab7a5faf';
+            const isVipMsg =
+              msg.user_id === 'ed922205-b961-487c-a13b-93b5ab7a5faf' ||
+              (currentUser?.id === msg.user_id &&
+                (currentUser?.banner_estilo ||
+                  currentUser?.items_comprados?.includes('banner_vip_13m')));
 
             return (
               <article
                 key={msg.id}
-                className={`p-4 sm:p-5 transition-colors group ${
-                  msg.pinned ? 'bg-amber-500/[0.04] dark:bg-amber-400/[0.02]' : 'hover:bg-surface-hover/40'
+                className={`p-4 sm:px-6 sm:py-5 transition-colors group ${
+                  msg.pinned ? 'bg-amber-500/[0.05] dark:bg-amber-400/[0.03]' : 'hover:bg-surface-hover/40'
                 }`}
               >
                 {/* Indicador de aviso fijado sutil */}
                 {msg.pinned && (
-                  <div className="flex items-center gap-1.5 text-[10.5px] font-mono text-amber-700 dark:text-amber-400 font-medium mb-2">
+                  <div className="flex items-center gap-1.5 text-[10.5px] font-mono text-amber-700 dark:text-amber-400 font-medium mb-2.5">
                     <Pin className="w-3 h-3 fill-amber-600/80 text-amber-600 dark:fill-amber-400/80 dark:text-amber-400" />
                     <span>Aviso fijado</span>
                   </div>
@@ -1287,81 +1298,78 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                     type="button"
                     onClick={() => onInspectUser?.({ id: msg.user_id, username: msg.username })}
                     title={`Ver perfil de @${msg.username}`}
-                    className={`w-8 h-8 rounded-full ${getAvatarColor(
+                    className={`w-9 h-9 rounded-full ${getAvatarColor(
                       msg.username
-                    )} flex items-center justify-center font-mono font-bold text-xs uppercase shrink-0 mt-0.5 hover:opacity-85 transition-opacity cursor-pointer`}
+                    )} flex items-center justify-center font-mono font-bold text-xs uppercase shrink-0 hover:opacity-85 transition-opacity cursor-pointer`}
                   >
                     {msg.username.charAt(0)}
                   </button>
 
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    {/* Header del post */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => onInspectUser?.({ id: msg.user_id, username: msg.username })}
-                          title={`Ver perfil de @${msg.username}`}
-                          className="font-medium text-xs text-foreground hover:underline cursor-pointer"
-                        >
-                          @{msg.username}
-                        </button>
-
-                        {(() => {
-                          const authorPet = resolveUserPet(msg.user_id, msg.username, msg.mascota_equipada);
-                          if (!authorPet) return null;
-                          return (
-                            <span
-                              title={`Mascota Oficial: ${authorPet.name} · ${authorPet.perkName} (${authorPet.perkDescription})`}
-                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-mono transition-all cursor-help ${
-                                authorPet.id === 'androide_18'
-                                  ? 'bg-gradient-to-r from-yellow-500/20 via-amber-400/25 to-yellow-300/20 border-yellow-400/80 text-yellow-300 ring-2 ring-yellow-400/50 shadow-md shadow-yellow-500/30'
-                                  : authorPet.id === 'tung_tung'
-                                  ? 'bg-amber-600/15 border-amber-600/50 text-amber-300 ring-1 ring-amber-600/30'
-                                  : authorPet.id === 'toy_chica'
-                                  ? 'bg-amber-400/10 border-amber-400/50 text-amber-300 ring-1 ring-amber-400/30 shadow-xs'
-                                  : 'bg-surface-raised border-border/60 text-foreground-muted'
-                              }`}
-                            >
-                              <img
-                                src={authorPet.image}
-                                alt={authorPet.name}
-                                className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
-                              />
-                              <span className="hidden xs:inline font-medium">{authorPet.name.split(' ')[0]}</span>
-                            </span>
-                          );
-                        })()}
-
-                        {(msg.username === 'admin' ||
-                          msg.username.toLowerCase().includes('delegado') ||
-                          msg.user_id === 'ed922205-b961-487c-a13b-93b5ab7a5faf') && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-400/10 text-amber-700 dark:text-amber-400">
-                            admin
-                          </span>
-                        )}
-
-                        {(msg.user_id === 'ed922205-b961-487c-a13b-93b5ab7a5faf' ||
-                          (currentUser?.id === msg.user_id &&
-                            (currentUser?.banner_estilo ||
-                              currentUser?.items_comprados?.includes('banner_vip_13m')))) && (
-                          <span
-                            title="VIP 13M"
-                            className="text-[10px] font-mono px-1 py-0.2 rounded text-amber-700 dark:text-amber-300 flex items-center gap-0.5"
+                  <div className="flex-1 min-w-0 space-y-2">
+                    {/* Header del post: línea 1 autor + hora, línea 2 insignias */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => onInspectUser?.({ id: msg.user_id, username: msg.username })}
+                            title={`Ver perfil de @${msg.username}`}
+                            className="font-medium text-[13px] text-foreground hover:underline cursor-pointer truncate"
                           >
-                            <Crown className="w-2.5 h-2.5" />
-                            <span>13M</span>
-                          </span>
-                        )}
+                            @{msg.username}
+                          </button>
 
-                        <span className="text-foreground-subtle/60 text-[10px]">·</span>
-                        <span className="text-[11px] text-foreground-subtle font-mono">
-                          {formatRelativeTime(msg.created_at)}
-                        </span>
+                          <span className="text-foreground-subtle/60 text-[10px] shrink-0">·</span>
+                          <span className="text-[11px] text-foreground-subtle font-mono shrink-0">
+                            {formatRelativeTime(msg.created_at)}
+                          </span>
+                        </div>
+
+                        {(authorPet || isAdminMsg || isVipMsg) && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {authorPet && (
+                              <span
+                                title={`Mascota Oficial: ${authorPet.name} · ${authorPet.perkName} (${authorPet.perkDescription})`}
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-mono transition-all cursor-help ${
+                                  authorPet.id === 'androide_18'
+                                    ? 'bg-gradient-to-r from-yellow-500/20 via-amber-400/25 to-yellow-300/20 border-yellow-400/80 text-yellow-700 dark:text-yellow-300 ring-2 ring-yellow-400/50 shadow-md shadow-yellow-500/30'
+                                    : authorPet.id === 'tung_tung'
+                                    ? 'bg-amber-600/15 border-amber-600/50 text-amber-700 dark:text-amber-300 ring-1 ring-amber-600/30'
+                                    : authorPet.id === 'toy_chica'
+                                    ? 'bg-amber-400/10 border-amber-400/50 text-amber-700 dark:text-amber-300 ring-1 ring-amber-400/30 shadow-xs'
+                                    : 'bg-surface-raised border-border/60 text-foreground-muted'
+                                }`}
+                              >
+                                <img
+                                  src={authorPet.image}
+                                  alt={authorPet.name}
+                                  className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                                />
+                                <span className="hidden xs:inline font-medium">{authorPet.name.split(' ')[0]}</span>
+                              </span>
+                            )}
+
+                            {isAdminMsg && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-400/10 text-amber-700 dark:text-amber-400">
+                                admin
+                              </span>
+                            )}
+
+                            {isVipMsg && (
+                              <span
+                                title="VIP 13M"
+                                className="text-[10px] font-mono px-1 py-0.2 rounded text-amber-700 dark:text-amber-300 flex items-center gap-0.5"
+                              >
+                                <Crown className="w-2.5 h-2.5" />
+                                <span>13M</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Acciones superiores ghost */}
-                      <div className="flex items-center gap-0.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-0.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                         <button
                           type="button"
                           onClick={() => handleStartReply(msg.username)}
@@ -1404,7 +1412,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                     </div>
 
                     {/* Barra de interacción minimalista (sin marcos pesados) */}
-                    <div className="flex items-center gap-5 pt-1.5 text-xs text-foreground-muted">
+                    <div className="flex items-center gap-3 sm:gap-5 pt-2 text-xs text-foreground-muted">
                       {/* Comentarios */}
                       <button
                         type="button"
@@ -1487,7 +1495,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                             Aún no hay respuestas. Sé el primero en responder.
                           </p>
                         ) : (
-                          <div className="space-y-2.5 pl-1">
+                          <div className="space-y-3 pl-12">
                             {(commentsData[msg.id] || []).map((comment) => {
                               const isCommentAuthor =
                                 currentUser?.id === comment.user_id ||
@@ -1497,7 +1505,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                               return (
                                 <div key={comment.id} className="group/c flex items-start gap-2.5 text-xs">
                                   <div
-                                    className={`w-5 h-5 rounded-full ${getAvatarColor(
+                                    className={`w-6 h-6 rounded-full ${getAvatarColor(
                                       comment.username
                                     )} flex items-center justify-center text-[9px] font-bold uppercase shrink-0 mt-0.5`}
                                   >
@@ -1558,7 +1566,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                         )}
 
                         {/* Input minimalista para responder */}
-                        <div className="pt-1 flex items-center gap-2">
+                        <div className="pt-2 pl-12 flex items-center gap-2">
                           <input
                             type="text"
                             value={commentInputs[msg.id] || ''}
