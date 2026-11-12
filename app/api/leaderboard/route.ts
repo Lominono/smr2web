@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
+import { verifyUserSession } from '@/lib/adminAuth';
 import { LeaderboardEntry } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -7,6 +8,9 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
+    const viewer = await verifyUserSession();
+    const viewerIsLoggedIn = viewer.authenticated && Boolean(viewer.user);
+
     if (isServerSupabaseConfigured()) {
       const client = createAdminClient();
       if (client) {
@@ -41,7 +45,7 @@ export async function GET() {
             .map((p: any) => ({
             id: p.id,
             username: p.username,
-            full_name: p.full_name || undefined,
+            full_name: viewerIsLoggedIn ? (p.full_name || undefined) : undefined,
             coins: Math.max(0, Number(p.coins ?? 1000)),
             biggest_win: Math.max(0, Number(p.biggest_win ?? 0)),
             streak_count: p.streak_count ? Number(p.streak_count) : 1,

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { sound } from '@/lib/audio';
 import { createClient } from '@/lib/supabase/client';
 import { isUUID } from '@/lib/uuid';
+import type { CoinClaimType } from '@/lib/types';
 import {
   Wine,
   BottleWine,
@@ -58,7 +59,7 @@ export interface PartyIdleGameProps {
   userId?: string;
   username?: string;
   mascotaEquipada?: string;
-  onUpdateCoins: (delta: number) => void;
+  onUpdateCoins: (delta: number, claimType?: CoinClaimType) => void;
   onSetCoins?: (coins: number) => void;
   onNavigateGame?: (game: string) => void;
   onRequireAuth?: () => void;
@@ -1531,7 +1532,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     // Subsidio dinámico: escala según lo necesitado que esté el alumno (de 3.500 a 15.000 monedas)
     const bonus = Math.min(15000, Math.max(3500, Math.floor((50000 - userCoins) * 0.25)));
     setLastSubsidioClaimMs(now);
-    onUpdateCoins(bonus);
+    onUpdateCoins(bonus, 'subsidio');
     saveState({ lastSubsidioClaimMs: now }, true);
     confetti({
       particleCount: 60,
@@ -1574,7 +1575,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       setJustClaimed(true);
       setTimeout(() => setJustClaimed(false), 2000);
 
-      onUpdateCoins(coinsToClaim);
+      onUpdateCoins(coinsToClaim, 'vault');
 
       saveState({ pendingVault: remainingFichas }, true);
     } finally {
@@ -1643,7 +1644,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     if (isGuardedAtAfter) {
       startingSeedFichas = Math.max(5000, nextPrestigeCount * 10000);
       if (leftoverCoins > 0) {
-        onUpdateCoins(leftoverCoins);
+        onUpdateCoins(leftoverCoins, 'rebirth');
       }
       setAfterRaidResult({
         type: 'success',
@@ -1663,7 +1664,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         const confiscatedCoins = Math.floor(leftoverCoins * 0.30);
         const netCoins = leftoverCoins - confiscatedCoins;
         if (netCoins > 0) {
-          onUpdateCoins(netCoins);
+          onUpdateCoins(netCoins, 'rebirth');
         }
         sound.broke();
         setAfterRaidResult({
@@ -1676,7 +1677,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         });
       } else {
         if (leftoverCoins > 0) {
-          onUpdateCoins(leftoverCoins);
+          onUpdateCoins(leftoverCoins, 'rebirth');
         }
         setAfterRaidResult({
           type: 'success',

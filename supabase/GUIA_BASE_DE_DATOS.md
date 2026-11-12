@@ -15,6 +15,15 @@ Hemos unificado todo en un único archivo maestro: **`supabase/SCHEMA_COMPLETO_S
 5. Haz clic en el botón verde **"Run"** (o presiona `Ctrl + Enter`).
 6. Verás el mensaje verde `Success. No rows returned`. ¡Listo!
 
+> **SEGURIDAD (OBLIGATORIO tras el escenario maestro):** ejecuta también en el
+> SQL Editor, en este orden, los scripts de endurecimiento:
+> 1. `supabase/HARDEN_SECURITY_RLS.sql`
+> 2. `supabase/migrations/16_endurecimiento_seguridad_rls.sql`
+>
+> Además, en **Project Settings → API** copia la **service_role key** (secreta)
+> y pónla en `.env.local` / Vercel como `SUPABASE_SERVICE_ROLE_KEY`. Sin ella
+> el backend queda deliberadamente en modo seguro (503).
+
 ---
 
 ## 📂 ¿Qué hace cada parte del SQL?

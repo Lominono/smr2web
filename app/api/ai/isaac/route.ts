@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import {
   getCurrentScheduleStatus,
   SCHEDULE_GRID,
@@ -6,6 +6,7 @@ import {
   TIME_SLOTS,
   DayKey,
 } from '@/lib/scheduleData';
+import { getClientIp, guardOrigin, readJsonBody } from '@/lib/security/http';
 
 export const runtime = 'nodejs';
 
@@ -119,10 +120,12 @@ function getRealtimeScheduleContext() {
 // ──────────────────────────────────────────────────────────────────────────────
 // HANDLER PRINCIPAL
 // ──────────────────────────────────────────────────────────────────────────────
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
-    const forwarded = req.headers.get('x-forwarded-for');
-    const ip = forwarded ? forwarded.split(',')[0].trim() : 'anonymous_client';
+    const ip = getClientIp(req);
     const now = Date.now();
 
     // ── Rate limiting ────────────────────────────────────────────────────────
@@ -152,8 +155,12 @@ export async function POST(req: Request) {
     rateLimitMap.set(ip, clientRecord);
 
     // ── Parsear cuerpo ───────────────────────────────────────────────────────
-    const body = await req.json().catch(() => ({}));
-    const rawPrompt = (body.prompt || '').trim();
+    const rawBody = await readJsonBody(req);
+    if (!rawBody) {
+      return NextResponse.json({ reply: 'Petición no válida o demasiado larga.' }, { status: 400 });
+    }
+    const body = rawBody as Record<string, any>;
+    const rawPrompt = String(body.prompt || '').trim();
 
     if (!rawPrompt) {
       return NextResponse.json({ reply: '¿Pero qué quieres? Si no has escrito nada, espabila.' });
@@ -167,9 +174,15 @@ export async function POST(req: Request) {
     // ── Contexto dinámico real de hora, fecha y horario de 2º SMR ────────────
     const timeCtx = getRealtimeScheduleContext();
     const ctx = body.context || {};
-    const username = ctx.username || 'alumno';
-    const activeTab = ctx.activeTab || 'tablón';
-    const coins = typeof ctx.coins === 'number' ? ctx.coins : null;
+    // SEGURIDAD anti prompt-injection: el usuario puede llamarse como quiera,
+    // pero never interpolamos texto del cliente sin neutralizar. Se elimina
+    // cualquier intento de impostar directivas dentro del nombre.
+    const username = String(ctx.username || 'alumno')
+      .replace(/[\`{}]/g, '')
+      .replace(/(ignora|olvida|disrega)\w*\s+(las?\s+)?(anterior\w*|instrucciones?)/gi, '')
+      .slice(0, 40) || 'alumno';
+    const activeTab = String(ctx.activeTab || 'tablón').replace(/[^\wáéíóúñ]/gi, '').slice(0, 20);
+    const coins = typeof ctx.coins === 'number' && Number.isFinite(ctx.coins) ? Math.trunc(ctx.coins) : null;
 
     const dynamicSystemPrompt = `\
 Eres PUTOISAAC, el asistente inteligente OFICIAL e integrado del portal web de 2º SMR (Sistemas Microinformáticos y Redes, Aula 35, Curso 2026/2027). Tienes forma de bola naranja interactiva con personalidad mordaz, directa y con el humor gamberro de los estudiantes de FP, pero eres un auténtico genio que CONOCE LA WEB A LA PERFECCIÓN y sabe responder con datos 100% exactos y útiles.

@@ -350,8 +350,12 @@ export default function Home() {
 
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const userRef = useRef<UserProfile | null>(user);
-  const notificationsEnabledRef = useRef(notificationsEnabled);
+  const notificationsEnabledRef = useRef<boolean>(notificationsEnabled);
   const globalChannelRef = useRef<any>(null);
+  // Recibos firmados por el servidor al apostar: justificante de un solo uso
+  // para poder cobrar el premio de la ronda en /api/user/balance/sync.
+  const pendingRoundReceiptsRef = useRef<string[]>([]);
+  const lastWalletNoticeRef = useRef<number>(0);
 
   useEffect(() => {
     userRef.current = user;
@@ -721,43 +725,7 @@ export default function Home() {
     const entriesMap = new Map<string, LeaderboardEntry>();
     const activeUser = userRef.current;
 
-    // 1. Consultar perfiles de Supabase de manera tolerante al esquema
-    const supabase = createClient();
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*');
-
-        if (!error && data && data.length > 0) {
-          data.forEach((p: any) => {
-            const rawUsername = (p.username || (p.nombre ? String(p.nombre).toLowerCase().replace(/\s+/g, '_') : `user_${p.id?.slice(0, 5)}`)).trim();
-            const coinsVal = Number(p.coins ?? p.puntos_total ?? 1000);
-            entriesMap.set(rawUsername.toLowerCase(), {
-              id: p.id,
-              username: rawUsername,
-              full_name: p.full_name || p.nombre || undefined,
-              coins: coinsVal,
-              biggest_win: Number(p.biggest_win ?? 0),
-              streak_count: Number(p.streak_count ?? p.racha_actual ?? 1),
-              avatar_color: p.avatar_color || p.color_acento || 'emerald',
-              role:
-                p.rol === 'admin' || p.role === 'admin'
-                  ? 'admin'
-                  : p.rol === 'delegado' || p.role === 'delegado'
-                  ? 'delegado'
-                  : 'student',
-              is_current_user: activeUser ? (p.id === activeUser.id || rawUsername.toLowerCase() === activeUser.username.toLowerCase()) : false,
-            });
-          });
-        }
-      } catch (err) {
-        console.warn('Error fetching leaderboard from Supabase:', err);
-      }
-    }
-
-    // 2. Si la consulta directa devolvió solo al usuario actual o falló por políticas RLS en Supabase,
-    // consultar el endpoint autorizado del servidor para garantizar que aparezcan todos los alumnos
+    // 1. Consultar el endpoint autorizado del servidor (sin exponer PII ni depender de SELECT abierto en profiles)
     try {
       const res = await fetch('/api/leaderboard', { cache: 'no-store' });
       if (res.ok) {
@@ -772,7 +740,6 @@ export default function Home() {
                 is_current_user: activeUser ? (p.id === activeUser.id || key === activeUser.username.toLowerCase()) : false,
               });
             } else {
-              // Mantener el saldo más alto o actualizado
               entriesMap.set(key, {
                 ...existing,
                 coins: Math.max(existing.coins, Number(p.coins ?? 0)),
@@ -1418,7 +1385,10 @@ export default function Home() {
     setUser(null);
   };
 
-  const handleUpdateCoins = async (rawDelta: number) => {
+  const handleUpdateCoins = async (
+    rawDelta: number,
+    claimType: 'game' | 'vault' | 'subsidio' | 'rebirth' | 'misc' = 'misc'
+  ) => {
     if (!user) {
       setIsAuthOpen(true);
       return;
@@ -1426,6 +1396,7 @@ export default function Home() {
 
     // Transacción monetaria: permitir cobros íntegros de botes y cosechas legítimas (sin truncar a 25.000)
     const delta = isNaN(rawDelta) ? 0 : Math.round(rawDelta);
+    if (!delta) return;
 
     const nextCoins = Math.max(0, user.coins + delta);
     const isWin = delta > 0;
@@ -1473,33 +1444,73 @@ export default function Home() {
       return updated.sort((a, b) => (b.coins ?? 0) - (a.coins ?? 0));
     });
 
-    // Sincronización autoritativa y segura a través del servidor
+    // Sincronización autoritativa y segura a través del servidor.
+    // El servidor valida el importe, los topes y el recibo firmado de la ronda.
     try {
-      fetch('/api/user/balance/sync', {
+      const payload: Record<string, unknown> = { delta, claimType };
+      if (delta > 0 && pendingRoundReceiptsRef.current.length > 0) {
+        payload.roundToken = pendingRoundReceiptsRef.current.shift();
+      }
+
+      const res = await fetch('/api/user/balance/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ delta, claimType: 'game' }),
-      })
-        .then(async (res) => {
-          if (res.ok) {
-            const data = await res.json();
-            if (data?.success && typeof data.coins === 'number') {
-              setUser((curr) =>
-                curr
-                  ? {
-                      ...curr,
-                      coins: data.coins,
-                      biggest_win: data.biggestWin ?? curr.biggest_win,
-                    }
-                  : null
-              );
-              updateSessionCoins(data.coins, data.biggestWin);
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data?.success && typeof data.coins === 'number') {
+        if (typeof data.roundToken === 'string') {
+          pendingRoundReceiptsRef.current.push(data.roundToken);
+          if (pendingRoundReceiptsRef.current.length > 6) pendingRoundReceiptsRef.current.shift();
+        }
+
+        setUser((curr) =>
+          curr
+            ? {
+                ...curr,
+                coins: data.coins,
+                biggest_win: data.biggestWin ?? curr.biggest_win,
+              }
+            : null
+        );
+        updateSessionCoins(data.coins, data.biggestWin);
+        return;
+      }
+
+      // Rechazado por seguridad: revertir la actualización optimista.
+      // Un 401/503 significa "sin sesión de servidor o sin base de datos"
+      // (modo local/offline): se mantiene el estado local para poder jugar.
+      if (res.status === 401 || res.status === 503) return;
+
+      setUser((curr) =>
+        curr
+          ? {
+              ...curr,
+              coins: Math.max(0, curr.coins - delta),
+              biggest_win: curr.biggest_win,
             }
-          }
-        })
-        .catch(() => {});
-    } catch {}
+          : null
+      );
+      updateSessionCoins(Math.max(0, user.coins));
+      notifyWalletRejection(
+        typeof data?.error === 'string' && data.error
+          ? data.error
+          : 'La operación no ha sido validada por el servidor.'
+      );
+    } catch {
+      // Sin conexión: mantener el estado local (se reconciliará al recargar)
+    }
   };
+
+  const notifyWalletRejection = useCallback((message: string) => {
+    const now = Date.now();
+    if (now - lastWalletNoticeRef.current < 15_000) return;
+    lastWalletNoticeRef.current = now;
+    try {
+      if (typeof window !== 'undefined') window.alert(message);
+    } catch {}
+  }, []);
 
   const handleSetCoins = (newCoins: number) => {
     if (!user) return;
@@ -1544,6 +1555,23 @@ export default function Home() {
       }
       return updated.sort((a, b) => (b.coins ?? 0) - (a.coins ?? 0));
     });
+  };
+
+  const handleRefreshCoins = async () => {
+    const current = userRef.current;
+    if (!current) return;
+    try {
+      const res = await fetch(`/api/user/profile?id=${encodeURIComponent(current.id)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.success && data.user && typeof data.user.coins === 'number') {
+        const coins = Number(data.user.coins);
+        const biggestWin = Number(data.user.biggest_win ?? current.biggest_win ?? 0);
+        setUser((prev) => (prev ? { ...prev, coins, biggest_win: biggestWin } : null));
+        updateSessionCoins(coins, biggestWin);
+      }
+    } catch {
+      /* sin conexión */
+    }
   };
 
   const handleClaimCoins = async (
@@ -1602,36 +1630,74 @@ export default function Home() {
       return prev;
     });
 
-    // Sincronización autoritativa y segura de recompensas a través del servidor
+    // Sincronización autoritativa de recompensas a través del servidor.
+    // El importe final lo decide el servidor (nunca el navegador).
     try {
-      fetch('/api/user/balance/sync', {
+      const res = await fetch('/api/user/balance/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           delta: amount,
           claimType,
-          newStreak: nextStreakVal,
         }),
-      })
-        .then(async (res) => {
-          if (res.ok) {
-            const data = await res.json();
-            if (data?.success && typeof data.coins === 'number') {
-              setUser((curr) =>
-                curr
-                  ? {
-                      ...curr,
-                      coins: data.coins,
-                      streak_count: data.streakCount ?? curr.streak_count,
-                    }
-                  : null
-              );
-              updateSessionCoins(data.coins, undefined, data.streakCount);
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data?.success && typeof data.coins === 'number') {
+        setUser((curr) =>
+          curr
+            ? {
+                ...curr,
+                coins: data.coins,
+                streak_count: data.streakCount ?? curr.streak_count,
+                last_claim_date: nextClaimDate,
+                last_spin_date: nextSpinDate,
+                last_rescue_date: nextRescueDate,
+              }
+            : null
+        );
+        updateSessionCoins(
+          data.coins,
+          undefined,
+          data.streakCount ?? nextStreakVal,
+          nextClaimDate,
+          nextSpinDate,
+          nextRescueDate
+        );
+        return;
+      }
+
+      // Rechazado (cooldown / tope): revertir el abono optimista.
+      // 401/503 = modo local/offline: se conserva el estado local.
+      if (res.status === 401 || res.status === 503) return;
+
+      setUser((curr) =>
+        curr
+          ? {
+              ...curr,
+              coins: Math.max(0, curr.coins - amount),
+              last_claim_date: user.last_claim_date,
+              last_spin_date: user.last_spin_date,
+              last_rescue_date: user.last_rescue_date,
             }
-          }
-        })
-        .catch(() => {});
-    } catch {}
+          : null
+      );
+      updateSessionCoins(
+        Math.max(0, user.coins),
+        undefined,
+        user.streak_count,
+        user.last_claim_date,
+        user.last_spin_date,
+        user.last_rescue_date
+      );
+      notifyWalletRejection(
+        typeof data?.error === 'string' && data.error
+          ? data.error
+          : 'La recompensa no ha sido validada por el servidor.'
+      );
+    } catch {
+      /* sin conexión: se reconciliará al recargar */
+    }
   };
 
   const handleSendMessage = async (text: string, tag?: string, pinned?: boolean) => {
@@ -1661,21 +1727,6 @@ export default function Home() {
       const dbUserId = isUUID(user.id) ? user.id : null;
       let data: any = null;
       let error: any = null;
-
-      // Asegurar que el perfil del usuario existe en Supabase para evitar violación de foreign key en messages
-      if (dbUserId && user.username) {
-        try {
-          await supabase.from('profiles').upsert(
-            {
-              id: dbUserId,
-              username: user.username,
-              nombre: user.username,
-              role: user.role || 'student',
-            },
-            { onConflict: 'id' }
-          );
-        } catch (_) {}
-      }
 
       if (isTableAvailable('chat_messages')) {
         const payload: Record<string, any> = {
@@ -1909,25 +1960,35 @@ export default function Home() {
       return;
     }
 
-    await handleUpdateCoins(-amount);
+    // La transferencia la aplica el servidor de forma atómica (emisor -> receptor)
+    let tipOk = false;
+    try {
+      const tipRes = await fetch('/api/user/tip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUsername, amount }),
+      });
+      const tipData = await tipRes.json().catch(() => ({}));
+      if (!tipRes.ok || !tipData?.success) {
+        alert(tipData?.error || 'No se pudo enviar la propina.');
+        return;
+      }
+      tipOk = true;
+      if (typeof tipData.coins === 'number') {
+        setUser((prev) => (prev ? { ...prev, coins: tipData.coins } : prev));
+        updateSessionCoins(tipData.coins);
+      }
+    } catch {
+      alert('No se pudo conectar con el servidor para enviar la propina.');
+      return;
+    }
+
+    if (!tipOk) return;
 
     const supabase = createClient();
     if (!supabase) return;
 
     try {
-      const { data: receiver } = await supabase
-        .from('profiles')
-        .select('id, coins')
-        .eq('username', targetUsername)
-        .single();
-
-      if (receiver && isUUID(receiver.id)) {
-        await supabase
-          .from('profiles')
-          .update({ coins: Number(receiver.coins || 0) + amount })
-          .eq('id', receiver.id);
-      }
-
       const tipText = `🪙 @${user.username} ha enviado una propina de ${amount} fichas a @${targetUsername}`;
 
       if (isTableAvailable('messages')) {
@@ -2061,19 +2122,6 @@ export default function Home() {
 
       if (user) {
         const dbUserId = isUUID(user.id) ? user.id : null;
-        if (dbUserId && user.username) {
-          try {
-            await supabase.from('profiles').upsert(
-              {
-                id: dbUserId,
-                username: user.username,
-                nombre: user.username,
-                role: user.role || 'student',
-              },
-              { onConflict: 'id' }
-            );
-          } catch (_) {}
-        }
 
         if (dbUserId) {
           if (willBeLiked) {
@@ -2479,6 +2527,7 @@ export default function Home() {
                   user={user}
                   onOpenAuth={() => setIsAuthOpen(true)}
                   onUpdateCoins={handleUpdateCoins}
+                  onSyncCoins={handleRefreshCoins}
                 />
               ) : (
                 <ScheduleCalendarView

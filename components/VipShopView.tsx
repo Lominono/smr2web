@@ -25,7 +25,6 @@ import {
 import { UserProfile } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import confetti from 'canvas-confetti';
-import { createClient } from '@/lib/supabase/client';
 import { PETS_REGISTRY, PetItem, formatCoinsAbbreviated } from '@/lib/pets';
 
 export const BANNER_PRICE = 13_000_000;
@@ -206,67 +205,34 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
     sound.tap();
 
     try {
-      const nextCoins = userCoins - pet.price;
-      const nextUnlocked = Array.from(new Set([...unlockedPets, pet.id]));
-      const nextItems = Array.from(new Set([...itemsComprados, `pet_${pet.id}`]));
+      // SEGURIDAD: la compra pasa SIEMPRE por el servidor (/api/pets/purchase),
+      // que cobra el precio real y concede la mascota. Antes el cliente
+      // escribia su propio saldo y mascotas directamente en Supabase.
+      const res = await fetch('/api/pets/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ petId: pet.id }),
+      });
+      const data = await res.json().catch(() => null);
 
-      const supabase = createClient();
-      if (supabase && currentUser.id) {
-        const { error: sbErr } = await supabase
-          .from('profiles')
-          .update({
-            coins: nextCoins,
-            mascota_equipada: pet.id,
-            mascotas_desbloqueadas: nextUnlocked,
-            items_comprados: nextItems,
-          })
-          .eq('id', currentUser.id);
-
-        if (sbErr) {
-          const { data: currP } = await supabase
-            .from('profiles')
-            .select('party_farm_data')
-            .eq('id', currentUser.id)
-            .maybeSingle();
-
-          const currFarm = (currP?.party_farm_data && typeof currP.party_farm_data === 'object') ? currP.party_farm_data : {};
-          await supabase
-            .from('profiles')
-            .update({
-              coins: nextCoins,
-              items_comprados: nextItems,
-              party_farm_data: {
-                ...currFarm,
-                mascota_equipada: pet.id,
-                mascotas_desbloqueadas: nextUnlocked,
-              },
-            })
-            .eq('id', currentUser.id);
-        }
-
-        try {
-          await supabase.from('chat_messages').insert([
-            {
-              username: 'SMR2',
-              text: `🐾 ¡Adopción exclusiva! @${currentUser.username} ha adoptado a ${pet.name} por ${pet.price.toLocaleString('es-ES')} monedas en la Tienda Oficial.`,
-              tag: 'aviso',
-              pinned: false,
-            },
-          ]);
-        } catch (_) {}
+      if (!res.ok || !data?.success) {
+        setErrorMessage(data?.error || 'No se pudo completar la compra. Inténtalo de nuevo.');
+        sound.broke();
+        return;
       }
-
-      onUpdateCoins?.(-pet.price);
 
       const updatedProfile: UserProfile = {
         ...currentUser,
-        coins: nextCoins,
+        coins: Number(data.coins ?? userCoins - pet.price),
         mascota_equipada: pet.id,
-        mascotas_desbloqueadas: nextUnlocked,
-        items_comprados: nextItems,
+        mascotas_desbloqueadas: Array.isArray(data.mascotasDesbloqueadas)
+          ? data.mascotasDesbloqueadas
+          : Array.from(new Set([...unlockedPets, pet.id])),
+        items_comprados: Array.from(new Set([...itemsComprados, `pet_${pet.id}`])),
       };
 
       onUpdateUser(updatedProfile);
+      onUpdateCoins?.(-pet.price);
       sound.coinWin();
 
       try {
@@ -278,7 +244,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
         });
       } catch (_) {}
 
-      setPetSuccessMessage(`¡Has adoptado a ${pet.name} con éxito! Ha sido equipada en tu perfil y Feed.`);
+      setPetSuccessMessage(data.message || `¡Has adoptado a ${pet.name} con éxito!`);
     } catch (err: any) {
       console.error('Error al comprar mascota:', err);
       setErrorMessage(err?.message || 'Error al procesar la compra.');
@@ -296,40 +262,24 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
     sound.tap();
 
     try {
-      const nextEquipped = equippedPetId === petId ? undefined : petId;
-      const supabase = createClient();
+      const nextEquipped = equippedPetId === petId ? null : petId;
 
-      if (supabase && currentUser.id) {
-        const { error: sbErr } = await supabase
-          .from('profiles')
-          .update({
-            mascota_equipada: nextEquipped || null,
-          })
-          .eq('id', currentUser.id);
+      // SEGURIDAD: equipar pasa por el servidor (verifica la propiedad real).
+      const res = await fetch('/api/pets/equip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ petId: nextEquipped }),
+      });
+      const data = await res.json().catch(() => null);
 
-        if (sbErr) {
-          const { data: currP } = await supabase
-            .from('profiles')
-            .select('party_farm_data')
-            .eq('id', currentUser.id)
-            .maybeSingle();
-
-          const currFarm = (currP?.party_farm_data && typeof currP.party_farm_data === 'object') ? currP.party_farm_data : {};
-          await supabase
-            .from('profiles')
-            .update({
-              party_farm_data: {
-                ...currFarm,
-                mascota_equipada: nextEquipped || null,
-              },
-            })
-            .eq('id', currentUser.id);
-        }
+      if (!res.ok || !data?.success) {
+        setErrorMessage(data?.error || 'No se pudo cambiar tu mascota equipada.');
+        return;
       }
 
       const updatedProfile: UserProfile = {
         ...currentUser,
-        mascota_equipada: nextEquipped,
+        mascota_equipada: nextEquipped ?? undefined,
       };
 
       onUpdateUser(updatedProfile);
@@ -370,44 +320,34 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
     sound.tap();
 
     try {
-      const nextCoins = userCoins - BANNER_PRICE;
-      const nextItems = Array.from(new Set([...itemsComprados, 'banner_vip_13m']));
       const defaultStyle = 'gold_luxury';
       const defaultTitle = customTitle.trim() || 'Magnate del Botellón';
       const defaultQuote = customQuote.trim() || 'Construyendo el aula más rápida del instituto.';
 
-      const supabase = createClient();
-      if (supabase && currentUser.id) {
-        await supabase
-          .from('profiles')
-          .update({
-            coins: nextCoins,
-            items_comprados: nextItems,
-            banner_estilo: defaultStyle,
-            titulo_personalizado: defaultTitle,
-            frase: defaultQuote,
-          })
-          .eq('id', currentUser.id);
-
-        try {
-          await supabase.from('chat_messages').insert([
-            {
-              username: 'SMR2',
-              text: `Aviso oficial: @${currentUser.username} ha adquirido el Banner de Perfil en la Tienda Oficial por 13.000.000 fichas.`,
-              tag: 'aviso',
-              pinned: false,
-            },
-          ]);
-        } catch (_) {}
+      const res = await fetch('/api/shop/banner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'buy',
+          bannerStyle: defaultStyle,
+          customTitle: defaultTitle,
+          customQuote: defaultQuote,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || 'No se pudo completar la compra del Banner VIP.');
       }
 
       const updatedProfile: UserProfile = {
         ...currentUser,
-        coins: nextCoins,
-        items_comprados: nextItems,
-        banner_estilo: defaultStyle,
-        titulo_personalizado: defaultTitle,
-        frase: defaultQuote,
+        coins: typeof json.coins === 'number' ? json.coins : Math.max(0, userCoins - BANNER_PRICE),
+        items_comprados: Array.isArray(json.items_comprados)
+          ? json.items_comprados
+          : Array.from(new Set([...itemsComprados, 'banner_vip_13m'])),
+        banner_estilo: json.banner_estilo || defaultStyle,
+        titulo_personalizado: json.titulo_personalizado || defaultTitle,
+        frase: json.frase ?? defaultQuote,
       };
 
       onUpdateUser(updatedProfile);
@@ -445,23 +385,26 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
       const finalTitle = customTitle.trim() || 'Magnate del Botellón';
       const finalQuote = customQuote.trim();
 
-      const supabase = createClient();
-      if (supabase && currentUser.id) {
-        await supabase
-          .from('profiles')
-          .update({
-            banner_estilo: finalStyle,
-            titulo_personalizado: finalTitle,
-            frase: finalQuote,
-          })
-          .eq('id', currentUser.id);
+      const res = await fetch('/api/shop/banner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'customize',
+          bannerStyle: finalStyle,
+          customTitle: finalTitle,
+          customQuote: finalQuote,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || 'Error al guardar la configuración.');
       }
 
       const updatedProfile: UserProfile = {
         ...currentUser,
-        banner_estilo: finalStyle,
-        titulo_personalizado: finalTitle,
-        frase: finalQuote,
+        banner_estilo: json.banner_estilo || finalStyle,
+        titulo_personalizado: json.titulo_personalizado || finalTitle,
+        frase: json.frase ?? finalQuote,
       };
 
       onUpdateUser(updatedProfile);

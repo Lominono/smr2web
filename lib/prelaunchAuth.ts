@@ -2,15 +2,21 @@ import crypto from 'crypto';
 import {
   PRELAUNCH_COOKIE_NAME,
   PRELAUNCH_STORAGE_KEY,
-  DEFAULT_PRELAUNCH_PASSWORD,
 } from './prelaunchConstants';
 
-export { PRELAUNCH_COOKIE_NAME, PRELAUNCH_STORAGE_KEY, DEFAULT_PRELAUNCH_PASSWORD };
+export { PRELAUNCH_COOKIE_NAME, PRELAUNCH_STORAGE_KEY };
 
+/**
+ * SEGURIDAD: la contraseña del acceso anticipado y el secreto de firma HMAC ya
+ * NO viven en el código fuente. Se exigen como variables de entorno:
+ *   - PRELAUNCH_ACCESS_PASSWORD (o ADMIN_PASSWORD como respaldo)
+ *   - ADMIN_SECRET_KEY / SUPABASE_SERVICE_ROLE_KEY (firma de tokens)
+ * Sin ellas el acceso anticipado queda DENEGADO (no se admite ninguna contraseña).
+ */
 const SIGNING_SECRET =
-  process.env.ADMIN_SECRET_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  'smr2_prelaunch_hmac_secret_aula35_2026_salt';
+  process.env.ADMIN_SECRET_KEY?.trim() ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+  '';
 
 // Control de fuerza bruta en memoria por IP
 interface RateLimitEntry {
@@ -24,7 +30,12 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutos
 
 export function getActivePrelaunchPassword(): string {
   const envPass = process.env.PRELAUNCH_ACCESS_PASSWORD || process.env.ADMIN_PASSWORD;
-  return (envPass && envPass.trim().length > 0) ? envPass.trim() : DEFAULT_PRELAUNCH_PASSWORD;
+  return (envPass && envPass.trim().length > 0) ? envPass.trim() : '';
+}
+
+/** Indica si el acceso anticipado está activo (con contraseña configurada). */
+export function isPrelaunchLockActive(): boolean {
+  return getActivePrelaunchPassword().length > 0;
 }
 
 /**
@@ -33,30 +44,12 @@ export function getActivePrelaunchPassword(): string {
 export function verifyPrelaunchPasswordTimingSafe(candidate: string): boolean {
   if (!candidate || typeof candidate !== 'string') return false;
   const target = getActivePrelaunchPassword();
+  if (!target) return false; // Sin contraseña configurada: acceso denegado
   const trimmed = candidate.trim();
 
   const candidateHash = crypto.createHash('sha256').update(trimmed).digest();
   const targetHash = crypto.createHash('sha256').update(target).digest();
-  const matchesTarget = crypto.timingSafeEqual(candidateHash, targetHash);
-
-  // Claves maestras seguras autorizadas exclusivamente para administración
-  const validMasters = [
-    'SMR2#Aula35.AdminSeguro2026!',
-    'SMR2#AccesoOficial2026!',
-    'SMR2#Aula35.Acceso2026!',
-    'SMR2{Aula35_2026_SecureAdmin}',
-  ];
-
-  const matchesAnyMaster = validMasters.some((master) => {
-    const masterHash = crypto.createHash('sha256').update(master).digest();
-    try {
-      return crypto.timingSafeEqual(candidateHash, masterHash);
-    } catch {
-      return false;
-    }
-  });
-
-  return matchesTarget || matchesAnyMaster;
+  return crypto.timingSafeEqual(candidateHash, targetHash);
 }
 
 /**
@@ -115,7 +108,10 @@ export function resetPrelaunchRateLimit(ip: string): void {
 /**
  * Genera un token firmado criptográficamente con HMAC-SHA256
  */
-export function signPrelaunchToken(validDays: number = 30): string {
+export function signPrelaunchToken(validDays: number = 30): string | null {
+  // SEGURIDAD: sin secreto configurado no se emiten tokens de acceso.
+  if (!SIGNING_SECRET) return null;
+
   const payload = {
     scope: 'prelaunch_access',
     iat: Math.floor(Date.now() / 1000),
@@ -135,6 +131,8 @@ export function signPrelaunchToken(validDays: number = 30): string {
  * Verifica la firma criptográfica y expiración de un token de acceso anticipado
  */
 export function verifyPrelaunchToken(token?: string | null): boolean {
+  // SEGURIDAD: sin secreto configurado ningún token es verificable => denegado.
+  if (!SIGNING_SECRET) return false;
   if (!token || typeof token !== 'string') return false;
   const parts = token.split('.');
   if (parts.length !== 2) return false;

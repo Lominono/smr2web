@@ -8,18 +8,9 @@ import {
   verifyPrelaunchToken,
   PRELAUNCH_COOKIE_NAME,
 } from '@/lib/prelaunchAuth';
+import { getClientIp, guardOrigin, readJsonBody } from '@/lib/security/http';
 
 export const dynamic = 'force-dynamic';
-
-function getClientIp(req: NextRequest): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-  const realIp = req.headers.get('x-real-ip');
-  if (realIp) return realIp.trim();
-  return '127.0.0.1';
-}
 
 /**
  * GET /api/prelaunch/verify
@@ -45,6 +36,9 @@ export async function GET(req: NextRequest) {
  * Valida la clave con mitigación de fuerza bruta y emite un token firmado
  */
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   const ip = getClientIp(req);
 
   // 1. Verificar si la IP está bloqueada
@@ -65,8 +59,14 @@ export async function POST(req: NextRequest) {
   await new Promise((resolve) => setTimeout(resolve, 300));
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const candidatePassword = String(body?.password || '');
+    const body = await readJsonBody(req);
+    if (!body) {
+      return NextResponse.json(
+        { success: false, error: 'Petición no válida o demasiado grande.' },
+        { status: 400 }
+      );
+    }
+    const candidatePassword = String(body.password || '');
 
     // 2. Validación de contraseña con tiempo constante
     const isValid = verifyPrelaunchPasswordTimingSafe(candidatePassword);
@@ -98,6 +98,16 @@ export async function POST(req: NextRequest) {
     // 3. Éxito: limpiar historial de fallos y firmar token
     resetPrelaunchRateLimit(ip);
     const token = signPrelaunchToken(30);
+
+    if (!token) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'El acceso anticipado no está configurado en el servidor (falta ADMIN_SECRET_KEY).',
+        },
+        { status: 503 }
+      );
+    }
 
     const response = NextResponse.json({
       success: true,

@@ -28,7 +28,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { sound } from '@/lib/audio';
-import { UserProfile } from '@/lib/types';
+import { UserProfile, CoinClaimType } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -162,7 +162,7 @@ interface DuelStats {
 interface TacticalRouletteDuelProps {
   user: UserProfile | null;
   onOpenAuth: () => void;
-  onUpdateCoins: (newCoins: number) => void;
+  onUpdateCoins: (delta: number, claimType?: CoinClaimType) => void;
 }
 
 export const TacticalRouletteDuel: React.FC<TacticalRouletteDuelProps> = ({
@@ -234,9 +234,9 @@ export const TacticalRouletteDuel: React.FC<TacticalRouletteDuelProps> = ({
       return;
     }
 
-    // Cobrar la apuesta inicial
+    // Cobrar la apuesta inicial (delta real: NUNCA reenviar el saldo completo)
     sound.tap();
-    onUpdateCoins(user.coins - rival.bet);
+    onUpdateCoins(-rival.bet, 'game');
 
     setSelectedRival(rival);
     setPlayerHp(rival.maxHp);
@@ -324,7 +324,7 @@ export const TacticalRouletteDuel: React.FC<TacticalRouletteDuelProps> = ({
     sound.jackpot();
     confetti({ particleCount: 130, spread: 85, origin: { y: 0.6 } });
     const pot = selectedRival.bet * 2;
-    onUpdateCoins(user.coins + pot);
+    onUpdateCoins(pot, 'game');
     setRivalSpeech(selectedRival.loseQuote);
     setActionLog((prev) => [`¡VICTORIA! Has derrotado a ${selectedRival.name} y ganado el bote de ${pot} monedas.`, ...prev]);
 

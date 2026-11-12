@@ -2,68 +2,73 @@
 -- SCRIPT DE BLINDAJE DE SEGURIDAD DEFINITIVO PARA SUPABASE (POSTGRESQL / RLS)
 -- SMR2 - PORTAL DEL AULA 35 (CURSO 2026/2027)
 -- ============================================================================
--- Este script revoca las políticas abiertas permisivas (USING true en UPDATE/DELETE)
--- y activa Row Level Security (RLS) estricto junto a triggers anti-escalada.
--- Ejecutar en el SQL Editor del panel de Supabase:
+-- INSTRUCCIONES:
+-- 1. Abre el panel de Supabase: SQL Editor -> New Query.
+-- 2. Asegúrate de vaciar completamente la pestaña (sin nada seleccionado).
+-- 3. Pega este contenido completo y pulsa en "Run" (o Ctrl+Enter).
 -- ============================================================================
 
--- 1. HABILITAR ROW LEVEL SECURITY EN TODAS LAS TABLAS CORE
-ALTER TABLE IF EXISTS public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.calendar_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.chat_messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.chat_message_likes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.chat_message_comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.community_feedback ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.feedback_votes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.market_state ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.investments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.price_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.balance_transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.rr_rooms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.rr_room_players ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.rr_games ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.rr_turns ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.event_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.push_subscriptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.app_updates ENABLE ROW LEVEL SECURITY;
+-- 1. HABILITAR ROW LEVEL SECURITY EN TODAS LAS TABLAS QUE EXISTAN
+DO $$
+DECLARE
+    tbl text;
+    tables text[] := ARRAY[
+        'profiles', 'calendar_events', 'chat_messages', 'chat_message_likes',
+        'chat_message_comments', 'community_feedback', 'feedback_votes',
+        'market_state', 'investments', 'transactions', 'price_history',
+        'balance_transactions', 'rr_rooms', 'rr_room_players', 'rr_games',
+        'rr_turns', 'event_logs', 'push_subscriptions', 'app_updates'
+    ];
+BEGIN
+    FOREACH tbl IN ARRAY tables LOOP
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = tbl) THEN
+            EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', tbl);
+        END IF;
+    END LOOP;
+END $$;
 
--- 2. LIMPIEZA TOTAL DE POLÍTICAS PREVIAS PERMISIVAS EN PROFILES
-DROP POLICY IF EXISTS "profiles_select_policy" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_insert_policy" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_update_policy" ON public.profiles;
-DROP POLICY IF EXISTS "Lectura pública de perfiles" ON public.profiles;
-DROP POLICY IF EXISTS "Creación de perfiles" ON public.profiles;
-DROP POLICY IF EXISTS "Actualizar saldo de usuario" ON public.profiles;
-DROP POLICY IF EXISTS "Usuarios pueden actualizar su propio perfil" ON public.profiles;
+-- 2. ELIMINAR DE FORMA DINÁMICA Y SEGURA TODAS LAS POLÍTICAS PREVIAS PERMISIVAS
+DO $$
+DECLARE
+    pol RECORD;
+BEGIN
+    FOR pol IN 
+        SELECT schemaname, tablename, policyname 
+        FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename IN (
+            'profiles', 'calendar_events', 'chat_messages', 'chat_message_likes',
+            'chat_message_comments', 'community_feedback', 'feedback_votes',
+            'market_state', 'investments', 'transactions', 'price_history',
+            'balance_transactions', 'rr_rooms', 'rr_room_players', 'rr_games',
+            'rr_turns', 'event_logs', 'push_subscriptions', 'app_updates'
+        )
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I;', pol.policyname, pol.schemaname, pol.tablename);
+    END LOOP;
+END $$;
 
--- NUEVAS POLÍTICAS PARA PROFILES
--- Lectura pública: Necesaria para el tablón, perfiles de compañeros y ranking de clase
+-- 3. POLÍTICAS RLS SEGURAS PARA PROFILES
+-- Lectura pública: Necesaria para el feed de clase, perfiles de compañeros y ranking de alumnos
 CREATE POLICY "profiles_select_public" ON public.profiles
   FOR SELECT USING (true);
 
--- Inserción: Solo durante registro coincidiendo con el UID autenticado o service_role
+-- Inserción: Solo el propio usuario autenticado durante el registro (su ID de auth.uid())
 CREATE POLICY "profiles_insert_owner" ON public.profiles
-  FOR INSERT WITH CHECK (
-    auth.role() = 'service_role' OR auth.uid() = id
-  );
+  FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
 
--- Actualización: Solo el dueño de la cuenta puede actualizar su propio perfil
+-- Actualización: Solo el dueño de la cuenta puede modificar su propio registro
 CREATE POLICY "profiles_update_owner" ON public.profiles
-  FOR UPDATE USING (
-    auth.role() = 'service_role' OR auth.uid() = id
-  ) WITH CHECK (
-    auth.role() = 'service_role' OR auth.uid() = id
-  );
+  FOR UPDATE USING ((SELECT auth.uid()) = id) WITH CHECK ((SELECT auth.uid()) = id);
 
--- TRIGGER POSTGRESQL ANTI-ESCALADA DE PRIVILEGIOS
--- Previene que un usuario ordinario cambie su propio rol a 'admin' o desbanee su cuenta
+-- 4. TRIGGER POSTGRESQL ANTI-ESCALADA DE PRIVILEGIOS
+-- Impide que un usuario ordinario modifique su columna 'role' (ej: auto-nombrarse admin) o 'is_banned'
 CREATE OR REPLACE FUNCTION public.protect_profiles_integrity()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Si la modificación proviene de un cliente con token de usuario (no service_role del servidor)
-  IF auth.role() IS DISTINCT FROM 'service_role' THEN
-    -- Impedir escalada de rol (ej: ponerse 'admin' o 'delegado')
+  -- Si la modificación proviene de un usuario autenticado (no llamadas directas internas de administración)
+  IF auth.uid() IS NOT NULL THEN
+    -- Impedir modificar el rol (solo modificable por administradores legítimos desde el backend)
     IF NEW.role IS DISTINCT FROM OLD.role THEN
       RAISE EXCEPTION 'Operación denegada por seguridad: No tienes permisos para alterar el rango o rol de usuario.';
     END IF;
@@ -84,139 +89,88 @@ BEFORE UPDATE ON public.profiles
 FOR EACH ROW
 EXECUTE FUNCTION public.protect_profiles_integrity();
 
--- 3. CALENDAR_EVENTS (AGENDA LECTIVA Y TAREAS)
--- Evita que cualquiera pueda borrar o desconfigurar el calendario de la clase
-DROP POLICY IF EXISTS "calendar_select_policy" ON public.calendar_events;
-DROP POLICY IF EXISTS "calendar_insert_policy" ON public.calendar_events;
-DROP POLICY IF EXISTS "calendar_update_policy" ON public.calendar_events;
-DROP POLICY IF EXISTS "calendar_delete_policy" ON public.calendar_events;
-DROP POLICY IF EXISTS "Lectura pública de eventos" ON public.calendar_events;
-DROP POLICY IF EXISTS "Creación de eventos" ON public.calendar_events;
-DROP POLICY IF EXISTS "Modificación de eventos" ON public.calendar_events;
-DROP POLICY IF EXISTS "Borrado de eventos" ON public.calendar_events;
-
+-- 5. CALENDAR_EVENTS (AGENDA Y TAREAS DE CLASE)
+-- Lectura pública para que todos los alumnos vean el horario
 CREATE POLICY "calendar_select_public" ON public.calendar_events
   FOR SELECT USING (true);
 
+-- Solo administradores o delegados pueden crear, editar o borrar eventos del calendario
 CREATE POLICY "calendar_insert_staff" ON public.calendar_events
   FOR INSERT WITH CHECK (
-    auth.role() = 'service_role' OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'delegado'))
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = (SELECT auth.uid()) AND role IN ('admin', 'delegado'))
   );
 
 CREATE POLICY "calendar_update_staff" ON public.calendar_events
   FOR UPDATE USING (
-    auth.role() = 'service_role' OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'delegado'))
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = (SELECT auth.uid()) AND role IN ('admin', 'delegado'))
   );
 
 CREATE POLICY "calendar_delete_staff" ON public.calendar_events
   FOR DELETE USING (
-    auth.role() = 'service_role' OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'delegado'))
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = (SELECT auth.uid()) AND role IN ('admin', 'delegado'))
   );
 
--- 4. EVENT_LOGS (AUDITORÍA FORENSE DEL SERVIDOR)
--- Cierra la brecha que permitía a usuarios sin sesión consultar IPs y registros
-DROP POLICY IF EXISTS "Lectura de logs solo administradores" ON public.event_logs;
-DROP POLICY IF EXISTS "Inserción de logs" ON public.event_logs;
-DROP POLICY IF EXISTS "event_logs_select_policy" ON public.event_logs;
-
+-- 6. EVENT_LOGS (AUDITORÍA FORENSE DEL SERVIDOR)
+-- Inserción de logs permitida para que el sistema registre acciones
 CREATE POLICY "event_logs_insert_system" ON public.event_logs
   FOR INSERT WITH CHECK (true);
 
+-- Lectura estrictamente para administradores (cierra la brecha previa de OR auth.uid() IS NULL)
 CREATE POLICY "event_logs_select_admin_only" ON public.event_logs
   FOR SELECT USING (
-    auth.role() = 'service_role' OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = (SELECT auth.uid()) AND role = 'admin')
   );
 
--- 5. CHAT_MESSAGES Y COMENTARIOS
-DROP POLICY IF EXISTS "chat_select_policy" ON public.chat_messages;
-DROP POLICY IF EXISTS "chat_insert_policy" ON public.chat_messages;
-DROP POLICY IF EXISTS "chat_likes_all_policy" ON public.chat_message_likes;
-DROP POLICY IF EXISTS "Lectura pública de chat" ON public.chat_messages;
-DROP POLICY IF EXISTS "Creación de mensajes" ON public.chat_messages;
-
+-- 7. CHAT_MESSAGES Y COMENTARIOS
 CREATE POLICY "chat_select_public" ON public.chat_messages
   FOR SELECT USING (true);
 
 CREATE POLICY "chat_insert_authenticated" ON public.chat_messages
-  FOR INSERT WITH CHECK (
-    auth.role() = 'service_role' OR auth.uid() IS NOT NULL
-  );
+  FOR INSERT WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
 
-CREATE POLICY "chat_likes_all" ON public.chat_message_likes
-  FOR ALL USING (true) WITH CHECK (true);
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'chat_message_likes') THEN
+        EXECUTE 'CREATE POLICY "chat_likes_all" ON public.chat_message_likes FOR ALL USING (true) WITH CHECK (true);';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'chat_message_comments') THEN
+        EXECUTE 'CREATE POLICY "chat_comments_select" ON public.chat_message_comments FOR SELECT USING (true);';
+        EXECUTE 'CREATE POLICY "chat_comments_insert" ON public.chat_message_comments FOR INSERT WITH CHECK ((SELECT auth.uid()) IS NOT NULL);';
+    END IF;
+END $$;
 
--- 6. COMMUNITY_FEEDBACK (INCIDENCIAS Y SUGERENCIAS)
-DROP POLICY IF EXISTS "feedback_all_policy" ON public.community_feedback;
-DROP POLICY IF EXISTS "feedback_votes_all_policy" ON public.feedback_votes;
-
+-- 8. COMMUNITY_FEEDBACK (INCIDENCIAS Y SUGERENCIAS)
 CREATE POLICY "feedback_select_public" ON public.community_feedback
   FOR SELECT USING (true);
 
-CREATE POLICY "feedback_insert_author" ON public.community_feedback
-  FOR INSERT WITH CHECK (
-    auth.role() = 'service_role' OR auth.uid() IS NOT NULL
-  );
+CREATE POLICY "feedback_insert_authenticated" ON public.community_feedback
+  FOR INSERT WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
 
 CREATE POLICY "feedback_update_staff" ON public.community_feedback
   FOR UPDATE USING (
-    auth.role() = 'service_role' OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'delegado'))
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = (SELECT auth.uid()) AND role IN ('admin', 'delegado'))
   );
 
-CREATE POLICY "feedback_votes_authenticated" ON public.feedback_votes
-  FOR ALL USING (
-    auth.role() = 'service_role' OR auth.uid() IS NOT NULL
-  );
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'feedback_votes') THEN
+        EXECUTE 'CREATE POLICY "feedback_votes_all" ON public.feedback_votes FOR ALL USING ((SELECT auth.uid()) IS NOT NULL) WITH CHECK ((SELECT auth.uid()) IS NOT NULL);';
+    END IF;
+END $$;
 
--- 7. RULETA RUSA Y SALAS DE JUEGO
-DROP POLICY IF EXISTS "rr_rooms_all_policy" ON public.rr_rooms;
-DROP POLICY IF EXISTS "rr_players_all_policy" ON public.rr_room_players;
-DROP POLICY IF EXISTS "rr_games_all_policy" ON public.rr_games;
-DROP POLICY IF EXISTS "rr_turns_all_policy" ON public.rr_turns;
-DROP POLICY IF EXISTS "Lectura pública de salas" ON public.rr_rooms;
-DROP POLICY IF EXISTS "Lectura de partidas de ruleta rusa" ON public.rr_games;
-
+-- 9. RULETA RUSA Y SALAS DE JUEGO (LECTURA PÚBLICA, GESTIÓN POR SERVIDOR)
 CREATE POLICY "rr_rooms_select_public" ON public.rr_rooms FOR SELECT USING (true);
-CREATE POLICY "rr_rooms_manage_server" ON public.rr_rooms FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-
-CREATE POLICY "rr_players_select_public" ON public.rr_room_players FOR SELECT USING (true);
-CREATE POLICY "rr_players_manage_server" ON public.rr_room_players FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-
+CREATE POLICY "rr_room_players_select_public" ON public.rr_room_players FOR SELECT USING (true);
 CREATE POLICY "rr_games_select_public" ON public.rr_games FOR SELECT USING (true);
-CREATE POLICY "rr_games_manage_server" ON public.rr_games FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-
 CREATE POLICY "rr_turns_select_public" ON public.rr_turns FOR SELECT USING (true);
-CREATE POLICY "rr_turns_manage_server" ON public.rr_turns FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
--- 8. ECONOMÍA, INVERSIONES Y TRANSACCIONES
-DROP POLICY IF EXISTS "market_select_policy" ON public.market_state;
-DROP POLICY IF EXISTS "market_update_policy" ON public.market_state;
-DROP POLICY IF EXISTS "investments_all_policy" ON public.investments;
-DROP POLICY IF EXISTS "transactions_all_policy" ON public.transactions;
-DROP POLICY IF EXISTS "price_history_select_policy" ON public.price_history;
-DROP POLICY IF EXISTS "balance_tx_all_policy" ON public.balance_transactions;
-
+-- 10. MERCADO, INVERSIONES Y TRANSACCIONES
 CREATE POLICY "market_select_public" ON public.market_state FOR SELECT USING (true);
-CREATE POLICY "market_modify_server" ON public.market_state FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-
 CREATE POLICY "price_history_select_public" ON public.price_history FOR SELECT USING (true);
-CREATE POLICY "price_history_insert_server" ON public.price_history FOR INSERT WITH CHECK (auth.role() = 'service_role');
-
 CREATE POLICY "transactions_select_public" ON public.transactions FOR SELECT USING (true);
-CREATE POLICY "transactions_manage_server" ON public.transactions FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
-CREATE POLICY "investments_select_owner" ON public.investments FOR SELECT USING (
-  auth.role() = 'service_role' OR auth.uid() = user_id
-);
-CREATE POLICY "investments_manage_server" ON public.investments FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "investments_select_owner" ON public.investments
+  FOR SELECT USING ((SELECT auth.uid()) = user_id);
 
-CREATE POLICY "balance_tx_select_owner" ON public.balance_transactions FOR SELECT USING (
-  auth.role() = 'service_role' OR auth.uid() = user_id
-);
-CREATE POLICY "balance_tx_manage_server" ON public.balance_transactions FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-
--- FINALIZADO CON ÉXITO
+CREATE POLICY "balance_tx_select_owner" ON public.balance_transactions
+  FOR SELECT USING ((SELECT auth.uid()) = user_id);

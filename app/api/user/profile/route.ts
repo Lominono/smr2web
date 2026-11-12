@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { isUUID, generateUUID } from '@/lib/uuid';
-import { verifyUserSession } from '@/lib/adminAuth';
+import { verifyUserSession, verifyAdminSession } from '@/lib/adminAuth';
 import { logEvent } from '@/lib/logger';
+import { securityEvent } from '@/lib/security/audit';
 import { validatePasswordSecurity } from '@/lib/passwordSecurity';
+import { enforceRateLimit, guardOrigin } from '@/lib/security/http';
+import { RATE_LIMITS } from '@/lib/security/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +27,11 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // PRIVACIDAD: los datos sensibles (NIA, puesto) solo se devuelven a
+    // usuarios con sesión verificada; a anónimos se les oculta.
+    const viewer = await verifyUserSession();
+    const viewerIsLoggedIn = viewer.authenticated && Boolean(viewer.user);
 
     if (isServerSupabaseConfigured()) {
       const client = createAdminClient();
@@ -47,9 +55,10 @@ export async function GET(req: NextRequest) {
               user: {
                 id: data.id,
                 username: data.username,
-                full_name: data.full_name || undefined,
-                student_number: data.student_number || undefined,
-                pc_seat: data.pc_seat || undefined,
+                // PRIVACIDAD: NIA y puesto solo con sesión verificada
+                full_name: viewerIsLoggedIn ? (data.full_name || undefined) : undefined,
+                student_number: viewerIsLoggedIn ? (data.student_number || undefined) : undefined,
+                pc_seat: viewerIsLoggedIn ? (data.pc_seat || undefined) : undefined,
                 coins: Math.max(0, Number(data.coins ?? 1000)),
                 biggest_win: Math.max(0, Number(data.biggest_win ?? 0)),
                 streak_count: Math.max(1, Number(data.streak_count ?? 1)),
@@ -98,6 +107,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
     const session = await verifyUserSession();
     if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
@@ -106,6 +118,9 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    const rate = enforceRateLimit(`profile:${session.user.id}`, RATE_LIMITS.profileWrite);
+    if (!rate.ok) return rate.response;
 
     const body = await req.json();
     const {
@@ -116,7 +131,6 @@ export async function POST(req: NextRequest) {
       studentNumber,
       notificationsEnabled,
       mascotaEquipada,
-      mascotasDesbloqueadas,
     } = body;
 
     // Solo se permite actualizar el perfil del usuario autenticado en la sesión (previene manipulación IDOR)
@@ -129,6 +143,30 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (cleanUsername && (cleanUsername.length > 20 || !/^[a-z0-9_]+$/.test(cleanUsername))) {
+      return NextResponse.json(
+        { success: false, error: 'El usuario solo puede contener letras (a-z), números (0-9) y guiones bajos (_), con un máximo de 20 caracteres.' },
+        { status: 400 }
+      );
+    }
+
+    if (fullName !== undefined && String(fullName).trim().length > 80) {
+      return NextResponse.json({ success: false, error: 'El nombre es demasiado largo.' }, { status: 400 });
+    }
+
+    if (studentNumber !== undefined && String(studentNumber).trim().length > 20) {
+      return NextResponse.json({ success: false, error: 'El número de estudiante es demasiado largo.' }, { status: 400 });
+    }
+
+    // Lista blanca de colores y mascotas: evita inyectar valores arbitrarios
+    const ALLOWED_AVATAR_COLORS = new Set([
+      'emerald', 'blue', 'purple', 'amber', 'rose', 'cyan', 'orange', 'lime', 'slate',
+    ]);
+    const ALLOWED_PETS = new Set([
+      'spongegar', 'thinking_butt', 'baldi', 'kirby', 'link', 'toy_chica',
+      'peter_kirby', 'austin', 'goku_bird', 'tung_tung', 'androide_18',
+    ]);
 
     if (isServerSupabaseConfigured()) {
       const client = createAdminClient();
@@ -154,9 +192,32 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // SEGURIDAD: mascotas NO se aceptan desde el cliente. Antes, cualquier
+        // usuario podía autoregalarse cualquier mascota (50M - 1T de monedas)
+        // escribiendo `mascotas_desbloqueadas` o equiparse una no comprada.
+        // Ahora la adquisición y el equipado solo ocurren en el servidor:
+        //   - Compra:  POST /api/pets/purchase (cobra y concede en una operación)
+        //   - Equipar: POST /api/pets/equip    (verifica propiedad real en BD)
+        const desiredEquip = mascotaEquipada !== undefined
+          ? (mascotaEquipada ? String(mascotaEquipada) : null)
+          : undefined;
+
+        const { data: ownerProfile } = await client
+          .from('profiles')
+          .select('id, mascotas_desbloqueadas')
+          .eq('id', isUUID(targetUserId) ? targetUserId : '00000000-0000-0000-0000-000000000000')
+          .maybeSingle();
+
+        const ownedPets: string[] = Array.isArray(ownerProfile?.mascotas_desbloqueadas)
+          ? ownerProfile!.mascotas_desbloqueadas
+          : [];
+        void ALLOWED_PETS;
+
         const updates: Record<string, any> = {};
         if (cleanUsername) updates.username = cleanUsername;
-        if (avatarColor) updates.avatar_color = avatarColor;
+        if (avatarColor && ALLOWED_AVATAR_COLORS.has(String(avatarColor))) {
+          updates.avatar_color = String(avatarColor);
+        }
         if (fullName !== undefined) updates.full_name = fullName.trim();
 
         if (studentNumber !== undefined && studentNumber.trim().length >= 2) {
@@ -181,34 +242,27 @@ export async function POST(req: NextRequest) {
           updates.student_number = cleanNumber;
         }
 
-        if (mascotaEquipada !== undefined) {
-          updates.mascota_equipada = mascotaEquipada ? String(mascotaEquipada) : null;
+        if (desiredEquip !== undefined) {
+          // Solo se permite equipar una mascota que el usuario posea REALMENTE
+          // (adquirida previamente y registrada en la base de datos).
+          updates.mascota_equipada =
+            desiredEquip && ALLOWED_PETS.has(desiredEquip) && ownedPets.includes(desiredEquip)
+              ? desiredEquip
+              : null;
         }
 
-        if (Array.isArray(mascotasDesbloqueadas)) {
-          updates.mascotas_desbloqueadas = mascotasDesbloqueadas;
-        }
+        // `mascotasDesbloqueadas` del body se IGNORA por completo (solo el
+        // servidor concede mascotas al cobrar la compra en /api/pets/purchase).
 
         if (Object.keys(updates).length > 0 && isUUID(targetUserId)) {
           // Intentar actualizar directamente
           const { error: updateError } = await client.from('profiles').update(updates).eq('id', targetUserId);
           if (updateError) {
-            console.warn('Note updating profiles in Supabase directly, falling back:', updateError.message);
-            // Si la columna física aún no existe, guardar en party_farm_data
-            if (mascotaEquipada !== undefined || mascotasDesbloqueadas) {
-              try {
-                const { data: currP } = await client.from('profiles').select('party_farm_data').eq('id', targetUserId).maybeSingle();
-                const existingFarm = (currP?.party_farm_data && typeof currP.party_farm_data === 'object') ? currP.party_farm_data : {};
-                const updatedFarm = {
-                  ...existingFarm,
-                  ...(mascotaEquipada !== undefined ? { mascota_equipada: mascotaEquipada } : {}),
-                  ...(mascotasDesbloqueadas ? { mascotas_desbloqueadas: mascotasDesbloqueadas } : {}),
-                };
-                delete updates.mascota_equipada;
-                delete updates.mascotas_desbloqueadas;
-                await client.from('profiles').update({ ...updates, party_farm_data: updatedFarm }).eq('id', targetUserId);
-              } catch {}
-            }
+            console.warn('Note updating profiles in Supabase directly:', updateError.message);
+            return NextResponse.json(
+              { success: false, error: 'No se pudo actualizar el perfil. Inténtalo de nuevo.' },
+              { status: 500 }
+            );
           }
         }
       }
@@ -246,6 +300,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
     const session = await verifyUserSession();
     if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
@@ -255,19 +312,35 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const { userId, newPassword } = body;
+    const rate = enforceRateLimit(`password:${session.user.id}`, { limit: 5, windowMs: 15 * 60_000 });
+    if (!rate.ok) return rate.response;
 
-    // Solo un administrador oficial puede cambiar la contraseña de otra cuenta
+    const body = await req.json();
+    const { userId, newPassword, currentPassword } = body;
+
+    // SEGURIDAD: cambiar la contraseña de OTRO usuario exige verificación
+    // estricta de administrador (token firmadoHttpOnly + rol real en la BD).
+    // Para la propia cuenta se exige demostrar la contraseña actual, de modo
+    // que el robo raspado de la cookie de sesión no permita secuestrarla.
     let targetUserId = session.user.id;
-    if (userId && userId !== session.user.id) {
-      if (session.user.role !== 'admin') {
+    const isSelfChange = !userId || userId === session.user.id;
+
+    if (!isSelfChange) {
+      const adminAuth = await verifyAdminSession(req);
+      if (!adminAuth.authorized || !adminAuth.user) {
         return NextResponse.json(
-          { success: false, error: 'Acceso denegado: No tienes permisos para modificar la contraseña de otro usuario.' },
-          { status: 403 }
+          { success: false, error: 'Acceso denegado: solo la administración puede restablecer contraseñas de otros alumnos.' },
+          { status: adminAuth.status || 403 }
         );
       }
       targetUserId = userId;
+    } else {
+      if (!currentPassword || typeof currentPassword !== 'string') {
+        return NextResponse.json(
+          { success: false, error: 'Debes introducir tu contraseña actual para confirmar el cambio.' },
+          { status: 400 }
+        );
+      }
     }
 
     const passCheck = validatePasswordSecurity(newPassword, session.user?.username, session.user?.email);
@@ -282,6 +355,46 @@ export async function PUT(req: NextRequest) {
     if (isServerSupabaseConfigured()) {
       const client = createAdminClient();
       if (client && isUUID(targetUserId)) {
+        // Prueba de propiedad: la contraseña actual debe ser correcta.
+        // Se usa signInWithPassword sin cookies (no contamina la sesión).
+        if (isSelfChange) {
+          const { data: profileRow } = await client
+            .from('profiles')
+            .select('email')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          const email = profileRow?.email || session.user?.email;
+          if (!email) {
+            return NextResponse.json(
+              { success: false, error: 'No se pudo verificar tu cuenta.' },
+              { status: 500 }
+            );
+          }
+
+          const { error: signInErr } = await client.auth
+            .signInWithPassword({
+              email: String(email),
+              password: String(currentPassword),
+            })
+            .catch((err: any) => ({ data: null, error: err }) as any);
+
+          if (signInErr) {
+            try {
+              securityEvent({
+                action: 'password_change_wrong_current',
+                userId: session.user.id,
+                username: session.user?.username,
+                req,
+              });
+            } catch {}
+            return NextResponse.json(
+              { success: false, error: 'La contraseña actual no es correcta.' },
+              { status: 401 }
+            );
+          }
+        }
+
         try {
           await client.auth.admin.updateUserById(targetUserId, {
             password: newPassword,

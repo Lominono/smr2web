@@ -24,8 +24,22 @@ const memoryTurns = new Map<string, RRTurn[]>();
  */
 export function sanitizeGameForClient(game: RRGame | null | undefined): RRGame | null {
   if (!game) return null;
-  const { bullet_chamber, ...safeGame } = game;
+  const { bullet_chamber, ...safeGame } = game as RRGame & { bullet_chamber?: number | null };
+  void bullet_chamber;
   return safeGame as RRGame;
+}
+
+/**
+ * Elimina cualquier detalle interno del turno (posición real de la bala,
+ * información del cilindro...) antes de devolverlo al navegador.
+ */
+export function sanitizeTurnForClient(turn: RRTurn | null | undefined): RRTurn | null {
+  if (!turn) return null;
+  const details = { ...(turn.details || {}) } as Record<string, any>;
+  delete details.bulletChamber;
+  delete details.bullet_chamber;
+  delete details.secretBullet;
+  return { ...turn, details };
 }
 
 /**
@@ -153,7 +167,7 @@ export async function getRoomById(roomId: string): Promise<RRRoom | null> {
             active_game: activeGame
               ? {
                   ...sanitizeGameForClient(activeGame)!,
-                  last_turn: lastTurn,
+                  last_turn: sanitizeTurnForClient(lastTurn),
                 }
               : null,
           };
@@ -177,7 +191,7 @@ export async function getRoomById(roomId: string): Promise<RRRoom | null> {
     active_game: game
       ? {
           ...sanitizeGameForClient(game)!,
-          last_turn: lastTurn,
+          last_turn: sanitizeTurnForClient(lastTurn),
         }
       : null,
   };
@@ -526,7 +540,9 @@ export async function startGameServer(
           {
             id: newGame.id,
             room_id: newGame.room_id,
-            bullet_chamber: newGame.bullet_chamber,
+            // La recámara real NUNCA se guarda en la tabla pública `rr_games`:
+            // queda en `rr_game_secrets`, accesible solo con service role.
+            bullet_chamber: null,
             current_chamber: newGame.current_chamber,
             active_player_id: newGame.active_player_id,
             active_player_username: newGame.active_player_username,
@@ -535,6 +551,14 @@ export async function startGameServer(
             round_number: newGame.round_number,
           },
         ]);
+
+        try {
+          await client.from('rr_game_secrets').insert([
+            { game_id: newGame.id, bullet_chamber: secretBulletChamber, updated_at: new Date().toISOString() },
+          ]);
+        } catch (secretErr) {
+          console.warn('[START_GAME_SECRET_WARN] rr_game_secrets no disponible:', secretErr);
+        }
       }
     } catch (err) {
       console.warn('[START_GAME_SUPABASE_ERROR] Memory fallback:', err);
@@ -593,7 +617,7 @@ export async function triggerActionServer(
   }
 
   let game: RRGame | null = null;
-  let secretBullet = 0;
+  let secretBullet: number | null = null;
 
   if (isServerSupabaseConfigured()) {
     try {
@@ -609,7 +633,20 @@ export async function triggerActionServer(
 
         if (dbGames && dbGames.length > 0) {
           game = dbGames[0];
-          secretBullet = Number(dbGames[0].bullet_chamber);
+
+          // La recámara real vive en la tabla privada `rr_game_secrets`
+          const { data: secretRow } = await client
+            .from('rr_game_secrets')
+            .select('bullet_chamber')
+            .eq('game_id', dbGames[0].id)
+            .maybeSingle();
+
+          if (secretRow && Number.isInteger(Number(secretRow.bullet_chamber))) {
+            secretBullet = Number(secretRow.bullet_chamber);
+          } else if (dbGames[0].bullet_chamber !== null && dbGames[0].bullet_chamber !== undefined) {
+            // Compatibilidad con partidas antiguas
+            secretBullet = Number(dbGames[0].bullet_chamber);
+          }
         }
       }
     } catch (err) {
@@ -620,12 +657,16 @@ export async function triggerActionServer(
   if (!game) {
     game = memoryGames.get(roomId) || null;
     if (game) {
-      secretBullet = game.bullet_chamber ?? 0;
+      secretBullet = Number.isInteger(game.bullet_chamber) ? Number(game.bullet_chamber) : null;
     }
   }
 
   if (!game || game.status !== 'active') {
     throw new Error('Partida finalizada o no encontrada.');
+  }
+
+  if (secretBullet === null || secretBullet < 0 || secretBullet > 5) {
+    throw new Error('No se pudo recuperar el estado seguro de la partida.');
   }
 
   // Verify turn ownership
@@ -641,7 +682,9 @@ export async function triggerActionServer(
   }
 
   const currentChamber = game.current_chamber;
-  const isDischarge = isTimeout || currentChamber === secretBullet;
+  // Un tiempo agotado NO dispara: el jugador pierde el turno y el cilindro gira.
+  // (Antes cualquier usuario podía forzar la eliminación del jugador activo).
+  const isDischarge = !isTimeout && currentChamber === secretBullet;
   const turnResult: 'discharge' | 'blank' | 'timeout' = isTimeout
     ? 'timeout'
     : isDischarge
@@ -659,7 +702,6 @@ export async function triggerActionServer(
     result: turnResult,
     details: {
       isTimeout,
-      bulletChamber: secretBullet,
     },
     created_at: new Date().toISOString(),
   };
@@ -800,7 +842,7 @@ export async function triggerActionServer(
       });
     }
   } else {
-    // Blank shot -> Survived!
+    // Blanco (o turno agotado) -> el jugador sobrevive y pasa el turno.
     const nextPlayer = getNextAlivePlayer(players, actingPlayer.user_id);
     const nextChamber = (currentChamber + 1) % 6;
 
@@ -809,8 +851,17 @@ export async function triggerActionServer(
     game.active_player_username = nextPlayer ? nextPlayer.username : null;
     game.turn_deadline = new Date(Date.now() + 25000).toISOString();
 
+    // Si el turno se perdió por tiempo, el cilindro gira de nuevo para que
+    // nadie pueda deducir la posición de la bala por los turnos agotados.
+    let spunBullet: number | null = null;
+    if (isTimeout) {
+      spunBullet = getSecureRandomChamber();
+      game.bullet_chamber = spunBullet;
+      game.current_chamber = 0;
+    }
+
     await logEvent({
-      eventType: 'turn_executed',
+      eventType: isTimeout ? 'game_timeout' : 'turn_executed',
       userId: actingPlayer.user_id,
       username: actingPlayer.username,
       roomId,
@@ -818,9 +869,10 @@ export async function triggerActionServer(
       req,
       details: {
         chamber_index: currentChamber,
-        result: 'blank',
-        next_chamber: nextChamber,
+        result: isTimeout ? 'timeout' : 'blank',
+        next_chamber: game.current_chamber,
         next_player: nextPlayer?.username,
+        cylinder_respun: isTimeout,
       },
     });
   }
@@ -853,11 +905,10 @@ export async function triggerActionServer(
             .eq('user_id', actingPlayer.user_id);
         }
 
-        // Update game
+        // Update game (la recámara real NO se escribe en la tabla pública)
         await client
           .from('rr_games')
           .update({
-            bullet_chamber: game.bullet_chamber,
             current_chamber: game.current_chamber,
             active_player_id: game.active_player_id,
             active_player_username: game.active_player_username,
@@ -869,6 +920,25 @@ export async function triggerActionServer(
             finished_at: game.finished_at,
           })
           .eq('id', game.id);
+
+        // Si el cilindro ha girado (eliminación o turno perdido), actualizar el secreto
+        if (
+          (isDischarge && game.status === 'active') ||
+          (isTimeout && typeof game.bullet_chamber === 'number')
+        ) {
+          const nextSecret = Number(game.bullet_chamber);
+          if (Number.isInteger(nextSecret) && nextSecret >= 0 && nextSecret <= 5) {
+            const { error: secretError } = await client
+              .from('rr_game_secrets')
+              .upsert(
+                { game_id: game.id, bullet_chamber: nextSecret, updated_at: new Date().toISOString() },
+                { onConflict: 'game_id' }
+              );
+            if (secretError) {
+              console.warn('[RR_SECRET_UPDATE_WARN]', secretError.message);
+            }
+          }
+        }
 
         if (room.status === 'finished') {
           await client
@@ -889,12 +959,14 @@ export async function triggerActionServer(
   memoryTurns.set(game.id, turns);
   memoryRooms.set(roomId, room);
 
+  const safeTurn = sanitizeTurnForClient(turn)!;
+
   return {
     game: {
       ...sanitizeGameForClient(game)!,
-      last_turn: turn,
+      last_turn: safeTurn,
     },
-    turn,
+    turn: safeTurn,
     isEliminated,
     isWinner,
     winnerPlayer,

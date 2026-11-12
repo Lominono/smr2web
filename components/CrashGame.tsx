@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { sound } from '@/lib/audio';
-import { CrashHistoryItem } from '@/lib/types';
+import { CrashHistoryItem, CoinClaimType } from '@/lib/types';
 import {
   TrendingUp,
   Coins,
@@ -12,11 +12,10 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { recordArcadeRake } from '@/lib/investmentsService';
 
 interface CrashGameProps {
   userCoins: number;
-  onUpdateCoins: (delta: number) => void;
+  onUpdateCoins: (delta: number, claimType?: CoinClaimType) => void;
   onBroadcastWin: (game: 'crash', multiplier: number, winAmount: number) => void;
 }
 
@@ -75,7 +74,8 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     setHasCashedOut(true);
     setCashedAmount(win);
     setCashedMultiplier(multToCash);
-    onUpdateCoins(win);
+    // El servidor valida el premio contra el recibo firmado de la apuesta
+    onUpdateCoins(win, 'game');
     sound.coinWin();
 
     if (multToCash >= 2.0) {
@@ -103,8 +103,7 @@ export const CrashGame: React.FC<CrashGameProps> = ({
     }
 
     setStatusNotice(null);
-    onUpdateCoins(-safeBet);
-    recordArcadeRake(Math.max(1, Math.round(safeBet * 0.02)), 'crash');
+    onUpdateCoins(-safeBet, 'game');
     sound.whoosh();
 
     const targetCrash = generateCrashPoint();

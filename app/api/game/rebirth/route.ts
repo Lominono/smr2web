@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { isUUID } from '@/lib/uuid';
 import { verifyUserSession } from '@/lib/adminAuth';
+import { enforceRateLimit, fail, guardOrigin } from '@/lib/security/http';
+import { securityEvent } from '@/lib/security/audit';
 
 export const dynamic = 'force-dynamic';
+
+/** Tiempo mínimo entre renacimientos (evita farmear el bono en bucle). */
+const REBIRTH_COOLDOWN_MS = 2 * 60 * 1000;
 
 function calculatePrestigeMultiplier(count: number): number {
   if (count <= 0) return 1.0;
@@ -22,6 +27,9 @@ function calculatePrestigeMultiplier(count: number): number {
 }
 
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
     const session = await verifyUserSession();
     if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
@@ -32,6 +40,9 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = session.user.id;
+
+    const rate = enforceRateLimit(`rebirth:${userId}`, { limit: 3, windowMs: 5 * 60_000 });
+    if (!rate.ok) return rate.response;
 
     if (!isServerSupabaseConfigured()) {
       return NextResponse.json(
@@ -65,6 +76,29 @@ export async function POST(req: NextRequest) {
     const currentFarm = (profile.party_farm_data && typeof profile.party_farm_data === 'object')
       ? profile.party_farm_data
       : {};
+
+    // Cooldown persistido en servidor: el registro del último renacimiento
+    // (balance_transactions) no lo puede manipular el navegador.
+    try {
+      const { data: lastRebirth } = await client
+        .from('balance_transactions')
+        .select('created_at')
+        .eq('user_id', userId)
+        .eq('type', 'rebirth')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastRebirth?.created_at) {
+        const elapsed = Date.now() - new Date(lastRebirth.created_at).getTime();
+        if (elapsed < REBIRTH_COOLDOWN_MS) {
+          const remaining = Math.ceil((REBIRTH_COOLDOWN_MS - elapsed) / 1000);
+          return fail(`Debes esperar ${remaining} segundo(s) antes de volver a renacer.`, 429);
+        }
+      }
+    } catch {
+      /* si la tabla no está disponible se continúa */
+    }
 
     const currentPrestige = Number(currentFarm.afterPrestigeCount || currentFarm.rebirths || 0);
     // Cada renacimiento avanza estrictamente de 1 en 1 para evitar manipulaciones
@@ -114,6 +148,30 @@ export async function POST(req: NextRequest) {
         { success: false, error: 'Error al guardar el renacimiento en la base de datos.' },
         { status: 500 }
       );
+    }
+
+    // Registro del renacimiento (sirve de cooldown server-side y de auditoría)
+    try {
+      await client.from('balance_transactions').insert([
+        {
+          user_id: userId,
+          amount: bonusCoins,
+          balance_before: Number(profile.coins || 0),
+          balance_after: newCoins,
+          type: 'rebirth',
+          description: `Renacimiento #${newPrestigeCount} (bono ${bonusCoins.toLocaleString()} 🪙)`,
+        },
+      ]);
+    } catch {}
+
+    if (bonusCoins >= 50000) {
+      await securityEvent({
+        action: 'rebirth_max_bonus',
+        userId,
+        username: session.user.username,
+        req,
+        details: { newPrestigeCount, bonusCoins },
+      });
     }
 
     const prestigeMultiplier = calculatePrestigeMultiplier(newPrestigeCount);

@@ -2,35 +2,57 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-const FALLBACK_SUPABASE_URL = 'https://ehzekojovbxdkcmfbugc.supabase.co';
-const FALLBACK_SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoemVrb2pvdmJ4ZGtjbWZidWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzODkzMTQsImV4cCI6MjEwNDk2NTMxNH0.1NscprWIKsOCCXP_InWiPZNT_m36KeToY4TcCpAhWvQ';
+/**
+ * SEGURIDAD: ya no se admiten credenciales hardcodeadas en el código fuente.
+ * 
+ * 1. `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`: credenciales
+ *    públicas del proyecto (client + server con cookies).
+ * 2. `SUPABASE_SERVICE_ROLE_KEY`: credencial ADMINISTRATIVA. Solo existe en el
+ *    servidor, jamás se expone al navegador y WITHOUT ella no hay cliente admin
+ *    (antes caía silenciosamente a la anon key, degradando todas las acciones
+ *    "admin" a permisos de visitante anónimo).
+ */
+
+function getSupabaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
+}
+
+function getAnonKey(): string {
+  return (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+}
+
+function getServiceRoleKey(): string {
+  return (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+}
+
+function looksLikePlaceholder(value: string | undefined | null): boolean {
+  if (!value || value.length < 10) return true;
+  return (
+    value.includes('tu-proyecto') ||
+    value.includes('example.com') ||
+    value.includes('tu-anon') ||
+    value.includes('placeholder') ||
+    value.includes('SENSITIVE')
+  );
+}
 
 /**
  * Checks whether Supabase environment variables are real, valid credentials
  */
 export function isServerSupabaseConfigured(): boolean {
-  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL)?.trim();
-  const key = (
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    FALLBACK_SUPABASE_ANON_KEY
-  )?.trim();
+  const url = getSupabaseUrl();
+  const key = getServiceRoleKey() || getAnonKey();
 
-  if (!supabaseUrl || !key) {
-    return false;
-  }
-
-  if (
-    supabaseUrl.includes('tu-proyecto') ||
-    supabaseUrl.includes('example.com') ||
-    key.includes('tu-anon') ||
-    key.includes('placeholder')
-  ) {
-    return false;
-  }
+  if (!url || !key) return false;
+  if (looksLikePlaceholder(url) || looksLikePlaceholder(key)) return false;
 
   return true;
+}
+
+/** Indica si existe la credencial administrativa (service role). */
+export function isServiceRoleConfigured(): boolean {
+  const key = getServiceRoleKey();
+  return Boolean(key) && !looksLikePlaceholder(key);
 }
 
 /**
@@ -38,10 +60,10 @@ export function isServerSupabaseConfigured(): boolean {
  */
 export async function createClient() {
   const cookieStore = await cookies();
-  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL)?.trim();
-  const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY)?.trim();
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getAnonKey();
 
-  if (!supabaseUrl || !supabaseAnonKey || !isServerSupabaseConfigured()) {
+  if (!supabaseUrl || !supabaseAnonKey || looksLikePlaceholder(supabaseAnonKey)) {
     return null;
   }
 
@@ -64,30 +86,23 @@ export async function createClient() {
 }
 
 /**
- * Admin server client using Service Role key (or Anon key as fallback)
- * for authoritative server tasks like logging, rooms, and game state.
+ * Admin server client. SEGURIDAD:
+ * - SOLO utiliza `SUPABASE_SERVICE_ROLE_KEY` (credencial con bypass de RLS).
+ * - Sin service role devuelve `null`; las rutas responden 503 y NUNCA se
+ *   degradan a la anon key (antes permitía ejecutar tareas destructivas con
+ *   permisos de anónimo).
  */
 export function createAdminClient() {
-  if (!isServerSupabaseConfigured()) {
+  if (!isServerSupabaseConfigured()) return null;
+
+  const supabaseUrl = getSupabaseUrl();
+  const serviceKey = getServiceRoleKey();
+
+  if (!serviceKey || looksLikePlaceholder(serviceKey)) {
     return null;
   }
 
-  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL).trim();
-  let serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (
-    !serviceKey ||
-    serviceKey.includes('SENSITIVE') ||
-    serviceKey.includes('placeholder') ||
-    serviceKey.length < 20
-  ) {
-    serviceKey = (
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      process.env.SUPABASE_ANON_KEY ||
-      FALLBACK_SUPABASE_ANON_KEY
-    )?.trim();
-  }
-
-  return createSupabaseAdminClient(supabaseUrl, serviceKey!, {
+  return createSupabaseAdminClient(supabaseUrl, serviceKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

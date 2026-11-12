@@ -3,6 +3,7 @@ import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/se
 import { logEvent } from '@/lib/logger';
 import { isUUID } from '@/lib/uuid';
 import { verifyUserSession } from '@/lib/adminAuth';
+import { enforceRateLimit, guardOrigin } from '@/lib/security/http';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -96,6 +97,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
     const session = await verifyUserSession();
     if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
@@ -104,6 +108,9 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    const rate = enforceRateLimit(`donation:${session.user.id}`, { limit: 10, windowMs: 60_000 });
+    if (!rate.ok) return rate.response;
 
     const userId = session.user.id;
     const username = session.user.username;
@@ -115,6 +122,13 @@ export async function POST(req: NextRequest) {
     if (!parsedAmount || isNaN(parsedAmount) || parsedAmount < 1000) {
       return NextResponse.json(
         { success: false, error: 'La donación mínima es de 1.000 monedas.' },
+        { status: 400 }
+      );
+    }
+
+    if (parsedAmount > 1_000_000_000_000_000) {
+      return NextResponse.json(
+        { success: false, error: 'La donación supera el importe máximo permitido.' },
         { status: 400 }
       );
     }

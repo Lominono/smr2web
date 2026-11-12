@@ -27,14 +27,14 @@ interface RussianRouletteArenaProps {
   user: UserProfile | null;
   roomId: string;
   onLeaveRoom: () => void;
-  onUpdateCoins: (newCoins: number) => void;
+  onSyncCoins?: () => void;
 }
 
 export const RussianRouletteArena: React.FC<RussianRouletteArenaProps> = ({
   user,
   roomId,
   onLeaveRoom,
-  onUpdateCoins,
+  onSyncCoins,
 }) => {
   const [room, setRoom] = useState<RRRoom | null>(null);
   const [activeGame, setActiveGame] = useState<RRGame | null>(null);
@@ -140,12 +140,12 @@ export const RussianRouletteArena: React.FC<RussianRouletteArenaProps> = ({
       });
       sound.jackpot();
 
-      // If user is the winner, update their coins
-      if (user && activeGame.winner_id === user.id && room) {
-        onUpdateCoins(user.coins + room.pot);
+      // El servidor ya ha abonado el bote al ganador: solo refrescamos el saldo real
+      if (user && activeGame.winner_id === user.id) {
+        onSyncCoins?.();
       }
     }
-  }, [activeGame?.status, activeGame?.winner_id, hasCelebrated, user, room, onUpdateCoins]);
+  }, [activeGame?.status, activeGame?.winner_id, hasCelebrated, user, onSyncCoins]);
 
   // Copy room code
   const handleCopyCode = () => {

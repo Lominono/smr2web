@@ -1,39 +1,38 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { startGameServer } from '@/lib/russianRouletteServer';
 import { verifyUserSession } from '@/lib/adminAuth';
-import { UserProfile } from '@/lib/types';
+import { enforceRateLimit, fail, guardOrigin, json, readJsonBody, unauthorized } from '@/lib/security/http';
+import { RATE_LIMITS } from '@/lib/security/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { roomId, user: clientUser } = body;
+  const originError = guardOrigin(req);
+  if (originError) return originError;
 
-    if (!roomId) {
-      return NextResponse.json(
-        { success: false, error: 'Identificador de sala requerido.' },
-        { status: 400 }
-      );
+  try {
+    const session = await verifyUserSession();
+    if (!session.authenticated || !session.user?.id || !session.user.username) {
+      return unauthorized('Debes iniciar sesión.');
     }
 
-    const serverSession = await verifyUserSession();
-    const user: UserProfile | null = serverSession.user;
+    const user = session.user;
 
-    if (!user || !user.id || !user.username) {
-      return NextResponse.json(
-        { success: false, error: 'Debes iniciar sesión.' },
-        { status: 401 }
-      );
+    const rate = enforceRateLimit(`rr-start:${user.id}`, RATE_LIMITS.rouletteRoom);
+    if (!rate.ok) return rate.response;
+
+    const body = await readJsonBody(req);
+    if (!body) return fail('Petición no válida.', 400);
+
+    const roomId = String(body.roomId || '').trim();
+    if (!roomId || roomId.length > 80) {
+      return fail('Identificador de sala requerido.', 400);
     }
 
     const game = await startGameServer(user, roomId, req);
 
-    return NextResponse.json({ success: true, game });
+    return json({ success: true, game });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Error al iniciar la partida.' },
-      { status: 400 }
-    );
+    return fail(error?.message || 'Error al iniciar la partida.', 400);
   }
 }

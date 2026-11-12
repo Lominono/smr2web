@@ -277,6 +277,13 @@ export type FeedbackType = 'idea' | 'report' | 'improvement';
 export type FeedbackCategory = 'general' | 'juegos' | 'horario' | 'portal' | 'inversiones' | 'otros';
 export type FeedbackStatus = 'pending' | 'under_review' | 'planned' | 'completed' | 'dismissed';
 
+/**
+ * Tipo de movimiento de saldo enviado al servidor.
+ * El servidor aplica topes y cooldowns distintos según el tipo; `game` exige
+ * además un recibo firmado de la apuesta (ver lib/security/gameEconomy.ts).
+ */
+export type CoinClaimType = 'game' | 'vault' | 'subsidio' | 'rebirth' | 'misc';
+
 export interface CommunityFeedback {
   id: string;
   user_id?: string;

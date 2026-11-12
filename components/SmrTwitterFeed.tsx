@@ -515,20 +515,6 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
       if (supabase) {
         const dbUserId = isUUID(currentUser.id) ? currentUser.id : null;
 
-        if (dbUserId && currentUser.username) {
-          try {
-            await supabase.from('profiles').upsert(
-              {
-                id: dbUserId,
-                username: currentUser.username,
-                nombre: currentUser.username,
-                role: currentUser.role || 'student',
-              },
-              { onConflict: 'id' }
-            );
-          } catch (_) {}
-        }
-
         const commentPayload: Record<string, any> = {
           message_id: messageId,
           username: currentUser.username,

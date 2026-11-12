@@ -14,11 +14,11 @@ import {
   Check,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { recordArcadeRake } from '@/lib/investmentsService';
+import { CoinClaimType } from '@/lib/types';
 
 interface RouletteGameProps {
   userCoins: number;
-  onUpdateCoins: (delta: number) => void;
+  onUpdateCoins: (delta: number, claimType?: CoinClaimType) => void;
   onBroadcastWin: (game: 'roulette', multiplier: number, winAmount: number) => void;
 }
 
@@ -188,8 +188,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
       return;
     }
 
-    onUpdateCoins(-totalBet);
-    recordArcadeRake(Math.max(1, Math.round(totalBet * 0.02)), 'roulette');
+    onUpdateCoins(-totalBet, 'game');
     setPreviousBets(bets);
     setIsSpinning(true);
     setWinningNumber(null);
@@ -301,7 +300,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({
         const effectiveMult = totalBet > 0 ? winAmount / totalBet : 0;
 
         if (winAmount > 0) {
-          onUpdateCoins(winAmount);
+          onUpdateCoins(winAmount, 'game');
           sound.coinWin();
           if (effectiveMult >= 2.5) {
             confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });

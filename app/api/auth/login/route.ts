@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { UserProfile } from '@/lib/types';
-import { signAdminToken, signUserSessionToken, COOKIE_SESSION_TOKEN } from '@/lib/adminAuth';
+import { signUserSessionToken, COOKIE_SESSION_TOKEN } from '@/lib/adminAuth';
 import { extractClientMeta } from '@/lib/logger';
+import { guardOrigin, json, readJsonBody } from '@/lib/security/http';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,8 +14,12 @@ interface LoginRateLimit {
 const loginRateLimitMap = new Map<string, LoginRateLimit>();
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutos
+const MAX_IDENTIFIER_LENGTH = 254;
 
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
     const { ip } = extractClientMeta(req);
     const now = Date.now();
@@ -23,7 +28,7 @@ export async function POST(req: NextRequest) {
     const ipRate = loginRateLimitMap.get(ip);
     if (ipRate && ipRate.lockedUntil > now) {
       const waitMin = Math.ceil((ipRate.lockedUntil - now) / 60000);
-      return NextResponse.json(
+      return json(
         {
           success: false,
           error: `Demasiados intentos fallidos. Por seguridad, el acceso está bloqueado temporalmente durante ${waitMin} minuto(s).`,
@@ -32,15 +37,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body = (await readJsonBody(req)) || {};
     const rawIdentifier = String(body.identifier || '').trim();
     const password = String(body.password || '');
 
     if (!rawIdentifier || !password) {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Por favor, introduce tu correo o nombre de usuario y tu contraseña.' },
         { status: 400 }
       );
+    }
+
+    if (rawIdentifier.length > MAX_IDENTIFIER_LENGTH || password.length > 200) {
+      return json({ success: false, error: 'Los datos introducidos no son válidos.' }, { status: 400 });
     }
 
     if (!isServerSupabaseConfigured()) {
@@ -62,7 +71,26 @@ export async function POST(req: NextRequest) {
 
     // Si el usuario introdujo un nombre de usuario o NIA, buscar su correo en la tabla public.profiles de Supabase
     if (!targetEmail) {
-      const cleanUsername = rawIdentifier.toLowerCase().replace(/^@/, '');
+      // SEGURIDAD: se eliminan comas y paréntesis para que el identificador no
+      // pueda alterar la estructura del filtro PostgREST (.or inyectable).
+      const cleanUsername = rawIdentifier
+        .toLowerCase()
+        .replace(/^@/, '')
+        .replace(/[,\(\)]/g, '')
+        .replace(/[^a-z0-9_.\- áéíóúñü]/gi, '')
+        .trim()
+        .slice(0, 60);
+
+      if (!cleanUsername) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Correo o contraseña incorrectos.',
+          },
+          { status: 401 }
+        );
+      }
+
       try {
         const { data: pList, error: pError } = await adminClient
           .from('profiles')
@@ -83,12 +111,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!targetEmail) {
+      // SEGURIDAD: respuesta genérica (no revela si la cuenta existe o no).
       return NextResponse.json(
-        {
-          success: false,
-          error: `No se ha encontrado ninguna cuenta con el usuario o correo "${rawIdentifier}". Por favor, comprueba que esté bien escrito o regístrate.`,
-        },
-        { status: 404 }
+        { success: false, error: 'Correo o contraseña incorrectos. Comprueba tus datos e inténtalo de nuevo.' },
+        { status: 401 }
       );
     }
 
@@ -277,24 +303,11 @@ export async function POST(req: NextRequest) {
       console.warn('No se pudo firmar el token de sesión:', err);
     }
 
-    // Si es administrador, firmar y asignar el token HttpOnly de administración
-    if (role === 'admin') {
-      try {
-        const adminToken = signAdminToken({
-          userId: userProfile.id,
-          username: userProfile.username,
-          role: 'admin',
-        });
-        response.cookies.set('smr2_admin_token', adminToken, {
-          ...cookieOptions,
-          httpOnly: true,
-          maxAge: 60 * 60 * 24 * 7,
-        });
-      } catch (err) {
-        console.warn('No se pudo firmar el token de admin:', err);
-      }
-    }
-
+    // SEGURIDAD: el token de administración ya NO se emite al iniciar sesión.
+    // Antes, cualquier cuenta con rol 'admin' en la BD recibía un token de
+    // administrador válido 7 días con solo entrar, saltándose el flujo de
+    // elevación con contraseña (/api/admin/claim, token de 2 h). Ahora la
+    // administración SIEMPRE debe reclamar el panel con su código en /admin.
     return response;
   } catch (error: any) {
     return NextResponse.json(

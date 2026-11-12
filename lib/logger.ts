@@ -1,5 +1,6 @@
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { EventType, EventLogEntry } from '@/lib/russianRoulette';
+import { csvCell } from '@/lib/security/http';
 
 // In-memory fallback log store for offline/local dev or tests
 const inMemoryLogs: EventLogEntry[] = [];
@@ -148,9 +149,19 @@ export async function queryEventLogs(options: GetLogsOptions = {}): Promise<{
           query = query.lte('created_at', options.endDate);
         }
         if (options.search) {
-          query = query.or(
-            `username.ilike.%${options.search}%,details->>message.ilike.%${options.search}%,ip_address.ilike.%${options.search}%`
-          );
+          // SEGURIDAD: el término de búsqueda se neutraliza para que no pueda
+          // alterar la estructura del filtro PostgREST (.or inyectable).
+          const safeSearch = String(options.search)
+            .replace(/[,\(\)]/g, ' ')
+            .replace(/[%"]/g, '')
+            .trim()
+            .slice(0, 60);
+
+          if (safeSearch) {
+            query = query.or(
+              `username.ilike.%${safeSearch}%,details->>message.ilike.%${safeSearch}%,ip_address.ilike.%${safeSearch}%`
+            );
+          }
         }
 
         const { data, count, error } = await query.range(offset, offset + limit - 1);
@@ -211,18 +222,22 @@ export async function queryEventLogs(options: GetLogsOptions = {}): Promise<{
  * Converts logs to CSV formatted string
  */
 export function logsToCSV(logs: EventLogEntry[]): string {
+  // SEGURIDAD: todas las celdas pasan por el escapado anti-inyección de
+  // fórmulas (csvCell), incluida la IP que el atacante puede controlar
+  // mediante cabeceras falsificadas (antes permitía ejecutar fórmulas en
+  // Excel al abrir el CSV exportado desde /api/admin/logs).
   const header = ['ID', 'Fecha (UTC)', 'Tipo Evento', 'Usuario ID', 'Nombre Usuario', 'Sala ID', 'Partida ID', 'IP', 'Navegador', 'Detalles'];
   const rows = logs.map((l) => [
-    `"${l.id}"`,
-    `"${l.created_at}"`,
-    `"${l.event_type}"`,
-    `"${l.user_id || ''}"`,
-    `"${(l.username || '').replace(/"/g, '""')}"`,
-    `"${l.room_id || ''}"`,
-    `"${l.game_id || ''}"`,
-    `"${l.ip_address || ''}"`,
-    `"${(l.user_agent || '').replace(/"/g, '""')}"`,
-    `"${JSON.stringify(l.details || {}).replace(/"/g, '""')}"`,
+    csvCell(l.id),
+    csvCell(l.created_at),
+    csvCell(l.event_type),
+    csvCell(l.user_id),
+    csvCell(l.username),
+    csvCell(l.room_id),
+    csvCell(l.game_id),
+    csvCell(l.ip_address),
+    csvCell(l.user_agent),
+    csvCell(JSON.stringify(l.details || {})),
   ]);
 
   return [header.join(','), ...rows.map((r) => r.join(','))].join('\n');

@@ -2,44 +2,60 @@ import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { createAdminClient } from '@/lib/supabase/server';
 import { verifyAdminSession } from '@/lib/adminAuth';
+import { enforceRateLimit, fail, guardOrigin, json } from '@/lib/security/http';
 
-const VAPID_PUBLIC_KEY =
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
-  'BGsdTIrfCY6LtPp6j8p1nXq-Zt3jZ_toMQo5UN-gsFQYauV6JW3f0bzkKJi3B0eDk3OVrudsjSfbCLaECHwR4Mo';
-
-const VAPID_PRIVATE_KEY =
-  process.env.VAPID_PRIVATE_KEY || 'TFFmFbhsxjZvg_305D2Mp7PDvhgLsYGugy2m7QvzokE';
-
+// SEGURIDAD: las claves VAPID ya NO tienen valores por defecto en el código.
+// Deben configurarse en el servidor (VAPID_PRIVATE_KEY / NEXT_PUBLIC_VAPID_PUBLIC_KEY).
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:portal2smr@alumnos.es';
 
-// Configurar detalles VAPID en webpush
-try {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-} catch (err) {
-  console.warn('Error configurando VAPID en webpush:', err);
+const VAPID_CONFIGURED = Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
+
+if (VAPID_CONFIGURED) {
+  try {
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  } catch (err) {
+    console.warn('Error configurando VAPID en webpush:', err);
+  }
 }
 
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
     const authResult = await verifyAdminSession(req);
-    if (!authResult.authorized) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: authResult.error || 'Acceso restringido: Solo los administradores pueden emitir notificaciones push a la clase.',
-        },
-        { status: authResult.status }
+    if (!authResult.authorized || !authResult.user) {
+      return fail(
+        authResult.error || 'Acceso restringido: Solo los administradores pueden emitir notificaciones push a la clase.',
+        authResult.status || 403
       );
     }
 
-    const body = await req.json();
-    const { title, body: messageBody, tag = 'Aviso', url = '/', authorUsername = 'SMR2' } = body;
+    const rate = enforceRateLimit(`push-broadcast:${authResult.user.id}`, {
+      limit: 6,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) return rate.response;
 
-    if (!title || !messageBody) {
-      return NextResponse.json(
-        { success: false, error: 'Título y mensaje son obligatorios' },
-        { status: 400 }
-      );
+    const body = await req.json().catch(() => ({}));
+    const rawTitle = String(body.title || '').trim();
+    const rawMessage = String(body.body || '').trim();
+    const tag = String(body.tag || 'Aviso').slice(0, 40);
+    const url = String(body.url || '/').slice(0, 300);
+
+    if (!rawTitle || !rawMessage) {
+      return fail('Título y mensaje son obligatorios', 400);
+    }
+
+    // Límites de longitud: evita payloads gigantes y abuso del servicio push
+    const title = rawTitle.slice(0, 120);
+    const messageBody = rawMessage.slice(0, 500);
+    const authorUsername = String(authResult.user.username || 'SMR2').slice(0, 40);
+
+    if (!VAPID_CONFIGURED) {
+      return fail('Las notificaciones push no están configuradas en el servidor.', 503);
     }
 
     const payload = JSON.stringify({

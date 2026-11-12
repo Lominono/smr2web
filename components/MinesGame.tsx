@@ -17,10 +17,11 @@ import {
   Shuffle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { CoinClaimType } from '@/lib/types';
 
 interface MinesGameProps {
   userCoins: number;
-  onUpdateCoins: (delta: number) => void;
+  onUpdateCoins: (delta: number, claimType?: CoinClaimType) => void;
   onBroadcastWin: (game: 'mines', multiplier: number, winAmount: number) => void;
 }
 
@@ -76,7 +77,7 @@ export const MinesGame: React.FC<MinesGameProps> = ({
       return;
     }
 
-    onUpdateCoins(-safeBet);
+    onUpdateCoins(-safeBet, 'game');
     sound.whoosh();
 
     // 1. Generate random mine positions using crypto RNG
@@ -132,7 +133,7 @@ export const MinesGame: React.FC<MinesGameProps> = ({
     if (nextRevealed === totalSafe) {
       const finalMult = calculateMultiplier(nextRevealed, mineCount);
       const win = Math.round(bet * finalMult);
-      onUpdateCoins(win);
+      onUpdateCoins(win, 'game');
       setLastWin({ amount: win, multiplier: finalMult });
       setGameState('cashed');
       sound.coinWin();
@@ -159,7 +160,7 @@ export const MinesGame: React.FC<MinesGameProps> = ({
 
     // Límite de seguridad: Pago máximo de 15.000 fichas
     const winAmount = Math.min(Math.round(bet * currentMultiplier), 15000);
-    onUpdateCoins(winAmount);
+    onUpdateCoins(winAmount, 'game');
     setLastWin({ amount: winAmount, multiplier: currentMultiplier });
     setGameState('cashed');
     sound.coinWin();

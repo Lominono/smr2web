@@ -5,32 +5,36 @@ import { RussianRouletteLobby } from './russian-roulette/RussianRouletteLobby';
 import { RussianRouletteArena } from './russian-roulette/RussianRouletteArena';
 import { TacticalRouletteDuel } from './russian-roulette/TacticalRouletteDuel';
 import { RRRoom } from '@/lib/russianRoulette';
-import { UserProfile } from '@/lib/types';
-import { updateSessionCoins } from '@/lib/authSession';
+import { UserProfile, CoinClaimType } from '@/lib/types';
 import { sound } from '@/lib/audio';
 import { Flame, Users, Sparkles, Shield, Trophy } from 'lucide-react';
 
 interface RussianRouletteGameProps {
   user: UserProfile | null;
   onOpenAuth: () => void;
-  onUpdateCoins: (newCoins: number) => void;
+  /** Aplica un delta de saldo (el servidor valida topes y recibos). */
+  onUpdateCoins?: (delta: number, claimType?: CoinClaimType) => void;
+  /**
+   * Refresca el saldo desde el servidor. La apuesta y el bote los aplica el
+   * backend de forma autoritativa: el cliente NUNCA suma ni resta monedas aquí
+   * (antes se duplicaba el saldo al crear/unirse a una sala).
+   */
+  onSyncCoins?: () => void;
 }
 
 export const RussianRouletteGame: React.FC<RussianRouletteGameProps> = ({
   user,
   onOpenAuth,
   onUpdateCoins,
+  onSyncCoins,
 }) => {
   const [activeTab, setActiveTab] = useState<'tactical' | 'multiplayer'>('multiplayer');
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
 
   const handleRoomCreated = (room: RRRoom) => {
     setActiveRoomId(room.id);
-    if (user) {
-      const nextCoins = Math.max(0, user.coins - room.bet_amount);
-      onUpdateCoins(nextCoins);
-      updateSessionCoins(nextCoins);
-    }
+    // El servidor ya descontó la apuesta al crear la sala
+    onSyncCoins?.();
   };
 
   const handleJoinRoom = async (roomIdOrCode: string) => {
@@ -43,7 +47,7 @@ export const RussianRouletteGame: React.FC<RussianRouletteGameProps> = ({
       const res = await fetch('/api/russian-roulette/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomId: roomIdOrCode, user }),
+        body: JSON.stringify({ roomId: roomIdOrCode }),
       });
 
       const data = await res.json();
@@ -53,9 +57,8 @@ export const RussianRouletteGame: React.FC<RussianRouletteGameProps> = ({
       }
 
       setActiveRoomId(data.room.id);
-      const nextCoins = Math.max(0, user.coins - data.room.bet_amount);
-      onUpdateCoins(nextCoins);
-      updateSessionCoins(nextCoins);
+      // El servidor ya descontó la apuesta al unirse a la sala
+      onSyncCoins?.();
     } catch (err: any) {
       alert(err?.message || 'Error al conectar con la sala.');
     }
@@ -119,14 +122,14 @@ export const RussianRouletteGame: React.FC<RussianRouletteGameProps> = ({
         <TacticalRouletteDuel
           user={user}
           onOpenAuth={onOpenAuth}
-          onUpdateCoins={onUpdateCoins}
+          onUpdateCoins={onUpdateCoins || (() => {})}
         />
       ) : activeRoomId ? (
         <RussianRouletteArena
           user={user}
           roomId={activeRoomId}
           onLeaveRoom={handleLeaveRoom}
-          onUpdateCoins={onUpdateCoins}
+          onSyncCoins={onSyncCoins}
         />
       ) : (
         <RussianRouletteLobby

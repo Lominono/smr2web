@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { COOKIE_ADMIN_TOKEN } from '@/lib/adminAuth';
+import { guardOrigin } from '@/lib/security/http';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   const response = NextResponse.json({
     success: true,
     message: 'Sesión de administrador cerrada correctamente.',

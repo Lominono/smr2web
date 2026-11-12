@@ -15,7 +15,7 @@ import {
   Crown,
   Users,
 } from 'lucide-react';
-import { UserProfile, CalendarEvent, LeaderboardEntry, OnlineUser } from '@/lib/types';
+import { UserProfile, CalendarEvent, LeaderboardEntry, OnlineUser, CoinClaimType } from '@/lib/types';
 import { getViewLabel } from '@/lib/presenceService';
 import { getCurrentScheduleStatus } from '@/lib/scheduleData';
 import { LiveClassStatus } from '@/components/LiveClassStatus';
@@ -44,7 +44,7 @@ interface DesktopWidgetsProps {
   onOpenPartyIdle?: () => void;
   onOpenFarmhand?: () => void;
   onOpenShop?: () => void;
-  onUpdateCoins?: (delta: number) => void;
+  onUpdateCoins?: (delta: number, claimType?: CoinClaimType) => void;
   onlineUsers?: OnlineUser[];
   onOpenOnlineUsers?: () => void;
 }
@@ -132,7 +132,7 @@ export const DesktopWidgets: React.FC<DesktopWidgetsProps> = ({
       confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 } });
 
       if (onUpdateCoins) {
-        onUpdateCoins(coinsToClaim);
+        onUpdateCoins(coinsToClaim, 'vault');
       }
 
       const fichasDeducted = coinsToClaim * 5;

@@ -1,51 +1,48 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getRooms, createRoomServer } from '@/lib/russianRouletteServer';
 import { verifyUserSession } from '@/lib/adminAuth';
-import { UserProfile } from '@/lib/types';
+import { enforceRateLimit, fail, guardOrigin, json, readJsonBody, unauthorized } from '@/lib/security/http';
+import { RATE_LIMITS } from '@/lib/security/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
     const rooms = await getRooms();
-    return NextResponse.json({ success: true, rooms });
+    return json({ success: true, rooms });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Error al obtener salas.' },
-      { status: 500 }
-    );
+    return fail(error?.message || 'Error al obtener salas.', 500);
   }
 }
 
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
-    const body = await req.json();
-    const { name, betAmount, maxPlayers, user: clientUser } = body;
-
-    // Verify session
-    const serverSession = await verifyUserSession();
-    const user: UserProfile | null = serverSession.user;
-
-    if (!user || !user.id || !user.username) {
-      return NextResponse.json(
-        { success: false, error: 'Debes iniciar sesión para crear una sala.' },
-        { status: 401 }
-      );
+    const session = await verifyUserSession();
+    if (!session.authenticated || !session.user?.id || !session.user.username) {
+      return unauthorized('Debes iniciar sesión para crear una sala.');
     }
+
+    const user = session.user;
+
+    const rate = enforceRateLimit(`rr-room:${user.id}`, RATE_LIMITS.rouletteRoom);
+    if (!rate.ok) return rate.response;
+
+    const body = await readJsonBody(req);
+    if (!body) return fail('Petición no válida.', 400);
 
     const room = await createRoomServer(
       user,
-      name,
-      Number(betAmount),
-      Number(maxPlayers),
+      String(body.name || ''),
+      Number(body.betAmount),
+      Number(body.maxPlayers),
       req
     );
 
-    return NextResponse.json({ success: true, room });
+    return json({ success: true, room });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Error al crear la sala.' },
-      { status: 400 }
-    );
+    return fail(error?.message || 'Error al crear la sala.', 400);
   }
 }

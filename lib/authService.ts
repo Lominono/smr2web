@@ -396,7 +396,7 @@ export async function loginAccount(params: SignInParams): Promise<AuthResult> {
               const confRes = await fetch('/api/auth/confirm-legacy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: targetEmail }),
+                body: JSON.stringify({ email: targetEmail, password }),
               });
               const confData = await confRes.json();
               if (confData?.confirmed) {

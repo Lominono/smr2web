@@ -3,11 +3,19 @@ import crypto from 'crypto';
 import { verifyAdminSession } from '@/lib/adminAuth';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { logEvent } from '@/lib/logger';
+import { enforceRateLimit, getClientIp, guardOrigin } from '@/lib/security/http';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
+    // SEGURIDAD: límite de intentos por IP (evita fuerza bruta sobre la clave maestra)
+    const ipRate = enforceRateLimit(`admin-reset:${getClientIp(req)}`, { limit: 10, windowMs: 15 * 60_000 });
+    if (!ipRate.ok) return ipRate.response;
+
     const body = await req.json().catch(() => ({}));
     // Por defecto en reset para el lanzamiento, limpiar todos los usuarios y perfiles salvo que se indique lo contrario
     const wipeUsers = body?.wipeUsers !== false;
@@ -16,7 +24,6 @@ export async function POST(req: NextRequest) {
     const authorizedMasterKeys = [
       process.env.ADMIN_PASSWORD,
       process.env.ADMIN_ACCESS_CODE,
-      process.env.ADMIN_SECRET_KEY,
     ]
       .filter(Boolean)
       .map((k) => String(k).trim());

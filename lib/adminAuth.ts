@@ -2,7 +2,6 @@ import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { createClient, createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { isUUID } from '@/lib/uuid';
-import { COOKIE_SESSION } from '@/lib/authSession';
 import { UserProfile } from '@/lib/types';
 
 export const COOKIE_ADMIN_TOKEN = 'smr2_admin_token';
@@ -358,7 +357,8 @@ export async function verifyUserSession(): Promise<{
         } catch {}
       }
 
-      // Si Supabase estuviese offline temporalmente, el token firmado garantiza identidad no adulterable
+      // Si Supabase estuviese offline temporalmente, el token firmado solo
+      // acredita identidad básica: NUNCA conceded privilegios ni rol especial.
       return {
         authenticated: true,
         user: {
@@ -366,50 +366,19 @@ export async function verifyUserSession(): Promise<{
           username: verified.username,
           coins: 1000,
           biggest_win: 0,
-          role: verified.role || 'student',
+          // Seguridad: sin base de datos no hay verificación posible; el rol
+          // efectivo siempre es 'student' hasta poder confirmar contra la BD.
+          role: 'student',
         },
       };
     }
   }
 
-  // 3. Fallback tolerante para usuarios con sesión persistente (smr2_user_session)
-  // Se valida el UUID estrictamente contra la base de datos Supabase para asegurar que la cuenta existe y no está baneada
-  const userSessionCookie = cookieStore.get(COOKIE_SESSION);
-  if (userSessionCookie?.value && isServerSupabaseConfigured()) {
-    try {
-      const parsed = JSON.parse(decodeURIComponent(userSessionCookie.value));
-      const targetId = parsed?.id;
-      if (targetId && isUUID(targetId)) {
-        const adminClient = createAdminClient();
-        if (adminClient) {
-          const { data: p } = await adminClient
-            .from('profiles')
-            .select('id, username, email, role, full_name, student_number, coins, biggest_win, is_banned, created_at')
-            .eq('id', targetId)
-            .maybeSingle();
-
-          if (p && !p.is_banned) {
-            return {
-              authenticated: true,
-              user: {
-                id: p.id,
-                username: p.username,
-                email: p.email,
-                full_name: p.full_name,
-                student_number: p.student_number,
-                coins: Number(p.coins ?? 1000),
-                biggest_win: Number(p.biggest_win ?? 0),
-                // Seguridad: El rol siempre se toma del registro real en BD, nunca de la cookie del cliente
-                role: p.role === 'admin' ? 'student' : (p.role || 'student'),
-                created_at: p.created_at,
-              },
-            };
-          }
-        }
-      }
-    } catch {}
-  }
-
-  // 4. Si ninguna sesión o token coincide con un usuario válido
+  // 3. SEGURIDAD: la cookie legible `smr2_user_session` ya NO autentica.
+  // Solo contiene datos de referencia del cliente y cualquiera podía forjarla
+  // en el navegador (los UUID son públicos en el ranking) para suplantar a
+  // cualquier alumno. La única prueba de identidad válida es:
+  //   a) la sesión real de Supabase Auth, o
+  //   b) el token firmado HMAC en `smr2_session_token` (HttpOnly).
   return { authenticated: false, user: null };
 }

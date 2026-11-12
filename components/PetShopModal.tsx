@@ -7,19 +7,13 @@ import {
   Sparkles,
   Coins,
   Check,
-  CheckCircle2,
   Lock,
   Shield,
-  TrendingUp,
-  Wine,
-  Gift,
-  ExternalLink,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { PETS_REGISTRY, PetItem, formatCoinsAbbreviated } from '@/lib/pets';
 import { sound } from '@/lib/audio';
 import confetti from 'canvas-confetti';
-import { createClient } from '@/lib/supabase/client';
 
 interface PetShopModalProps {
   isOpen: boolean;
@@ -29,6 +23,13 @@ interface PetShopModalProps {
   onUpdateUser: (updated: UserProfile) => void;
   onUpdateCoins: (delta: number) => void;
 }
+
+const CATEGORY_LABELS: Record<PetItem['category'], string> = {
+  drop: 'Botellón',
+  bolsa: 'Bolsa',
+  botellon: 'Fiesta',
+  exclusive: 'Exclusiva',
+};
 
 export const PetShopModal: React.FC<PetShopModalProps> = ({
   isOpen,
@@ -40,8 +41,7 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
 }) => {
   const [selectedPetId, setSelectedPetId] = useState<string>(PETS_REGISTRY[0].id);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   if (!isOpen) return null;
 
@@ -55,6 +55,15 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
   const isSelectedOwned = unlockedPets.includes(selectedPet.id);
   const isSelectedEquipped = equippedPetId === selectedPet.id;
   const canAfford = userCoins >= selectedPet.price;
+  const ownedCount = unlockedPets.length;
+
+  const notify = (type: 'error' | 'success', text: string) => setMessage({ type, text });
+
+  const handleSelectPet = (petId: string) => {
+    setSelectedPetId(petId);
+    setMessage(null);
+    sound.tap();
+  };
 
   const handleBuyPet = async (pet: PetItem) => {
     if (!currentUser) {
@@ -65,230 +74,172 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
 
     if (userCoins < pet.price) {
       sound.broke();
-      setErrorMessage(`Te faltan ${(pet.price - userCoins).toLocaleString('es-ES')} monedas para adoptar a ${pet.name}.`);
+      notify('error', `Te faltan ${(pet.price - userCoins).toLocaleString('es-ES')} monedas para adoptar a ${pet.name}.`);
       return;
     }
 
-    if (!window.confirm(`¿Confirmas la compra de ${pet.name} por ${pet.price.toLocaleString('es-ES')} monedas?`)) {
+    if (!window.confirm(`¿Confirmas la adopción de ${pet.name} por ${formatCoinsAbbreviated(pet.price)} monedas?`)) {
       return;
     }
 
     setIsProcessing(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+    setMessage(null);
     sound.tap();
 
     try {
-      const nextCoins = userCoins - pet.price;
-      const nextUnlocked = Array.from(new Set([...unlockedPets, pet.id]));
-      const existingItems = Array.isArray(currentUser.items_comprados) ? currentUser.items_comprados : [];
-      const nextItems = Array.from(new Set([...existingItems, `pet_${pet.id}`]));
+      // SEGURIDAD: la compra pasa SIEMPRE por el servidor, que cobra el
+      // precio real y concede la mascota. Nunca se escribe el saldo ni la
+      // colección directamente desde el navegador.
+      const res = await fetch('/api/pets/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ petId: pet.id }),
+      });
+      const data = await res.json().catch(() => null);
 
-      const supabase = createClient();
-      if (supabase && currentUser.id) {
-        // Intento directo en Supabase
-        const updatePayload: Record<string, any> = {
-          coins: nextCoins,
-          mascota_equipada: pet.id,
-          mascotas_desbloqueadas: nextUnlocked,
-          items_comprados: nextItems,
-        };
-
-        const { error: sbErr } = await supabase
-          .from('profiles')
-          .update(updatePayload)
-          .eq('id', currentUser.id);
-
-        if (sbErr) {
-          console.warn('Note updating profiles table directly, writing to party_farm_data:', sbErr.message);
-          // Fallback resiliente a party_farm_data
-          const { data: currP } = await supabase
-            .from('profiles')
-            .select('party_farm_data')
-            .eq('id', currentUser.id)
-            .maybeSingle();
-
-          const currFarm = (currP?.party_farm_data && typeof currP.party_farm_data === 'object') ? currP.party_farm_data : {};
-          await supabase
-            .from('profiles')
-            .update({
-              coins: nextCoins,
-              items_comprados: nextItems,
-              party_farm_data: {
-                ...currFarm,
-                mascota_equipada: pet.id,
-                mascotas_desbloqueadas: nextUnlocked,
-              },
-            })
-            .eq('id', currentUser.id);
-        }
-
-        // Anuncio en el Feed
-        try {
-          await supabase.from('chat_messages').insert([
-            {
-              username: 'SMR2',
-              text: `🐾 ¡Adopción exclusiva! @${currentUser.username} ha adoptado a ${pet.name} por ${pet.price.toLocaleString('es-ES')} monedas en la Tienda de Mascotas.`,
-              tag: 'aviso',
-              pinned: false,
-            },
-          ]);
-        } catch (_) {}
+      if (!res.ok || !data?.success) {
+        notify('error', data?.error || 'No se pudo completar la adopción. Inténtalo de nuevo.');
+        sound.broke();
+        return;
       }
 
-      onUpdateCoins(-pet.price);
-
-      const updatedProfile: UserProfile = {
+      onUpdateUser({
         ...currentUser,
-        coins: nextCoins,
+        coins: Number(data.coins ?? userCoins - pet.price),
         mascota_equipada: pet.id,
-        mascotas_desbloqueadas: nextUnlocked,
-        items_comprados: nextItems,
-      };
-
-      onUpdateUser(updatedProfile);
+        mascotas_desbloqueadas: Array.isArray(data.mascotasDesbloqueadas)
+          ? data.mascotasDesbloqueadas
+          : Array.from(new Set([...unlockedPets, pet.id])),
+      });
+      onUpdateCoins(-pet.price);
       sound.coinWin();
 
       try {
         confetti({
-          particleCount: 120,
-          spread: 80,
-          origin: { y: 0.6 },
-          colors: ['#f59e0b', '#10b981', '#3b82f6', '#ec4899'],
+          particleCount: 90,
+          spread: 70,
+          origin: { y: 0.55 },
+          colors: ['#f59e0b', '#10b981', '#3b82f6'],
         });
-      } catch (_) {}
+      } catch {
+        /* el confetti es cosmético */
+      }
 
-      setSuccessMessage(`¡Has adoptado a ${pet.name} con éxito! Ha sido equipada en tu perfil.`);
+      notify('success', data.message || `¡Has adoptado a ${pet.name}! Ya está equipada en tu perfil.`);
     } catch (err: any) {
       console.error('Error al comprar mascota:', err);
-      setErrorMessage(err?.message || 'Error al procesar la compra.');
+      notify('error', err?.message || 'Error al procesar la compra.');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleToggleEquip = async (petId: string) => {
+  const handleToggleEquip = async (pet: PetItem) => {
     if (!currentUser) return;
 
     setIsProcessing(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+    setMessage(null);
     sound.tap();
 
     try {
-      const nextEquipped = equippedPetId === petId ? undefined : petId;
-      const supabase = createClient();
+      const nextEquipped = equippedPetId === pet.id ? null : pet.id;
 
-      if (supabase && currentUser.id) {
-        const { error: sbErr } = await supabase
-          .from('profiles')
-          .update({
-            mascota_equipada: nextEquipped || null,
-          })
-          .eq('id', currentUser.id);
+      // SEGURIDAD: el equipado pasa por el servidor (verifica propiedad real).
+      const res = await fetch('/api/pets/equip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ petId: nextEquipped }),
+      });
+      const data = await res.json().catch(() => null);
 
-        if (sbErr) {
-          // Fallback en party_farm_data
-          const { data: currP } = await supabase
-            .from('profiles')
-            .select('party_farm_data')
-            .eq('id', currentUser.id)
-            .maybeSingle();
-
-          const currFarm = (currP?.party_farm_data && typeof currP.party_farm_data === 'object') ? currP.party_farm_data : {};
-          await supabase
-            .from('profiles')
-            .update({
-              party_farm_data: {
-                ...currFarm,
-                mascota_equipada: nextEquipped || null,
-              },
-            })
-            .eq('id', currentUser.id);
-        }
+      if (!res.ok || !data?.success) {
+        notify('error', data?.error || 'No se pudo cambiar tu mascota equipada.');
+        return;
       }
 
-      const updatedProfile: UserProfile = {
-        ...currentUser,
-        mascota_equipada: nextEquipped,
-      };
-
-      onUpdateUser(updatedProfile);
-      setSuccessMessage(nextEquipped ? `Has equipado a ${selectedPet.name}.` : 'Has desequipado a tu mascota.');
+      onUpdateUser({ ...currentUser, mascota_equipada: nextEquipped ?? undefined });
+      notify('success', nextEquipped ? `Has equipado a ${pet.name}.` : 'Has desequipado a tu mascota.');
     } catch (err: any) {
       console.error('Error al cambiar de mascota:', err);
-      setErrorMessage(err?.message || 'Error al equipar mascota.');
+      notify('error', err?.message || 'Error al equipar mascota.');
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl rounded-3xl bg-neutral-950 border border-white/10 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden text-neutral-200">
-        {/* Cabecera */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-neutral-900/50">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <Sparkles className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl rounded-3xl bg-neutral-950 border border-white/10 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-neutral-200">
+
+        {/* ── Cabecera ─────────────────────────────────────────────── */}
+        <header className="flex items-center justify-between px-5 sm:px-7 py-4 border-b border-white/10">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-amber-400 shrink-0">
+              <Sparkles className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-white tracking-tight leading-none">
                 Tienda de Mascotas
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-neutral-300">
-                  Exclusivas 2º SMR
-                </span>
               </h2>
-              <p className="text-xs text-neutral-400">
-                Compañeros para lucir al lado de tu perfil y en el Feed de clase con habilidades pasivas
+              <p className="text-[11px] text-neutral-500 mt-1 truncate">
+                {ownedCount > 0
+                  ? `${ownedCount} de ${PETS_REGISTRY.length} en tu colección`
+                  : 'Compañeros exclusivos con habilidades pasivas'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 font-mono text-xs font-semibold text-amber-400">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] border border-white/10 font-mono text-xs font-semibold text-amber-400">
               <Coins className="w-3.5 h-3.5" />
-              <span>{userCoins.toLocaleString('es-ES')}</span>
+              <span>{formatCoinsAbbreviated(userCoins)}</span>
             </div>
-
             <button
               type="button"
               onClick={onClose}
               className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              aria-label="Cerrar tienda"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Notificaciones */}
-        {errorMessage && (
-          <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between">
-            <span>{errorMessage}</span>
-            <button type="button" onClick={() => setErrorMessage(null)} className="text-rose-400 hover:text-rose-200">
+        {/* ── Avisos ───────────────────────────────────────────────── */}
+        {message && (
+          <div
+            className={`mx-5 sm:mx-7 mt-3 px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between ${
+              message.type === 'error'
+                ? 'bg-rose-500/10 border border-rose-500/25 text-rose-300'
+                : 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-300'
+            }`}
+          >
+            <span className="min-w-0 truncate">{message.text}</span>
+            <button
+              type="button"
+              onClick={() => setMessage(null)}
+              className="ml-3 shrink-0 opacity-60 hover:opacity-100"
+            >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        {successMessage && (
-          <div className="mx-6 mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
-            <span>{successMessage}</span>
-            <button type="button" onClick={() => setSuccessMessage(null)} className="text-emerald-400 hover:text-emerald-200">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+        {/* ── Contenido: grid + detalle ───────────────────────────── */}
+        <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-5 grid grid-cols-1 md:grid-cols-12 gap-5">
 
-        {/* Contenido Principal */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-5">
-          {/* Columna Izquierda: Lista de Mascotas */}
-          <div className="md:col-span-5 space-y-2.5 max-h-[68vh] overflow-y-auto pr-1">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 px-1">
-              Catálogo Disponible ({PETS_REGISTRY.length})
+          {/* Columna izquierda — catálogo */}
+          <div className="md:col-span-5">
+            <div className="flex items-baseline justify-between mb-2.5">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                Catálogo
+              </span>
+              <span className="text-[10px] font-mono text-neutral-600">
+                {PETS_REGISTRY.length} mascotas
+              </span>
             </div>
 
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 xl:grid-cols-3 md:grid-cols-2 gap-2.5 max-h-[64vh] md:max-h-[62vh] overflow-y-auto pr-1">
               {PETS_REGISTRY.map((pet) => {
                 const isSelected = pet.id === selectedPetId;
                 const isOwned = unlockedPets.includes(pet.id);
@@ -298,50 +249,44 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
                   <button
                     key={pet.id}
                     type="button"
-                    onClick={() => {
-                      sound.tap();
-                      setSelectedPetId(pet.id);
-                    }}
-                    className={`w-full text-left p-3 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
+                    onClick={() => handleSelectPet(pet.id)}
+                    className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer group ${
                       isSelected
-                        ? 'bg-white/10 border-white/30 shadow-md ring-1 ring-white/20'
-                        : 'bg-neutral-900/40 border-white/5 hover:bg-white/[0.04] hover:border-white/15'
+                        ? 'bg-white/[0.08] border-white/25'
+                        : 'bg-neutral-900/40 border-white/5 hover:border-white/15 hover:bg-white/[0.04]'
                     }`}
                   >
-                    <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-neutral-900 border border-white/10 shrink-0 p-1 flex items-center justify-center">
+                    <div className="relative w-full aspect-square mb-2 rounded-xl overflow-hidden bg-black/40 border border-white/[0.06] flex items-center justify-center p-1.5">
                       <Image
                         src={pet.image}
                         alt={pet.name}
-                        width={44}
-                        height={44}
-                        className="object-contain"
+                        width={72}
+                        height={72}
+                        className="object-contain transition-transform duration-200 group-hover:scale-105"
                       />
                       {isEquipped && (
-                        <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black" />
+                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-semibold text-xs text-white truncate">{pet.name}</span>
-                        {isEquipped ? (
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                            Equipada
-                          </span>
-                        ) : isOwned ? (
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-white/10 shrink-0">
-                            Comprada
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-mono font-bold text-amber-400 shrink-0">
-                            {formatCoinsAbbreviated(pet.price)} 🪙
-                          </span>
-                        )}
-                      </div>
+                    <span className="block text-[11px] font-semibold text-white truncate leading-tight">
+                      {pet.name}
+                    </span>
 
-                      <div className="text-[11px] text-neutral-400 truncate mt-0.5">
-                        {pet.subtitle}
-                      </div>
+                    <div className="mt-1 flex items-center justify-between gap-1">
+                      {isEquipped ? (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300">
+                          Activa
+                        </span>
+                      ) : isOwned ? (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.08] text-neutral-400">
+                          Comprada
+                        </span>
+                      ) : (
+                        <span className={`text-[10px] font-mono ${canAfford ? 'text-amber-400' : 'text-neutral-500'}`}>
+                          {formatCoinsAbbreviated(pet.price)}
+                        </span>
+                      )}
                     </div>
                   </button>
                 );
@@ -349,133 +294,120 @@ export const PetShopModal: React.FC<PetShopModalProps> = ({
             </div>
           </div>
 
-          {/* Columna Derecha: Detalle de Mascota Seleccionada */}
-          <div className="md:col-span-7 flex flex-col rounded-3xl bg-neutral-900/50 border border-white/10 p-5 space-y-4">
-            {/* Cabecera del detalle */}
-            <div className="flex items-start gap-4">
-              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-black/60 border border-white/15 p-2 flex items-center justify-center shrink-0 shadow-inner">
-                <Image
-                  src={selectedPet.image}
-                  alt={selectedPet.name}
-                  width={100}
-                  height={100}
-                  className="object-contain max-h-full"
-                />
-                {isSelectedEquipped && (
-                  <div className="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full bg-emerald-500 text-black font-mono text-[10px] font-bold shadow-md">
-                    ✓ ACTIVA
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0 space-y-1">
-                <div className="inline-block px-2 py-0.5 rounded-md border text-[10px] font-mono font-medium uppercase bg-white/5 border-white/10 text-neutral-300">
-                  {selectedPet.tierBadge}
-                </div>
-                <h3 className="text-lg font-bold text-white tracking-tight leading-tight">
-                  {selectedPet.name}
-                </h3>
-                <p className="text-xs text-neutral-400">{selectedPet.subtitle}</p>
-                <div className="pt-1 flex items-center gap-1.5 text-xs font-mono font-bold text-amber-400">
-                  <Coins className="w-3.5 h-3.5" />
-                  <span>{selectedPet.price.toLocaleString('es-ES')} monedas</span>
-                </div>
-              </div>
+          {/* Columna derecha — detalle */}
+          <div className="md:col-span-7">
+            <div className="flex items-baseline justify-between mb-2.5">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                Detalle
+              </span>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${selectedPet.tierColor || 'border-white/10 text-neutral-400'} bg-white/[0.03]`}>
+                {selectedPet.tierBadge}
+              </span>
             </div>
 
-            {/* Descripción lore */}
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 text-xs text-neutral-300 leading-relaxed">
-              {selectedPet.description}
-            </div>
+            <div className="rounded-2xl bg-neutral-900/50 border border-white/10 p-5 flex flex-col gap-4 max-h-[62vh] md:max-h-[64vh] overflow-y-auto">
 
-            {/* Habilidad pasiva */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-white/[0.04] to-transparent border border-white/10 space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Habilidad Pasiva: {selectedPet.perkName}</span>
-              </div>
-              <p className="text-xs text-neutral-300 leading-normal">
-                {selectedPet.perkDescription}
-              </p>
-            </div>
-
-            {/* Cómo se ve en tu perfil */}
-            <div className="p-3 rounded-2xl bg-black/30 border border-white/5 space-y-2">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-500">
-                Previsualización en el Feed y Perfil
-              </div>
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-neutral-950 border border-white/10">
-                <div className="w-6 h-6 rounded-full bg-emerald-700 flex items-center justify-center font-mono text-[10px] font-bold text-white">
-                  {currentUser?.username ? currentUser.username.charAt(0).toUpperCase() : 'U'}
-                </div>
-                <span className="text-xs font-medium text-white">
-                  @{currentUser?.username || 'tu_usuario'}
-                </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-[10px] font-mono text-neutral-200">
-                  <img
+              {/* Identidad */}
+              <div className="flex items-start gap-4">
+                <div className="relative w-20 h-20 rounded-2xl bg-black/50 border border-white/10 p-2 flex items-center justify-center shrink-0">
+                  <Image
                     src={selectedPet.image}
                     alt={selectedPet.name}
-                    className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                    width={72}
+                    height={72}
+                    className="object-contain"
                   />
-                  <span>{selectedPet.name.split(' ')[0]}</span>
-                </span>
-                <span className="text-[10px] text-neutral-500 ml-auto font-mono">hace 2m</span>
-              </div>
-            </div>
+                </div>
 
-            {/* Botón de Acción */}
-            <div className="pt-2 mt-auto">
-              {isSelectedOwned ? (
-                <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-semibold text-white tracking-tight leading-tight">
+                    {selectedPet.name}
+                  </h3>
+                  <p className="text-xs text-neutral-400 mt-0.5">{selectedPet.subtitle}</p>
+
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <span className="px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-mono text-neutral-300">
+                      {CATEGORY_LABELS[selectedPet.category]}
+                    </span>
+                    {!isSelectedOwned && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-amber-400">
+                        <Coins className="w-3 h-3" />
+                        {selectedPet.price.toLocaleString('es-ES')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Habilidad / Descripción */}
+              <div className="space-y-2.5">
+                <div className="flex items-start gap-2">
+                  <Shield className="w-3.5 h-3.5 text-amber-400/80 mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-white">{selectedPet.perkName}</div>
+                    <p className="text-xs text-neutral-400 leading-relaxed mt-0.5">
+                      {selectedPet.perkDescription}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="pl-5 text-[11px] text-neutral-500 leading-relaxed">
+                  {selectedPet.description}
+                </p>
+              </div>
+
+              {/* Acción */}
+              <div className="mt-auto pt-1">
+                {isSelectedOwned ? (
                   <button
                     type="button"
-                    onClick={() => handleToggleEquip(selectedPet.id)}
+                    onClick={() => handleToggleEquip(selectedPet)}
                     disabled={isProcessing}
-                    className={`flex-1 py-3 rounded-2xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95 ${
+                    className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] ${
                       isSelectedEquipped
-                        ? 'bg-white/10 text-white border border-white/20 hover:bg-rose-500/20 hover:border-rose-500/40 hover:text-rose-200'
+                        ? 'bg-white/[0.08] text-neutral-200 border border-white/15 hover:border-rose-500/40 hover:text-rose-200'
                         : 'bg-white text-black hover:bg-neutral-200'
                     }`}
                   >
                     {isSelectedEquipped ? (
                       <>
                         <Check className="w-4 h-4 text-emerald-400" />
-                        <span>Equipada (Clic para desequipar)</span>
+                        <span>Equipada · desequipar</span>
                       </>
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4" />
-                        <span>Equipar Mascota</span>
+                        <span>Equipar</span>
                       </>
                     )}
                   </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleBuyPet(selectedPet)}
-                  disabled={isProcessing || !canAfford}
-                  className={`w-full py-3 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
-                    canAfford
-                      ? 'bg-amber-400 text-black hover:bg-amber-300 cursor-pointer active:scale-95 shadow-lg shadow-amber-400/20'
-                      : 'bg-white/10 text-neutral-500 border border-white/5 cursor-not-allowed'
-                  }`}
-                >
-                  {isProcessing ? (
-                    <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                  ) : canAfford ? (
-                    <>
-                      <Coins className="w-4 h-4" />
-                      <span>Comprar por {selectedPet.price.toLocaleString('es-ES')} 🪙</span>
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-4 h-4" />
-                      <span>Faltan {(selectedPet.price - userCoins).toLocaleString('es-ES')} monedas</span>
-                    </>
-                  )}
-                </button>
-              )}
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleBuyPet(selectedPet)}
+                    disabled={isProcessing || !canAfford}
+                    className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 ${
+                      canAfford
+                        ? 'bg-amber-400 text-black hover:bg-amber-300 cursor-pointer active:scale-[0.98] shadow-lg shadow-amber-400/20'
+                        : 'bg-white/[0.06] text-neutral-500 border border-white/[0.08] cursor-not-allowed'
+                    }`}
+                  >
+                    {isProcessing ? (
+                      <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    ) : canAfford ? (
+                      <>
+                        <Coins className="w-4 h-4" />
+                        <span>Adoptar por {selectedPet.price.toLocaleString('es-ES')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Faltan {(selectedPet.price - userCoins).toLocaleString('es-ES')} monedas</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

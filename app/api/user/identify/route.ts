@@ -3,6 +3,8 @@ import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/se
 import { isUUID } from '@/lib/uuid';
 import { logEvent } from '@/lib/logger';
 import { verifyUserSession } from '@/lib/adminAuth';
+import { enforceRateLimit, guardOrigin, getClientIp } from '@/lib/security/http';
+import { RATE_LIMITS } from '@/lib/security/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +14,24 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: NextRequest) {
   try {
+    const session = await verifyUserSession();
+    if (!session.authenticated || !session.user) {
+      return NextResponse.json(
+        { available: false, error: 'Debes iniciar sesión para comprobar el NIA.' },
+        { status: 401 }
+      );
+    }
+
+    // Evita la enumeración masiva de números de estudiante
+    const rate = enforceRateLimit(`identify-get:${session.user.id}:${getClientIp(req)}`, {
+      limit: 30,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) return rate.response;
+
     const { searchParams } = new URL(req.url);
     const rawNumber = searchParams.get('number');
-    const excludeUserId = searchParams.get('userId');
+    const excludeUserId = session.user.id;
 
     if (!rawNumber || rawNumber.trim().length < 2) {
       return NextResponse.json({
@@ -64,6 +81,9 @@ export async function GET(req: NextRequest) {
  * Saves the real name and unique student number for a user.
  */
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
     const session = await verifyUserSession();
     if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
@@ -73,13 +93,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const rate = enforceRateLimit(`identify:${session.user.id}`, RATE_LIMITS.profileWrite);
+    if (!rate.ok) return rate.response;
+
     const body = await req.json().catch(() => ({}));
     const { fullName, studentNumber } = body;
     // Solo el propio usuario autenticado puede modificar su identificación
     const userId = session.user.id;
 
-    const cleanFullName = (fullName || '').trim().replace(/\s+/g, ' ');
-    const cleanStudentNumber = (studentNumber || '').trim().toUpperCase();
+    const cleanFullName = String(fullName || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+    const cleanStudentNumber = String(studentNumber || '').trim().toUpperCase().slice(0, 20);
 
     if (cleanFullName.length < 3) {
       return NextResponse.json(

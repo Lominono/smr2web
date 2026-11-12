@@ -1,220 +1,417 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import crypto from 'crypto';
 import { verifyUserSession } from '@/lib/adminAuth';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { isUUID } from '@/lib/uuid';
-import { logEvent } from '@/lib/logger';
+import {
+  enforceRateLimit,
+  fail,
+  guardOrigin,
+  json,
+  readJsonBody,
+  unauthorized,
+} from '@/lib/security/http';
+import { RATE_LIMITS } from '@/lib/security/rateLimit';
+import { securityEvent } from '@/lib/security/audit';
+import {
+  consumeReceipt,
+  issueRoundReceipt,
+  verifyRoundReceipt,
+} from '@/lib/security/tokens';
+import {
+  CLAIM_RULES,
+  MAX_ABS_DELTA,
+  MAX_STAKE,
+  MAX_ROUND_PAYOUT,
+  MIN_ROUND_DURATION_MS,
+  MIN_STAKE,
+  RESCUE_AMOUNT,
+  RESCUE_COOLDOWN_MS,
+  RESCUE_THRESHOLD,
+  SPIN_COOLDOWN_MS,
+  CASINO_WIN_PER_HOUR,
+  CASINO_WIN_PER_MINUTE,
+  dailyRewardForStreak,
+  earningsBudget,
+  isSameUtcDay,
+  msSince,
+  normalizeClaimType,
+  perClaimCap,
+  spinReward,
+  validateRoundPayout,
+  type WalletClaimType,
+} from '@/lib/security/gameEconomy';
+import {
+  applyCoinDelta,
+  fetchRecentCredits,
+  lastCreditOfType,
+  recordBalanceTransaction,
+  sumCreditsSince,
+  type RecentCredit,
+} from '@/lib/security/wallet';
 
 export const dynamic = 'force-dynamic';
 
-// Límites de sincronización calibrados para la economía libre y desatada del aula:
-// Permite que la progresión exponencial del botellón y compras de mascotas fluyan de forma natural sin topes artificiales
-const MAX_DELTA_DAILY = 10_000;     // Máximo 10.000 monedas por reclamo diario
-const MAX_DELTA_SPIN = 50_000;      // Máximo 50.000 monedas por ruleta diaria
-const MAX_DELTA_RESCUE = 5_000;     // Máximo 5.000 monedas por fondo de rescate
-// Para juego general, alijo del botellón, minijuegos y compras: sin topes arbitrarios (hasta 500 billones / 500T)
-const MAX_DELTA_GAME_WIN = 500_000_000_000_000; 
-const MIN_NEGATIVE_DELTA = -500_000_000_000_000; // Gasto máximo en compras o donaciones masivas
-
-// Rate-limiting en memoria por usuario para sincronizaciones continuas
-interface SyncRateLimit {
-  count: number;
-  lastReset: number;
-}
-const syncRateMap = new Map<string, SyncRateLimit>();
-const MAX_SYNCS_PER_MINUTE = 300;
-
+/**
+ * POST /api/user/balance/sync
+ *
+ * Punto único autoritativo para modificar el saldo del alumno.
+ *
+ * Reglas de seguridad:
+ * 1. Requiere sesión verificada en el servidor (nunca se confía en el cliente).
+ * 2. Los premios NO se aceptan tal cual: se recalculan o se validan contra
+ *    topes, cooldowns y presupuestos persistidos en PostgreSQL.
+ * 3. Los premios de minijuegos exigen un recibo firmado emitido al apostar,
+ *    de un solo uso y con caducidad.
+ * 4. Todos los rechazos quedan auditados en `event_logs`.
+ */
 export async function POST(req: NextRequest) {
-  try {
-    const session = await verifyUserSession();
-    if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
-      return NextResponse.json(
-        { success: false, error: 'Sesión no iniciada o token inválido.' },
-        { status: 401 }
-      );
-    }
+  const originError = guardOrigin(req);
+  if (originError) return originError;
 
-    const userId = session.user.id;
-    const now = Date.now();
-
-    // Rate limiting por usuario (máximo 60 sincronizaciones por minuto)
-    const rate = syncRateMap.get(userId) || { count: 0, lastReset: now };
-    if (now - rate.lastReset > 60000) {
-      rate.count = 0;
-      rate.lastReset = now;
-    }
-    rate.count++;
-    syncRateMap.set(userId, rate);
-
-    if (rate.count > MAX_SYNCS_PER_MINUTE) {
-      return NextResponse.json(
-        { success: false, error: 'Frecuencia de sincronización excesiva. Espera unos momentos.' },
-        { status: 429 }
-      );
-    }
-
-    const body = await req.json().catch(() => ({}));
-    const rawDelta = Number(body.delta ?? 0);
-    const claimType = body.claimType as 'daily' | 'spin' | 'rescue' | 'game' | 'idle' | undefined;
-    const newStreak = body.newStreak !== undefined ? Number(body.newStreak) : undefined;
-
-    if (isNaN(rawDelta)) {
-      return NextResponse.json(
-        { success: false, error: 'Cantidad de delta inválida.' },
-        { status: 400 }
-      );
-    }
-
-    const delta = Math.round(rawDelta);
-
-    // Detección anti-trampas: validar límites según el tipo de reclamo
-    let maxAllowed = MAX_DELTA_GAME_WIN;
-    if (claimType === 'daily') maxAllowed = MAX_DELTA_DAILY;
-    else if (claimType === 'spin') maxAllowed = MAX_DELTA_SPIN;
-    else if (claimType === 'rescue') maxAllowed = MAX_DELTA_RESCUE;
-
-    if (delta > maxAllowed) {
-      try {
-        await logEvent({
-          eventType: 'balance_adjusted',
-          userId,
-          username: session.user.username,
-          req,
-          details: {
-            alert: 'EXCESSIVE_DELTA_BLOCKED',
-            attemptedDelta: delta,
-            maxAllowed,
-            claimType,
-          },
-        });
-      } catch {}
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Transacción no autorizada: El incremento (+${delta.toLocaleString()}) supera el límite de seguridad permitido para esta acción.`,
-        },
-        { status: 400 }
-      );
-    }
-
-    if (delta < MIN_NEGATIVE_DELTA) {
-      return NextResponse.json(
-        { success: false, error: 'Delta negativo fuera de rango seguro.' },
-        { status: 400 }
-      );
-    }
-
-    if (!isServerSupabaseConfigured()) {
-      return NextResponse.json({
-        success: true,
-        coins: Math.max(0, (session.user.coins || 1000) + delta),
-        isLocal: true,
-      });
-    }
-
-    const client = createAdminClient();
-    if (!client) {
-      return NextResponse.json({ success: false, error: 'Base de datos no disponible.' }, { status: 500 });
-    }
-
-    // Consultar el perfil real actual desde la base de datos
-    const { data: currentProfile, error: fetchErr } = await client
-      .from('profiles')
-      .select('id, username, coins, biggest_win, streak_count, last_claim_date, last_spin_date, last_rescue_date, is_banned')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (fetchErr || !currentProfile) {
-      return NextResponse.json(
-        { success: false, error: 'Perfil de usuario no encontrado.' },
-        { status: 404 }
-      );
-    }
-
-    if (currentProfile.is_banned) {
-      return NextResponse.json(
-        { success: false, error: 'Cuenta suspendida por la administración.' },
-        { status: 403 }
-      );
-    }
-
-    const currentCoins = Number(currentProfile.coins ?? 1000);
-    const newCoins = Math.max(0, currentCoins + delta);
-    const isWin = delta > 0;
-    const currentBiggestWin = Number(currentProfile.biggest_win ?? 0);
-    const nextBiggestWin = isWin && delta > currentBiggestWin ? delta : currentBiggestWin;
-
-    const updates: Record<string, any> = {
-      coins: newCoins,
-      biggest_win: nextBiggestWin,
-    };
-
-    const nowIso = new Date().toISOString();
-
-    // Verificación de Cooldowns de servidor para recompensas
-    if (claimType === 'daily') {
-      const todayDate = nowIso.split('T')[0];
-      const lastClaimStr = currentProfile.last_claim_date ? String(currentProfile.last_claim_date).split('T')[0] : '';
-      if (lastClaimStr === todayDate) {
-        return NextResponse.json(
-          { success: false, error: 'Ya has reclamado tu recompensa diaria de hoy.' },
-          { status: 400 }
-        );
-      }
-      updates.last_claim_date = nowIso;
-      if (newStreak !== undefined) {
-        updates.streak_count = Math.max(1, newStreak);
-      }
-    } else if (claimType === 'spin') {
-      updates.last_spin_date = nowIso;
-    } else if (claimType === 'rescue') {
-      if (currentCoins >= 50) {
-        return NextResponse.json(
-          { success: false, error: 'El fondo de rescate solo está disponible si tienes menos de 50 monedas.' },
-          { status: 400 }
-        );
-      }
-      updates.last_rescue_date = nowIso;
-    }
-
-    const { error: updateErr } = await client
-      .from('profiles')
-      .update(updates)
-      .eq('id', userId);
-
-    if (updateErr) {
-      return NextResponse.json(
-        { success: false, error: updateErr.message },
-        { status: 500 }
-      );
-    }
-
-    // Registrar en transacciones
-    if (Math.abs(delta) >= 10) {
-      try {
-        await client.from('balance_transactions').insert([
-          {
-            user_id: userId,
-            amount: delta,
-            balance_before: currentCoins,
-            balance_after: newCoins,
-            type: claimType || 'game_sync',
-            description: `Sincronización segura (${claimType || 'game'})`,
-          },
-        ]);
-      } catch {}
-    }
-
-    return NextResponse.json({
-      success: true,
-      coins: newCoins,
-      biggestWin: nextBiggestWin,
-      streakCount: updates.streak_count ?? currentProfile.streak_count,
-    });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Error al sincronizar saldo.' },
-      { status: 500 }
-    );
+  const session = await verifyUserSession();
+  if (!session.authenticated || !session.user || !isUUID(session.user.id)) {
+    return unauthorized('Sesión no iniciada o token inválido.');
   }
+
+  const userId = session.user.id;
+  const username = session.user.username;
+
+  const rate = enforceRateLimit(`wallet:${userId}`, RATE_LIMITS.wallet);
+  if (!rate.ok) return rate.response;
+
+  const body = await readJsonBody(req);
+  if (!body) return fail('Petición no válida.', 400);
+
+  const rawDelta = Number(body.delta);
+  if (!Number.isFinite(rawDelta)) {
+    return fail('Cantidad de delta inválida.', 400);
+  }
+
+  const delta = Math.trunc(rawDelta);
+  if (delta === 0) {
+    return fail('La cantidad debe ser distinta de cero.', 400);
+  }
+  if (Math.abs(delta) > MAX_ABS_DELTA) {
+    await securityEvent({
+      action: 'wallet_delta_out_of_range',
+      userId,
+      username,
+      req,
+      details: { delta },
+    });
+    return fail('Cantidad fuera del rango permitido.', 400);
+  }
+
+  const claimType: WalletClaimType = normalizeClaimType(body.claimType);
+
+  if (!isServerSupabaseConfigured()) {
+    return json({
+      success: true,
+      coins: Math.max(0, Number(session.user.coins || 1000) + delta),
+      isLocal: true,
+    });
+  }
+
+  const client = createAdminClient();
+  if (!client) return fail('Base de datos no disponible.', 503);
+
+  const { data: profile, error: profileError } = await client
+    .from('profiles')
+    .select('id, username, coins, biggest_win, streak_count, is_banned, last_claim_date, last_spin_date, last_rescue_date')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (profileError || !profile) {
+    return fail('Perfil de usuario no encontrado.', 404);
+  }
+
+  if (profile.is_banned) {
+    return fail('Cuenta suspendida por la administración.', 403);
+  }
+
+  const balance = Number(profile.coins ?? 0);
+
+  // ───────────────────────────────────────────────────────────────────────
+  // GASTOS (apuestas, compras, fianzas...). Nunca se permite saldo negativo.
+  // ───────────────────────────────────────────────────────────────────────
+  if (delta < 0) {
+    const spend = Math.abs(delta);
+    if (spend > balance) {
+      return fail(
+        `Saldo insuficiente. Tienes ${balance.toLocaleString()} monedas e intentas gastar ${spend.toLocaleString()}.`,
+        400
+      );
+    }
+
+    const applied = await applyCoinDelta(client, userId, -spend);
+    if (!applied.ok) {
+      return fail('El saldo cambió mientras se procesaba la operación. Reinténtalo.', 409);
+    }
+
+    await recordBalanceTransaction(client, {
+      userId,
+      amount: -spend,
+      balanceBefore: balance,
+      balanceAfter: applied.coins,
+      type: claimType === 'game' ? 'game_bet' : 'purchase',
+      description:
+        claimType === 'game'
+          ? `Apuesta en minijuego (${spend.toLocaleString()} monedas)`
+          : `Gasto en la plataforma (${spend.toLocaleString()} monedas)`,
+    });
+
+    // Rake del 2 % a la tesorería del botellón, calculado en el servidor
+    if (claimType === 'game') {
+      const rake = Math.min(200, Math.max(1, Math.round(spend * 0.02)));
+      try {
+        const { data: market } = await client
+          .from('market_state')
+          .select('treasury_balance, total_revenue_generated, arcade_rake_accumulated')
+          .eq('id', 1)
+          .maybeSingle();
+
+        if (market) {
+          await client
+            .from('market_state')
+            .update({
+              treasury_balance: Number(market.treasury_balance || 0) + rake,
+              total_revenue_generated: Number(market.total_revenue_generated || 0) + rake,
+              arcade_rake_accumulated: Number(market.arcade_rake_accumulated || 0) + rake,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', 1);
+        }
+      } catch {
+        /* el rake es secundario */
+      }
+    }
+
+    // Recibo firmado para poder cobrar el premio de esta ronda
+    const roundToken =
+      claimType === 'game' && spend >= MIN_STAKE && spend <= MAX_STAKE
+        ? issueRoundReceipt(userId, spend)
+        : undefined;
+
+    return json({
+      success: true,
+      coins: applied.coins,
+      biggestWin: Number(profile.biggest_win ?? 0),
+      streakCount: Number(profile.streak_count ?? 1),
+      ...(roundToken ? { roundToken } : {}),
+    });
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // ABONOS (premios y recompensas). Importe validado en servidor.
+  // ───────────────────────────────────────────────────────────────────────
+  const nowIso = new Date().toISOString();
+  const extraUpdates: Record<string, unknown> = {};
+  const recentCredits: RecentCredit[] = await fetchRecentCredits(client, userId, 60 * 60 * 1000);
+
+  let creditAmount = 0;
+  let transactionType: string = claimType;
+  let description = '';
+  let newStreak = Number(profile.streak_count ?? 1);
+
+  if (claimType === 'daily') {
+    if (isSameUtcDay(profile.last_claim_date, nowIso)) {
+      return fail('Ya has reclamado tu recompensa diaria de hoy.', 400);
+    }
+    newStreak = newStreak >= 5 ? 1 : Math.max(1, newStreak + 1);
+    creditAmount = dailyRewardForStreak(newStreak);
+    extraUpdates.last_claim_date = nowIso;
+    extraUpdates.streak_count = newStreak;
+    transactionType = 'daily';
+    description = `Recompensa diaria (racha ${newStreak})`;
+  } else if (claimType === 'spin') {
+    const sinceSpin = msSince(profile.last_spin_date);
+    if (sinceSpin < SPIN_COOLDOWN_MS) {
+      const remainingMinutes = Math.ceil((SPIN_COOLDOWN_MS - sinceSpin) / 60000);
+      return fail(`La ruleta diaria estará disponible de nuevo en ${remainingMinutes} minuto(s).`, 429);
+    }
+    creditAmount = spinReward(crypto.randomInt(0, 1_000_000) / 1_000_000);
+    extraUpdates.last_spin_date = nowIso;
+    transactionType = 'spin';
+    description = 'Premio de la ruleta diaria';
+  } else if (claimType === 'rescue') {
+    if (balance >= RESCUE_THRESHOLD) {
+      return fail('El fondo de rescate solo está disponible si tienes menos de 50 monedas.', 400);
+    }
+    const sinceRescue = msSince(profile.last_rescue_date);
+    if (sinceRescue < RESCUE_COOLDOWN_MS) {
+      const remainingMinutes = Math.ceil((RESCUE_COOLDOWN_MS - sinceRescue) / 60000);
+      return fail(`El fondo de rescate estará disponible de nuevo en ${remainingMinutes} minuto(s).`, 429);
+    }
+    creditAmount = RESCUE_AMOUNT;
+    extraUpdates.last_rescue_date = nowIso;
+    transactionType = 'rescue';
+    description = 'Fondo de rescate';
+  } else if (claimType === 'game') {
+    const receipt = verifyRoundReceipt(body.roundToken);
+    if (!receipt.ok) {
+      await securityEvent({
+        action: 'wallet_round_receipt_invalid',
+        userId,
+        username,
+        req,
+        details: { reason: receipt.reason, requestedPayout: delta },
+      });
+      return fail(
+        'Premio no autorizado: no hay ninguna apuesta registrada para esta ronda. Vuelve a jugar desde el minijuego.',
+        400
+      );
+    }
+
+    if (receipt.payload.uid !== userId) {
+      await securityEvent({
+        action: 'wallet_round_receipt_foreign',
+        userId,
+        username,
+        req,
+        details: { receiptUser: receipt.payload.uid, requestedPayout: delta },
+      });
+      return fail('Premio no autorizado.', 403);
+    }
+
+    const validation = validateRoundPayout(Number(receipt.payload.stake), delta);
+    if (!validation.allowed) {
+      await securityEvent({
+        action: 'wallet_round_payout_rejected',
+        userId,
+        username,
+        req,
+        details: { reason: validation.reason, stake: validation.stake, requestedPayout: delta },
+      });
+      return fail(validation.reason || 'Premio no permitido.', 400);
+    }
+
+    const payoutAge = Date.now() - Number(receipt.payload.iat || 0);
+    if (!Number.isFinite(payoutAge) || payoutAge < MIN_ROUND_DURATION_MS) {
+      return fail('La ronda ha terminado demasiado rápido como para ser válida.', 400);
+    }
+
+    const consumed = await consumeReceipt(
+      client as unknown as Parameters<typeof consumeReceipt>[0],
+      receipt.payload.jti,
+      userId,
+      { stake: receipt.payload.stake, payout: delta },
+      receipt.payload.exp
+    );
+    if (!consumed) {
+      await securityEvent({
+        action: 'wallet_round_receipt_replay',
+        userId,
+        username,
+        req,
+        details: { jti: receipt.payload.jti, requestedPayout: delta },
+      });
+      return fail('Este premio ya ha sido cobrado.', 409);
+    }
+
+    const wonLastMinute = sumCreditsSince(recentCredits, 60_000);
+    const wonLastHour = sumCreditsSince(recentCredits, 60 * 60 * 1000);
+    if (wonLastMinute + delta > CASINO_WIN_PER_MINUTE || wonLastHour + delta > CASINO_WIN_PER_HOUR) {
+      await securityEvent({
+        action: 'wallet_casino_budget_exceeded',
+        userId,
+        username,
+        req,
+        details: { requestedPayout: delta, wonLastMinute, wonLastHour },
+      });
+      return fail('Has alcanzado el límite de premios de los minijuegos. Espera unos minutos.', 429);
+    }
+
+    creditAmount = Math.min(delta, MAX_ROUND_PAYOUT);
+    transactionType = 'game_win';
+    description = 'Premio de minijuego';
+  } else {
+    const rule = CLAIM_RULES[claimType as keyof typeof CLAIM_RULES] || CLAIM_RULES.misc;
+    const last = lastCreditOfType(recentCredits, claimType);
+    if (last) {
+      const elapsed = msSince(last.created_at);
+      if (elapsed < rule.cooldownMs) {
+        const remainingSeconds = Math.ceil((rule.cooldownMs - elapsed) / 1000);
+        return fail(
+          `Debes esperar ${remainingSeconds} segundo(s) antes de volver a cobrar esta recompensa.`,
+          429
+        );
+      }
+    }
+
+    const cap = perClaimCap(balance, rule, last ? last.amount : 0);
+    if (delta > cap) {
+      await securityEvent({
+        action: 'wallet_claim_cap_exceeded',
+        userId,
+        username,
+        req,
+        details: { claimType, requested: delta, cap, balance },
+      });
+      return fail(
+        `Recompensa no autorizada: el importe solicitado (${delta.toLocaleString()}) supera el máximo permitido ahora mismo (${cap.toLocaleString()}).`,
+        400
+      );
+    }
+
+    const budget = earningsBudget(balance);
+    const wonLastMinute = sumCreditsSince(recentCredits, 60_000);
+    const wonLastHour = sumCreditsSince(recentCredits, 60 * 60 * 1000);
+    if (wonLastMinute + delta > budget.perMinute || wonLastHour + delta > budget.perHour) {
+      await securityEvent({
+        action: 'wallet_earnings_budget_exceeded',
+        userId,
+        username,
+        req,
+        details: { claimType, requested: delta, budget, wonLastMinute, wonLastHour },
+      });
+      return fail('Has alcanzado el límite temporal de ganancias. Inténtalo más tarde.', 429);
+    }
+
+    creditAmount = delta;
+    transactionType = claimType;
+    description = `Recompensa (${claimType})`;
+  }
+
+  if (!Number.isFinite(creditAmount) || creditAmount <= 0) {
+    return fail('Importe de recompensa no válido.', 400);
+  }
+
+  const nextBiggestWin =
+    creditAmount > Number(profile.biggest_win ?? 0) ? creditAmount : Number(profile.biggest_win ?? 0);
+
+  const applied = await applyCoinDelta(client, userId, creditAmount, {
+    ...extraUpdates,
+    biggest_win: nextBiggestWin,
+  });
+
+  if (!applied.ok) {
+    return fail('El saldo cambió mientras se procesaba la operación. Reinténtalo.', 409);
+  }
+
+  await recordBalanceTransaction(client, {
+    userId,
+    amount: creditAmount,
+    balanceBefore: balance,
+    balanceAfter: applied.coins,
+    type: transactionType,
+    description,
+  });
+
+  if (creditAmount >= 500_000) {
+    await securityEvent({
+      action: 'wallet_large_credit',
+      userId,
+      username,
+      req,
+      details: { claimType, amount: creditAmount, balanceBefore: balance, balanceAfter: applied.coins },
+    });
+  }
+
+  return json({
+    success: true,
+    coins: applied.coins,
+    biggestWin: nextBiggestWin,
+    streakCount: extraUpdates.streak_count ?? Number(profile.streak_count ?? 1),
+  });
 }

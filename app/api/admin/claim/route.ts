@@ -4,6 +4,7 @@ import { createAdminClient, createClient, isServerSupabaseConfigured } from '@/l
 import { isUUID } from '@/lib/uuid';
 import { signAdminToken, COOKIE_ADMIN_TOKEN, verifyUserSession } from '@/lib/adminAuth';
 import { logEvent, extractClientMeta } from '@/lib/logger';
+import { enforceRateLimit, guardOrigin } from '@/lib/security/http';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,19 +18,26 @@ const failedAttemptsMap = new Map<string, RateLimitState>();
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutos de bloqueo tras 5 intentos erróneos
 
-// Claves maestras autorizadas (Estrictamente desde variables de entorno del servidor)
+// Claves maestras autorizadas (Estrictamente desde variables de entorno del servidor).
+// Nota de seguridad: ADMIN_SECRET_KEY es la clave de firma HMAC de las sesiones,
+// no debe aceptarse como contraseña (si se filtra, permitiría además falsificar tokens).
 const MASTER_ADMIN_KEYS = [
   process.env.ADMIN_PASSWORD,
   process.env.ADMIN_ACCESS_CODE,
-  process.env.ADMIN_SECRET_KEY,
 ]
   .filter(Boolean)
   .map((k) => String(k).trim());
 
 export async function POST(req: NextRequest) {
   try {
+    const originError = guardOrigin(req);
+    if (originError) return originError;
+
     const { ip } = extractClientMeta(req);
     const now = Date.now();
+
+    const ipRate = enforceRateLimit(`admin-claim:${ip}`, { limit: 12, windowMs: 15 * 60_000 });
+    if (!ipRate.ok) return ipRate.response;
 
     // 1. Comprobar bloqueo por fuerza bruta para la IP
     const rateLimit = failedAttemptsMap.get(ip);

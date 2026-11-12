@@ -131,6 +131,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   const [profileMsg, setProfileMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   // Security form
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
@@ -326,6 +327,14 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
       return;
     }
 
+    // SEGURIDAD: para cambiar la contraseña de la propia cuenta hay que
+    // demostrar la contraseña actual (el servidor la verifica en Supabase).
+    const isServerAccount = user.auth_provider !== 'local';
+    if (isServerAccount && currentPassword.length === 0) {
+      setPasswordMsg({ type: 'err', text: 'Introduce tu contraseña actual para confirmar el cambio.' });
+      return;
+    }
+
     setSavingPassword(true);
 
     try {
@@ -335,6 +344,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
         body: JSON.stringify({
           userId: user.id,
           newPassword,
+          ...(isServerAccount ? { currentPassword } : {}),
         }),
       });
 
@@ -350,6 +360,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
 
       sound.coinWin();
       setPasswordMsg({ type: 'ok', text: 'Credencial actualizada correctamente.' });
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
@@ -1362,6 +1373,17 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             <div className="space-y-4">
               <form onSubmit={handleChangePassword} className="space-y-3">
                 <div className="space-y-2">
+                  {user.auth_provider !== 'local' && (
+                    <Input
+                      label="Contraseña Actual"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Tu contraseña actual"
+                      required
+                    />
+                  )}
+
                   <Input
                     label="Nueva Contraseña"
                     type="password"

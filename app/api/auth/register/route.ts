@@ -2,25 +2,41 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { UserProfile } from '@/lib/types';
 import { signUserSessionToken, COOKIE_SESSION_TOKEN } from '@/lib/adminAuth';
+import { validatePasswordSecurity } from '@/lib/passwordSecurity';
+import { enforceRateLimit, fail, guardOrigin, getClientIp, json, readJsonBody } from '@/lib/security/http';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
-    const body = await req.json().catch(() => ({}));
+    const ip = getClientIp(req);
+    const rate = enforceRateLimit(`register:${ip}`, { limit: 8, windowMs: 15 * 60_000 });
+    if (!rate.ok) return rate.response;
+
+    const body = (await readJsonBody(req)) || {};
     const username = String(body.username || '').trim().toLowerCase().replace(/[-\s]+/g, '_');
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '');
     const rawFullName = String(body.fullName || '').trim().replace(/\s+/g, ' ');
     const rawStudentNumber = String(body.studentNumber || '').trim().toUpperCase();
 
-    const fullName = rawFullName.length >= 3 ? rawFullName : null;
-    const studentNumber = rawStudentNumber.length >= 2 ? rawStudentNumber : null;
+    const fullName = rawFullName.length >= 3 ? rawFullName.slice(0, 80) : null;
+    const studentNumber = rawStudentNumber.length >= 2 ? rawStudentNumber.slice(0, 20) : null;
     const hasStudentId = Boolean(fullName && studentNumber);
 
     if (!username || !email || !password) {
       return NextResponse.json(
         { success: false, error: 'Por favor, rellena todos los campos obligatorios.' },
+        { status: 400 }
+      );
+    }
+
+    if (password.length > 200 || username.length > 40 || email.length > 254) {
+      return NextResponse.json(
+        { success: false, error: 'Los datos introducidos superan la longitud permitida.' },
         { status: 400 }
       );
     }
@@ -48,10 +64,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validación de contraseña (mínimo 6 caracteres para Supabase)
-    if (password.length < 6) {
+    // Validación de contraseña: política de complejidad del servidor
+    const passCheck = validatePasswordSecurity(password, username, email);
+    if (!passCheck.valid) {
       return NextResponse.json(
-        { success: false, error: 'La contraseña debe tener al menos 6 caracteres.' },
+        { success: false, error: passCheck.errors[0] || 'La contraseña no cumple los requisitos de seguridad.' },
         { status: 400 }
       );
     }
@@ -73,10 +90,14 @@ export async function POST(req: NextRequest) {
 
     // 1. Comprobar si el nombre de usuario o email ya existe en perfiles
     try {
+      // SEGURIDAD: se neutralizan comas/paréntesis para que ninguno de los dos
+      // campos pueda alterar la estructura del filtro PostgREST (.or inyectable).
+      const safeUsername = String(username).replace(/[,\(\)%]/g, '').slice(0, 60);
+      const safeEmail = String(email).replace(/[,\(\)%]/g, '').slice(0, 254);
       const { data: existingProfiles } = await adminClient
         .from('profiles')
         .select('id, username, email')
-        .or(`username.ilike.${username},email.ilike.${email}`);
+        .or(`username.ilike.${safeUsername},email.ilike.${safeEmail}`);
 
       if (existingProfiles && existingProfiles.length > 0) {
         for (const p of existingProfiles) {
@@ -96,6 +117,29 @@ export async function POST(req: NextRequest) {
       }
     } catch (checkErr) {
       console.warn('Error comprobando perfiles existentes:', checkErr);
+    }
+
+    // 1.1 El número de estudiante es único por alumno (no puede repetirse)
+    if (studentNumber) {
+      try {
+        const { data: existingNumber } = await adminClient
+          .from('profiles')
+          .select('id')
+          .eq('student_number', studentNumber)
+          .maybeSingle();
+
+        if (existingNumber) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `El número de estudiante "${studentNumber}" ya pertenece a otro alumno. Cada estudiante debe tener el suyo.`,
+            },
+            { status: 409 }
+          );
+        }
+      } catch (numberErr) {
+        console.warn('Error comprobando número de estudiante:', numberErr);
+      }
     }
 
     // 2. Crear usuario en Supabase Auth

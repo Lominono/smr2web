@@ -224,9 +224,11 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
   );
   const bannerPreset =
     BANNER_PRESETS.find((p) => p.id === displayUser?.banner_estilo) || BANNER_PRESETS[0];
-  const isCustomImageBanner = Boolean(
-    displayUser?.banner_estilo && displayUser.banner_estilo.startsWith('http')
-  );
+  const safeBannerUrl =
+    displayUser?.banner_estilo && /^https:\/\/[^\s"'()\\<>`]+$/i.test(displayUser.banner_estilo.trim())
+      ? displayUser.banner_estilo.trim()
+      : null;
+  const isCustomImageBanner = Boolean(safeBannerUrl);
 
   return createPortal(
     <div
@@ -306,9 +308,9 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
             <div
               className={`rounded-2xl overflow-hidden border ${bannerPreset.border} ${bannerPreset.glow} p-4 sm:p-5 text-white relative shadow-xl animate-in fade-in duration-300`}
               style={
-                isCustomImageBanner && displayUser.banner_estilo
+                isCustomImageBanner && safeBannerUrl
                   ? {
-                      backgroundImage: `url(${displayUser.banner_estilo})`,
+                      backgroundImage: `url("${safeBannerUrl}")`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
                     }

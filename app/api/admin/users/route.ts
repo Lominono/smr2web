@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminSession } from '@/lib/adminAuth';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
 import { logEvent } from '@/lib/logger';
+import { isUUID } from '@/lib/uuid';
+import { csvCell, enforceRateLimit, guardOrigin } from '@/lib/security/http';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,17 +60,17 @@ export async function GET(req: NextRequest) {
     if (format === 'csv') {
       const headers = ['ID', 'Usuario', 'Nombre Completo', 'NIA', 'Email', 'Rol', 'Fichas', 'Victorias', 'Partidas', 'Suspendido', 'Fecha Registro'];
       const rows = userList.map((u) => [
-        `"${u.id || ''}"`,
-        `"${u.username || ''}"`,
-        `"${(u.full_name || '').replace(/"/g, '""')}"`,
-        `"${u.student_number || ''}"`,
-        `"${u.email || ''}"`,
-        `"${u.role || 'student'}"`,
-        u.coins || 0,
-        u.games_won || 0,
-        u.games_played || 0,
+        csvCell(u.id),
+        csvCell(u.username),
+        csvCell(u.full_name),
+        csvCell(u.student_number),
+        csvCell(u.email),
+        csvCell(u.role || 'student'),
+        Number(u.coins || 0),
+        Number(u.games_won || 0),
+        Number(u.games_played || 0),
         u.is_banned ? 'SI' : 'NO',
-        `"${u.created_at || ''}"`,
+        csvCell(u.created_at),
       ]);
 
       const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
@@ -94,6 +96,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const originError = guardOrigin(req);
+  if (originError) return originError;
+
   try {
     const authResult = await verifyAdminSession(req);
     if (!authResult.authorized || !authResult.user) {
@@ -102,6 +107,12 @@ export async function POST(req: NextRequest) {
         { status: 403 }
       );
     }
+
+    const rate = enforceRateLimit(`admin-users:${authResult.user.id}`, {
+      limit: 60,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) return rate.response;
 
     const body = await req.json();
     const { action, targetUserId, amount, banReason } = body;
@@ -193,9 +204,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (!targetUserId) {
+    if (!targetUserId || !isUUID(String(targetUserId))) {
       return NextResponse.json(
-        { success: false, error: 'targetUserId es requerido.' },
+        { success: false, error: 'targetUserId válido es requerido.' },
         { status: 400 }
       );
     }
@@ -288,8 +299,28 @@ export async function POST(req: NextRequest) {
 
         // 3. Modificar rol
         else if (action === 'set_role') {
+          if (targetUserId === authResult.user.id && body.role !== 'admin') {
+            return NextResponse.json(
+              { success: false, error: 'No puedes rebajarte tu propio rol de administrador.' },
+              { status: 400 }
+            );
+          }
           const newRole = body.role === 'admin' ? 'admin' : body.role === 'delegado' ? 'delegado' : 'student';
           await client.from('profiles').update({ role: newRole }).eq('id', targetUserId);
+          try {
+            await logEvent({
+              eventType: 'admin_action',
+              userId: targetUserId,
+              username: targetUser.username,
+              req,
+              details: {
+                action: 'set_role',
+                new_role: newRole,
+                admin_id: authResult.user.id,
+                admin_username: authResult.user.username,
+              },
+            });
+          } catch {}
           return NextResponse.json({ success: true, newRole });
         }
 
@@ -298,8 +329,19 @@ export async function POST(req: NextRequest) {
           const updates: Record<string, any> = {};
           if (body.full_name !== undefined) updates.full_name = String(body.full_name).trim();
           if (body.student_number !== undefined) updates.student_number = String(body.student_number).trim().toUpperCase();
-          if (body.email !== undefined) updates.email = String(body.email).trim().toLowerCase();
-          if (body.role !== undefined) updates.role = body.role;
+          if (body.email !== undefined) {
+            const cleanNewEmail = String(body.email).trim().toLowerCase();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanNewEmail)) {
+              return NextResponse.json({ success: false, error: 'Correo electrónico no válido.' }, { status: 400 });
+            }
+            updates.email = cleanNewEmail;
+          }
+          // SEGURIDAD: whitelist estricta — antes se aceptaba cualquier string
+          // como rol y corrumpía la jerarquía de permisos.
+          if (body.role !== undefined) {
+            updates.role =
+              body.role === 'admin' ? 'admin' : body.role === 'delegado' ? 'delegado' : 'student';
+          }
           if (body.coins !== undefined) updates.coins = Math.max(0, parseInt(body.coins, 10) || 0);
 
           if (Object.keys(updates).length > 0) {
@@ -307,6 +349,20 @@ export async function POST(req: NextRequest) {
             if (updateErr) {
               return NextResponse.json({ success: false, error: updateErr.message }, { status: 400 });
             }
+            try {
+              await logEvent({
+                eventType: 'admin_action',
+                userId: targetUserId,
+                username: targetUser.username,
+                req,
+                details: {
+                  action: 'edit_profile',
+                  fields: Object.keys(updates),
+                  admin_id: authResult.user.id,
+                  admin_username: authResult.user.username,
+                },
+              });
+            } catch {}
           }
 
           return NextResponse.json({ success: true, message: 'Perfil de alumno actualizado correctamente.' });
@@ -341,6 +397,12 @@ export async function POST(req: NextRequest) {
 
         // 6. Eliminar usuario permanentemente
         else if (action === 'delete_user') {
+          if (targetUserId === authResult.user.id) {
+            return NextResponse.json(
+              { success: false, error: 'No puedes eliminar tu propia cuenta de administrador activa.' },
+              { status: 400 }
+            );
+          }
           await client.from('profiles').delete().eq('id', targetUserId);
 
           // Si el admin API de Supabase Auth está disponible, borrar también auth.users
@@ -348,6 +410,21 @@ export async function POST(req: NextRequest) {
             if (client.auth && client.auth.admin) {
               await client.auth.admin.deleteUser(targetUserId);
             }
+          } catch {}
+
+          try {
+            await logEvent({
+              eventType: 'admin_action',
+              userId: targetUserId,
+              username: targetUser.username,
+              req,
+              details: {
+                action: 'delete_user',
+                deleted_username: targetUser.username,
+                admin_id: authResult.user.id,
+                admin_username: authResult.user.username,
+              },
+            });
           } catch {}
 
           return NextResponse.json({ success: true, message: 'Usuario eliminado permanentemente de la plataforma.' });

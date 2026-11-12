@@ -1,12 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
+import { NextRequest } from 'next/server';
+import crypto from 'crypto';
 import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/server';
+import { verifyUserSession, verifyAdminSession } from '@/lib/adminAuth';
+import { enforceRateLimit, fail, guardOrigin, json } from '@/lib/security/http';
+import { securityEvent } from '@/lib/security/audit';
 
 export const dynamic = 'force-dynamic';
 
+/** Segundos mínimos entre ticks del mercado (protección contra spam). */
+const MIN_TICK_INTERVAL_MS = 15_000;
+
 /**
- * Endpoint para ejecutar ticks de actividad empresarial y oscilación orgánica.
- * Optimizado: frecuencia limitada y actualización no bloqueante.
+ * Tick del mercado del botellón (ingresos del negocio + oscilación de precio).
+ *
+ * Autorización:
+ * - Cron/administración: cabecera `Authorization: Bearer <CRON_SECRET>`.
+ * - Alumnos: solo con sesión verificada y con un límite de frecuencia.
+ * Antes, si `CRON_SECRET` no estaba configurado, CUALQUIERA podía ejecutar el
+ * tick en bucle e inflar la tesorería y el precio a voluntad.
  */
 export async function GET(request: NextRequest) {
   return handleMarketTick(request);
@@ -16,62 +27,93 @@ export async function POST(request: NextRequest) {
   return handleMarketTick(request);
 }
 
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 async function handleMarketTick(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
+    const originError = guardOrigin(request);
+    if (originError) return originError;
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      if (process.env.NODE_ENV === 'production') {
-        return NextResponse.json({ error: 'No autorizado para ejecutar el cron' }, { status: 401 });
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = request.headers.get('authorization') || '';
+    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+    const isCron = Boolean(cronSecret && bearer && safeEqual(bearer, cronSecret));
+
+    let actorId: string | null = null;
+    let actorName: string | null = null;
+
+    if (!isCron) {
+      const admin = await verifyAdminSession(request);
+      if (admin.authorized && admin.user) {
+        actorId = admin.user.id;
+        actorName = admin.user.username;
+      } else {
+        const session = await verifyUserSession();
+        if (!session.authenticated || !session.user) {
+          await securityEvent({
+            action: 'market_tick_unauthorized',
+            req: request,
+            details: { hasCronSecret: Boolean(cronSecret) },
+          });
+          return fail('No autorizado para ejecutar el tick del mercado.', 401);
+        }
+        actorId = session.user.id;
+        actorName = session.user.username;
+
+        const rate = enforceRateLimit(`market-tick:${actorId}`, { limit: 6, windowMs: 60_000 });
+        if (!rate.ok) return rate.response;
       }
     }
 
     if (!isServerSupabaseConfigured()) {
-      return NextResponse.json({ success: true, message: 'Supabase offline fallback' }, { status: 200 });
+      return json({ success: true, message: 'Supabase offline fallback' });
     }
 
     const adminClient = createAdminClient();
-    if (!adminClient) {
-      return NextResponse.json({ success: false, error: 'Supabase no inicializado' }, { status: 200 });
-    }
+    if (!adminClient) return fail('Supabase no inicializado', 503);
 
-    // 1. Intentar llamar al RPC nativo si está presente en la base de datos
+    // 1. RPC nativo (atómicamente bloquea la fila del mercado)
     const { data: rpcData, error: rpcError } = await adminClient.rpc('tick_market_price');
     if (!rpcError && rpcData) {
-      return NextResponse.json({ success: true, result: rpcData });
+      return json({ success: true, result: rpcData });
     }
 
-    // 2. Fallback de ciclo empresarial optimizado
+    // 2. Respaldo transaccional en aplicación
     const { data: mData } = await adminClient
       .from('market_state')
       .select('*')
       .eq('id', 1)
       .maybeSingle();
 
-    if (!mData) {
-      return NextResponse.json({ success: true, message: 'Mercado sin datos' });
-    }
+    if (!mData) return json({ success: true, message: 'Mercado sin datos' });
 
     const lastTick = mData.last_tick_at ? new Date(mData.last_tick_at).getTime() : 0;
     const now = Date.now();
-    // Limitar ticks a mínimo 15 segundos entre ejecuciones para optimización extrema
-    if (now - lastTick < 15000) {
-      return NextResponse.json({ success: true, throttled: true, waitSeconds: Math.ceil((15000 - (now - lastTick)) / 1000) });
+    if (now - lastTick < MIN_TICK_INTERVAL_MS) {
+      return json({
+        success: true,
+        throttled: true,
+        waitSeconds: Math.ceil((MIN_TICK_INTERVAL_MS - (now - lastTick)) / 1000),
+      });
     }
 
-    // Ingresos del negocio operativo (ventas de botellón/recreo): entre 20 y 80 monedas
     const businessRevenue = Math.floor(Math.random() * 60) + 20;
     const newTreasury = Number(mData.treasury_balance || 5000) + businessRevenue;
     const newRevenue = Number(mData.total_revenue_generated || 0) + businessRevenue;
 
-    // Oscilación orgánica muy suave (±0.8%)
-    const rndFactor = (Math.random() * 0.016) - 0.007; // -0.7% a +0.9%
+    const rndFactor = Math.random() * 0.016 - 0.007;
     const curPrice = Number(mData.current_price || 10.0);
     const newPrice = Math.max(1.0, Number((curPrice * (1 + rndFactor)).toFixed(2)));
     const changePct = Number((((newPrice - curPrice) / curPrice) * 100).toFixed(2));
 
-    await adminClient
+    // Actualización condicional: solo aplica si nadie ha ejecutado otro tick
+    const { data: updatedRows, error: updateError } = await adminClient
       .from('market_state')
       .update({
         current_price: newPrice,
@@ -83,10 +125,16 @@ async function handleMarketTick(request: NextRequest) {
         last_tick_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', 1);
+      .eq('id', 1)
+      .eq('last_tick_at', mData.last_tick_at)
+      .select('id');
+
+    if (updateError || !updatedRows || updatedRows.length === 0) {
+      return json({ success: true, throttled: true, waitSeconds: 5 });
+    }
 
     const histPoint = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       ticker: 'BTLN',
       price: newPrice,
       volume: businessRevenue,
@@ -100,46 +148,53 @@ async function handleMarketTick(request: NextRequest) {
     };
 
     try {
-      const { error: insErr } = await adminClient.from('price_history').insert([histPoint]);
-      if (insErr) console.warn('[Investments Tick] Error saving price_history:', insErr.message);
-    } catch (_) {}
+      await adminClient.from('price_history').insert([histPoint]);
+    } catch {
+      /* histórico secundario */
+    }
 
     try {
       const channel = adminClient.channel('botellon_market_live_stream');
       await new Promise<void>((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          try {
+            adminClient.removeChannel(channel);
+          } catch {}
+          resolve();
+        };
         channel.subscribe(async (status) => {
           if (status === 'SUBSCRIBED') {
             try {
               await channel.send({
                 type: 'broadcast',
                 event: 'market_trade',
-                payload: {
-                  ticker: 'BTLN',
-                  newPrice,
-                  pricePoint: histPoint,
-                  treasuryBalance: newTreasury,
-                },
+                payload: { ticker: 'BTLN', newPrice, pricePoint: histPoint, treasuryBalance: newTreasury },
               });
-            } catch (_) {}
-            try { adminClient.removeChannel(channel); } catch (_) {}
-            resolve();
+            } catch {}
+            finish();
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            resolve();
+            finish();
           }
         });
-        setTimeout(resolve, 800);
+        setTimeout(finish, 800);
       });
-    } catch (_) {}
+    } catch {
+      /* tiempo real secundario */
+    }
 
-    return NextResponse.json({
+    return json({
       success: true,
       businessRevenue,
       newPrice,
       newTreasury,
       changePercent: changePct,
+      triggeredBy: actorName || (isCron ? 'cron' : null),
     });
   } catch (err: any) {
     console.warn('[Investments Tick] Error:', err);
-    return NextResponse.json({ success: false, error: err?.message || 'Error interno' }, { status: 200 });
+    return fail(err?.message || 'Error interno', 500);
   }
 }
