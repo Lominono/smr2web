@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.8.0';
+let CURRENT_APP_VERSION = '1.9.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,20 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.9.0',
+    title: 'SMR2 v1.9.0 · El Botellón, más claro y mejor organizado',
+    badge: 'NOVEDAD',
+    date: 'Jueves, 12 de Noviembre, 2026',
+    description:
+      'El Botellón estrena una pantalla de inicio limpia, con el bote como protagonista y cada sección en su propio espacio. Ahora es mucho más fácil saber dónde estás y qué hacer, sin verlo todo amontonado.',
+    changes: [
+      'Nueva pantalla de Inicio: el bote acumulado es lo primero que ves, con el botón para canjearlo al monedero y el control del trago manual siempre a mano.',
+      'Navegación más clara: Inicio, Mejoras, Zonas, After y Más. Cada sección abre su propia pantalla y deja respirar al contenido.',
+      'Nueva pantalla Más: el Mecenazgo y la Bolsa de Valores se han movido aquí, con accesos directos y una vuelta rápida en cada pantalla.',
+      'Diseño más limpio: menos avisos amontonados, tarjetas mejor repartidas y un aspecto cuidado tanto en tema claro como en tema oscuro.',
+    ],
+  },
   {
     version: '1.8.0',
     title: 'SMR2 v1.8.0 · Nueva Tienda de Mascotas y Feed Rediseñado',

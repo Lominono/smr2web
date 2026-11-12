@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  X,
 } from 'lucide-react';
 
 export interface CharacterItem {
@@ -182,7 +183,7 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
   return (
     <section
       aria-label="Escena en directo del botellón"
-      className="relative rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-3.5 sm:p-4 shadow-xs space-y-3 select-none font-sans transition-colors"
+      className="relative rounded-2xl bg-surface border border-border p-3.5 sm:p-4 shadow-xs space-y-3 select-none font-sans transition-colors"
     >
       {/* Cabecera Técnica de la Escena (Estilo Apple Compact Strip) */}
       <div className="flex items-center justify-between gap-2">
@@ -192,23 +193,23 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
             style={{ backgroundColor: zoneColor || '#10B981' }}
           />
           <div className="flex items-center gap-2 truncate">
-            <span className="text-xs font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 uppercase font-mono truncate">
+            <span className="text-xs font-semibold tracking-tight text-foreground uppercase font-mono truncate">
               {zoneName}
             </span>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700/60 font-medium shrink-0">
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-surface-raised text-foreground-muted border border-border/60/60 font-medium shrink-0">
               {unlockedCount}/7 en la plaza
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <span className="hidden sm:inline text-[11px] text-neutral-400 dark:text-neutral-500">
+          <span className="hidden sm:inline text-[11px] text-foreground-subtle">
             Toca un personaje (+10 fichas)
           </span>
           <button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="flex items-center gap-1 text-[11px] font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer px-2 py-0.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            className="flex items-center gap-1 text-[11px] font-medium text-foreground-muted hover:text-foreground transition-colors cursor-pointer px-2 py-0.5 rounded-lg hover:bg-surface-hover"
           >
             <span>{isCollapsed ? 'Mostrar' : 'Plegar'}</span>
             {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
@@ -221,18 +222,18 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
         <div
           role="region"
           aria-live="polite"
-          className="relative p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700 shadow-xs flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150"
+          className="relative p-3 rounded-xl bg-surface-raised border border-border/60 shadow-xs flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150"
         >
           <div className="flex items-start gap-2.5 min-w-0">
             <div
-              className="w-8 h-8 rounded-lg bg-white dark:bg-neutral-700 font-bold font-mono text-[11px] shrink-0 border border-neutral-200 dark:border-neutral-600 shadow-2xs flex items-center justify-center transition-colors"
+              className="w-8 h-8 rounded-lg bg-surface-raised font-bold font-mono text-[11px] shrink-0 border border-border/60 shadow-2xs flex items-center justify-center transition-colors"
               style={{ color: activeChar?.color || '#0071e3' }}
             >
               {activeSpeech.name.slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 font-mono">
-                <span className="text-xs font-bold text-neutral-900 dark:text-white">
+                <span className="text-xs font-bold text-foreground">
                   @{activeSpeech.name}
                 </span>
                 <span
@@ -245,7 +246,7 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
                   +10 fichas
                 </span>
               </div>
-              <p className="text-xs text-neutral-700 dark:text-neutral-300 mt-0.5 leading-relaxed">
+              <p className="text-xs text-foreground-muted mt-0.5 leading-relaxed">
                 &ldquo;{activeSpeech.quote}&rdquo;
               </p>
             </div>
@@ -254,10 +255,11 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
           <button
             type="button"
             onClick={onCloseSpeech}
-            className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-1 rounded-md hover:bg-neutral-200/50 dark:hover:bg-neutral-700 cursor-pointer transition-colors"
+            className="text-foreground-subtle hover:text-foreground p-1 rounded-md hover:bg-surface-hover cursor-pointer transition-colors"
             title="Cerrar diálogo"
+            aria-label="Cerrar diálogo"
           >
-            ✕
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
@@ -273,19 +275,19 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
               return (
                 <div
                   key={char.id}
-                  className="group relative flex flex-col items-center justify-between p-2 rounded-xl bg-neutral-100/40 dark:bg-neutral-900/20 border border-dashed border-neutral-200 dark:border-neutral-800 text-center min-h-[76px] opacity-40 transition-opacity hover:opacity-60"
+                  className="group relative flex flex-col items-center justify-between p-2 rounded-xl bg-surface-raised/40 border border-dashed border-border text-center min-h-[76px] opacity-40 transition-opacity hover:opacity-60"
                   title={`Mejora ${char.badge} para invitar a este personaje`}
                 >
                   <div className="w-full flex justify-end">
-                    <Lock className="w-2.5 h-2.5 text-neutral-400 dark:text-neutral-600" />
+                    <Lock className="w-2.5 h-2.5 text-foreground-subtle" />
                   </div>
 
-                  <div className="w-7 h-7 rounded-lg bg-neutral-200/40 dark:bg-neutral-800/30 flex items-center justify-center text-neutral-400 dark:text-neutral-600">
+                  <div className="w-7 h-7 rounded-lg bg-surface-hover/60 flex items-center justify-center text-foreground-subtle">
                     <Icon className="w-3.5 h-3.5" />
                   </div>
 
                   <div className="w-full">
-                    <div className="text-[10px] font-mono font-medium text-neutral-400 dark:text-neutral-500 uppercase truncate">
+                    <div className="text-[10px] font-mono font-medium text-foreground-subtle uppercase truncate">
                       {char.name}
                     </div>
                   </div>
@@ -301,8 +303,8 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
                 style={isSpeaking ? { borderColor: char.color } : undefined}
                 className={`group relative flex flex-col items-center justify-between p-2 rounded-xl border text-center min-h-[76px] transition-all cursor-pointer active:scale-[0.96] touch-manipulation ${
                   isSpeaking
-                    ? 'bg-neutral-100/80 dark:bg-neutral-800 shadow-xs ring-1'
-                    : 'bg-neutral-50 hover:bg-neutral-100/80 dark:bg-neutral-800/40 dark:hover:bg-neutral-800 border-neutral-200/80 dark:border-neutral-700/60 hover:border-neutral-300 dark:hover:border-neutral-600'
+                    ? 'bg-surface-raised shadow-xs ring-1 ring-border'
+                    : 'bg-surface hover:bg-surface-hover border-border/60 hover:border-foreground/20'
                 }`}
               >
                 {/* Nivel en formato Tabular Mono */}
@@ -311,14 +313,14 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
                     className="w-1.5 h-1.5 rounded-full shadow-2xs"
                     style={{ backgroundColor: char.color }}
                   />
-                  <span className="text-[9px] font-mono font-semibold text-neutral-600 dark:text-neutral-300 px-1 py-0.2 rounded bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600">
+                  <span className="text-[9px] font-mono font-semibold text-foreground-muted px-1 py-0.2 rounded bg-surface-raised border border-border/60">
                     nv.{char.level}
                   </span>
                 </div>
 
                 {/* Icono Vectorial */}
                 <div
-                  className="w-7 h-7 rounded-lg bg-white dark:bg-neutral-700 flex items-center justify-center group-hover:scale-105 transition-transform border border-neutral-200/80 dark:border-neutral-600/80 shadow-2xs"
+                  className="w-7 h-7 rounded-lg bg-surface-raised flex items-center justify-center group-hover:scale-105 transition-transform border border-border/60 shadow-2xs"
                   style={{ color: char.color }}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -326,7 +328,7 @@ export const PartyLiveScene: React.FC<PartyLiveSceneProps> = ({
 
                 {/* Nombre */}
                 <div className="w-full">
-                  <div className="text-[11px] font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                  <div className="text-[11px] font-semibold text-foreground truncate">
                     {char.name}
                   </div>
                 </div>
