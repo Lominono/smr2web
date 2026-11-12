@@ -4,6 +4,7 @@ import { isUUID } from '@/lib/uuid';
 import { verifyUserSession } from '@/lib/adminAuth';
 import { enforceRateLimit, fail, guardOrigin } from '@/lib/security/http';
 import { securityEvent } from '@/lib/security/audit';
+import { getRequiredAfterProduction } from '@/lib/botellonEconomy';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,7 +101,26 @@ export async function POST(req: NextRequest) {
       /* si la tabla no está disponible se continúa */
     }
 
-    const currentPrestige = Number(currentFarm.afterPrestigeCount || currentFarm.rebirths || 0);
+    const { data: botellonRow } = await client
+      .from('botellon_states')
+      .select('after_prestige_count, current_run_produced, pending_vault, total_lifetime_produced, current_zone_id, purchased_perks, total_drinks_taken, beer_pong_wins')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const currentPrestige = Number(
+      botellonRow?.after_prestige_count ?? currentFarm.afterPrestigeCount ?? currentFarm.rebirths ?? 0
+    );
+    const currentRunProduced = Number(
+      botellonRow?.current_run_produced ?? currentFarm.currentRunProduced ?? 0
+    );
+    const requiredProd = getRequiredAfterProduction(currentPrestige);
+    if (currentRunProduced < requiredProd) {
+      return fail(
+        `Necesitas producir al menos ${requiredProd.toLocaleString()} fichas en esta ronda para irte de After.`,
+        400
+      );
+    }
+
     // Cada renacimiento avanza estrictamente de 1 en 1 para evitar manipulaciones
     const newPrestigeCount = currentPrestige + 1;
     const now = Date.now();
@@ -108,7 +128,7 @@ export async function POST(req: NextRequest) {
     const startingSeedFichas = Math.min(250000, Math.max(2500, newPrestigeCount * 5000));
 
     // Bonus de fichas acumuladas calculado autoritativamente en servidor (máximo 50.000 monedas por renacimiento)
-    const rawPendingVault = Number(currentFarm.pendingVault || 0);
+    const rawPendingVault = Number(botellonRow?.pending_vault ?? currentFarm.pendingVault ?? 0);
     const bonusCoins = Math.min(50000, Math.max(0, Math.floor(rawPendingVault / 5)));
     const newCoins = Math.max(0, Number(profile.coins || 0) + bonusCoins);
 
@@ -134,7 +154,28 @@ export async function POST(req: NextRequest) {
       lastTickMs: now,
     };
 
-    // 2. Persistir en la base de datos Supabase
+    // 2. Persistir en botellon_states y profiles
+    await client.from('botellon_states').upsert({
+      user_id: userId,
+      levels: updatedFarm.levels,
+      pending_vault: startingSeedFichas,
+      current_run_produced: 0,
+      total_lifetime_produced: Number(botellonRow?.total_lifetime_produced ?? currentFarm.totalLifetimeProduced ?? 0),
+      after_prestige_count: newPrestigeCount,
+      current_zone_id: botellonRow?.current_zone_id || (currentFarm.currentZoneId as string) || 'parque',
+      purchased_perks: Array.isArray(botellonRow?.purchased_perks)
+        ? botellonRow.purchased_perks
+        : Array.isArray(currentFarm.purchasedPerks)
+          ? currentFarm.purchasedPerks
+          : [],
+      total_drinks_taken: Number(botellonRow?.total_drinks_taken ?? currentFarm.totalDrinksTaken ?? 0),
+      beer_pong_wins: Number(botellonRow?.beer_pong_wins ?? currentFarm.beerPongWins ?? 0),
+      hangover_level: 0,
+      after_suspicion_level: 0,
+      last_after_ms: now,
+      last_tick_ms: now,
+    }, { onConflict: 'user_id' });
+
     const { error: updateErr } = await client
       .from('profiles')
       .update({
@@ -149,6 +190,15 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    try {
+      await client.from('botellon_events').insert([{
+        user_id: userId,
+        event_type: 'after_rebirth',
+        payload: { newPrestigeCount, requiredProd, bonusCoins },
+        coins_delta: bonusCoins,
+      }]);
+    } catch {}
 
     // Registro del renacimiento (sirve de cooldown server-side y de auditoría)
     try {
@@ -185,9 +235,10 @@ export async function POST(req: NextRequest) {
       party_farm_data: updatedFarm,
       message: `¡Renacimiento #${newPrestigeCount} completado con éxito! Multiplicador permanente: x${prestigeMultiplier.toFixed(2)}`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error interno del servidor.';
     return NextResponse.json(
-      { success: false, error: error?.message || 'Error interno del servidor.' },
+      { success: false, error: message },
       { status: 500 }
     );
   }

@@ -6,6 +6,13 @@ import { createClient } from '@/lib/supabase/client';
 import { isUUID } from '@/lib/uuid';
 import type { CoinClaimType } from '@/lib/types';
 import {
+  BOTELLON_PERK_COSTS,
+  BOTELLON_ZONE_REQUIREMENTS,
+  getRequiredAfterProduction as getEconomyRequiredAfterProduction,
+  getTierUpgradeCost,
+  getVaultGuardCost as getEconomyVaultGuardCost,
+} from '@/lib/botellonEconomy';
+import {
   Wine,
   BottleWine,
   CupSoda,
@@ -175,7 +182,7 @@ export const ZONES: ZoneConfig[] = [
     subtitle: '23:30h · La previa se calienta',
     desc: 'Refugiados del frío bajo el portal. Los vecinos del primero vigilan por el balcón.',
     multiplier: 1.25,
-    requiredProduction: 1500,
+    requiredProduction: BOTELLON_ZONE_REQUIREMENTS.portal,
     badge: 'Fase 2',
     icon: 'home',
     policeRisk: 0.06,
@@ -189,7 +196,7 @@ export const ZONES: ZoneConfig[] = [
     subtitle: '01:00h · Música y vasos llenos',
     desc: 'Música en altavoces, cubatas en vasos de tubo y la gente dándolo todo.',
     multiplier: 1.6,
-    requiredProduction: 8000,
+    requiredProduction: BOTELLON_ZONE_REQUIREMENTS.piso,
     badge: 'Fase 3',
     icon: 'speaker',
     policeRisk: 0.14,
@@ -203,7 +210,7 @@ export const ZONES: ZoneConfig[] = [
     subtitle: '02:30h · Rumbo a la zona',
     desc: 'Transeúntes, copas en la calle y patrullas de la municipal pasando por la esquina.',
     multiplier: 2.1,
-    requiredProduction: 35000,
+    requiredProduction: BOTELLON_ZONE_REQUIREMENTS.callejon,
     badge: 'Fase 4',
     icon: 'map-pin',
     policeRisk: 0.24,
@@ -217,7 +224,7 @@ export const ZONES: ZoneConfig[] = [
     subtitle: '03:45h · Desmadre en pista',
     desc: 'Luces estroboscópicas, porteros estrictos, barra libre y la pista a reventar.',
     multiplier: 2.8,
-    requiredProduction: 120000,
+    requiredProduction: BOTELLON_ZONE_REQUIREMENTS.discoteca,
     badge: 'Fase 5',
     icon: 'disc',
     policeRisk: 0.36,
@@ -231,7 +238,7 @@ export const ZONES: ZoneConfig[] = [
     subtitle: '05:30h · El fiestón masivo',
     desc: 'Escenario masivo al aire libre, pantallas gigantes y controles de seguridad en cada acceso.',
     multiplier: 3.8,
-    requiredProduction: 400000,
+    requiredProduction: BOTELLON_ZONE_REQUIREMENTS.macrofestival,
     badge: 'Fase 6',
     icon: 'tent',
     policeRisk: 0.50,
@@ -245,13 +252,55 @@ export const ZONES: ZoneConfig[] = [
     subtitle: '07:30h · Fiesta extrema',
     desc: 'Piscina privada, champán ilimitado y vigilancia constante para evitar que nos cierren el local.',
     multiplier: 5.0,
-    requiredProduction: 1200000,
+    requiredProduction: BOTELLON_ZONE_REQUIREMENTS.after_clandestino,
     badge: 'Leyenda',
     icon: 'crown',
     policeRisk: 0.65,
     accentColor: '#A855F7',
     lightGlow: 'from-violet-500/12 via-violet-500/5 to-transparent',
     darkGlow: 'dark:from-violet-950/30 dark:via-violet-950/10 dark:to-transparent',
+  },
+  {
+    id: 'jet_privado',
+    name: 'Jet Privado de 2º SMR',
+    subtitle: '10:00h · After en las nubes',
+    desc: 'Fiesta privada a 10.000 metros de altura con barra libre de champán francés.',
+    multiplier: 12.0,
+    requiredProduction: BOTELLON_ZONE_REQUIREMENTS.jet_privado,
+    badge: 'Millonario',
+    icon: 'crown',
+    policeRisk: 0.72,
+    accentColor: '#06B6D4',
+    lightGlow: 'from-cyan-500/12 via-cyan-500/5 to-transparent',
+    darkGlow: 'dark:from-cyan-950/30 dark:via-cyan-950/10 dark:to-transparent',
+  },
+  {
+    id: 'isla_privada',
+    name: 'Isla Privada del Delegado',
+    subtitle: '14:00h · Festival sin fin',
+    desc: 'Una isla entera alquilada para los billonarios de la clase con DJs residentes.',
+    multiplier: 35.0,
+    requiredProduction: BOTELLON_ZONE_REQUIREMENTS.isla_privada,
+    badge: 'Billonario',
+    icon: 'crown',
+    policeRisk: 0.78,
+    accentColor: '#F97316',
+    lightGlow: 'from-orange-500/12 via-orange-500/5 to-transparent',
+    darkGlow: 'dark:from-orange-950/30 dark:via-orange-950/10 dark:to-transparent',
+  },
+  {
+    id: 'estacion_orbital',
+    name: 'Estación Orbital Botellón',
+    subtitle: 'Sin hora · Élite Trillonaria',
+    desc: 'Botellón en gravedad cero reservado únicamente para las mayores fortunas del servidor.',
+    multiplier: 100.0,
+    requiredProduction: BOTELLON_ZONE_REQUIREMENTS.estacion_orbital,
+    badge: 'Trillonario',
+    icon: 'crown',
+    policeRisk: 0.85,
+    accentColor: '#EAB308',
+    lightGlow: 'from-yellow-500/12 via-yellow-500/5 to-transparent',
+    darkGlow: 'dark:from-yellow-950/30 dark:via-yellow-950/10 dark:to-transparent',
   },
 ];
 
@@ -262,7 +311,7 @@ export interface PerkConfig {
   desc: string;
   cost: number;
   icon: string;
-  effectType: 'drink_mult' | 'discount' | 'crazy_time' | 'jackpot_chance' | 'offline_hours';
+  effectType: 'drink_mult' | 'discount' | 'crazy_time' | 'jackpot_chance' | 'offline_hours' | 'global_mult';
   value: number;
 }
 
@@ -271,7 +320,7 @@ export const PERKS: PerkConfig[] = [
     id: 'aguante_hierro',
     name: 'Hígado de Acero',
     desc: 'Tus tragos manuales dan el triple de fichas directas (x3).',
-    cost: 300,
+    cost: BOTELLON_PERK_COSTS.aguante_hierro,
     icon: 'shield',
     effectType: 'drink_mult',
     value: 3,
@@ -280,7 +329,7 @@ export const PERKS: PerkConfig[] = [
     id: 'descuento_chino',
     name: 'Colega del Tendero',
     desc: 'El chino de confianza te hace un 15% de descuento en todas las bebidas.',
-    cost: 1100,
+    cost: BOTELLON_PERK_COSTS.descuento_chino,
     icon: 'tag',
     effectType: 'discount',
     value: 0.85,
@@ -289,7 +338,7 @@ export const PERKS: PerkConfig[] = [
     id: 'bafles_jbl',
     name: 'Altavoces JBL Conectados',
     desc: 'El subidón de Fiesta Loca dura 25 segundos en vez de 10.',
-    cost: 3200,
+    cost: BOTELLON_PERK_COSTS.bafles_jbl,
     icon: 'speaker',
     effectType: 'crazy_time',
     value: 25,
@@ -298,7 +347,7 @@ export const PERKS: PerkConfig[] = [
     id: 'enchufe_barra',
     name: 'Enchufe en Barra',
     desc: 'Cada trago manual tiene un 12% de probabilidad de soltar un bonus sorpresa.',
-    cost: 8500,
+    cost: BOTELLON_PERK_COSTS.enchufe_barra,
     icon: 'sparkles',
     effectType: 'jackpot_chance',
     value: 0.12,
@@ -307,10 +356,46 @@ export const PERKS: PerkConfig[] = [
     id: 'pase_vip',
     name: 'Pase VIP Permanente',
     desc: 'El límite de recaudación offline aumenta de 4 horas a 8 horas seguidas.',
-    cost: 24000,
+    cost: BOTELLON_PERK_COSTS.pase_vip,
     icon: 'ticket',
     effectType: 'offline_hours',
     value: 8,
+  },
+  {
+    id: 'camion_hielos',
+    name: 'Flota de Camiones de Hielo',
+    desc: 'Multiplica x2.5 toda la producción pasiva del Botellón.',
+    cost: BOTELLON_PERK_COSTS.camion_hielos,
+    icon: 'sparkles',
+    effectType: 'global_mult',
+    value: 2.5,
+  },
+  {
+    id: 'dj_residente',
+    name: 'DJ Residente Internacional',
+    desc: 'Multiplica x4 toda la producción pasiva del Botellón.',
+    cost: BOTELLON_PERK_COSTS.dj_residente,
+    icon: 'speaker',
+    effectType: 'global_mult',
+    value: 4,
+  },
+  {
+    id: 'patrocinio_marca',
+    name: 'Patrocinio Oficial de Licores',
+    desc: 'Multiplica x8 toda la producción pasiva del Botellón.',
+    cost: BOTELLON_PERK_COSTS.patrocinio_marca,
+    icon: 'ticket',
+    effectType: 'global_mult',
+    value: 8,
+  },
+  {
+    id: 'imperio_nocturno',
+    name: 'Imperio Nocturno Trillonario',
+    desc: 'Multiplica x20 toda la producción pasiva. Reservado para élites de trillones.',
+    cost: BOTELLON_PERK_COSTS.imperio_nocturno,
+    icon: 'shield',
+    effectType: 'global_mult',
+    value: 20,
   },
 ];
 
@@ -407,40 +492,14 @@ export interface AfterRiskStats {
   wealthSurcharge: number;
 }
 
-// Producción mínima requerida en la ronda actual para irse de After (escala progresiva real para evitar abusos de ballenas)
+// Producción mínima requerida en la ronda actual para irse de After (escala progresiva real sin tope bajo)
 export function getRequiredAfterProduction(afterCount: number): number {
-  if (afterCount <= 0) return 15000;
-  if (afterCount <= 4) {
-    return Math.floor(15000 * Math.pow(2.5, afterCount));
-  }
-  // Escala continua para Afters altos (hasta >200M requeridos en Afters avanzados)
-  return Math.floor(15000 * Math.pow(2.5, 4) * Math.pow(1.75, Math.min(10, afterCount - 4)));
+  return getEconomyRequiredAfterProduction(afterCount);
 }
 
 // Coste proporcional y severo para blindar el alijo (escala masiva para que a las grandes fortunas les cueste de verdad)
 export function getVaultGuardCost(userCoins: number, vaultFichas: number = 0): { costCoins: number; costFichas: number } {
-  let costCoins = 50;
-  let costFichas = 250;
-
-  if (userCoins >= 100000000) {
-    // Absurdo para fortunas titánicas (>100M, como la cuenta de 621M):
-    costCoins = Math.floor(userCoins * 0.08); // 8% de la fortuna total (~49.6M para 621M)
-    costFichas = Math.floor(Math.max(10000000, vaultFichas * 0.35));
-  } else if (userCoins >= 10000000) {
-    costCoins = Math.floor(userCoins * 0.06);
-    costFichas = Math.floor(Math.max(2000000, vaultFichas * 0.25));
-  } else if (userCoins >= 1000000) {
-    costCoins = Math.floor(userCoins * 0.045);
-    costFichas = Math.floor(Math.max(250000, vaultFichas * 0.18));
-  } else if (userCoins >= 100000) {
-    costCoins = Math.floor(userCoins * 0.03);
-    costFichas = Math.floor(Math.max(25000, vaultFichas * 0.12));
-  } else if (userCoins >= 10000) {
-    costCoins = Math.floor(userCoins * 0.015);
-    costFichas = Math.floor(Math.max(2500, vaultFichas * 0.08));
-  }
-
-  return { costCoins, costFichas };
+  return getEconomyVaultGuardCost(userCoins, vaultFichas);
 }
 
 export function getGuardCost(userCoins: number): number {
@@ -729,6 +788,14 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
   const costDiscount = hasPerk('descuento_chino') ? 0.85 : 1.0;
   const drinkPowerMult = hasPerk('aguante_hierro') ? 3.0 : 1.0;
+  const globalPerkProdMult = useMemo(() => {
+    return PERKS.reduce((acc, perk) => {
+      if (perk.effectType === 'global_mult' && purchasedPerks.includes(perk.id)) {
+        return acc * perk.value;
+      }
+      return acc;
+    }, 1);
+  }, [purchasedPerks]);
   const rankBonusMult = 1 + currentRank.bonusPercent / 100;
 
   // Tasa de producción pasiva base (por segundo) con hitos, zona y rango
@@ -739,8 +806,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       return acc + lvl * tier.baseRate * milestone;
     }, 0);
 
-    return rawRate * activeZone.multiplier * rankBonusMult;
-  }, [levels, activeZone.multiplier, rankBonusMult]);
+    return rawRate * activeZone.multiplier * rankBonusMult * globalPerkProdMult;
+  }, [levels, activeZone.multiplier, rankBonusMult, globalPerkProdMult]);
 
   // Tasa real con multiplicadores aplicados (Prestigio + Bóveda Blindada +20% + Beca Novatos x4 + Modo Fiesta Loca x3)
   const isStashGuarded = guardActiveUntilMs > Date.now();
@@ -917,55 +984,45 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       applyState(saved, true);
     }
 
-    // Comprobar y sincronizar con la nube de Supabase solo si es cuenta con UUID real
+    // Comprobar y sincronizar con la base de datos dedicada del Botellón (`botellon_states`)
     if (userId && isUUID(userId)) {
-      const supabase = createClient();
-      if (supabase) {
-        (async () => {
-          try {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('party_farm_data')
-              .eq('id', userId)
-              .maybeSingle();
+      (async () => {
+        try {
+          const res = await fetch('/api/botellon/sync', { method: 'GET' });
+          if (!res.ok) return;
+          const payload = await res.json();
+          const cloudState = payload?.state as BotellonState | null;
 
-            if (error) {
-              console.warn('Nota al consultar party_farm_data en Supabase:', error.message);
-              return;
+          if (cloudState && typeof cloudState === 'object' && Object.keys(cloudState).length > 0) {
+            const localProd = saved?.totalLifetimeProduced || 0;
+            const cloudProd = cloudState.totalLifetimeProduced || 0;
+            const localPrestige = saved?.afterPrestigeCount || (saved as any)?.rebirths || 0;
+            const cloudPrestige = cloudState.afterPrestigeCount || (cloudState as any).rebirths || 0;
+
+            // El servidor es autoritativo en prestigio, niveles y perks
+            if (cloudPrestige >= localPrestige || cloudProd >= localProd || !saved) {
+              applyState(cloudState, false);
+              try {
+                localStorage.setItem(storageKey, JSON.stringify(cloudState));
+              } catch {}
+            } else if (saved) {
+              await fetch('/api/botellon/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ state: saved }),
+              });
             }
-
-            if (data?.party_farm_data && typeof data.party_farm_data === 'object' && Object.keys(data.party_farm_data).length > 0) {
-              const cloudState = data.party_farm_data as BotellonState;
-              const localProd = saved?.totalLifetimeProduced || 0;
-              const cloudProd = cloudState.totalLifetimeProduced || 0;
-              const localPrestige = saved?.afterPrestigeCount || (saved as any)?.rebirths || 0;
-              const cloudPrestige = cloudState.afterPrestigeCount || (cloudState as any).rebirths || 0;
-
-              // Reconciliación: dar prioridad al mayor número de renacimientos o mayor producción acumulada
-              if (cloudPrestige > localPrestige || (cloudPrestige === localPrestige && cloudProd > localProd) || !saved) {
-                applyState(cloudState, false);
-                try {
-                  localStorage.setItem(storageKey, JSON.stringify(cloudState));
-                } catch {}
-              } else if ((localPrestige > cloudPrestige || (localPrestige === cloudPrestige && localProd > cloudProd)) && saved) {
-                // Si el dispositivo actual tiene más avance, actualizar la base de datos
-                await supabase
-                  .from('profiles')
-                  .update({ party_farm_data: saved })
-                  .eq('id', userId);
-              }
-            } else if (saved && isUUID(userId)) {
-              // Si la nube estaba vacía ({}) pero hay progreso local guardado, sincronizarlo a la nube
-              await supabase
-                .from('profiles')
-                .update({ party_farm_data: saved })
-                .eq('id', userId);
-            }
-          } catch (syncErr) {
-            console.warn('Error sincronizando progreso con Supabase:', syncErr);
+          } else if (saved) {
+            await fetch('/api/botellon/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ state: saved }),
+            });
           }
-        })();
-      }
+        } catch (syncErr) {
+          console.warn('Error sincronizando progreso con botellon_states:', syncErr);
+        }
+      })();
     }
   }, [storageKey, userId]);
 
@@ -984,32 +1041,29 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         localStorage.setItem(storageKey, JSON.stringify(fullState));
       } catch {}
 
-      // Sincronizar en Supabase si el usuario tiene UUID válido (control de frecuencia: máx 1 cada 3.5s salvo urgencia)
+      // Sincronizar en botellon_states si el usuario tiene UUID válido (control de frecuencia: máx 1 cada 3.5s salvo urgencia)
       if (userId && isUUID(userId)) {
         const now = Date.now();
         if (isUrgent || now - lastCloudSyncRef.current >= 3500) {
           lastCloudSyncRef.current = now;
           setCloudSyncStatus('saving');
-          const supabase = createClient();
-          if (supabase) {
-            (async () => {
-              try {
-                const { error } = await supabase
-                  .from('profiles')
-                  .update({ party_farm_data: fullState })
-                  .eq('id', userId);
-                if (error) {
-                  console.warn('Nota al guardar en Supabase:', error.message);
-                  setCloudSyncStatus('offline');
-                } else {
-                  setCloudSyncStatus('saved');
-                }
-              } catch (err) {
-                console.warn('Error al guardar party_farm_data en Supabase:', err);
+          (async () => {
+            try {
+              const res = await fetch('/api/botellon/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ state: fullState }),
+              });
+              if (!res.ok) {
                 setCloudSyncStatus('offline');
+              } else {
+                setCloudSyncStatus('saved');
               }
-            })();
-          }
+            } catch (err) {
+              console.warn('Error al guardar estado en botellon_states:', err);
+              setCloudSyncStatus('offline');
+            }
+          })();
         }
       }
     },
@@ -1226,7 +1280,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
     });
   };
 
-  // Cálculo de costes escalonados e308 con compras múltiples y descuento de tendero
+  // Cálculo de costes absurdos y escalonados con compras múltiples y descuento de tendero
   const getBuyQuote = useCallback(
     (tier: TierConfig, currentLevel: number, multiplier: 1 | 5 | 10 | 'max', availableFichas: number) => {
       let count = 0;
@@ -1234,7 +1288,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       const targetCount = multiplier === 'max' ? 100 : multiplier;
 
       for (let i = 0; i < targetCount; i++) {
-        const rawCost = Math.floor(tier.baseCost * Math.pow(1.22, currentLevel + i));
+        const rawCost = getTierUpgradeCost(tier.baseCost, currentLevel + i, afterPrestigeCount);
         const finalCost = Math.max(1, Math.floor(rawCost * costDiscount));
 
         if (multiplier === 'max') {
@@ -1249,7 +1303,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       if (multiplier === 'max' && count === 0) {
         count = 1;
-        const rawCost = Math.floor(tier.baseCost * Math.pow(1.22, currentLevel));
+        const rawCost = getTierUpgradeCost(tier.baseCost, currentLevel, afterPrestigeCount);
         totalCost = Math.max(1, Math.floor(rawCost * costDiscount));
       }
 
@@ -1259,10 +1313,10 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         canAfford: availableFichas >= totalCost && count > 0,
       };
     },
-    [costDiscount]
+    [costDiscount, afterPrestigeCount]
   );
 
-  // Acción: Comprar mejora de nivel exclusivamente con FICHAS del bote (nunca descuenta monedas reales de la cartera)
+  // Acción: Comprar mejora de nivel exclusivamente con FICHAS del bote (persistida en botellon_states)
   const handleBuyTier = (tier: TierConfig) => {
     const currentLevel = levels[tier.id] || 0;
     const { count, totalCost, canAfford } = getBuyQuote(
@@ -1302,6 +1356,19 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       return nextLevels;
     });
+
+    if (userId && isUUID(userId)) {
+      fetch('/api/botellon/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'buy_tier',
+          tierId: tier.id,
+          multiplier: buyMultiplier,
+          clientVault: pendingVault,
+        }),
+      }).catch(() => {});
+    }
   };
 
   // Acción voluntaria: Inyectar pasta al bote desde la cartera (1 moneda = 5 fichas)
@@ -1328,8 +1395,43 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   };
 
   // Acción: Comprar Perk / Habilidad permanente
-  const handleBuyPerk = (perk: PerkConfig) => {
+  const handleBuyPerk = async (perk: PerkConfig) => {
     if (userCoins < perk.cost || hasPerk(perk.id)) return;
+
+    if (userId && isUUID(userId)) {
+      try {
+        const res = await fetch('/api/botellon/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'buy_perk', perkId: perk.id }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.success) {
+          sound.broke();
+          alert(data?.error || 'No se pudo desbloquear esta ventaja.');
+          return;
+        }
+        sound.coinWin();
+        confetti({ particleCount: 70, spread: 60 });
+        const nextPerks = Array.isArray(data.purchasedPerks) ? data.purchasedPerks : [...purchasedPerks, perk.id];
+        setPurchasedPerks(nextPerks);
+        saveState({
+          levels,
+          pendingVault,
+          totalLifetimeProduced,
+          afterPrestigeCount,
+          lastTickMs: Date.now(),
+          currentZoneId,
+          purchasedPerks: nextPerks,
+          totalDrinksTaken,
+          beerPongWins,
+        });
+        return;
+      } catch {
+        sound.broke();
+        return;
+      }
+    }
 
     sound.coinWin();
     confetti({ particleCount: 70, spread: 60 });
@@ -1369,6 +1471,14 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
       totalDrinksTaken,
       beerPongWins,
     });
+
+    if (userId && isUUID(userId)) {
+      fetch('/api/botellon/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'select_zone', zoneId: zone.id }),
+      }).catch(() => {});
+    }
   };
 
   // Acción: Interacción con personajes en vivo en la escena
