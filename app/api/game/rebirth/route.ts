@@ -110,6 +110,9 @@ export async function POST(req: NextRequest) {
     const currentPrestige = Number(
       botellonRow?.after_prestige_count ?? currentFarm.afterPrestigeCount ?? currentFarm.rebirths ?? 0
     );
+    if (currentPrestige >= 100) {
+      return fail('Has alcanzado el prestigio máximo de El Botellón (100 Afters).', 400);
+    }
     const currentRunProduced = Number(
       botellonRow?.current_run_produced ?? currentFarm.currentRunProduced ?? 0
     );

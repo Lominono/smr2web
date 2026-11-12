@@ -427,18 +427,19 @@ export function getTierMilestoneMultiplier(level: number): number {
 }
 
 export function calculatePrestigeMultiplier(count: number): number {
-  if (count <= 0) return 1.0;
-  // Escalado gratificante y progresivo para Idle Game:
+  const c = Math.min(100, Math.max(0, Math.floor(Number.isFinite(count) ? count : 0)));
+  if (c <= 0) return 1.0;
+  // Escalado gratificante y progresivo para Idle Game (máx 100 Afters):
   // Rebirth 1: x2.00 (+100% producción total)
   // Rebirth 2: x3.50 (+150%)
   // Rebirth 3: x5.00 (+150%)
   // Rebirth 4: x6.50 (+150%)
   // Rebirth 5: x8.50 (+200%)
   // Rebirth 10: x18.50
-  let mult = 1.0 + count * 1.0;
-  if (count >= 2) mult += (count - 1) * 0.5;
-  if (count >= 4) mult += (count - 3) * 0.5;
-  if (count >= 7) mult += (count - 6) * 0.5;
+  let mult = 1.0 + c * 1.0;
+  if (c >= 2) mult += (c - 1) * 0.5;
+  if (c >= 4) mult += (c - 3) * 0.5;
+  if (c >= 7) mult += (c - 6) * 0.5;
   return Number(mult.toFixed(2));
 }
 
@@ -994,24 +995,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           const cloudState = payload?.state as BotellonState | null;
 
           if (cloudState && typeof cloudState === 'object' && Object.keys(cloudState).length > 0) {
-            const localProd = saved?.totalLifetimeProduced || 0;
-            const cloudProd = cloudState.totalLifetimeProduced || 0;
-            const localPrestige = saved?.afterPrestigeCount || (saved as any)?.rebirths || 0;
-            const cloudPrestige = cloudState.afterPrestigeCount || (cloudState as any).rebirths || 0;
-
-            // El servidor es autoritativo en prestigio, niveles y perks
-            if (cloudPrestige >= localPrestige || cloudProd >= localProd || !saved) {
-              applyState(cloudState, false);
-              try {
-                localStorage.setItem(storageKey, JSON.stringify(cloudState));
-              } catch {}
-            } else if (saved) {
-              await fetch('/api/botellon/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ state: saved }),
-              });
-            }
+            // La base de datos `botellon_states` es la fuente autoritativa (evita rebirths o saldos manipulados en localStorage)
+            applyState(cloudState, false);
+            try {
+              localStorage.setItem(storageKey, JSON.stringify(cloudState));
+            } catch {}
           } else if (saved) {
             await fetch('/api/botellon/sync', {
               method: 'POST',

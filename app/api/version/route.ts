@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '1.6.1';
+let CURRENT_APP_VERSION = '1.7.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,20 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '1.7.0',
+    title: 'SMR2 v1.7.0 · Reajuste de Rebirths, Canjes de Bote Sin Bloqueos y Precios Absurdos',
+    badge: 'ACTUALIZACIÓN OBLIGATORIA',
+    date: 'Jueves, 12 de Noviembre, 2026',
+    description:
+      'Actualización obligatoria para toda la clase. Se corrige el error de límite al canjear fichas del bote, se normalizan los After/Rebirth desorbitados (tope justo de 100 Afters) y se estrena la nueva base de datos dedicada de El Botellón con precios absurdos para grandes fortunas.',
+    changes: [
+      'Corrección de Canjes del Bote: Eliminado el bloqueo del 5% al pasar fichas del bote de El Botellón a tu cartera; ahora el servidor valida directamente tu alijo real.',
+      'Reajuste y Tope de Rebirths (Afters): Se normalizan las cuentas con miles de rebirths acumulados y se establece un máximo justo de 100 Afters sincronizados desde servidor.',
+      'Nueva Base de Datos de El Botellón: Tu progreso ahora se guarda de forma autoritativa en las tablas dedicadas botellon_states y botellon_events.',
+      'Economía Absurda para Billonarios y Trillonarios: Subida agresiva de precios por tramos en bebidas, 4 nuevas ventajas endgame (hasta 50T) y 3 zonas nuevas hasta la Estación Orbital.',
+    ],
+  },
   {
     version: '1.6.1',
     title: 'SMR2 v1.6.1 · Mejoras de Rendimiento, Integridad de Sesión y Estabilidad General',

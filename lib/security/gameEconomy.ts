@@ -96,19 +96,19 @@ export interface CooldownRule {
  * pero nadie puede pasar de 0 a billones en una petición.
  */
 export const CLAIM_RULES: Record<Exclude<WalletClaimType, 'game' | 'daily' | 'spin' | 'rescue'>, CooldownRule> = {
-  vault: { cooldownMs: 20_000, relativeCap: 0.05, floorCap: 50_000 },
-  subsidio: { cooldownMs: 2 * 60 * 60 * 1000, relativeCap: 0.05, floorCap: 15_000 },
-  rebirth: { cooldownMs: 30_000, relativeCap: 0.05, floorCap: 100_000 },
+  vault: { cooldownMs: 5_000, relativeCap: 2.0, floorCap: 500_000 },
+  subsidio: { cooldownMs: 2 * 60 * 60 * 1000, relativeCap: 0.5, floorCap: 50_000 },
+  rebirth: { cooldownMs: 10_000, relativeCap: 2.0, floorCap: 500_000 },
   checkin: { cooldownMs: 20 * 60 * 60 * 1000, relativeCap: 0.05, floorCap: 500 },
-  misc: { cooldownMs: 3_000, relativeCap: 0.05, floorCap: 50_000 },
+  misc: { cooldownMs: 2_000, relativeCap: 0.5, floorCap: 250_000 },
 };
 
 /** Presupuesto de ganancias no-casino por ventana temporal. */
 export function earningsBudget(balance: number): { perMinute: number; perHour: number } {
   const safeBalance = Math.max(0, Number.isFinite(balance) ? balance : 0);
   return {
-    perMinute: Math.max(150_000, Math.floor(safeBalance * 0.1)),
-    perHour: Math.max(1_000_000, Math.floor(safeBalance * 2)),
+    perMinute: Math.max(1_000_000, Math.floor(safeBalance * 3)),
+    perHour: Math.max(10_000_000, Math.floor(safeBalance * 10)),
   };
 }
 

@@ -339,22 +339,38 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const cap = perClaimCap(balance, rule, last ? last.amount : 0);
-    if (delta > cap) {
+    let effectiveCap = perClaimCap(balance, rule, last ? last.amount : 0);
+
+    // Si es un canje del bote del Botellón, permitir al menos el equivalente en monedas de su alijo real en DB
+    if (claimType === 'vault') {
+      try {
+        const { data: botellonRow } = await client
+          .from('botellon_states')
+          .select('pending_vault')
+          .eq('user_id', userId)
+          .maybeSingle();
+        const serverVaultCoins = Math.floor(Number(botellonRow?.pending_vault || 0) / 5);
+        if (serverVaultCoins > effectiveCap) {
+          effectiveCap = serverVaultCoins;
+        }
+      } catch {}
+    }
+
+    if (delta > effectiveCap) {
       await securityEvent({
         action: 'wallet_claim_cap_exceeded',
         userId,
         username,
         req,
-        details: { claimType, requested: delta, cap, balance },
+        details: { claimType, requested: delta, cap: effectiveCap, balance },
       });
       return fail(
-        `Recompensa no autorizada: el importe solicitado (${delta.toLocaleString()}) supera el máximo permitido ahora mismo (${cap.toLocaleString()}).`,
+        `El importe solicitado (${delta.toLocaleString()}) supera el máximo por operación actual (${effectiveCap.toLocaleString()}). Intenta canjear una cantidad menor.`,
         400
       );
     }
 
-    const budget = earningsBudget(balance);
+    const budget = earningsBudget(Math.max(balance, effectiveCap));
     const wonLastMinute = sumCreditsSince(recentCredits, 60_000);
     const wonLastHour = sumCreditsSince(recentCredits, 60 * 60 * 1000);
     if (wonLastMinute + delta > budget.perMinute || wonLastHour + delta > budget.perHour) {
