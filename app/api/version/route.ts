@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '2.3.0';
+let CURRENT_APP_VERSION = '2.4.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,20 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '2.4.0',
+    title: 'SMR2 v2.4.0 · Tu Para ti, en una ventana de TikTok',
+    badge: 'NOVEDAD',
+    date: 'Viernes, 13 de Noviembre, 2026',
+    description:
+      'La pestaña de TikTok ahora se ve como un móvil y entra con tu cuenta: vídeo a todo el ancho del panel, inicio de sesión guiado y tu Para ti real abierto en una ventana de TikTok junto al juego.',
+    changes: [
+      'Entrada guiada: botón para iniciar sesión en TikTok y, al volver, pegar el enlace del perfil (con botón Pegar) y ver antes de guardar con qué @usuario vas a entrar.',
+      'Tu Para ti real: con la cuenta guardada, el botón «Para ti» abre tu feed personalizado en una ventana estrecha de TikTok, como un móvil, con tu propia sesión y el juego a la vista. En móvil se abre en una pestaña.',
+      'Vídeo a pantalla completa: la tarjeta oficial ocupa todo el ancho del panel, sin márgenes ni barra de scroll, y el aviso de cookies de TikTok queda siempre visible y pulsable la primera vez.',
+      'Panel más ancho y con el mismo lenguaje visual: cabecera compacta, barra de cuenta con tu @usuario y flechas, contador y atajos de teclado para cambiar de vídeo.',
+    ],
+  },
   {
     version: '2.3.0',
     title: 'SMR2 v2.3.0 · Conecta tu TikTok y entra en tu Para ti',

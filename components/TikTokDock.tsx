@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, ChevronDown, ChevronUp, LogIn, X } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ChevronUp, ClipboardPaste, LogIn, X } from 'lucide-react';
 import { sound } from '@/lib/audio';
 
 /**
@@ -10,7 +10,7 @@ import { sound } from '@/lib/audio';
  * comparte entre dominios. Por eso el panel pide primero la cuenta y después:
  *
  * 1. guarda el @usuario en este dispositivo,
- * 2. abre el Para ti real en TikTok con la sesión del alumno (un toque),
+ * 2. abre el Para ti real en una ventana de TikTok con la sesión del alumno,
  * 3. mantiene dentro del juego una selección vertical de publicaciones de la
  *    cuenta oficial de TikTok España, que sí se puede incrustar.
  */
@@ -32,6 +32,13 @@ const TIKTOK_FORYOU_URL = 'https://www.tiktok.com/foryou?lang=es';
 const TIKTOK_LOGIN_URL = 'https://www.tiktok.com/login?lang=es';
 const HANDLE_STORAGE_KEY = 'smr2:tiktok:handle';
 const HANDLE_PATTERN = /^[A-Za-z0-9._]{2,24}$/;
+
+/**
+ * El embed oficial es una tarjeta con 32 px de margen a cada lado, 32 px arriba
+ * y una barra de scroll propia. Desplazamos el iframe para que la tarjeta llene
+ * el ancho del panel y los márgenes y la barra queden fuera, sin escalar nada.
+ */
+const EMBED_GUTTER = 32;
 
 /** Acepta «@usuario», «usuario» o un enlace pegado de tiktok.com/@usuario. */
 const normalizeHandle = (raw: string): string | null => {
@@ -68,6 +75,7 @@ export const TikTokDock: React.FC = () => {
   const [screen, setScreen] = useState<'connect' | 'feed'>('connect');
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [pasteHint, setPasteHint] = useState<string | null>(null);
 
   const panelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -77,6 +85,7 @@ export const TikTokDock: React.FC = () => {
 
   const currentVideo = TIKTOK_VIDEOS[index];
   const currentVideoUrl = `${TIKTOK_SPAIN_PROFILE_URL}/video/${currentVideo}`;
+  const previewHandle = normalizeHandle(draft);
 
   useEffect(() => {
     try {
@@ -120,12 +129,37 @@ export const TikTokDock: React.FC = () => {
     [index]
   );
 
+  /**
+   * Abre el Para ti real con la sesión de TikTok del alumno. En escritorio se
+   * abre una ventana estrecha (como un móvil) que deja el juego a la vista.
+   */
+  const openForYou = useCallback(() => {
+    sound.tap();
+    const isMobile = window.matchMedia('(max-width: 639px)').matches;
+    if (isMobile) {
+      window.open(TIKTOK_FORYOU_URL, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    const width = 420;
+    const height = Math.min(860, Math.max(520, window.screen.availHeight - 120));
+    const left = Math.max(0, window.screenX + window.innerWidth - width - 440);
+    const top = Math.max(0, window.screenY + Math.round((window.innerHeight - height) / 2));
+    const popup = window.open(
+      TIKTOK_FORYOU_URL,
+      'smr2-tiktok-foryou',
+      `popup=yes,width=${width},height=${height},left=${left},top=${top},noopener`
+    );
+    if (popup) {
+      popup.opener = null;
+    }
+  }, []);
+
   const connectAccount = useCallback(
     (event?: React.FormEvent) => {
       event?.preventDefault();
       const normalized = normalizeHandle(draft);
       if (!normalized) {
-        setError('Escribe tu usuario, por ejemplo @tiktok_es.');
+        setError('Ese usuario no parece válido. Prueba con @tiktok_es.');
         handleInputRef.current?.focus();
         return;
       }
@@ -137,12 +171,28 @@ export const TikTokDock: React.FC = () => {
       setHandle(normalized);
       setDraft('');
       setError(null);
+      setPasteHint(null);
       setScreen('feed');
       setLoaded(false);
       sound.tap();
     },
     [draft]
   );
+
+  const pasteProfile = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        setPasteHint('El portapapeles está vacío. Copia el enlace de tu perfil en TikTok.');
+        return;
+      }
+      setDraft(text.trim());
+      setError(null);
+      setPasteHint(null);
+    } catch {
+      setPasteHint('Tu navegador no deja leer el portapapeles: pega el enlace con Ctrl+V.');
+    }
+  }, []);
 
   const disconnectAccount = useCallback(() => {
     try {
@@ -153,6 +203,7 @@ export const TikTokDock: React.FC = () => {
     setHandle(null);
     setDraft('');
     setError(null);
+    setPasteHint(null);
     setScreen('connect');
     sound.tap();
   }, []);
@@ -277,7 +328,7 @@ export const TikTokDock: React.FC = () => {
           aria-modal="true"
           aria-label="TikTok"
           aria-hidden={!isOpen}
-          className={`absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden border-border bg-surface shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none sm:inset-y-3 sm:right-3 sm:w-[400px] sm:rounded-3xl sm:border ${
+          className={`absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden border-border bg-surface shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none sm:inset-y-3 sm:right-3 sm:w-[420px] sm:rounded-3xl sm:border ${
             isOpen ? 'translate-x-0' : 'translate-x-[calc(100%+1rem)]'
           }`}
         >
@@ -325,16 +376,33 @@ export const TikTokDock: React.FC = () => {
 
                   <div className="space-y-1.5">
                     <h3 className="text-sm font-semibold tracking-tight text-foreground">
-                      {handle ? 'Cambia tu cuenta' : 'Conecta tu TikTok'}
+                      {handle ? 'Cambia tu cuenta' : 'Entra con tu TikTok'}
                     </h3>
                     <p className="text-[11px] leading-relaxed text-foreground-muted">
-                      Escribe tu usuario para guardarlo en este dispositivo y abrir tu Para ti con un solo toque.
+                      Con tu cuenta, el panel te lleva a tu Para ti de siempre. TikTok no deja incrustar ese feed:
+                      se abre en una ventana de TikTok con tu sesión.
                     </p>
                   </div>
 
+                  <a
+                    href={TIKTOK_LOGIN_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => sound.tap()}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2.5 text-xs font-semibold text-accent-foreground transition-opacity hover:opacity-90 active:scale-[0.98]"
+                  >
+                    <LogIn className="h-3.5 w-3.5" />
+                    Iniciar sesión en TikTok
+                    <ArrowUpRight className="h-3 w-3" />
+                  </a>
+
+                  <p className="text-[10px] leading-relaxed text-foreground-subtle">
+                    Cuando vuelvas, pega aquí el enlace de tu perfil y quedará guardado solo en este dispositivo.
+                  </p>
+
                   <form onSubmit={connectAccount} className="w-full space-y-2 text-left">
                     <label htmlFor="tiktok-handle" className="block text-[11px] font-medium text-foreground-muted">
-                      Tu usuario de TikTok
+                      Tu perfil de TikTok
                     </label>
                     <div className="flex items-center gap-1.5 rounded-xl border border-border bg-surface-raised px-3 py-2 transition-colors focus-within:border-border-focus">
                       <span aria-hidden="true" className="text-xs text-foreground-subtle">
@@ -349,8 +417,11 @@ export const TikTokDock: React.FC = () => {
                           if (error) {
                             setError(null);
                           }
+                          if (pasteHint) {
+                            setPasteHint(null);
+                          }
                         }}
-                        placeholder="tiktok_es"
+                        placeholder="tiktok_es o el enlace de tu perfil"
                         autoComplete="off"
                         autoCapitalize="none"
                         autoCorrect="off"
@@ -359,39 +430,50 @@ export const TikTokDock: React.FC = () => {
                         aria-describedby={error ? 'tiktok-handle-error' : undefined}
                         className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-foreground-subtle"
                       />
+                      <button
+                        type="button"
+                        onClick={pasteProfile}
+                        className="flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] font-medium text-foreground-subtle transition-colors hover:text-foreground"
+                      >
+                        <ClipboardPaste className="h-3 w-3" />
+                        Pegar
+                      </button>
                     </div>
+
+                    {previewHandle && !error && (
+                      <p className="flex items-center gap-1.5 text-[11px] text-foreground-muted">
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-[8px] font-semibold text-background">
+                          {initialsOf(previewHandle)}
+                        </span>
+                        Entrarás como <span className="font-medium text-foreground">@{previewHandle}</span>
+                      </p>
+                    )}
                     {error && (
                       <p id="tiktok-handle-error" role="alert" className="text-[11px] text-danger">
                         {error}
                       </p>
                     )}
+                    {pasteHint && (
+                      <p role="status" className="text-[11px] text-foreground-muted">
+                        {pasteHint}
+                      </p>
+                    )}
+
                     <button
                       type="submit"
                       disabled={!draft.trim()}
                       className="w-full rounded-xl bg-accent px-3 py-2.5 text-xs font-semibold text-accent-foreground transition-opacity hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      Guardar y ver mi TikTok
+                      Guardar mi cuenta
                     </button>
                   </form>
 
                   <div className="w-full space-y-2.5 border-t border-border-subtle pt-4">
-                    <a
-                      href={TIKTOK_LOGIN_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-foreground-muted transition-colors hover:text-foreground"
-                    >
-                      <LogIn className="h-3.5 w-3.5" />
-                      Iniciar sesión en TikTok
-                      <ArrowUpRight className="h-3 w-3" />
-                    </a>
-                    <p className="text-[10px] leading-relaxed text-foreground-subtle">
-                      Con la sesión iniciada, «Para ti» te mostrará los vídeos de tu cuenta.
-                    </p>
                     <button
                       type="button"
                       onClick={() => {
                         setError(null);
+                        setPasteHint(null);
                         setScreen('feed');
                         setLoaded(false);
                       }}
@@ -427,20 +509,19 @@ export const TikTokDock: React.FC = () => {
                     {handle ? `@${handle}` : 'Sin cuenta conectada'}
                   </p>
                   <p className="truncate text-[10px] text-foreground-subtle">
-                    {handle ? 'Tu Para ti y TikTok España' : 'Conecta tu cuenta'}
+                    {handle ? 'Tu Para ti + TikTok España' : 'Conecta tu cuenta'}
                   </p>
                 </div>
                 {handle ? (
                   <>
-                    <a
-                      href={TIKTOK_FORYOU_URL}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={openForYou}
                       className="flex shrink-0 items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[10px] font-semibold text-accent-foreground transition-opacity hover:opacity-90 active:scale-95"
                     >
                       Para ti
                       <ArrowUpRight className="h-3 w-3" />
-                    </a>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -467,7 +548,7 @@ export const TikTokDock: React.FC = () => {
                 )}
               </div>
 
-              <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
+              <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
                 {isOpen && (
                   <iframe
                     key={currentVideo}
@@ -476,7 +557,13 @@ export const TikTokDock: React.FC = () => {
                     onLoad={() => setLoaded(true)}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
-                    className="absolute inset-0 h-full w-full border-0"
+                    className="absolute border-0"
+                    style={{
+                      top: `-${EMBED_GUTTER}px`,
+                      left: `-${EMBED_GUTTER}px`,
+                      width: `calc(100% + ${EMBED_GUTTER * 2}px)`,
+                      height: `calc(100% + ${EMBED_GUTTER}px)`,
+                    }}
                   />
                 )}
 
