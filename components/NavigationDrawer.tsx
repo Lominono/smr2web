@@ -25,6 +25,7 @@ import {
   IdCard,
   MonitorDown,
   ShoppingBag,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
@@ -447,7 +448,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               }}
               className={`${rowBase} ${rowIdle}`}
             >
-              <FileText className="h-4 w-4 shrink-0" />
+              <Sparkles className="h-4 w-4 shrink-0" />
               <span className="flex-1 truncate">Novedades y versiones</span>
               <span className="shrink-0 rounded border border-border/70 bg-surface-raised px-1 py-px font-mono text-[9px] uppercase tracking-wide text-foreground-subtle">
                 Nuevo
