@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '2.2.0';
+let CURRENT_APP_VERSION = '2.3.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,20 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '2.3.0',
+    title: 'SMR2 v2.3.0 · Conecta tu TikTok y entra en tu Para ti',
+    badge: 'NOVEDAD',
+    date: 'Viernes, 13 de Noviembre, 2026',
+    description:
+      'La pestaña de TikTok ahora pide primero tu cuenta. El panel recuerda tu @usuario, te lleva a tu Para ti real con un toque y mantiene los vídeos de TikTok España dentro de El Botellón.',
+    changes: [
+      'Paso de conexión: la primera vez el panel pide tu usuario de TikTok (o el enlace de tu perfil) y lo guarda solo en ese dispositivo. Nunca se pide la contraseña.',
+      'Tu Para ti de verdad: con la cuenta conectada, el botón «Para ti» abre tu feed personalizado en TikTok con tu propia sesión. TikTok no permite incrustar ese feed en otras webs, así que se abre fuera del panel y El Botellón sigue tal cual detrás.',
+      'Tu cuenta a la vista: la cabecera muestra tu @usuario, el acceso directo a tu perfil y los botones para cambiar de cuenta o quitarla del dispositivo.',
+      'Vídeos dentro del juego: se mantiene el feed vertical de TikTok España con flechas, contador y atajos de teclado, para seguir viendo vídeos sin salir de la web.',
+    ],
+  },
   {
     version: '2.2.0',
     title: 'SMR2 v2.2.0 · TikTok al lado de El Botellón',
