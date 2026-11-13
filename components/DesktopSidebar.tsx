@@ -303,7 +303,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <span>Mi Agenda</span>
             </button>
             <span className="text-foreground font-semibold">
-              {currentUser.coins.toLocaleString('es-ES')} fichas
+              {currentUser.coins.toLocaleString('es-ES')} monedas
             </span>
           </div>
         </div>
