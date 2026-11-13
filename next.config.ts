@@ -5,9 +5,10 @@ const isProduction = process.env.NODE_ENV === "production";
 /**
  * SMR2 · Cabeceras de seguridad.
  *
- * - CSP: limita scripts, conexiones y frames al propio dominio y a Supabase
- *   (Realtime/Auth). `unsafe-inline` es necesario para el bootstrap de Next.js
- *   y los estilos en línea de la app; `unsafe-eval` solo se permite en desarrollo.
+ * - CSP: limita scripts, conexiones y frames al propio dominio, a Supabase
+ *   (Realtime/Auth) y al embed oficial de TikTok. `unsafe-inline` es necesario
+ *   para el bootstrap de Next.js y los estilos en línea de la app; `unsafe-eval`
+ *   solo se permite en desarrollo.
  * - HSTS: fuerza HTTPS durante un año en producción.
  * - X-Frame-Options/frame-ancestors: evita el clickjacking del portal.
  */
@@ -19,7 +20,8 @@ const contentSecurityPolicy = [
   "media-src 'self' blob: data:",
   "font-src 'self' data: https://fonts.gstatic.com",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://openrouter.ai https://generativelanguage.googleapis.com",
-  "frame-src 'self'",
+  // TikTok no permite incrustar su feed «Para ti»; solo posts y perfiles concretos.
+  "frame-src 'self' https://www.tiktok.com https://*.tiktok.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

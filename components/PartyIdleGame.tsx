@@ -62,6 +62,7 @@ import {
 import confetti from 'canvas-confetti';
 import { BotellonInvestments } from '@/components/BotellonInvestments';
 import { PartyLiveScene, CharacterItem } from '@/components/PartyLiveScene';
+import { TikTokDock } from '@/components/TikTokDock';
 
 export interface PartyIdleGameProps {
   userCoins: number;
@@ -1849,7 +1850,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   const coinsToClaim = Math.floor(roundedVault / 5);
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-5">
+    <>
+      <div className="w-full max-w-4xl mx-auto space-y-5">
       {/* Aviso de farmeo offline */}
       {offlineReport && (
         <div className="flex items-center justify-between p-4 rounded-2xl bg-surface border border-border shadow-sm animate-in fade-in slide-in-from-top-2">
@@ -3626,6 +3628,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           </div>
         </div>
       )}
-    </div>
+      </div>
+      <TikTokDock />
+    </>
   );
 };

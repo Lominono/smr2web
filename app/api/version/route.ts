@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '2.1.0';
+let CURRENT_APP_VERSION = '2.2.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,20 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '2.2.0',
+    title: 'SMR2 v2.2.0 · TikTok al lado de El Botellón',
+    badge: 'NOVEDAD',
+    date: 'Viernes, 13 de Noviembre, 2026',
+    description:
+      'El Botellón estrena una pestaña lateral de TikTok con contenido oficial de TikTok España en vertical. Se abre encima del juego, sin tocar la partida, y permite pasar de vídeo sin salir de la web.',
+    changes: [
+      'Pestaña lateral de TikTok en escritorio y botón flotante en móvil. El panel se abre sobre El Botellón y se cierra con Escape o tocando fuera.',
+      'Vídeos oficiales de TikTok España (@tiktok_es) en formato vertical, con reproductor, controles y enlace para abrir cada publicación en TikTok.',
+      'Navegación entre publicaciones con flechas y contador. El juego sigue funcionando detrás y no se modifica ningún estado de la partida.',
+      'La política de seguridad permite únicamente el embed oficial de TikTok; el resto de la CSP se mantiene igual.',
+    ],
+  },
   {
     version: '2.1.0',
     title: 'SMR2 v2.1.0 · Menú lateral y feed, más claros y ordenados',
