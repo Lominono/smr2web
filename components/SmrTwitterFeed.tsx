@@ -19,8 +19,6 @@ import {
   Terminal,
   FolderGit2,
   FileText,
-  ChevronDown,
-  ChevronUp,
   Crown,
   RotateCw,
   Reply,
@@ -894,37 +892,31 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   const isOverLimit = charCount > 320;
 
   return (
-    <div className="w-full flex flex-col sm:rounded-3xl border border-border/80 bg-surface text-foreground font-sans shadow-sm overflow-hidden">
-      {/* 1. Cabecera Minimalista */}
-      <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-border/60 space-y-3.5">
-        <div className="flex items-center justify-between gap-3">
-          {/* Título e indicador sutil de estado */}
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2">
-              Feed de Clase
-            </h2>
-
-            <div className="flex items-center gap-1.5 text-[11px] font-mono text-foreground-subtle">
-              <span className="relative flex h-2 w-2">
+    <div className="mx-3 flex w-auto flex-col gap-3 font-sans text-foreground sm:mx-0 sm:gap-4">
+      {/* 1. Cabecera editorial */}
+      <header className="space-y-3 px-0.5 pt-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className="text-[17px] font-semibold leading-tight tracking-tight text-foreground sm:text-lg">
+                Feed de clase
+              </h2>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-surface px-2 py-0.5 font-mono text-[10px] leading-none text-foreground-muted">
                 <span
-                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                    isRealtimeConnected ? 'bg-emerald-400' : 'bg-amber-400'
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    isRealtimeConnected ? 'bg-success' : 'bg-amber-500'
                   }`}
                 />
-                <span
-                  className={`relative inline-flex rounded-full h-2 w-2 ${
-                    isRealtimeConnected ? 'bg-emerald-500' : 'bg-amber-500'
-                  }`}
-                />
-              </span>
-              <span className="hidden xs:inline">
-                {isRealtimeConnected ? 'en vivo' : 'conectando'}
+                {isRealtimeConnected ? 'En vivo' : 'Conectando'}
               </span>
             </div>
+            <p className="mt-1 text-[11px] leading-snug text-foreground-subtle sm:text-xs">
+              Avisos, dudas y recursos del grupo.
+            </p>
           </div>
 
-          {/* Botones de acción ghost/minimalistas */}
-          <div className="flex items-center gap-0.5">
+          {/* Acciones discretas */}
+          <div className="flex shrink-0 items-center gap-0.5 -mr-1.5">
             <button
               type="button"
               onClick={handleManualRefresh}
@@ -984,34 +976,34 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
           </div>
         </div>
 
-        {/* Buscador minimalista integrado */}
+        {/* Buscador integrado */}
         {isSearchOpen && (
-          <div className="pt-1 animate-in fade-in duration-150">
+          <div className="animate-in fade-in duration-150">
             <div className="relative flex items-center">
-              <Search className="w-3.5 h-3.5 text-foreground-subtle absolute left-3 pointer-events-none" />
+              <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-foreground-subtle" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar por @usuario, palabra o tag..."
-                className="w-full bg-surface-raised border border-border/60 rounded-xl pl-8 pr-8 py-1.5 text-xs text-foreground placeholder:text-foreground-subtle outline-none focus:border-accent/50 transition-all"
+                className="w-full rounded-[var(--radius-sm)] border border-border/70 bg-surface py-2 pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-foreground-subtle focus:border-accent/50"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 text-foreground-subtle hover:text-foreground p-0.5 cursor-pointer"
+                  className="absolute right-2.5 p-0.5 text-foreground-subtle hover:text-foreground cursor-pointer"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="h-3 w-3" />
                 </button>
               )}
             </div>
           </div>
         )}
 
-        {/* Segmentado tipo iOS */}
-        <div className="flex items-center p-1 rounded-[var(--radius)] bg-surface-raised/70 border border-border/50 overflow-x-auto scrollbar-none">
+        {/* Filtros editoriales */}
+        <div className="flex items-center gap-0.5 overflow-x-auto border-b border-border/70 scrollbar-none">
           {FEED_TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const count = getTabCount(tab.id);
@@ -1024,31 +1016,34 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                   setActiveTab(tab.id);
                 }}
                 aria-pressed={isActive}
-                className={`py-1 px-3 rounded-[var(--radius-sm)] text-xs transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
+                className={`relative flex min-h-[38px] shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 text-xs transition-colors cursor-pointer ${
                   isActive
-                    ? 'bg-surface text-foreground font-medium shadow-xs'
+                    ? 'font-medium text-foreground'
                     : 'text-foreground-muted hover:text-foreground'
                 }`}
               >
                 <span>{tab.label}</span>
                 {count > 0 && (
                   <span
-                    className={`text-[10px] font-mono ${
+                    className={`font-mono text-[10px] ${
                       isActive ? 'text-foreground-muted' : 'text-foreground-subtle'
                     }`}
                   >
                     {count}
                   </span>
                 )}
+                {isActive && (
+                  <span className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-accent" />
+                )}
               </button>
             );
           })}
         </div>
-      </div>
+      </header>
 
       {/* Banner Web Push sutil */}
       {showPushBanner && (
-        <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-2xl bg-surface-raised/50 border border-border/60 flex items-center justify-between gap-3 text-xs animate-in fade-in duration-200">
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface px-3.5 py-2.5 text-xs animate-in fade-in duration-200">
           <div className="flex items-center gap-2.5 min-w-0">
             <Bell className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
             <span className="truncate text-foreground-muted">
@@ -1082,162 +1077,186 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
         </div>
       )}
 
-      {/* 2. Redactor Minimalista */}
+      {/* 2. Redactor */}
       {!currentUser ? (
         <div
           onClick={() => {
             sound.tap();
             onOpenAuth();
           }}
-          className="p-4 sm:px-6 border-b border-border/60 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-hover/50 transition-colors"
+          className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border/70 bg-surface px-4 py-3.5 transition-colors hover:bg-surface-raised/40 sm:px-5"
         >
-          <div className="flex items-center gap-2.5 text-xs text-foreground-muted min-w-0">
-            <div className="w-7 h-7 rounded-full bg-surface-raised flex items-center justify-center text-foreground-subtle shrink-0">
-              <MessageSquare className="w-3.5 h-3.5" />
+          <div className="flex min-w-0 items-center gap-3 text-xs text-foreground-muted">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-raised text-foreground-subtle">
+              <MessageSquare className="h-3.5 w-3.5" />
             </div>
             <span className="truncate">Inicia sesión para publicar avisos o dudas</span>
           </div>
-          <span className="text-xs font-medium text-accent px-3 py-1 rounded-full bg-accent-subtle hover:bg-accent/15 transition-colors shrink-0">
+          <span className="shrink-0 rounded-[var(--radius-sm)] bg-accent-subtle px-2.5 py-1 text-[11px] font-medium text-accent">
             Entrar
           </span>
         </div>
       ) : (
-        <div className="p-4 sm:p-5 border-b border-border/60 space-y-2.5">
-          {/* Mención activa */}
-          {replyingTo && (
-            <div className="flex items-center justify-between gap-2 text-xs text-foreground-muted animate-in fade-in duration-150">
-              <span className="flex items-center gap-1.5 truncate">
-                <Reply className="w-3 h-3 text-accent shrink-0" />
-                <span>
-                  Respondiendo a <strong className="text-foreground font-mono">@{replyingTo}</strong>
+        <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface">
+          <div className="space-y-3 px-4 py-3.5 sm:px-5 sm:py-4">
+            {/* Mención activa */}
+            {replyingTo && (
+              <div className="flex items-center justify-between gap-2 text-xs text-foreground-muted animate-in fade-in duration-150">
+                <span className="flex min-w-0 items-center gap-1.5 truncate">
+                  <Reply className="h-3 w-3 shrink-0 text-accent" />
+                  <span className="truncate">
+                    Respondiendo a <strong className="font-mono text-foreground">@{replyingTo}</strong>
+                  </span>
                 </span>
-              </span>
-              <button
-                type="button"
-                onClick={handleCancelReply}
-                className="p-0.5 text-foreground-subtle hover:text-foreground cursor-pointer"
+                <button
+                  type="button"
+                  onClick={handleCancelReply}
+                  className="p-0.5 text-foreground-subtle hover:text-foreground cursor-pointer"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-start gap-3">
+              <div
+                className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase ${getAvatarColor(
+                  currentUser.username
+                )}`}
               >
-                <X className="w-3 h-3" />
-              </button>
+                {currentUser.username.charAt(0)}
+              </div>
+
+              <textarea
+                ref={textareaRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    handlePublish();
+                  }
+                }}
+                placeholder={
+                  replyingTo
+                    ? `Escribe tu respuesta a @${replyingTo}...`
+                    : 'Comparte un aviso, duda de clase o recurso...'
+                }
+                rows={2}
+                maxLength={320}
+                className="min-w-0 flex-1 resize-none bg-transparent font-sans text-[13px] leading-relaxed text-foreground outline-none placeholder:text-foreground-subtle sm:text-sm"
+              />
             </div>
-          )}
 
-          {/* Textarea sin bordes pesados */}
-          <textarea
-            ref={textareaRef}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                handlePublish();
-              }
-            }}
-            placeholder={
-              replyingTo
-                ? `Escribe tu respuesta a @${replyingTo}...`
-                : 'Comparte un aviso, duda de clase o recurso...'
-            }
-            rows={2}
-            maxLength={320}
-            className="w-full bg-transparent text-sm text-foreground placeholder:text-foreground-subtle resize-none outline-none leading-relaxed font-sans"
-          />
+            {/* Herramientas y publicar */}
+            <div className="flex flex-col gap-2 border-t border-border/60 pt-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none">
+                {COMPOSER_TAGS.map((t) => {
+                  const isSelected = selectedTag === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        sound.tap();
+                        setSelectedTag(t.id);
+                      }}
+                      className={`shrink-0 rounded-md px-2 py-0.5 font-mono text-[11px] transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-accent-subtle font-medium text-accent'
+                          : 'text-foreground-muted hover:bg-surface-hover hover:text-foreground'
+                      }`}
+                    >
+                      #{t.label}
+                    </button>
+                  );
+                })}
+              </div>
 
-          {/* Fila única de herramientas y publicar */}
-          <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
-            {/* Tags sutiles */}
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
-              {COMPOSER_TAGS.map((t) => {
-                const isSelected = selectedTag === t.id;
-                return (
+              <div className="flex shrink-0 items-center gap-1.5 self-end sm:ml-auto sm:self-auto">
+                <button
+                  type="button"
+                  onClick={handleInsertCodeSnippet}
+                  title="Comando `...`"
+                  className="rounded-lg p-1.5 text-foreground-muted transition-colors hover:bg-surface-hover hover:text-foreground cursor-pointer"
+                >
+                  <Terminal className="h-4 w-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleInsertMention}
+                  title="Mencionar @"
+                  className="rounded-lg p-1.5 text-foreground-muted transition-colors hover:bg-surface-hover hover:text-foreground cursor-pointer"
+                >
+                  <AtSign className="h-4 w-4" />
+                </button>
+
+                {isStaff && (
                   <button
-                    key={t.id}
                     type="button"
                     onClick={() => {
                       sound.tap();
-                      setSelectedTag(t.id);
+                      setIsPinned((p) => !p);
                     }}
-                    className={`px-2 py-0.5 rounded-md text-[11px] font-mono transition-colors cursor-pointer shrink-0 ${
-                      isSelected
-                        ? 'bg-foreground text-background font-semibold'
-                        : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
+                    title={isPinned ? 'Desmarcar aviso' : 'Fijar aviso'}
+                    className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
+                      isPinned
+                        ? 'bg-amber-400/10 text-amber-600 dark:text-amber-400'
+                        : 'text-foreground-muted hover:bg-surface-hover hover:text-foreground'
                     }`}
                   >
-                    #{t.label}
+                    <Pin className="h-4 w-4" />
                   </button>
-                );
-              })}
-            </div>
+                )}
 
-            {/* Acciones derechas */}
-            <div className="flex items-center gap-2 ml-auto shrink-0">
-              <button
-                type="button"
-                onClick={handleInsertCodeSnippet}
-                title="Comando `...`"
-                className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-hover transition-colors cursor-pointer"
-              >
-                <Terminal className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                type="button"
-                onClick={handleInsertMention}
-                title="Mencionar @"
-                className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-hover transition-colors cursor-pointer"
-              >
-                <AtSign className="w-3.5 h-3.5" />
-              </button>
-
-              {isStaff && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    sound.tap();
-                    setIsPinned((p) => !p);
-                  }}
-                  title={isPinned ? 'Desmarcar aviso' : 'Fijar aviso'}
-                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                    isPinned
-                      ? 'text-amber-600 dark:text-amber-400 bg-amber-400/10'
-                      : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
+                <span
+                  className={`px-1 font-mono text-[10px] ${
+                    isOverLimit
+                      ? 'font-bold text-danger'
+                      : isNearLimit
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-foreground-subtle'
                   }`}
                 >
-                  <Pin className="w-3.5 h-3.5" />
+                  {320 - charCount}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => handlePublish()}
+                  disabled={!inputText.trim() || isPosting || isOverLimit}
+                  className="flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
+                >
+                  {isPosting ? (
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Send className="h-3 w-3" />
+                  )}
+                  <span>Publicar</span>
                 </button>
-              )}
-
-              <span
-                className={`text-[10px] font-mono px-1 ${
-                  isOverLimit
-                    ? 'text-danger font-bold'
-                    : isNearLimit
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-foreground-subtle'
-                }`}
-              >
-                {320 - charCount}
-              </span>
-
-              <button
-                type="button"
-                onClick={() => handlePublish()}
-                disabled={!inputText.trim() || isPosting || isOverLimit}
-                className="px-3.5 py-1.5 rounded-full bg-accent text-accent-foreground font-semibold text-xs hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
-              >
-                {isPosting ? (
-                  <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Send className="w-3 h-3" />
-                )}
-                <span>Publicar</span>
-              </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 3. Lista de publicaciones minimalista */}
-      <div className="divide-y divide-border/60">
+      {/* 3. Cronología */}
+      <section className="overflow-hidden rounded-2xl border border-border/70 bg-surface">
+        <div className="flex items-center justify-between border-b border-border/60 px-4 py-2.5 sm:px-5">
+          <div className="flex items-center gap-2">
+            <h3 className="text-[12px] font-semibold tracking-tight text-foreground">
+              Publicaciones
+            </h3>
+            <span className="rounded-md bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-foreground-subtle">
+              {filteredMessages.length}
+            </span>
+          </div>
+          <span className="hidden font-mono text-[10px] text-foreground-subtle sm:inline">
+            Vista · {FEED_TABS.find((tab) => tab.id === activeTab)?.label}
+          </span>
+        </div>
+
+        <div className="divide-y divide-border/60">
         {filteredMessages.length === 0 ? (
           <div className="p-12 text-center space-y-2">
             <p className="text-xs text-foreground-subtle">
@@ -1280,8 +1299,8 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             return (
               <article
                 key={msg.id}
-                className={`p-4 sm:px-6 sm:py-5 transition-colors group ${
-                  msg.pinned ? 'bg-amber-500/[0.05] dark:bg-amber-400/[0.03]' : 'hover:bg-surface-hover/40'
+                className={`group px-4 py-4 transition-colors sm:px-5 sm:py-5 ${
+                  msg.pinned ? 'bg-amber-500/[0.04] dark:bg-amber-400/[0.03]' : 'hover:bg-surface-hover/40'
                 }`}
               >
                 {/* Indicador de aviso fijado sutil */}
@@ -1411,27 +1430,22 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                       {renderFormattedText(msg.text, msg.tag, msg.id)}
                     </div>
 
-                    {/* Barra de interacción minimalista (sin marcos pesados) */}
-                    <div className="flex items-center gap-3 sm:gap-5 pt-2 text-xs text-foreground-muted">
+                    {/* Acciones del post */}
+                    <div className="flex items-center gap-3 pt-1.5 text-xs text-foreground-muted sm:gap-4">
                       {/* Comentarios */}
                       <button
                         type="button"
                         onClick={() => toggleComments(msg.id)}
-                        className={`inline-flex items-center gap-1.5 py-1 px-1.5 -ml-1.5 rounded-lg transition-colors cursor-pointer select-none active:scale-95 ${
+                        className={`-ml-1.5 inline-flex select-none items-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors cursor-pointer active:scale-95 ${
                           isThreadOpen
-                            ? 'text-accent font-medium'
-                            : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
+                            ? 'font-medium text-accent'
+                            : 'text-foreground-muted hover:bg-surface-hover hover:text-foreground'
                         }`}
                         title="Respuestas"
                       >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span className="font-mono text-[11px]">
-                          {commentsCount > 0 ? commentsCount : ''}
-                        </span>
-                        {isThreadOpen ? (
-                          <ChevronUp className="w-3 h-3" />
-                        ) : (
-                          <ChevronDown className="w-3 h-3 opacity-50" />
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        {commentsCount > 0 && (
+                          <span className="font-mono text-[11px]">{commentsCount}</span>
                         )}
                       </button>
 
@@ -1439,21 +1453,21 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                       <button
                         type="button"
                         onClick={() => onToggleLike && onToggleLike(msg.id)}
-                        className={`inline-flex items-center gap-1.5 py-1 px-1.5 rounded-lg transition-colors cursor-pointer select-none active:scale-95 ${
+                        className={`inline-flex select-none items-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors cursor-pointer active:scale-95 ${
                           isLiked
-                            ? 'text-rose-600 dark:text-rose-400 font-medium'
-                            : 'text-foreground-muted hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10'
+                            ? 'font-medium text-rose-600 dark:text-rose-400'
+                            : 'text-foreground-muted hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
                         }`}
                         title={isLiked ? 'Quitar me gusta' : 'Me gusta'}
                       >
                         <Heart
-                          className={`w-3.5 h-3.5 transition-transform ${
-                            isLiked ? 'fill-rose-500 stroke-rose-500 scale-105' : ''
+                          className={`h-3.5 w-3.5 transition-transform ${
+                            isLiked ? 'scale-105 fill-rose-500 stroke-rose-500' : ''
                           }`}
                         />
-                        <span className="font-mono text-[11px]">
-                          {likesCount > 0 ? likesCount : ''}
-                        </span>
+                        {likesCount > 0 && (
+                          <span className="font-mono text-[11px]">{likesCount}</span>
+                        )}
                       </button>
 
                       {/* Propina */}
@@ -1461,21 +1475,21 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                         <button
                           type="button"
                           onClick={() => handleTip(msg.id, msg.username)}
-                          title="Enviar 50 fichas"
-                          className={`inline-flex items-center gap-1.5 py-1 px-1.5 rounded-lg transition-colors cursor-pointer select-none active:scale-95 ${
+                          title="Enviar 50 monedas"
+                          className={`inline-flex select-none items-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors cursor-pointer active:scale-95 ${
                             tipSuccessId === msg.id
-                              ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                              ? 'font-medium text-emerald-600 dark:text-emerald-400'
                               : tipErrorId === msg.id
-                              ? 'text-rose-600 dark:text-rose-400 font-medium'
-                              : 'text-foreground-muted hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10'
+                              ? 'font-medium text-rose-600 dark:text-rose-400'
+                              : 'text-foreground-muted hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400'
                           }`}
                         >
-                          <Coins className="w-3.5 h-3.5" />
+                          <Coins className="h-3.5 w-3.5" />
                           <span className="font-mono text-[11px]">
                             {tipSuccessId === msg.id
                               ? '+50'
                               : tipErrorId === msg.id
-                              ? 'Sin fichas'
+                              ? 'Sin monedas'
                               : '50'}
                           </span>
                         </button>
@@ -1495,7 +1509,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                             Aún no hay respuestas. Sé el primero en responder.
                           </p>
                         ) : (
-                          <div className="space-y-3 pl-12">
+                          <div className="space-y-3">
                             {(commentsData[msg.id] || []).map((comment) => {
                               const isCommentAuthor =
                                 currentUser?.id === comment.user_id ||
@@ -1565,8 +1579,8 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                           </div>
                         )}
 
-                        {/* Input minimalista para responder */}
-                        <div className="pt-2 pl-12 flex items-center gap-2">
+                        {/* Responder */}
+                        <div className="flex items-center gap-2 pt-1">
                           <input
                             type="text"
                             value={commentInputs[msg.id] || ''}
@@ -1585,7 +1599,7 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                                 : 'Inicia sesión para responder...'
                             }
                             maxLength={300}
-                            className="flex-1 bg-surface-raised border border-border/60 rounded-full px-3 py-1.5 text-xs text-foreground placeholder:text-foreground-subtle outline-none focus:border-accent/50 transition-colors"
+                            className="min-w-0 flex-1 rounded-[var(--radius-sm)] border border-border/70 bg-surface-raised px-3 py-1.5 text-xs text-foreground outline-none transition-colors placeholder:text-foreground-subtle focus:border-accent/50"
                           />
                           <button
                             type="button"
@@ -1594,9 +1608,9 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                               !(commentInputs[msg.id] || '').trim() ||
                               submittingComment[msg.id]
                             }
-                            className="p-1.5 rounded-full bg-accent text-accent-foreground hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all active:scale-95"
+                            className="rounded-[var(--radius-sm)] bg-accent p-1.5 text-accent-foreground transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
                           >
-                            <Send className="w-3 h-3" />
+                            <Send className="h-3 w-3" />
                           </button>
                         </div>
                       </div>
@@ -1607,7 +1621,8 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
             );
           })
         )}
-      </div>
+        </div>
+      </section>
     </div>
   );
 };

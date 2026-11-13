@@ -96,14 +96,14 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-foreground text-background font-semibold shadow-2xs'
+                    ? 'bg-accent-subtle text-accent font-medium'
                     : 'text-foreground-muted hover:text-foreground hover:bg-surface-raised'
                 }`}
               >
                 <div className="flex items-center gap-2.5">
                   <Icon
                     className={`w-4 h-4 ${
-                      isActive ? 'text-inherit' : 'text-foreground-subtle'
+                      isActive ? 'text-accent' : 'text-foreground-subtle'
                     }`}
                   />
                   <span>{item.label}</span>
@@ -112,7 +112,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   <span
                     className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${
                       isActive
-                        ? 'bg-background/20 text-background'
+                        ? 'bg-accent/10 text-accent'
                         : 'bg-surface-raised border border-border text-foreground-subtle'
                     }`}
                   >
@@ -131,7 +131,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
           >
-            <Trophy className="w-4 h-4 text-amber-500" />
+            <Trophy className="w-4 h-4 text-foreground-subtle" />
             <span>Clasificación</span>
           </button>
 
@@ -143,7 +143,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
           >
-            <Coins className="w-4 h-4 text-amber-500" />
+            <Coins className="w-4 h-4 text-foreground-subtle" />
             <span>Fondo diario</span>
           </button>
 
@@ -154,13 +154,13 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 sound.tap();
                 onOpenStudentCard();
               }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
-                <IdCard className="w-4 h-4 text-sky-400" />
-                <span className="font-semibold">Mi Ficha Oficial</span>
+                <IdCard className="w-4 h-4 text-foreground-subtle" />
+                <span>Mi Ficha Oficial</span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/20 font-mono font-bold">
+              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-surface-raised border border-border text-foreground-subtle">
                 {currentUser.student_number ? `NIA-${currentUser.student_number}` : 'SMR2'}
               </span>
             </button>
@@ -173,13 +173,14 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 sound.tap();
                 onOpenOnlineUsers();
               }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
-                <Users className="w-4 h-4 text-emerald-400" />
-                <span className="font-semibold">En directo</span>
+                <Users className="w-4 h-4 text-foreground-subtle" />
+                <span>En directo</span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 font-mono font-bold">
+              <span className="flex items-center gap-1.5 text-[10px] font-mono text-foreground-subtle">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" />
                 {onlineCount ?? 0}
               </span>
             </button>
@@ -208,13 +209,13 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 sound.tap();
                 onOpenInstall();
               }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-sky-400 bg-sky-500/10 hover:bg-sky-500/15 border border-sky-500/20 transition-all cursor-pointer group"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-raised transition-all cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
-                <MonitorDown className="w-4 h-4 text-sky-400 group-hover:scale-110 transition-transform" />
-                <span className="font-semibold">App de escritorio</span>
+                <MonitorDown className="w-4 h-4 text-foreground-subtle" />
+                <span>App de escritorio</span>
               </div>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 font-mono font-medium">
+              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-surface-raised border border-border text-foreground-subtle">
                 PC / Mac
               </span>
             </button>

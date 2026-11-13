@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '2.0.0';
+let CURRENT_APP_VERSION = '2.1.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,20 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '2.1.0',
+    title: 'SMR2 v2.1.0 · Menú lateral y feed, más claros y ordenados',
+    badge: 'NOVEDAD',
+    date: 'Viernes, 13 de Noviembre, 2026',
+    description:
+      'El menú lateral y el feed de clase estrenan una distribución más serena. Menos bloques de color, menos ruido y cada acción en el lugar donde se espera, con el mismo comportamiento de siempre en tema claro y oscuro.',
+    changes: [
+      'Menú lateral reorganizado en Clase, Recreo, Comunidad y Sistema. Las filas son planas, el perfil queda compacto y los accesos duplicados desaparecen.',
+      'Feed editorial: la cabecera, el redactor y la cronología de publicaciones ahora son bloques independientes. Las pestañas muestran su contador y las acciones pasan a un segundo plano.',
+      'Redactor más claro: avatar del alumno, etiquetas y herramientas bien separadas, con el botón de publicar siempre visible también en móvil.',
+      'Barra lateral de escritorio y menú móvil alineados con la misma estética: bordes finos, un único acento y estados activos discretos.',
+    ],
+  },
   {
     version: '2.0.0',
     title: 'SMR2 v2.0.0 · Tienda rediseñada: cada cosa en su sitio',

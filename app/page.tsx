@@ -2351,7 +2351,7 @@ export default function Home() {
               </div>
 
               {/* Center Feed Column (Twitter Timeline) */}
-              <div className="col-span-1 lg:col-span-6 w-full min-w-0 space-y-2 sm:space-y-3.5">
+              <div className="col-span-1 lg:col-span-6 w-full min-w-0 space-y-3 sm:space-y-4">
                 {/* Salida Oficial de la Web: Cuenta Regresiva */}
                 <LaunchCountdownBanner />
 
