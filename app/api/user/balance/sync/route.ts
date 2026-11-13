@@ -326,9 +326,27 @@ export async function POST(req: NextRequest) {
     transactionType = 'game_win';
     description = 'Premio de minijuego';
   } else {
+    // El check-in de asistencia es diario: se comprueba contra el histórico
+    // real (el historial reciente solo cubre una hora y no vería el de ayer).
+    if (claimType === 'checkin') {
+      const { data: lastCheckin } = await client
+        .from('balance_transactions')
+        .select('created_at')
+        .eq('user_id', userId)
+        .eq('type', 'checkin')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastCheckin?.created_at && isSameUtcDay(lastCheckin.created_at, nowIso)) {
+        return fail('Ya has confirmado tu asistencia hoy.', 400);
+      }
+    }
+
     const rule = CLAIM_RULES[claimType as keyof typeof CLAIM_RULES] || CLAIM_RULES.misc;
     const last = lastCreditOfType(recentCredits, claimType);
-    if (last) {
+    // El check-in ya está limitado a una vez al día por la consulta anterior.
+    if (last && claimType !== 'checkin') {
       const elapsed = msSince(last.created_at);
       if (elapsed < rule.cooldownMs) {
         const remainingSeconds = Math.ceil((rule.cooldownMs - elapsed) / 1000);

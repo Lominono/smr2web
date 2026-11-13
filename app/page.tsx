@@ -1585,6 +1585,7 @@ export default function Home() {
       return;
     }
 
+    const previousCoins = user.coins;
     const nextCoins = user.coins + amount;
     const nowIso = new Date().toISOString();
     const nextStreakVal =
@@ -1633,15 +1634,25 @@ export default function Home() {
 
     // Sincronización autoritativa de recompensas a través del servidor.
     // El importe final lo decide el servidor (nunca el navegador).
+    const claimBody = JSON.stringify({ delta: amount, claimType });
     try {
-      const res = await fetch('/api/user/balance/sync', {
+      let res = await fetch('/api/user/balance/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          delta: amount,
-          claimType,
-        }),
+        body: claimBody,
       });
+
+      // 409 = el saldo cambió justo antes (otra pestaña, el juego, una compra).
+      // Reintentar una vez es seguro: el servidor rechazó sin abonar nada.
+      if (res.status === 409) {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        res = await fetch('/api/user/balance/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: claimBody,
+        });
+      }
+
       const data = await res.json().catch(() => ({}));
 
       if (res.ok && data?.success && typeof data.coins === 'number') {
@@ -1668,7 +1679,7 @@ export default function Home() {
         return;
       }
 
-      // Rechazado (cooldown / tope): revertir el abono optimista.
+      // Rechazado (cooldown / tope): volver al saldo exacto anterior.
       // 401/503 = modo local/offline: se conserva el estado local.
       if (res.status === 401 || res.status === 503) return;
 
@@ -1676,7 +1687,7 @@ export default function Home() {
         curr
           ? {
               ...curr,
-              coins: Math.max(0, curr.coins - amount),
+              coins: previousCoins,
               last_claim_date: user.last_claim_date,
               last_spin_date: user.last_spin_date,
               last_rescue_date: user.last_rescue_date,
@@ -1684,13 +1695,26 @@ export default function Home() {
           : null
       );
       updateSessionCoins(
-        Math.max(0, user.coins),
+        previousCoins,
         undefined,
         user.streak_count,
         user.last_claim_date,
         user.last_spin_date,
         user.last_rescue_date
       );
+      setLeaderboard((prev) => {
+        const idx = prev.findIndex(
+          (entry) => entry.id === user.id || entry.username.toLowerCase() === user.username.toLowerCase()
+        );
+        if (idx === -1) return prev;
+        const restored = [...prev];
+        restored[idx] = {
+          ...restored[idx],
+          coins: previousCoins,
+          streak_count: user.streak_count ?? 1,
+        };
+        return restored.sort((a, b) => (b.coins ?? 0) - (a.coins ?? 0));
+      });
       notifyWalletRejection(
         typeof data?.error === 'string' && data.error
           ? data.error
@@ -1948,96 +1972,6 @@ export default function Home() {
         ]);
       }
     } catch {}
-  };
-
-  const handleTipUser = async (targetUsername: string, amount: number) => {
-    if (!user) {
-      setIsAuthOpen(true);
-      return;
-    }
-
-    if (user.coins < amount) {
-      sound.broke();
-      return;
-    }
-
-    // La transferencia la aplica el servidor de forma atómica (emisor -> receptor)
-    let tipOk = false;
-    try {
-      const tipRes = await fetch('/api/user/tip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUsername, amount }),
-      });
-      const tipData = await tipRes.json().catch(() => ({}));
-      if (!tipRes.ok || !tipData?.success) {
-        alert(tipData?.error || 'No se pudo enviar la propina.');
-        return;
-      }
-      tipOk = true;
-      if (typeof tipData.coins === 'number') {
-        setUser((prev) => (prev ? { ...prev, coins: tipData.coins } : prev));
-        updateSessionCoins(tipData.coins);
-      }
-    } catch {
-      alert('No se pudo conectar con el servidor para enviar la propina.');
-      return;
-    }
-
-    if (!tipOk) return;
-
-    const supabase = createClient();
-    if (!supabase) return;
-
-    try {
-      const tipText = `🪙 @${user.username} ha enviado una propina de ${amount} fichas a @${targetUsername}`;
-
-      if (isTableAvailable('messages')) {
-        try {
-          await supabase.from('messages').insert([
-            {
-              user_id: '00000000-0000-4000-a000-000000000000',
-              canal: 'recreo',
-              texto: tipText,
-              reply_to_nombre: 'SMR2',
-            },
-          ]);
-        } catch (_) {}
-      }
-
-      if (isTableAvailable('chat_messages')) {
-        try {
-          await supabase.from('chat_messages').insert([
-            {
-              user_id: user.id && isUUID(user.id) ? user.id : null,
-              username: 'SISTEMA',
-              text: tipText,
-              is_system_win: true,
-              win_amount: amount,
-            },
-          ]);
-        } catch (_) {}
-      }
-
-      // Difundir en tiempo real a todas las pestañas conectadas
-      try {
-        const bc = new BroadcastChannel('smr2_chat_realtime_channel');
-        bc.postMessage({
-          type: 'NEW_CHAT_MESSAGE',
-          message: {
-            id: `tip_${Date.now()}`,
-            user_id: '00000000-0000-4000-a000-000000000000',
-            username: 'SMR2',
-            text: tipText,
-            tag: 'recreo',
-            created_at: new Date().toISOString(),
-          },
-        });
-        bc.close();
-      } catch (_) {}
-    } catch {}
-
-    sound.coinWin();
   };
 
   const handleInspectStudent = async (identifier: {
@@ -2364,7 +2298,6 @@ export default function Home() {
                   onOpenAuth={() => setIsAuthOpen(true)}
                   onSendMessage={handleSendMessage}
                   onDeleteMessage={handleDeleteMessage}
-                  onTipUser={handleTipUser}
                   onToggleLike={handleToggleLike}
                   onOpenNotifications={() => setIsPushModalOpen(true)}
                   onOpenFeedback={() => setIsFeedbackOpen(true)}
@@ -2766,7 +2699,6 @@ export default function Home() {
           setUser(updated);
           fetchLeaderboard();
         }}
-        onTipUser={handleTipUser}
         onChallengeUser={(targetUsername) => {
           setIsStudentCardOpen(false);
           setInspectedStudent(null);

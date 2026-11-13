@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Send,
-  Coins,
   Share2,
   ExternalLink,
   MessageSquare,
@@ -41,7 +40,6 @@ export interface SmrTwitterFeedProps {
   onOpenAuth: () => void;
   onSendMessage: (text: string, tag?: string, pinned?: boolean) => void;
   onDeleteMessage?: (messageId: string) => void;
-  onTipUser: (targetUsername: string, amount: number) => void;
   onToggleLike?: (messageId: string) => void;
   onOpenNotifications?: () => void;
   onOpenFeedback?: () => void;
@@ -129,7 +127,6 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   onOpenAuth,
   onSendMessage,
   onDeleteMessage,
-  onTipUser,
   onToggleLike,
   onOpenNotifications,
   onOpenFeedback,
@@ -162,8 +159,6 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [tipSuccessId, setTipSuccessId] = useState<string | null>(null);
-  const [tipErrorId, setTipErrorId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -580,34 +575,6 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
     } catch (err) {
       console.warn('Error al eliminar comentario:', err);
     }
-  };
-
-  const handleTip = (msgId: string, authorUsername: string) => {
-    if (!currentUser) {
-      sound.tap();
-      onOpenAuth();
-      return;
-    }
-    const cleanAuthor = authorUsername.trim();
-    if (currentUser.username === cleanAuthor) return;
-    if (
-      cleanAuthor.toLowerCase().includes('sistema') ||
-      cleanAuthor.toLowerCase().includes('banca')
-    ) {
-      return;
-    }
-
-    if (currentUser.coins < 50) {
-      sound.broke();
-      setTipErrorId(msgId);
-      setTimeout(() => setTipErrorId(null), 2000);
-      return;
-    }
-
-    onTipUser(cleanAuthor, 50);
-    sound.coinWin();
-    setTipSuccessId(msgId);
-    setTimeout(() => setTipSuccessId(null), 2000);
   };
 
   const handleShare = (msg: ChatMessage) => {
@@ -1469,31 +1436,6 @@ export const SmrTwitterFeed: React.FC<SmrTwitterFeedProps> = ({
                           <span className="font-mono text-[11px]">{likesCount}</span>
                         )}
                       </button>
-
-                      {/* Propina */}
-                      {!isMe && currentUser && !msg.username.toLowerCase().includes('sistema') && (
-                        <button
-                          type="button"
-                          onClick={() => handleTip(msg.id, msg.username)}
-                          title="Enviar 50 monedas"
-                          className={`inline-flex select-none items-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors cursor-pointer active:scale-95 ${
-                            tipSuccessId === msg.id
-                              ? 'font-medium text-emerald-600 dark:text-emerald-400'
-                              : tipErrorId === msg.id
-                              ? 'font-medium text-rose-600 dark:text-rose-400'
-                              : 'text-foreground-muted hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400'
-                          }`}
-                        >
-                          <Coins className="h-3.5 w-3.5" />
-                          <span className="font-mono text-[11px]">
-                            {tipSuccessId === msg.id
-                              ? '+50'
-                              : tipErrorId === msg.id
-                              ? 'Sin monedas'
-                              : '50'}
-                          </span>
-                        </button>
-                      )}
                     </div>
 
                     {/* 4. Hilo de comentarios minimalista */}

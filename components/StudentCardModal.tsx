@@ -17,7 +17,6 @@ import {
   Coins,
   CheckCircle2,
   User,
-  Send,
   IdCard,
   Swords,
 } from 'lucide-react';
@@ -40,7 +39,6 @@ interface StudentCardModalProps {
   user: UserProfile | null;
   inspectedUser?: Partial<UserProfile> | null;
   onUpdateUser?: (updated: UserProfile) => void;
-  onTipUser?: (username: string, amount: number) => void;
   onChallengeUser?: (targetUsername: string) => void;
   onOpenPetShop?: () => void;
 }
@@ -51,7 +49,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
   user,
   inspectedUser,
   onUpdateUser,
-  onTipUser,
   onChallengeUser,
   onOpenPetShop,
 }) => {
@@ -65,7 +62,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
   const [savingEdit, setSavingEdit] = useState(false);
   const [attendanceClaimed, setAttendanceClaimed] = useState(false);
   const [attendanceStreak, setAttendanceStreak] = useState(1);
-  const [tipSent, setTipSent] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -131,21 +127,42 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
 
   if (!isOpen || !mounted || !displayUser) return null;
 
-  const handleClaimAttendance = () => {
+  const handleClaimAttendance = async () => {
     if (isViewingOther || !user || attendanceClaimed) return;
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const newStreak = attendanceStreak + 1;
+    let finalCoins = (user.coins || 0) + 25;
+
+    // La asistencia se abona en el servidor: antes solo se sumaba en el
+    // navegador y el saldo volvía a su valor real al recargar.
     try {
-      const todayKey = new Date().toISOString().slice(0, 10);
-      const newStreak = attendanceStreak + 1;
+      const res = await fetch('/api/user/balance/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delta: 25, claimType: 'checkin' }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data?.success && typeof data.coins === 'number') {
+        finalCoins = data.coins;
+      } else if (res.status !== 401 && res.status !== 503) {
+        window.alert(data?.error || 'No se pudo confirmar la asistencia.');
+        return;
+      }
+    } catch {
+      /* sin conexión: se mantiene el abono local hasta la próxima recarga */
+    }
+
+    try {
       setAttendanceStreak(newStreak);
       setAttendanceClaimed(true);
 
       localStorage.setItem(`smr2_attendance_date_${user.id}`, todayKey);
       localStorage.setItem(`smr2_attendance_streak_${user.id}`, String(newStreak));
 
-      const bonusCoins = 25;
       const updatedUser: UserProfile = {
         ...user,
-        coins: (user.coins || 0) + bonusCoins,
+        coins: finalCoins,
         streak_count: newStreak,
       };
 
@@ -182,14 +199,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
     setCopiedNia(true);
     sound.tap();
     setTimeout(() => setCopiedNia(false), 2000);
-  };
-
-  const handleSendTip = () => {
-    if (!isViewingOther || !displayUser.username || !onTipUser || !user || (user.coins || 0) < 50) return;
-    onTipUser(displayUser.username, 50);
-    setTipSent(true);
-    sound.coinWin();
-    setTimeout(() => setTipSent(false), 3000);
   };
 
   const handleSaveEdit = async () => {
@@ -541,18 +550,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                     >
                       {copiedNia ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedNia ? '¡Copiado!' : `Copiar NIA (${displayUser.student_number})`}</span>
-                    </button>
-                  )}
-
-                  {user && onTipUser && (user.coins || 0) >= 50 && (
-                    <button
-                      type="button"
-                      onClick={handleSendTip}
-                      disabled={tipSent}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs text-amber-300 transition-colors flex items-center gap-1.5 cursor-pointer font-mono"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{tipSent ? '¡50 fichas enviadas!' : 'Enviar 50 fichas'}</span>
                     </button>
                   )}
 

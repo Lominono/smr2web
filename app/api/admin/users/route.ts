@@ -4,6 +4,7 @@ import { createAdminClient, isServerSupabaseConfigured } from '@/lib/supabase/se
 import { logEvent } from '@/lib/logger';
 import { isUUID } from '@/lib/uuid';
 import { csvCell, enforceRateLimit, guardOrigin } from '@/lib/security/http';
+import { applyCoinDelta } from '@/lib/security/wallet';
 
 export const dynamic = 'force-dynamic';
 
@@ -227,14 +228,26 @@ export async function POST(req: NextRequest) {
         // 1. Ajuste manual de monedas
         if (action === 'adjust_coins') {
           const delta = Number(amount);
-          if (isNaN(delta)) {
+          if (!Number.isFinite(delta) || !Number.isInteger(delta)) {
             return NextResponse.json({ success: false, error: 'Cantidad inválida.' }, { status: 400 });
           }
 
-          const curCoins = Number(targetUser.coins || 0);
-          const newCoins = Math.max(0, curCoins + delta);
+          // Bloqueo optimista: si el alumno está jugando y su saldo cambia
+          // entre la lectura y la escritura, se reintenta en vez de perder el
+          // ajuste (antes se escribía un valor calculado con datos viejos).
+          const applied = await applyCoinDelta(client, targetUserId, delta);
+          if (!applied.ok) {
+            return NextResponse.json(
+              {
+                success: false,
+                error: 'El saldo del alumno cambió mientras se aplicaba el ajuste. Vuelve a intentarlo.',
+              },
+              { status: 409 }
+            );
+          }
 
-          await client.from('profiles').update({ coins: newCoins }).eq('id', targetUserId);
+          const newCoins = applied.coins;
+          const curCoins = Number(targetUser.coins || 0);
 
           try {
             await client.from('balance_transactions').insert([

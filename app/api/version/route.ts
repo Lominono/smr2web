@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '2.4.0';
+let CURRENT_APP_VERSION = '2.5.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,20 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '2.5.0',
+    title: 'SMR2 v2.5.0 · Monedas que funcionan: fuera las propinas',
+    badge: 'NOVEDAD',
+    date: 'Viernes, 13 de Noviembre, 2026',
+    description:
+      'El sistema de monedas se simplifica y se vuelve más fiable: desaparece la propina de 50 fichas entre alumnos, que daba error, y los cobros de asistencia y recompensas se abonan siempre en el servidor.',
+    changes: [
+      'Fuera la propina de 50 fichas: se retiran el botón de la campana del feed y el de la ficha del alumno, que fallaban al transferir saldo entre cuentas.',
+      'Asistencia que cuenta de verdad: el +25 por confirmar asistencia se abona en el servidor y ya no se pierde al recargar. Solo se puede reclamar una vez al día.',
+      'Recompensas más fiables: si el juego o otra pestaña cambian el saldo justo al cobrar, la web reintenta el cobro en lugar de mostrar un error.',
+      'Ajuste del profesorado sin perder cambios: al modificar monedas desde el panel de administración, el saldo se actualiza con bloqueo optimista y queda anotado en el historial.',
+    ],
+  },
   {
     version: '2.4.0',
     title: 'SMR2 v2.4.0 · Tu Para ti, en una ventana de TikTok',
