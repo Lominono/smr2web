@@ -1,12 +1,10 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import Image from 'next/image';
 import {
   ChevronLeft,
-  ChevronRight,
   Coins,
-  ShoppingBag,
   Crown,
   Sparkles,
   Image as ImageIcon,
@@ -18,6 +16,8 @@ import {
   Lock,
   Sliders,
   X,
+  Award,
+  Filter,
 } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { sound } from '@/lib/audio';
@@ -124,83 +124,84 @@ const BannerPreviewCard: React.FC<BannerPreviewCardProps> = ({
   quote,
   username,
 }) => {
-  const hasCustomImage = selectedStyle === 'custom_image' && Boolean(imageUrl.trim());
+  const isCustomImage = selectedStyle === 'custom_image' && imageUrl.trim();
 
   return (
     <div
-      className={`relative min-h-[176px] select-text overflow-hidden rounded-2xl border ${preset.border} transition-all duration-200 sm:min-h-[204px]`}
+      className={`relative w-full overflow-hidden rounded-2xl border transition-all ${preset.border} ${preset.glow}`}
       style={
-        hasCustomImage
+        isCustomImage
           ? {
-              backgroundImage: `url(${imageUrl.trim()})`,
+              backgroundImage: `url(${imageUrl})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }
           : undefined
       }
-      aria-label="Vista previa del banner de perfil"
     >
-      {!hasCustomImage && <div className={`absolute inset-0 ${preset.gradient}`} />}
-      <div className="absolute inset-0 bg-black/35" />
+      {!isCustomImage && (
+        <div className={`absolute inset-0 ${preset.gradient}`} />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/20 backdrop-blur-[0.5px]" />
 
-      <div className="relative z-10 flex min-h-[176px] flex-col justify-between gap-6 p-5 text-white sm:min-h-[204px] sm:p-7">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1.5">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span
-                className={`inline-flex items-center rounded border px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider ${preset.badgeBg}`}
-              >
-                {preset.badge}
-              </span>
-              <span className="rounded border border-white/15 bg-black/50 px-2 py-0.5 font-mono text-[10px] text-neutral-300">
-                13M Tier
-              </span>
-            </div>
-            <h3 className="truncate pt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">
-              {title.trim() || 'Tu título honorífico'}
-            </h3>
-            <p className="truncate font-mono text-xs text-neutral-300">
-              @{username || 'usuario'} · 2º SMR Aula 35
-            </p>
-          </div>
-
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-black/50 p-1.5">
-            <Image src="/logo.png" alt="" width={20} height={20} className="object-contain" />
-          </div>
+      <div className="relative z-10 flex flex-col justify-between p-5 sm:p-7 min-h-[170px] sm:min-h-[190px]">
+        <div className="flex items-center justify-between gap-3">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase backdrop-blur-md ${preset.badgeBg}`}
+          >
+            <Crown className="w-3 h-3" />
+            {preset.badge}
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-widest text-white/50">
+            Vista Previa
+          </span>
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-white/15 pt-3">
-          <p className="min-w-0 truncate text-xs italic text-neutral-300">
-            «{quote.trim() || 'Tu frase aparecerá aquí'}»
-          </p>
-          <span className="shrink-0 font-mono text-[10px] text-neutral-400">Aula 35</span>
+        <div className="space-y-1.5 mt-auto">
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono text-xs text-white/70">
+              @{username || 'usuario'}
+            </span>
+            <span className="text-[11px] text-white/40">·</span>
+            <h3 className={`text-base sm:text-lg font-bold tracking-tight ${preset.textColor}`}>
+              {title || 'Magnate del Botellón'}
+            </h3>
+          </div>
+          {quote ? (
+            <p className="line-clamp-2 text-xs italic text-white/80 max-w-2xl leading-relaxed">
+              &ldquo;{quote}&rdquo;
+            </p>
+          ) : (
+            <p className="text-xs text-white/40 italic">
+              Sin frase célebre configurada.
+            </p>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-interface ShopNoticeProps {
-  tone: 'success' | 'danger';
+const ShopNotice: React.FC<{
+  tone: 'danger' | 'success';
   message: string;
   onDismiss: () => void;
-}
-
-const ShopNotice: React.FC<ShopNoticeProps> = ({ tone, message, onDismiss }) => (
+}> = ({ tone, message, onDismiss }) => (
   <div
-    className={`flex items-start justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-xs font-medium ${
-      tone === 'success'
-        ? 'border-success/30 bg-success-subtle text-success'
-        : 'border-danger/30 bg-danger-subtle text-danger'
+    role="status"
+    className={`flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-xs transition-all animate-in fade-in ${
+      tone === 'danger'
+        ? 'border-danger/30 bg-danger-subtle text-danger'
+        : 'border-success/30 bg-success-subtle text-success'
     }`}
   >
-    <span className="flex items-start gap-2">
+    <span className="flex items-center gap-2">
       {tone === 'success' ? (
-        <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0" />
+        <CheckCircle2 className="h-4 w-4 shrink-0" />
       ) : (
-        <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
+        <AlertCircle className="h-4 w-4 shrink-0" />
       )}
-      <span>{message}</span>
+      <span className="font-medium">{message}</span>
     </span>
     <button
       type="button"
@@ -212,6 +213,16 @@ const ShopNotice: React.FC<ShopNoticeProps> = ({ tone, message, onDismiss }) => 
     </button>
   </div>
 );
+
+type PetCategoryFilter = 'all' | 'exclusive' | 'botellon' | 'bolsa' | 'drop';
+
+const CATEGORY_NAMES: Record<PetCategoryFilter, string> = {
+  all: 'Todas',
+  exclusive: 'Exclusivas',
+  botellon: 'Botellón',
+  bolsa: 'Bolsa',
+  drop: 'Drops',
+};
 
 interface VipShopViewProps {
   currentUser: UserProfile | null;
@@ -236,6 +247,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
     : [];
 
   const [shopTab, setShopTab] = useState<'mascotas' | 'banners'>('mascotas');
+  const [categoryFilter, setCategoryFilter] = useState<PetCategoryFilter>('all');
   const [selectedPetId, setSelectedPetId] = useState<string>(PETS_REGISTRY[0].id);
   const [isPetProcessing, setIsPetProcessing] = useState(false);
   const [petSuccessMessage, setPetSuccessMessage] = useState<string | null>(null);
@@ -247,6 +259,12 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
     ? currentUser!.mascotas_desbloqueadas!
     : [];
   const equippedPetId = currentUser?.mascota_equipada;
+
+  const filteredPets = useMemo(() => {
+    if (categoryFilter === 'all') return PETS_REGISTRY;
+    return PETS_REGISTRY.filter((p) => p.category === categoryFilter);
+  }, [categoryFilter]);
+
   const selectedPet = PETS_REGISTRY.find((p) => p.id === selectedPetId) || PETS_REGISTRY[0];
   const isSelectedPetOwned = unlockedPets.includes(selectedPet.id);
   const isSelectedPetEquipped = equippedPetId === selectedPet.id;
@@ -290,6 +308,12 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
       return;
     }
 
+    if (pet.notForSale) {
+      sound.tap();
+      setErrorMessage(`${pet.name} es una mascota exclusiva que no está disponible para compra directa.`);
+      return;
+    }
+
     if (userCoins < pet.price) {
       sound.broke();
       setErrorMessage(`Te faltan ${(pet.price - userCoins).toLocaleString('es-ES')} monedas para adoptar a ${pet.name}.`);
@@ -303,9 +327,6 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
     sound.tap();
 
     try {
-      // SEGURIDAD: la compra pasa SIEMPRE por el servidor (/api/pets/purchase),
-      // que cobra el precio real y concede la mascota. Antes el cliente
-      // escribia su propio saldo y mascotas directamente en Supabase.
       const res = await fetch('/api/pets/purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -362,7 +383,6 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
     try {
       const nextEquipped = equippedPetId === petId ? null : petId;
 
-      // SEGURIDAD: equipar pasa por el servidor (verifica la propiedad real).
       const res = await fetch('/api/pets/equip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -511,9 +531,9 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto pb-16 font-sans select-none text-foreground">
-      <div className="flex flex-col gap-8">
-        {/* Barra superior */}
+    <div className="w-full max-w-6xl mx-auto pb-20 font-sans select-none text-foreground">
+      <div className="flex flex-col gap-6">
+        {/* Barra superior con navegación y saldo */}
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
@@ -521,33 +541,36 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
               sound.tap();
               onBackToFeed();
             }}
-            className="-ml-1 inline-flex items-center gap-1 rounded-lg px-1 py-2 text-xs text-foreground-muted transition-colors hover:text-foreground cursor-pointer active:opacity-70"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-surface px-3 py-1.5 text-xs font-medium text-foreground-muted transition-all hover:bg-surface-raised hover:text-foreground cursor-pointer active:scale-95"
           >
             <ChevronLeft className="w-4 h-4" />
             <span>Volver al Feed</span>
           </button>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3.5 py-1.5 font-mono text-xs">
-            <Coins className="w-3.5 h-3.5 text-foreground-subtle" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-4 py-1.5 font-mono text-xs shadow-xs">
+            <Coins className="w-3.5 h-3.5 text-amber-500" />
             <span className="font-semibold tabular-nums text-foreground">
               {userCoins.toLocaleString('es-ES')}
             </span>
-            <span className="text-foreground-subtle">monedas</span>
+            <span className="text-foreground-subtle hidden sm:inline">monedas</span>
           </div>
         </div>
 
-        {/* Cabecera de la tienda */}
-        <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.16em] text-foreground-subtle">
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Aula 35 · 2º SMR</span>
+        {/* Cabecera elegante y minimalista */}
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-border/60 pb-6">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-foreground-subtle">
+              <span>Aula 35</span>
+              <span>·</span>
+              <span>2º SMR</span>
+              <span>·</span>
+              <span className="text-accent font-semibold">Exclusivos & Mascotas</span>
             </div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Tienda
             </h1>
-            <p className="max-w-lg text-sm leading-relaxed text-foreground-muted">
-              Mascotas exclusivas y banners de perfil. Objetos permanentes para tu identidad en el portal.
+            <p className="max-w-xl text-sm leading-relaxed text-foreground-muted">
+              Compañeros coleccionables con pasivas de juego y personalización permanente de tu credencial digital.
             </p>
           </div>
 
@@ -557,18 +580,18 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
               sound.tap();
               onNavigateToPartyIdle();
             }}
-            className="group inline-flex items-center gap-2 self-start text-xs font-medium text-foreground-muted transition-colors hover:text-foreground cursor-pointer sm:self-auto"
+            className="group inline-flex items-center gap-2 self-start rounded-full border border-border/80 bg-surface px-4 py-2 text-xs font-medium text-foreground-muted transition-all hover:border-accent/40 hover:bg-surface-raised hover:text-foreground cursor-pointer sm:self-auto shadow-xs active:scale-95"
           >
-            <Wine className="w-4 h-4" />
+            <Wine className="w-4 h-4 text-accent" />
             <span>El Botellón</span>
             <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
           </button>
         </header>
 
-        {/* Selector de sección */}
-        <div className="flex flex-col gap-4">
+        {/* Pestañas principales */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div
-            className="inline-flex self-start rounded-full border border-border bg-surface-raised p-1"
+            className="inline-flex self-start rounded-2xl border border-border bg-surface-raised p-1 shadow-xs"
             role="tablist"
             aria-label="Secciones de la tienda"
           >
@@ -583,14 +606,15 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                 setErrorMessage(null);
                 setPetSuccessMessage(null);
               }}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all cursor-pointer ${
                 shopTab === 'mascotas'
-                  ? 'bg-surface text-foreground shadow-xs dark:bg-surface-hover'
+                  ? 'bg-surface text-foreground shadow-sm font-semibold'
                   : 'text-foreground-muted hover:text-foreground'
               }`}
             >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>Mascotas</span>
-              <span className="font-mono text-[10px] text-foreground-subtle">
+              <span className="rounded-full bg-surface-raised px-2 py-0.5 font-mono text-[10px] text-foreground-subtle border border-border/50">
                 {PETS_REGISTRY.length}
               </span>
             </button>
@@ -605,205 +629,258 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                 setErrorMessage(null);
                 setPetSuccessMessage(null);
               }}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all cursor-pointer ${
                 shopTab === 'banners'
-                  ? 'bg-surface text-foreground shadow-xs dark:bg-surface-hover'
+                  ? 'bg-surface text-foreground shadow-sm font-semibold'
                   : 'text-foreground-muted hover:text-foreground'
               }`}
             >
+              <Crown className="w-3.5 h-3.5 text-accent" />
               <span>Banner VIP</span>
-              {isOwner && <Check className="w-3 h-3 text-success" />}
+              {isOwner && (
+                <span className="flex h-2 w-2 rounded-full bg-success ring-2 ring-success/30" />
+              )}
             </button>
           </div>
+
+          {shopTab === 'mascotas' && (
+            <div className="flex items-center gap-2 font-mono text-xs text-foreground-subtle">
+              <Award className="w-4 h-4 text-foreground-muted" />
+              <span>
+                Colección: <strong className="text-foreground">{unlockedPets.length}</strong>/{PETS_REGISTRY.length}
+              </span>
+            </div>
+          )}
         </div>
 
         {shopTab === 'mascotas' ? (
-          /* ================= MASCOTAS ================= */
-          <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-10">
-            <section className="lg:col-span-5">
-              <div className="mb-3 flex items-baseline justify-between">
-                <h2 className="font-mono text-[11px] uppercase tracking-wider text-foreground-subtle">
-                  Catálogo
-                </h2>
-                <span className="font-mono text-[11px] text-foreground-subtle">
-                  {PETS_REGISTRY.length} mascotas
-                </span>
-              </div>
+          /* ================= CATÁLOGO DE MASCOTAS ================= */
+          <div className="space-y-6">
+            {/* Filtros de Categoría */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <span className="flex items-center gap-1 text-[11px] font-mono uppercase tracking-wider text-foreground-subtle mr-2 shrink-0">
+                <Filter className="w-3 h-3" />
+                <span>Filtrar:</span>
+              </span>
+              {(['all', 'exclusive', 'botellon', 'bolsa', 'drop'] as PetCategoryFilter[]).map((cat) => {
+                const isActive = categoryFilter === cat;
+                const count = cat === 'all'
+                  ? PETS_REGISTRY.length
+                  : PETS_REGISTRY.filter((p) => p.category === cat).length;
 
-              <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-                {PETS_REGISTRY.map((pet) => {
-                  const isSelected = pet.id === selectedPet.id;
-                  const isOwned = unlockedPets.includes(pet.id);
-                  const isEquipped = equippedPetId === pet.id;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      sound.tap();
+                      setCategoryFilter(cat);
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                      isActive
+                        ? 'bg-foreground text-background shadow-xs'
+                        : 'border border-border/80 bg-surface text-foreground-muted hover:bg-surface-raised hover:text-foreground'
+                    }`}
+                  >
+                    <span>{CATEGORY_NAMES[cat]}</span>
+                    <span className={`font-mono text-[10px] ${isActive ? 'opacity-80' : 'text-foreground-subtle'}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-                  return (
-                    <button
-                      key={pet.id}
-                      type="button"
-                      aria-current={isSelected ? 'true' : undefined}
-                      onClick={() => {
-                        sound.tap();
-                        setSelectedPetId(pet.id);
-                        setConfirmPetId(null);
-                        setErrorMessage(null);
-                        setPetSuccessMessage(null);
-                        if (window.matchMedia('(max-width: 1023px)').matches) {
-                          window.setTimeout(() => {
-                            detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }, 60);
-                        }
-                      }}
-                      className={`relative flex w-full items-center gap-3 border-b border-border-subtle px-4 py-3.5 text-left transition-colors last:border-b-0 cursor-pointer ${
-                        isSelected ? 'bg-accent-subtle' : 'hover:bg-surface-raised'
-                      }`}
-                    >
-                      {isSelected && (
-                        <span className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-accent" />
-                      )}
+            {/* Layout distribuido: Grid visual de tarjetas (7 cols) + Inspector Detalle (5 cols) */}
+            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
+              {/* Grid de mascotas */}
+              <section className="lg:col-span-7">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {filteredPets.map((pet) => {
+                    const isSelected = pet.id === selectedPet.id;
+                    const isOwned = unlockedPets.includes(pet.id);
+                    const isEquipped = equippedPetId === pet.id;
 
-                      <div
-                        className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border p-1 ${
+                    return (
+                      <button
+                        key={pet.id}
+                        type="button"
+                        aria-current={isSelected ? 'true' : undefined}
+                        onClick={() => {
+                          sound.tap();
+                          setSelectedPetId(pet.id);
+                          setConfirmPetId(null);
+                          setErrorMessage(null);
+                          setPetSuccessMessage(null);
+                          if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+                            window.setTimeout(() => {
+                              detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }, 60);
+                          }
+                        }}
+                        className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border p-3 text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'border-accent/30 bg-surface'
-                            : 'border-border bg-surface-raised'
+                            ? 'border-accent bg-accent-subtle/25 shadow-sm ring-2 ring-accent/30'
+                            : 'border-border/80 bg-surface hover:border-border-focus hover:bg-surface-raised/70'
                         }`}
                       >
-                        <Image
-                          src={pet.image}
-                          alt={pet.name}
-                          width={40}
-                          height={40}
-                          className="object-contain"
-                        />
-                        {isEquipped && (
-                          <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-surface bg-success" />
-                        )}
-                      </div>
-
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                          <span className="truncate">{pet.name}</span>
-                        </span>
-                        <span className="mt-0.5 block truncate text-[11px] text-foreground-muted">
-                          {pet.subtitle}
-                        </span>
-                      </span>
-
-                      <span className="shrink-0 text-right">
-                        {isEquipped ? (
-                          <span className="text-[10px] font-mono font-medium text-success">
-                            Equipada
+                        {/* Estado / Badge superior */}
+                        <div className="flex items-center justify-between gap-1 w-full mb-2">
+                          <span className="font-mono text-[9px] uppercase tracking-wider text-foreground-subtle truncate max-w-[70px]">
+                            {CATEGORY_NAMES[pet.category]}
                           </span>
-                        ) : isOwned ? (
-                          <span className="text-[10px] font-mono text-foreground-subtle">
-                            En propiedad
-                          </span>
-                        ) : (
-                          <span className="font-mono text-[11px] font-medium tabular-nums text-foreground-muted">
-                            {formatCoinsAbbreviated(pet.price)}
-                          </span>
-                        )}
-                      </span>
+                          {isEquipped ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 border border-success/30 px-2 py-0.5 font-mono text-[9px] font-semibold text-success">
+                              <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+                              Activa
+                            </span>
+                          ) : isOwned ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-surface-raised border border-border px-1.5 py-0.5 font-mono text-[9px] text-foreground-muted">
+                              <Check className="w-2.5 h-2.5" />
+                              Obtenida
+                            </span>
+                          ) : pet.notForSale ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 font-mono text-[9px] font-medium text-purple-400">
+                              Exclusiva
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center gap-0.5 font-mono text-[10px] font-semibold tabular-nums ${
+                              userCoins >= pet.price ? 'text-amber-500' : 'text-foreground-subtle'
+                            }`}>
+                              <Coins className="w-2.5 h-2.5" />
+                              {formatCoinsAbbreviated(pet.price)}
+                            </span>
+                          )}
+                        </div>
 
-                      <ChevronRight
-                        className={`h-3.5 w-3.5 shrink-0 ${
-                          isSelected ? 'text-accent' : 'text-foreground-subtle'
-                        }`}
-                      />
-                    </button>
-                  );
-                })}
-              </div>
+                        {/* Visual de la mascota */}
+                        <div className="relative aspect-square w-full rounded-xl bg-surface-raised/80 border border-border/50 flex items-center justify-center p-2 mb-2.5 overflow-hidden group-hover:scale-[1.02] transition-transform duration-200">
+                          <Image
+                            src={pet.image}
+                            alt={pet.name}
+                            width={88}
+                            height={88}
+                            className="max-h-full max-w-full object-contain drop-shadow-xs"
+                          />
+                        </div>
 
-              <p className="mt-3 text-[11px] leading-relaxed text-foreground-subtle">
-                Cada mascota incluye una habilidad pasiva y se muestra junto a tu perfil y publicaciones.
-              </p>
-            </section>
+                        {/* Nombre y subtítulo */}
+                        <div className="min-w-0 w-full">
+                          <h3 className="truncate text-xs font-semibold text-foreground leading-snug">
+                            {pet.name}
+                          </h3>
+                          <p className="truncate text-[10px] text-foreground-muted mt-0.5">
+                            {pet.perkName}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
 
-            <section ref={detailRef} className="scroll-mt-24 lg:col-span-7">
-              <div className="space-y-6 rounded-2xl border border-border bg-surface p-6 sm:p-8 lg:sticky lg:top-6">
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-                  <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface-raised p-2">
-                    <Image
-                      src={selectedPet.image}
-                      alt={selectedPet.name}
-                      width={100}
-                      height={100}
-                      className="max-h-full object-contain"
-                    />
-                    {isSelectedPetEquipped && (
-                      <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-success px-2 py-0.5 font-mono text-[9px] font-bold text-black">
-                        ACTIVA
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <span className="inline-block rounded-md border border-border bg-surface-raised px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider text-foreground-muted">
-                      {selectedPet.tierBadge}
-                    </span>
-                    <h2 className="text-2xl font-semibold leading-tight tracking-tight text-foreground">
-                      {selectedPet.name}
-                    </h2>
-                    <p className="text-sm text-foreground-muted">{selectedPet.subtitle}</p>
-                    <div className="flex items-center gap-1.5 pt-1 font-mono text-sm font-semibold tabular-nums text-foreground">
-                      <Coins className="h-3.5 w-3.5 text-foreground-subtle" />
-                      <span>{selectedPet.price.toLocaleString('es-ES')}</span>
-                      <span className="font-sans text-xs font-normal text-foreground-muted">
-                        monedas
+              {/* Inspector de detalle sticky */}
+              <section ref={detailRef} className="scroll-mt-24 lg:col-span-5 lg:sticky lg:top-6">
+                <div className="space-y-5 rounded-3xl border border-border/80 bg-surface p-5 sm:p-6 shadow-xs">
+                  {/* Tarjeta Visual de Presentación */}
+                  <div className="relative flex flex-col items-center justify-center rounded-2xl bg-gradient-to-b from-surface-raised to-surface border border-border/60 p-6 text-center overflow-hidden">
+                    <div className="absolute top-3 left-3">
+                      <span className="rounded-full border border-border bg-surface px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground-muted shadow-xs">
+                        {selectedPet.tierBadge}
                       </span>
                     </div>
-                  </div>
-                </div>
 
-                <p className="border-t border-border-subtle pt-5 text-sm leading-relaxed text-foreground-muted">
-                  {selectedPet.description}
-                </p>
+                    {isSelectedPetEquipped && (
+                      <div className="absolute top-3 right-3">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-success/15 border border-success/30 px-2.5 py-1 font-mono text-[10px] font-bold text-success shadow-xs">
+                          <Check className="w-3 h-3" />
+                          ACTIVA
+                        </span>
+                      </div>
+                    )}
 
-                <div className="flex items-start gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-subtle text-accent">
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-medium text-foreground">
-                      Habilidad · {selectedPet.perkName}
+                    <div className="relative my-3 flex h-32 w-32 items-center justify-center">
+                      <div className="absolute inset-0 rounded-full bg-accent/5 blur-xl pointer-events-none" />
+                      <Image
+                        src={selectedPet.image}
+                        alt={selectedPet.name}
+                        width={120}
+                        height={120}
+                        className="max-h-full max-w-full object-contain relative z-10 drop-shadow-md"
+                      />
+                    </div>
+
+                    <h2 className="text-xl font-bold tracking-tight text-foreground">
+                      {selectedPet.name}
+                    </h2>
+                    <p className="text-xs text-foreground-muted mt-0.5 max-w-xs">
+                      {selectedPet.subtitle}
                     </p>
-                    <p className="text-xs leading-relaxed text-foreground-muted">
+
+                    <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-surface px-3 py-1 font-mono text-xs font-semibold tabular-nums text-foreground">
+                      {selectedPet.notForSale ? (
+                        <span className="text-purple-400 font-sans text-xs">Exclusiva (No en venta)</span>
+                      ) : (
+                        <>
+                          <Coins className="h-3.5 w-3.5 text-amber-500" />
+                          <span>{selectedPet.price.toLocaleString('es-ES')}</span>
+                          <span className="font-sans text-[11px] font-normal text-foreground-subtle">
+                            monedas
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Descripción */}
+                  <p className="text-xs leading-relaxed text-foreground-muted px-1">
+                    {selectedPet.description}
+                  </p>
+
+                  {/* Tarjeta de Habilidad Pasiva */}
+                  <div className="rounded-2xl border border-border/70 bg-surface-raised/60 p-4 space-y-1.5">
+                    <div className="flex items-center gap-2 text-foreground font-semibold text-xs">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/15 text-amber-500">
+                        <Sparkles className="h-3.5 w-3.5" />
+                      </div>
+                      <span>Habilidad Pasiva: {selectedPet.perkName}</span>
+                    </div>
+                    <p className="text-xs leading-relaxed text-foreground-muted pl-8">
                       {selectedPet.perkDescription}
                     </p>
                   </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <p className="font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">
-                    Vista en tu perfil y en el Feed
-                  </p>
-                  <div className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-raised/60 px-3.5 py-2.5">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-foreground font-mono text-[10px] font-semibold text-background">
-                        {currentUser?.username
-                          ? currentUser.username.charAt(0).toUpperCase()
-                          : 'U'}
-                      </span>
-                      <span className="truncate text-xs font-medium text-foreground">
-                        @{currentUser?.username || 'tu_usuario'}
-                      </span>
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] text-foreground-muted">
-                        <img
-                          src={selectedPet.image}
-                          alt=""
-                          className="h-3.5 w-3.5 shrink-0 rounded-full object-cover"
-                        />
-                        <span className="max-w-24 truncate">{selectedPet.name.split(' ')[0]}</span>
+                  {/* Vista en el Feed */}
+                  <div className="space-y-1.5 px-1">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">
+                      Vista previa en publicaciones
+                    </p>
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-surface-raised/40 px-3.5 py-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-foreground font-mono text-[10px] font-bold text-background">
+                          {currentUser?.username
+                            ? currentUser.username.charAt(0).toUpperCase()
+                            : 'U'}
+                        </span>
+                        <span className="truncate text-xs font-medium text-foreground">
+                          @{currentUser?.username || 'tu_usuario'}
+                        </span>
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/80 bg-surface px-1.5 py-0.5 font-mono text-[10px] text-foreground-muted shadow-2xs">
+                          <img
+                            src={selectedPet.image}
+                            alt=""
+                            className="h-3.5 w-3.5 shrink-0 rounded-full object-cover"
+                          />
+                          <span className="max-w-24 truncate">{selectedPet.name.split(' ')[0]}</span>
+                        </span>
+                      </div>
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">
+                        Feed
                       </span>
                     </div>
-                    <span className="hidden shrink-0 font-mono text-[10px] uppercase tracking-wider text-foreground-subtle sm:inline">
-                      Feed
-                    </span>
                   </div>
-                </div>
 
-                <div className="space-y-2 border-t border-border-subtle pt-5">
+                  {/* Avisos */}
                   {errorMessage && (
                     <ShopNotice
                       tone="danger"
@@ -819,130 +896,143 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                     />
                   )}
 
-                  {isSelectedPetOwned ? (
-                    <button
-                      type="button"
-                      onClick={() => handleToggleEquipPet(selectedPet.id)}
-                      disabled={isPetProcessing}
-                      className={`inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition-all active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
-                        isSelectedPetEquipped
-                          ? 'border border-border bg-surface text-foreground-muted hover:border-danger/30 hover:text-danger'
-                          : 'border border-transparent bg-accent text-accent-foreground hover:bg-accent-hover'
-                      }`}
-                    >
-                      {isPetProcessing ? (
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
-                      ) : isSelectedPetEquipped ? (
-                        <>
-                          <Check className="h-4 w-4" />
-                          <span>Desequipar mascota</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4" />
-                          <span>Equipar mascota</span>
-                        </>
-                      )}
-                    </button>
-                  ) : confirmPetId === selectedPet.id ? (
-                    <>
+                  {/* Zona de Acciones */}
+                  <div className="pt-2 border-t border-border/60 space-y-2">
+                    {selectedPet.notForSale && !isSelectedPetOwned ? (
+                      <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-3.5 text-center space-y-1">
+                        <p className="text-xs font-semibold text-purple-300">
+                          Recompensa Exclusiva de Rebirths
+                        </p>
+                        <p className="text-[11px] text-foreground-muted leading-relaxed">
+                          Esta mascota se entregó automáticamente a los usuarios cuyos Afters fueron reajustados para balancear el juego. No está en venta libre.
+                        </p>
+                      </div>
+                    ) : isSelectedPetOwned ? (
                       <button
                         type="button"
-                        onClick={() => handleBuyPet(selectedPet)}
+                        onClick={() => handleToggleEquipPet(selectedPet.id)}
                         disabled={isPetProcessing}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-accent py-3 text-sm font-medium text-accent-foreground transition-all hover:bg-accent-hover active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                        className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-xs font-semibold transition-all active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shadow-xs ${
+                          isSelectedPetEquipped
+                            ? 'border border-border bg-surface text-foreground-muted hover:border-danger/40 hover:text-danger hover:bg-danger/5'
+                            : 'border border-transparent bg-foreground text-background hover:opacity-90'
+                        }`}
                       >
                         {isPetProcessing ? (
-                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground/30 border-t-accent-foreground" />
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+                        ) : isSelectedPetEquipped ? (
+                          <>
+                            <Check className="h-4 w-4" />
+                            <span>Desequipar mascota</span>
+                          </>
                         ) : (
-                          <Coins className="h-4 w-4" />
+                          <>
+                            <Sparkles className="h-4 w-4" />
+                            <span>Equipar en tu perfil</span>
+                          </>
                         )}
-                        <span>
-                          Confirmar compra · {selectedPet.price.toLocaleString('es-ES')} monedas
-                        </span>
                       </button>
+                    ) : confirmPetId === selectedPet.id ? (
+                      <div className="space-y-2 animate-in fade-in">
+                        <button
+                          type="button"
+                          onClick={() => handleBuyPet(selectedPet)}
+                          disabled={isPetProcessing}
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-accent py-3 text-xs font-semibold text-accent-foreground transition-all hover:bg-accent-hover active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shadow-xs"
+                        >
+                          {isPetProcessing ? (
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground/30 border-t-accent-foreground" />
+                          ) : (
+                            <Coins className="h-4 w-4" />
+                          )}
+                          <span>
+                            Confirmar compra · {selectedPet.price.toLocaleString('es-ES')} monedas
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmPetId(null)}
+                          className="w-full cursor-pointer py-1 text-center text-xs text-foreground-muted transition-colors hover:text-foreground"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         type="button"
-                        onClick={() => setConfirmPetId(null)}
-                        className="w-full cursor-pointer py-1 text-center text-xs text-foreground-muted transition-colors hover:text-foreground"
-                      >
-                        Cancelar
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!currentUser) {
+                        onClick={() => {
+                          if (!currentUser) {
+                            sound.tap();
+                            onOpenAuth();
+                            return;
+                          }
+                          if (!canAffordSelectedPet) {
+                            sound.broke();
+                            setErrorMessage(
+                              `Te faltan ${(
+                                selectedPet.price - userCoins
+                              ).toLocaleString('es-ES')} monedas para adoptar a ${selectedPet.name}.`
+                            );
+                            return;
+                          }
                           sound.tap();
-                          onOpenAuth();
-                          return;
-                        }
-                        if (!canAffordSelectedPet) {
-                          sound.broke();
-                          setErrorMessage(
-                            `Te faltan ${(
-                              selectedPet.price - userCoins
-                            ).toLocaleString('es-ES')} monedas para adoptar a ${selectedPet.name}.`
-                          );
-                          return;
-                        }
-                        sound.tap();
-                        setErrorMessage(null);
-                        setConfirmPetId(selectedPet.id);
-                      }}
-                      disabled={isPetProcessing || !canAffordSelectedPet}
-                      className={`inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition-all active:scale-[0.99] ${
-                        canAffordSelectedPet
-                          ? 'cursor-pointer border border-transparent bg-accent text-accent-foreground hover:bg-accent-hover'
-                          : 'cursor-not-allowed border border-border bg-surface-raised text-foreground-subtle opacity-60'
-                      }`}
-                    >
-                      {canAffordSelectedPet ? (
-                        <>
-                          <Coins className="h-4 w-4" />
-                          <span>
-                            Adquirir por {selectedPet.price.toLocaleString('es-ES')} monedas
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="h-4 w-4" />
-                          <span>
-                            Faltan {(selectedPet.price - userCoins).toLocaleString('es-ES')} monedas
-                          </span>
-                        </>
-                      )}
-                    </button>
-                  )}
+                          setErrorMessage(null);
+                          setConfirmPetId(selectedPet.id);
+                        }}
+                        disabled={isPetProcessing || !canAffordSelectedPet}
+                        className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-xs font-semibold transition-all active:scale-[0.99] shadow-xs ${
+                          canAffordSelectedPet
+                            ? 'cursor-pointer border border-transparent bg-accent text-accent-foreground hover:bg-accent-hover'
+                            : 'cursor-not-allowed border border-border bg-surface-raised text-foreground-subtle opacity-60'
+                        }`}
+                      >
+                        {canAffordSelectedPet ? (
+                          <>
+                            <Coins className="h-4 w-4" />
+                            <span>
+                              Adquirir por {selectedPet.price.toLocaleString('es-ES')} monedas
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="h-4 w-4" />
+                            <span>
+                              Faltan {(selectedPet.price - userCoins).toLocaleString('es-ES')} monedas
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    )}
 
-                  <p className="text-center text-[11px] text-foreground-subtle">
-                    {isSelectedPetOwned
-                      ? 'La mascota se muestra junto a tu nombre en todo el portal.'
-                      : 'Pago único. Se equipa automáticamente al adoptarla.'}
-                  </p>
+                    <p className="text-center text-[11px] text-foreground-subtle pt-1">
+                      {isSelectedPetOwned
+                        ? 'Tu mascota equipada te acompaña en todo el portal.'
+                        : 'Pago único. Se añade permanentemente a tu colección.'}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            </div>
           </div>
         ) : isOwner ? (
           /* ================= BANNER · PROPIETARIO ================= */
           <div className="space-y-8">
             <div className="flex items-center justify-between gap-4 text-xs">
-              <span className="inline-flex items-center gap-1.5 text-foreground-muted">
+              <span className="inline-flex items-center gap-1.5 text-foreground font-medium">
                 <CheckCircle2 className="h-4 w-4 text-success" />
-                Banner desbloqueado
+                Banner VIP Desbloqueado
               </span>
-              <span className="font-mono text-foreground-subtle">Configuración permanente</span>
+              <span className="font-mono text-foreground-subtle">Configuración en tiempo real</span>
             </div>
 
+            {/* Vista previa en directo */}
             <div className="space-y-2">
               <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-wider text-foreground-subtle">
                 <span className="inline-flex items-center gap-1.5">
                   <Sliders className="h-3.5 w-3.5" />
-                  Vista previa
+                  Vista previa de tu credencial
                 </span>
-                <span>En directo</span>
+                <span>En vivo</span>
               </div>
               <BannerPreviewCard
                 preset={currentPreset}
@@ -954,16 +1044,18 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-10">
-              <section className="space-y-3 lg:col-span-7">
-                <div className="flex items-baseline justify-between">
-                  <h2 className="text-sm font-medium text-foreground">Estilo de fondo</h2>
+            {/* Distribución equilibrada en 2 columnas: Estilos (6) y Textos (6) */}
+            <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-8">
+              {/* Columna Izquierda: Selección de Fondo */}
+              <section className="space-y-4 lg:col-span-6">
+                <div className="flex items-baseline justify-between border-b border-border/60 pb-2">
+                  <h2 className="text-sm font-semibold text-foreground">Estilo de Fondo</h2>
                   <span className="font-mono text-[11px] text-foreground-subtle">
-                    {BANNER_PRESETS.length} opciones
+                    {BANNER_PRESETS.length} variantes
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {BANNER_PRESETS.map((preset) => {
                     const isSelected = selectedStyle === preset.id;
                     return (
@@ -974,65 +1066,71 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                           sound.tap();
                           setSelectedStyle(preset.id);
                         }}
-                        className={`flex items-center gap-3 rounded-xl border p-2.5 text-left transition-all cursor-pointer ${
+                        className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'border-accent bg-accent-subtle'
-                            : 'border-border bg-surface hover:bg-surface-raised'
+                            ? 'border-accent bg-accent-subtle/25 shadow-xs ring-2 ring-accent/30'
+                            : 'border-border/80 bg-surface hover:bg-surface-raised'
                         }`}
                       >
                         <span
-                          className={`flex h-9 w-12 shrink-0 items-center justify-center rounded-md border ${preset.border} ${preset.gradient}`}
+                          className={`flex h-10 w-12 shrink-0 items-center justify-center rounded-xl border ${preset.border} ${preset.gradient} shadow-2xs`}
                         >
                           {preset.id === 'custom_image' && (
-                            <ImageIcon className="h-3.5 w-3.5 text-foreground-muted" />
+                            <ImageIcon className="h-4 w-4 text-foreground-muted" />
                           )}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-medium text-foreground">
+                          <span className="block truncate text-xs font-semibold text-foreground">
                             {preset.name}
                           </span>
                           <span className="mt-0.5 block truncate text-[10px] text-foreground-subtle">
                             {preset.desc}
                           </span>
                         </span>
-                        {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-accent" />}
+                        {isSelected && <Check className="h-4 w-4 shrink-0 text-accent" />}
                       </button>
                     );
                   })}
                 </div>
 
                 {selectedStyle === 'custom_image' && (
-                  <div className="space-y-2 rounded-xl border border-border bg-surface p-3.5">
+                  <div className="space-y-2 rounded-2xl border border-border/80 bg-surface p-4 shadow-xs">
                     <label
                       htmlFor="banner-image-url"
                       className="flex items-center gap-1.5 text-xs font-medium text-foreground"
                     >
-                      <ImageIcon className="h-3.5 w-3.5 text-foreground-muted" />
-                      <span>URL de la imagen</span>
+                      <ImageIcon className="h-3.5 w-3.5 text-accent" />
+                      <span>URL directa de la imagen</span>
                     </label>
                     <input
                       id="banner-image-url"
                       type="url"
                       value={customImageUrl}
                       onChange={(e) => setCustomImageUrl(e.target.value)}
-                      placeholder="https://…/imagen.jpg"
-                      className="w-full rounded-lg border border-border bg-surface-raised px-3 py-2.5 font-mono text-xs text-foreground outline-none transition-colors placeholder:text-foreground-subtle focus:border-border-focus"
+                      placeholder="https://i.imgur.com/...jpg"
+                      className="w-full rounded-xl border border-border bg-surface-raised px-3.5 py-2.5 font-mono text-xs text-foreground outline-none transition-colors placeholder:text-foreground-subtle focus:border-border-focus"
                     />
-                    <p className="text-[10px] text-foreground-subtle">
-                      JPG, PNG o WebP en formato horizontal.
+                    <p className="text-[11px] text-foreground-subtle leading-relaxed">
+                      Formatos recomendados: JPG, PNG o WebP de orientación horizontal (16:9).
                     </p>
                   </div>
                 )}
               </section>
 
-              <section className="space-y-3 lg:col-span-5 lg:sticky lg:top-6">
-                <h2 className="text-sm font-medium text-foreground">Textos</h2>
+              {/* Columna Derecha: Textos y Botón Guardar */}
+              <section className="space-y-4 lg:col-span-6 lg:sticky lg:top-6">
+                <div className="flex items-baseline justify-between border-b border-border/60 pb-2">
+                  <h2 className="text-sm font-semibold text-foreground">Textos de la Credencial</h2>
+                  <span className="font-mono text-[11px] text-foreground-subtle">
+                    Personalizables
+                  </span>
+                </div>
 
-                <div className="space-y-4 rounded-2xl border border-border bg-surface p-5">
+                <div className="space-y-4 rounded-3xl border border-border/80 bg-surface p-5 sm:p-6 shadow-xs">
                   <div className="space-y-1.5">
                     <div className="flex items-baseline justify-between">
                       <label htmlFor="banner-title" className="text-xs font-medium text-foreground">
-                        Título
+                        Título de honor
                       </label>
                       <span className="font-mono text-[10px] text-foreground-subtle">
                         {customTitle.length}/35
@@ -1045,14 +1143,14 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                       value={customTitle}
                       onChange={(e) => setCustomTitle(e.target.value)}
                       placeholder="Magnate del Botellón"
-                      className="w-full rounded-lg border border-border bg-surface-raised px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-foreground-subtle focus:border-border-focus"
+                      className="w-full rounded-xl border border-border bg-surface-raised px-3.5 py-2.5 text-xs text-foreground outline-none transition-colors placeholder:text-foreground-subtle focus:border-border-focus"
                     />
                   </div>
 
                   <div className="space-y-1.5">
                     <div className="flex items-baseline justify-between">
                       <label htmlFor="banner-quote" className="text-xs font-medium text-foreground">
-                        Frase
+                        Frase célebre
                       </label>
                       <span className="font-mono text-[10px] text-foreground-subtle">
                         {customQuote.length}/70
@@ -1065,44 +1163,44 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                       value={customQuote}
                       onChange={(e) => setCustomQuote(e.target.value)}
                       placeholder="Construyendo el aula más rápida del instituto."
-                      className="w-full rounded-lg border border-border bg-surface-raised px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-foreground-subtle focus:border-border-focus"
+                      className="w-full rounded-xl border border-border bg-surface-raised px-3.5 py-2.5 text-xs text-foreground outline-none transition-colors placeholder:text-foreground-subtle focus:border-border-focus"
                     />
                   </div>
-                </div>
 
-                {errorMessage && (
-                  <ShopNotice
-                    tone="danger"
-                    message={errorMessage}
-                    onDismiss={() => setErrorMessage(null)}
-                  />
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleSaveCustomization}
-                  disabled={isSaving}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-medium text-accent-foreground transition-all hover:bg-accent-hover active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isSaving ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground/30 border-t-accent-foreground" />
-                  ) : (
-                    <Check className="h-4 w-4" />
+                  {errorMessage && (
+                    <ShopNotice
+                      tone="danger"
+                      message={errorMessage}
+                      onDismiss={() => setErrorMessage(null)}
+                    />
                   )}
-                  <span>Guardar cambios</span>
-                </button>
 
-                <div className="flex min-h-5 items-center justify-center gap-1.5 text-xs">
-                  {saveSuccess ? (
-                    <>
-                      <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                      <span className="font-medium text-success">Configuración guardada</span>
-                    </>
-                  ) : (
-                    <span className="text-center text-[11px] text-foreground-subtle">
-                      Visible en tu carnet y en tu ficha de estudiante.
-                    </span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleSaveCustomization}
+                    disabled={isSaving}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-3 text-xs font-semibold text-accent-foreground transition-all hover:bg-accent-hover active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shadow-xs mt-2"
+                  >
+                    {isSaving ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground/30 border-t-accent-foreground" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                    <span>Guardar configuración</span>
+                  </button>
+
+                  <div className="flex min-h-5 items-center justify-center gap-1.5 text-xs pt-1">
+                    {saveSuccess ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                        <span className="font-medium text-success text-[11px]">Cambios guardados con éxito</span>
+                      </>
+                    ) : (
+                      <span className="text-center text-[11px] text-foreground-subtle">
+                        Visible en tu credencial y ficha pública de estudiante.
+                      </span>
+                    )}
+                  </div>
                 </div>
               </section>
             </div>
@@ -1119,44 +1217,45 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
               username={currentUser?.username}
             />
 
-            <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-10">
+            <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-8">
               <div className="space-y-5 lg:col-span-7">
                 <div className="space-y-2">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-foreground-subtle">
-                    Edición limitada · Permanente
+                  <p className="font-mono text-[11px] uppercase tracking-wider text-accent font-semibold">
+                    Coleccionable Permanente
                   </p>
-                  <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                    Banner de perfil personalizado
+                  <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                    Banner de Perfil VIP
                   </h2>
                   <p className="max-w-xl text-sm leading-relaxed text-foreground-muted">
-                    Sustituye la cabecera estándar de tu credencial digital y destaca en el portal.
-                    Elige entre estilos predefinidos o una imagen propia, y añade tu título y frase.
+                    Sustituye la cabecera estándar de tu credencial de estudiante por un diseño exclusivo.
+                    Podrás personalizar el fondo con estilos degradados u obras externas, y redactar tu propio título y lema.
                   </p>
                 </div>
 
-                <ul className="space-y-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   {[
-                    'Cabecera personalizada en tu credencial y en cada publicación.',
-                    'Cinco estilos de fondo o una imagen propia mediante URL.',
-                    'Título honorífico y frase editables cuando quieras.',
+                    'Cabecera personalizada en tu credencial y carnet.',
+                    'Seis estilos predefinidos o imagen externa vía URL.',
+                    'Título nobiliario y frase célebre editables.',
+                    'Insignia VIP dorada permanente.',
                   ].map((benefit) => (
-                    <li
+                    <div
                       key={benefit}
-                      className="flex items-start gap-2.5 text-sm text-foreground-muted"
+                      className="flex items-start gap-2.5 rounded-2xl border border-border/80 bg-surface p-3 text-xs text-foreground-muted"
                     >
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
                       <span>{benefit}</span>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
 
-              <div className="space-y-5 rounded-2xl border border-border bg-surface p-5 lg:col-span-5 lg:sticky lg:top-6">
+              <div className="space-y-5 rounded-3xl border border-border/80 bg-surface p-6 lg:col-span-5 lg:sticky lg:top-6 shadow-xs">
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">
-                    Precio
+                  <span className="font-mono text-[11px] uppercase tracking-wider text-foreground-subtle">
+                    Precio Único
                   </span>
-                  <span className="font-mono text-lg font-semibold tabular-nums text-foreground">
+                  <span className="font-mono text-lg font-bold tabular-nums text-foreground">
                     {BANNER_PRICE.toLocaleString('es-ES')}
                     <span className="ml-1 font-sans text-xs font-normal text-foreground-muted">
                       monedas
@@ -1164,21 +1263,21 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                   </span>
                 </div>
 
-                <div className="space-y-2 border-t border-border-subtle pt-4">
+                <div className="space-y-2 border-t border-border/60 pt-4">
                   <div className="flex items-center justify-between text-[11px] text-foreground-muted">
-                    <span>Tu progreso</span>
-                    <span className="font-mono tabular-nums">
+                    <span>Progreso de ahorro</span>
+                    <span className="font-mono font-semibold tabular-nums">
                       {progressPercent.toFixed(1)}%
                     </span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-surface-raised">
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-raised">
                     <div
-                      className="h-full rounded-full bg-foreground transition-all duration-300"
+                      className="h-full rounded-full bg-accent transition-all duration-300"
                       style={{ width: `${progressPercent}%` }}
                     />
                   </div>
                   <p className="font-mono text-[10px] tabular-nums text-foreground-subtle">
-                    {userCoins.toLocaleString('es-ES')} / {BANNER_PRICE.toLocaleString('es-ES')}
+                    {userCoins.toLocaleString('es-ES')} / {BANNER_PRICE.toLocaleString('es-ES')} monedas
                   </p>
                 </div>
 
@@ -1191,12 +1290,12 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                 )}
 
                 {confirmBanner ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2 animate-in fade-in">
                     <button
                       type="button"
                       onClick={handleBuyBanner}
                       disabled={isBuying}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-medium text-accent-foreground transition-all hover:bg-accent-hover active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-3 text-xs font-semibold text-accent-foreground transition-all hover:bg-accent-hover active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shadow-xs"
                     >
                       {isBuying ? (
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground/30 border-t-accent-foreground" />
@@ -1227,7 +1326,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                       setConfirmBanner(true);
                     }}
                     disabled={!canAfford || isBuying}
-                    className={`inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition-all active:scale-[0.99] ${
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-xs font-semibold transition-all active:scale-[0.99] shadow-xs ${
                       canAfford
                         ? 'cursor-pointer bg-accent text-accent-foreground hover:bg-accent-hover'
                         : 'cursor-not-allowed border border-border bg-surface-raised text-foreground-subtle opacity-60'
@@ -1236,7 +1335,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                     {canAfford ? (
                       <>
                         <Crown className="h-4 w-4" />
-                        <span>Adquirir banner</span>
+                        <span>Adquirir Banner VIP</span>
                       </>
                     ) : (
                       <>
@@ -1249,8 +1348,8 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                   </button>
                 )}
 
-                <div className="flex items-center justify-between gap-3 text-[11px] text-foreground-subtle">
-                  <span>Pago único.</span>
+                <div className="flex items-center justify-between gap-3 text-[11px] text-foreground-subtle pt-1">
+                  <span>Pago único y permanente.</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -1259,7 +1358,7 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
                     }}
                     className="inline-flex cursor-pointer items-center gap-1 font-medium text-foreground-muted underline-offset-2 hover:text-foreground hover:underline"
                   >
-                    <span>Ganar monedas en El Botellón</span>
+                    <span>Ganar en El Botellón</span>
                     <ArrowRight className="h-3 w-3" />
                   </button>
                 </div>
