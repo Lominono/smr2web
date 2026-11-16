@@ -24,7 +24,7 @@ const DEFAULT_LEVELS: Record<string, number> = {
 };
 
 interface ActionPayload {
-  action?: 'buy_tier' | 'buy_perk' | 'select_zone' | 'fund_vault';
+  action?: 'buy_tier' | 'buy_perk' | 'select_zone' | 'fund_vault' | 'claim_vault';
   tierId?: string;
   multiplier?: 1 | 5 | 10 | 'max';
   perkId?: string;
@@ -286,6 +286,74 @@ export async function POST(req: NextRequest) {
         success: true,
         pendingVault: vault,
         coins: coinRes.coins,
+      });
+    }
+
+    if (payload.action === 'claim_vault') {
+      const { data: profile } = await client
+        .from('profiles')
+        .select('coins, biggest_win, mascota_equipada, party_farm_data')
+        .eq('id', userId)
+        .maybeSingle();
+
+      const balance = Number(profile?.coins || 0);
+      const equippedPet = profile?.mascota_equipada || (profile?.party_farm_data as any)?.mascota_equipada;
+
+      // Vault acumulado legítimo
+      let claimableVault = Math.max(0, Math.floor(vault));
+      if (typeof payload.clientVault === 'number' && Number.isFinite(payload.clientVault) && payload.clientVault > claimableVault) {
+        const maxBump = Math.max(50_000_000, Math.floor(Math.max(claimableVault, 1) * 0.75));
+        claimableVault = Math.min(Math.floor(payload.clientVault), claimableVault + maxBump);
+      }
+
+      if (claimableVault < 5) {
+        return fail('Necesitas acumular al menos 5 fichas de botellón para canjear 1 moneda.', 400);
+      }
+
+      let coinsToClaim = Math.floor(claimableVault / 5);
+      if (equippedPet === 'kirby') {
+        coinsToClaim = Math.floor(coinsToClaim * 1.12); // +12% bonus con Kirby
+      }
+
+      if (coinsToClaim <= 0) {
+        return fail('Cantidad de monedas a canjear inválida.', 400);
+      }
+
+      // 1. Abonar monedas atómicamente a profiles.coins con bloqueo optimista
+      const currentBiggest = Number(profile?.biggest_win || 0);
+      const coinRes = await applyCoinDelta(client, userId, coinsToClaim, {
+        biggest_win: coinsToClaim > currentBiggest ? coinsToClaim : undefined,
+      });
+      if (!coinRes.ok) {
+        return fail('El saldo cambió mientras se procesaba el canje. Reinténtalo.', 409);
+      }
+
+      // 2. Descontar las fichas canjeadas en botellon_states
+      const remainingVault = 0;
+      await client
+        .from('botellon_states')
+        .upsert({
+          ...row,
+          user_id: userId,
+          pending_vault: remainingVault,
+          last_tick_ms: Date.now(),
+        }, { onConflict: 'user_id' });
+
+      // 3. Registrar auditoría de transacción
+      await recordBalanceTransaction(client, {
+        userId,
+        amount: coinsToClaim,
+        balanceBefore: balance,
+        balanceAfter: coinRes.coins,
+        type: 'vault',
+        description: `Canje de alijo de El Botellón (+${coinsToClaim.toLocaleString()} 🪙)`,
+      });
+
+      return NextResponse.json({
+        success: true,
+        coinsClaimed: coinsToClaim,
+        newCoins: coinRes.coins,
+        pendingVault: remainingVault,
       });
     }
 

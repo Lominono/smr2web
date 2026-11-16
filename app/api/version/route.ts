@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '2.6.0';
+let CURRENT_APP_VERSION = '2.7.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,21 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '2.7.0',
+    title: 'SMR2 v2.7.0 · Desbloqueo de 28B, Canje Atómico y Donaciones Minimalistas',
+    badge: 'NOVEDAD',
+    date: 'Lunes, 16 de Noviembre, 2026',
+    description:
+      'Eliminado el límite que impedía superar los 28.000.000.000 (28B) de monedas al reiniciar la página, implementado canje atómico en el servidor para El Botellón y rediseñado el sistema de donaciones con estética minimalista.',
+    changes: [
+      'Desbloqueo de los 28 Billones: Se corrigió la limitación relativa y presupuestaria que truncaba y revertía los canjes de alijo y renacimientos a 28B al refrescar la página.',
+      'Canje Atómico de Alijo (El Botellón): El canje de fichas a monedas ahora se procesa en una única transacción indivisible en el servidor, eliminando condiciones de carrera y reversiones de saldo.',
+      'Renacimientos Sin Techo Artificial: El bonus de After ahora abona el importe íntegro del alijo a monedas reales, retirando el antiguo corte fijo de 50.000.',
+      'Donaciones de Clase Rediseñadas: Panel minimalista estilo Apple con botones de aportación calibrados para las grandes fortunas del aula (100M, 500M, 1B, 5B, 10B, 25%, 50%) y trazabilidad atómica.',
+      'Tienda de Mascotas y Presencia en Muro: Visualización de las mascotas equipadas con su insignia distintiva y habilidades pasivas automáticas.',
+    ],
+  },
   {
     version: '2.6.0',
     title: 'SMR2 v2.6.0 · Tu TikTok en El Botellón: vídeos propios y sincronización',

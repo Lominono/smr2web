@@ -217,19 +217,19 @@ export async function POST(req: NextRequest) {
         })
       : 500;
     const maxDelta = Math.max(
-      250_000,
-      Math.floor(maxRate * elapsedSec * 1.5),
-      Math.floor(Math.max(currentLifetime, currentVault, 1) * 0.25)
+      50_000_000,
+      Math.floor(maxRate * elapsedSec * 3.0),
+      Math.floor(Math.max(currentLifetime, currentVault, reqLifetime, 1) * 0.75)
     );
     const safeLifetime = existingRow
       ? Math.max(currentLifetime, Math.min(reqLifetime, currentLifetime + maxDelta))
-      : Math.min(reqLifetime, 250_000);
+      : Math.min(reqLifetime, 50_000_000);
     const safeRun = existingRow
       ? Math.max(0, Math.min(reqRun, currentRun + maxDelta))
-      : Math.min(reqRun, 250_000);
+      : Math.min(reqRun, 50_000_000);
     const safeVault = existingRow
       ? Math.max(0, Math.min(reqVault, currentVault + maxDelta))
-      : Math.min(reqVault, 250_000);
+      : Math.min(reqVault, 50_000_000);
 
     const safeDrinks = existingRow
       ? Math.max(currentDrinks, Math.min(reqDrinks, currentDrinks + 500))

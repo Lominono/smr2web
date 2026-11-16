@@ -8,6 +8,7 @@ import {
   calculatePrestigeMultiplier,
   getRequiredAfterProduction,
 } from '@/lib/botellonEconomy';
+import { applyCoinDelta } from '@/lib/security/wallet';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     // 1. Obtener datos actuales del perfil
     const { data: profile, error: fetchErr } = await client
       .from('profiles')
-      .select('id, coins, party_farm_data')
+      .select('id, coins, biggest_win, party_farm_data')
       .eq('id', userId)
       .maybeSingle();
 
@@ -114,10 +115,9 @@ export async function POST(req: NextRequest) {
     // Capital de siembra en fichas para arrancar produciendo inmediatamente tras renacer
     const startingSeedFichas = Math.min(250000, Math.max(2500, newPrestigeCount * 5000));
 
-    // Bonus de fichas acumuladas calculado autoritativamente en servidor (máximo 50.000 monedas por renacimiento)
+    // Bonus de fichas acumuladas calculado autoritativamente en servidor (sin tope artificial)
     const rawPendingVault = Number(botellonRow?.pending_vault ?? currentFarm.pendingVault ?? 0);
-    const bonusCoins = Math.min(50000, Math.max(0, Math.floor(rawPendingVault / 5)));
-    const newCoins = Math.max(0, Number(profile.coins || 0) + bonusCoins);
+    const bonusCoins = Math.max(0, Math.floor(rawPendingVault / 5));
 
     // Estado reseteado para el nuevo renacimiento con multiplicador y capital inicial garantizados
     const updatedFarm = {
@@ -163,19 +163,28 @@ export async function POST(req: NextRequest) {
       last_tick_ms: now,
     }, { onConflict: 'user_id' });
 
-    const { error: updateErr } = await client
-      .from('profiles')
-      .update({
+    let newCoins = Math.max(0, Number(profile.coins || 0) + bonusCoins);
+    if (bonusCoins > 0) {
+      const coinRes = await applyCoinDelta(client, userId, bonusCoins, {
         party_farm_data: updatedFarm,
-        coins: newCoins,
-      })
-      .eq('id', userId);
-
-    if (updateErr) {
-      return NextResponse.json(
-        { success: false, error: 'Error al guardar el renacimiento en la base de datos.' },
-        { status: 500 }
-      );
+        biggest_win: bonusCoins > Number(profile.biggest_win ?? 0) ? bonusCoins : undefined,
+      });
+      if (coinRes.ok) {
+        newCoins = coinRes.coins;
+      } else {
+        await client
+          .from('profiles')
+          .update({
+            party_farm_data: updatedFarm,
+            coins: newCoins,
+          })
+          .eq('id', userId);
+      }
+    } else {
+      await client
+        .from('profiles')
+        .update({ party_farm_data: updatedFarm })
+        .eq('id', userId);
     }
 
     try {

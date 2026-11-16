@@ -4,6 +4,7 @@ import { logEvent } from '@/lib/logger';
 import { isUUID } from '@/lib/uuid';
 import { verifyUserSession } from '@/lib/adminAuth';
 import { enforceRateLimit, guardOrigin } from '@/lib/security/http';
+import { applyCoinDelta, recordBalanceTransaction } from '@/lib/security/wallet';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -159,7 +160,6 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        const nextCoins = Math.max(0, currentCoins - parsedAmount);
         const prevFarm = (userProfile.party_farm_data as any) || {};
         const prevDonated = Number(prevFarm.totalDonated || prevFarm.total_donated || 0);
         const nextDonated = prevDonated + parsedAmount;
@@ -170,34 +170,28 @@ export async function POST(req: NextRequest) {
           lastDonationDate: new Date().toISOString(),
         };
 
-        const { error: updateErr } = await adminClient
-          .from('profiles')
-          .update({
-            coins: nextCoins,
-            party_farm_data: updatedFarm,
-          })
-          .eq('id', userId);
+        const coinRes = await applyCoinDelta(adminClient, userId, -parsedAmount, {
+          party_farm_data: updatedFarm,
+        });
 
-        if (updateErr) {
+        if (!coinRes.ok) {
           return NextResponse.json(
-            { success: false, error: 'Error al procesar la donación en base de datos: ' + updateErr.message },
-            { status: 500 }
+            { success: false, error: 'El saldo cambió mientras se procesaba la donación. Reinténtalo.' },
+            { status: 409 }
           );
         }
 
-        // Registrar en transacciones
-        try {
-          await adminClient.from('balance_transactions').insert([
-            {
-              user_id: userId,
-              amount: -parsedAmount,
-              balance_before: currentCoins,
-              balance_after: nextCoins,
-              type: 'donation',
-              description: `Donación al Fondo de Mecenazgo de Clase (${parsedAmount.toLocaleString()} 🪙)`,
-            },
-          ]);
-        } catch {}
+        const nextCoins = coinRes.coins;
+
+        // Registrar en transacciones de forma atómica y segura
+        await recordBalanceTransaction(adminClient, {
+          userId,
+          amount: -parsedAmount,
+          balanceBefore: currentCoins,
+          balanceAfter: nextCoins,
+          type: 'donation',
+          description: `Donación al Fondo de Mecenazgo de Clase (${parsedAmount.toLocaleString()} 🪙)`,
+        });
 
         // Registrar en auditoría
         try {

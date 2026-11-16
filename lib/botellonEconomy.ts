@@ -156,7 +156,7 @@ const GLOBAL_PERK_MULTS: Record<string, number> = {
 
 /**
  * Estima en servidor la producción máxima por segundo legítima (incluyendo margen
- * amplio para Fiesta Loca x3, Beca Novatos x4, Mascota x1.5, Bóveda x1.2 y clics).
+ * amplio para Fiesta Loca x3, Beca Novatos x4, Mascotas, Perks globales, Bóveda x1.2 y clics).
  */
 export function estimateMaxBotellonRatePerSecond(params: {
   levels: Record<string, number>;
@@ -183,14 +183,16 @@ export function estimateMaxBotellonRatePerSecond(params: {
     if (lvl >= 25) milestone *= 1.4;
     if (lvl >= 50) milestone *= 1.6;
     if (lvl >= 100) milestone *= 2.0;
+    if (lvl >= 150) milestone *= 2.5;
+    if (lvl >= 200) milestone *= 3.0;
     suppliesBase += lvl * baseRate * milestone;
   }
 
   const permanentPrestigeRate = prestige > 0 ? prestige * 25 * prestigeMult : 0;
-  // Rango máximo x2.0, Fiesta Loca x3, Novato x4, Mascota x1.5, Bóveda x1.2
-  const maxBuffs = 2.0 * 3.0 * 4.0 * 1.5 * 1.2;
-  const passiveRate = (suppliesBase * zoneMult * 2.0 * perkMult * prestigeMult + permanentPrestigeRate) * maxBuffs;
-  return Math.max(500, passiveRate);
+  // Rango máximo x2.0, Fiesta Loca x3, Novato x4, Mascota Chococrispi x1.65, Bóveda x1.2, Clics x2
+  const maxBuffs = 2.0 * 3.0 * 4.0 * 1.65 * 1.2 * 2.0;
+  const passiveRate = (suppliesBase * zoneMult * perkMult * prestigeMult + permanentPrestigeRate) * maxBuffs;
+  return Math.max(50_000, passiveRate);
 }
 
 /**

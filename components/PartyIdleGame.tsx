@@ -1600,8 +1600,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
 
       sound.jackpot();
       confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
-      if (onSetCoins && typeof data.newCoins === 'number') {
-        onSetCoins(data.newCoins);
+      if (typeof data.newCoins === 'number') {
+        if (onSetCoins) onSetCoins(data.newCoins);
+        if (onUpdateUser && user) {
+          onUpdateUser({ ...user, coins: data.newCoins });
+        }
       } else {
         onUpdateCoins(-amountToDonate);
       }
@@ -1637,7 +1640,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   };
 
   // Acción: Meter las fichas acumuladas en la cartera real (Canje oficial: 5 fichas = 1 moneda real)
-  const handleClaimVault = () => {
+  const handleClaimVault = async () => {
     if (isClaimingRef.current) return;
 
     const safeVault = Math.max(0, isNaN(pendingVault) || !isFinite(pendingVault) ? 0 : pendingVault);
@@ -1663,6 +1666,37 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         colors: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'],
       });
 
+      // Vía autoritativa en servidor: endpoint atómico (evita desincronizaciones y condiciones de carrera)
+      if (userId && isUUID(userId)) {
+        try {
+          const res = await fetch('/api/botellon/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'claim_vault',
+              clientVault: safeVault,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data?.success) {
+            setPendingVault(0);
+            setJustClaimed(true);
+            setTimeout(() => setJustClaimed(false), 2000);
+            if (typeof data.newCoins === 'number') {
+              if (onSetCoins) onSetCoins(data.newCoins);
+              if (onUpdateUser && user) {
+                onUpdateUser({ ...user, coins: data.newCoins });
+              }
+            }
+            saveState({ pendingVault: 0 }, true);
+            return;
+          }
+        } catch (serverErr) {
+          console.warn('Fallo en endpoint atómico de canje, usando fallback:', serverErr);
+        }
+      }
+
+      // Fallback local/offline
       const fichasDeducted = coinsToClaim * 5;
       const remainingFichas = Math.max(0, safeVault - fichasDeducted);
       setPendingVault(remainingFichas);
@@ -1828,6 +1862,12 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
           if (resData.success && typeof resData.afterPrestigeCount === 'number') {
             setAfterPrestigeCount(resData.afterPrestigeCount);
             stateRef.current.afterPrestigeCount = resData.afterPrestigeCount;
+            if (typeof resData.newCoins === 'number') {
+              if (onSetCoins) onSetCoins(resData.newCoins);
+              if (onUpdateUser && user) {
+                onUpdateUser({ ...user, coins: resData.newCoins });
+              }
+            }
             if (resData.party_farm_data) {
               const merged = { ...stateRef.current, ...resData.party_farm_data };
               stateRef.current = merged;
@@ -2966,10 +3006,11 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
               <div className="flex items-center gap-1.5 flex-wrap">
                 {(userCoins >= 1000000000
                   ? [
-                      { label: '50M', val: 50000000 },
-                      { label: '250M', val: 250000000 },
+                      { label: '100M', val: 100000000 },
+                      { label: '500M', val: 500000000 },
                       { label: '1B', val: 1000000000 },
                       { label: '5B', val: 5000000000 },
+                      { label: '10B', val: 10000000000 },
                       { label: '25%', val: Math.floor(userCoins * 0.25) },
                       { label: '50%', val: Math.floor(userCoins * 0.50) },
                     ]
@@ -2978,7 +3019,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
                       { label: '1M', val: 1000000 },
                       { label: '5M', val: 5000000 },
                       { label: '10M', val: 10000000 },
-                      { label: '25M', val: 25000000 },
+                      { label: '50M', val: 50000000 },
                       { label: '25%', val: Math.floor(userCoins * 0.25) },
                     ]
                   : [

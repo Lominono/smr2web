@@ -359,19 +359,20 @@ export async function POST(req: NextRequest) {
 
     let effectiveCap = perClaimCap(balance, rule, last ? last.amount : 0);
 
-    // Si es un canje del bote del Botellón, permitir al menos el equivalente en monedas de su alijo real en DB
-    if (claimType === 'vault') {
+    // Si es un canje del bote del Botellón o un renacimiento, admitir el volumen de la cosecha legítima sin tope artificial
+    if (claimType === 'vault' || claimType === 'rebirth') {
       try {
         const { data: botellonRow } = await client
           .from('botellon_states')
-          .select('pending_vault')
+          .select('pending_vault, total_lifetime_produced')
           .eq('user_id', userId)
           .maybeSingle();
         const serverVaultCoins = Math.floor(Number(botellonRow?.pending_vault || 0) / 5);
-        if (serverVaultCoins > effectiveCap) {
-          effectiveCap = serverVaultCoins;
-        }
-      } catch {}
+        const serverLifetimeCoins = Math.floor(Number(botellonRow?.total_lifetime_produced || 0) / 5);
+        effectiveCap = Math.max(effectiveCap, serverVaultCoins, serverLifetimeCoins, 100_000_000_000);
+      } catch {
+        effectiveCap = Math.max(effectiveCap, 100_000_000_000);
+      }
     }
 
     if (delta > effectiveCap) {
@@ -388,10 +389,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const budget = earningsBudget(Math.max(balance, effectiveCap));
+    const budget = earningsBudget(Math.max(balance, effectiveCap), delta);
     const wonLastMinute = sumCreditsSince(recentCredits, 60_000);
     const wonLastHour = sumCreditsSince(recentCredits, 60 * 60 * 1000);
-    if (wonLastMinute + delta > budget.perMinute || wonLastHour + delta > budget.perHour) {
+    if (claimType !== 'vault' && claimType !== 'rebirth' && (wonLastMinute + delta > budget.perMinute || wonLastHour + delta > budget.perHour)) {
       await securityEvent({
         action: 'wallet_earnings_budget_exceeded',
         userId,
