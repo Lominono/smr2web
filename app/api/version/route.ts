@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '2.7.0';
+let CURRENT_APP_VERSION = '2.8.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,21 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '2.8.0',
+    title: 'SMR2 v2.8.0 · TikTok Instantáneo y Sesión Real en El Botellón',
+    badge: 'GRAN MEJORA',
+    date: 'Lunes, 16 de Noviembre, 2026',
+    description:
+      'TikTok se vuelve inmediato y sin barreras: se elimina por completo la solicitud manual de @usuario, se incorpora reproducción directa al abrir el dock y se estrena la ventana companion con tu sesión real de TikTok conectada.',
+    changes: [
+      'Fuera la barrera de @usuario: ya no tienes que escribir ni pegar tu usuario para acceder. El panel se abre directamente al reproductor de vídeo sin formularios ni bloqueos.',
+      'Tu Para ti con sesión real: botón directo en la cabecera que abre una ventana flotante vertical optimizada (430×880) con tu cuenta auténtica de TikTok (tus seguidos, tu algoritmo, likes y comentarios).',
+      'Canales de contenido: selector rápido entre Tendencias España y Gaming & Humor para ver vídeos seleccionados con navegación por flechas y teclado.',
+      'Pegado y reproducción rápida: pega cualquier enlace de vídeo de TikTok en la barra superior para reproducirlo al instante en el dock y guardarlo en tus vídeos recientes.',
+      'Acceso oficial a TikTok: botón directo de inicio de sesión oficial en el navegador para conectar tu cuenta en 1 clic.',
+    ],
+  },
   {
     version: '2.7.0',
     title: 'SMR2 v2.7.0 · Desbloqueo de 28B, Canje Atómico y Donaciones Minimalistas',
