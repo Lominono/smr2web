@@ -63,12 +63,15 @@ import confetti from 'canvas-confetti';
 import { BotellonInvestments } from '@/components/BotellonInvestments';
 import { PartyLiveScene, CharacterItem } from '@/components/PartyLiveScene';
 import { TikTokDock } from '@/components/TikTokDock';
+import { UserProfile } from '@/lib/types';
 
 export interface PartyIdleGameProps {
   userCoins: number;
   userId?: string;
   username?: string;
   mascotaEquipada?: string;
+  user?: UserProfile | null;
+  onUpdateUser?: (updated: UserProfile) => void;
   onUpdateCoins: (delta: number, claimType?: CoinClaimType) => void;
   onSetCoins?: (coins: number) => void;
   onNavigateGame?: (game: string) => void;
@@ -585,6 +588,8 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
   userId,
   username,
   mascotaEquipada,
+  user,
+  onUpdateUser,
   onUpdateCoins,
   onSetCoins,
   onNavigateGame,
@@ -3629,7 +3634,7 @@ export const PartyIdleGame: React.FC<PartyIdleGameProps> = ({
         </div>
       )}
       </div>
-      <TikTokDock />
+      <TikTokDock user={user} onUpdateUser={onUpdateUser} />
     </>
   );
 };

@@ -2425,6 +2425,8 @@ export default function Home() {
                   userId={user?.id}
                   username={user?.username}
                   mascotaEquipada={user?.mascota_equipada}
+                  user={user}
+                  onUpdateUser={setUser}
                   onUpdateCoins={handleUpdateCoins}
                   onSetCoins={handleSetCoins}
                   onNavigateGame={(g) => setActiveView(g as ViewMode)}
@@ -2559,6 +2561,7 @@ export default function Home() {
         user={user}
         onUpdateUser={(updated) => {
           setUser(updated);
+          updateSessionCoins(updated.coins);
           fetchLeaderboard();
         }}
         onSignOut={handleSignOut}
@@ -2697,6 +2700,7 @@ export default function Home() {
         inspectedUser={inspectedStudent}
         onUpdateUser={(updated) => {
           setUser(updated);
+          updateSessionCoins(updated.coins);
           fetchLeaderboard();
         }}
         onChallengeUser={(targetUsername) => {
@@ -2715,6 +2719,7 @@ export default function Home() {
         onOpenAuth={() => setIsAuthOpen(true)}
         onUpdateUser={(updated) => {
           setUser(updated);
+          updateSessionCoins(updated.coins);
           fetchLeaderboard();
         }}
         onUpdateCoins={handleUpdateCoins}
@@ -2725,6 +2730,7 @@ export default function Home() {
         isBlocked={isTourActive || isIsaacTourOpen}
         onUpdateUser={(updated) => {
           setUser(updated);
+          updateSessionCoins(updated.coins);
           fetchLeaderboard();
         }}
       />

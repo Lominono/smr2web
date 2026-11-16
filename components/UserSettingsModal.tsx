@@ -126,6 +126,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   const [newUsername, setNewUsername] = useState(user?.username || '');
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [studentNumber, setStudentNumber] = useState(user?.student_number || '');
+  const [tiktokHandle, setTiktokHandle] = useState(user?.tiktok_handle || '');
   const [selectedColor, setSelectedColor] = useState(user?.avatar_color || 'emerald');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -153,6 +154,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
       setNewUsername(user.username);
       setFullName(user.full_name || '');
       setStudentNumber(user.student_number || '');
+      setTiktokHandle(user.tiktok_handle || '');
       setSelectedColor(user.avatar_color || 'emerald');
       reloadPersonalTasks();
     }
@@ -256,6 +258,12 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
     const cleanUsername = newUsername.trim().toLowerCase().replace(/\s+/g, '_');
     const cleanName = fullName.trim();
     const cleanNumber = studentNumber.trim().toUpperCase();
+    const cleanTikTok = tiktokHandle.trim().replace(/^@+/, '').split(/[?#/\s]/)[0];
+
+    if (cleanTikTok && !/^[A-Za-z0-9._]{2,24}$/.test(cleanTikTok)) {
+      setProfileMsg({ type: 'err', text: 'El usuario de TikTok no es válido (2-24 caracteres: letras, números, puntos y guiones).' });
+      return;
+    }
 
     if (cleanUsername.length < 3) {
       setProfileMsg({ type: 'err', text: 'El identificador debe tener al menos 3 caracteres.' });
@@ -282,6 +290,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
           avatarColor: selectedColor,
           fullName: cleanName || undefined,
           studentNumber: cleanNumber || undefined,
+          tiktokHandle: cleanTikTok || null,
         }),
       });
 
@@ -290,11 +299,20 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
         throw new Error(data.error || 'No se pudo actualizar el perfil.');
       }
 
+      if (typeof window !== 'undefined') {
+        if (cleanTikTok) {
+          try { localStorage.setItem('smr2:tiktok:handle', cleanTikTok); } catch {}
+        } else {
+          try { localStorage.removeItem('smr2:tiktok:handle'); } catch {}
+        }
+      }
+
       const updated = updateUserProfileSession({
         username: cleanUsername,
         avatar_color: selectedColor,
         full_name: cleanName || undefined,
         student_number: cleanNumber || undefined,
+        tiktok_handle: cleanTikTok || undefined,
       });
 
       if (updated) {
@@ -603,6 +621,14 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                   maxLength={20}
                 />
               </div>
+
+              <Input
+                label="Usuario o Perfil de TikTok (opcional)"
+                value={tiktokHandle}
+                onChange={(e) => setTiktokHandle(e.target.value.replace(/^@/, ''))}
+                maxLength={30}
+                placeholder="ej. tiktok_es"
+              />
 
               {/* Avatar Color Picker */}
               <div className="space-y-2 pt-1">

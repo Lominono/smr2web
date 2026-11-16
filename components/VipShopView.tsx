@@ -351,7 +351,6 @@ export const VipShopView: React.FC<VipShopViewProps> = ({
       };
 
       onUpdateUser(updatedProfile);
-      onUpdateCoins?.(-pet.price);
       sound.coinWin();
 
       try {

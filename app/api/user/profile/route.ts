@@ -78,6 +78,12 @@ export async function GET(req: NextRequest) {
                   : (Array.isArray(data.party_farm_data?.mascotas_desbloqueadas)
                   ? data.party_farm_data.mascotas_desbloqueadas
                   : []),
+                tiktok_handle: (data as any).tiktok_handle || data.party_farm_data?.tiktok_handle || undefined,
+                tiktok_videos: Array.isArray((data as any).tiktok_videos)
+                  ? (data as any).tiktok_videos
+                  : (Array.isArray(data.party_farm_data?.tiktok_videos)
+                  ? data.party_farm_data.tiktok_videos
+                  : []),
               },
             });
           }
@@ -131,7 +137,37 @@ export async function POST(req: NextRequest) {
       studentNumber,
       notificationsEnabled,
       mascotaEquipada,
+      tiktokHandle,
+      tiktokVideos,
     } = body;
+
+    let cleanTikTokHandle: string | null | undefined = undefined;
+    if (tiktokHandle !== undefined) {
+      if (tiktokHandle === null || String(tiktokHandle).trim() === '') {
+        cleanTikTokHandle = null;
+      } else {
+        const rawH = String(tiktokHandle).trim().replace(/^@+/, '').split(/[?#/\s]/)[0];
+        if (!/^[A-Za-z0-9._]{2,24}$/.test(rawH)) {
+          return NextResponse.json(
+            { success: false, error: 'El usuario de TikTok debe tener entre 2 y 24 caracteres (solo letras, números, puntos y guiones bajos).' },
+            { status: 400 }
+          );
+        }
+        cleanTikTokHandle = rawH;
+      }
+    }
+
+    let cleanTikTokVideos: string[] | undefined = undefined;
+    if (tiktokVideos !== undefined) {
+      if (Array.isArray(tiktokVideos)) {
+        cleanTikTokVideos = tiktokVideos
+          .map((v: unknown) => String(v).trim())
+          .filter((v: string) => /^\d{15,24}$/.test(v))
+          .slice(0, 50);
+      } else {
+        cleanTikTokVideos = [];
+      }
+    }
 
     // Solo se permite actualizar el perfil del usuario autenticado en la sesión (previene manipulación IDOR)
     const targetUserId = session.user.id;
@@ -204,7 +240,7 @@ export async function POST(req: NextRequest) {
 
         const { data: ownerProfile } = await client
           .from('profiles')
-          .select('id, mascotas_desbloqueadas')
+          .select('id, mascotas_desbloqueadas, party_farm_data')
           .eq('id', isUUID(targetUserId) ? targetUserId : '00000000-0000-0000-0000-000000000000')
           .maybeSingle();
 
@@ -219,6 +255,22 @@ export async function POST(req: NextRequest) {
           updates.avatar_color = String(avatarColor);
         }
         if (fullName !== undefined) updates.full_name = fullName.trim();
+
+        const existingPartyFarm = (ownerProfile as any)?.party_farm_data || {};
+        const nextPartyFarm = typeof existingPartyFarm === 'object' && existingPartyFarm !== null ? { ...existingPartyFarm } : {};
+        let farmDataChanged = false;
+
+        if (cleanTikTokHandle !== undefined) {
+          nextPartyFarm.tiktok_handle = cleanTikTokHandle;
+          farmDataChanged = true;
+        }
+        if (cleanTikTokVideos !== undefined) {
+          nextPartyFarm.tiktok_videos = cleanTikTokVideos;
+          farmDataChanged = true;
+        }
+        if (farmDataChanged) {
+          updates.party_farm_data = nextPartyFarm;
+        }
 
         if (studentNumber !== undefined && studentNumber.trim().length >= 2) {
           const cleanNumber = studentNumber.trim().toUpperCase();
@@ -290,6 +342,8 @@ export async function POST(req: NextRequest) {
       studentNumber,
       soundEnabled,
       notificationsEnabled,
+      tiktokHandle: cleanTikTokHandle,
+      tiktokVideos: cleanTikTokVideos,
     });
   } catch (error: any) {
     return NextResponse.json(

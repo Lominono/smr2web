@@ -28,6 +28,8 @@ export interface UserProfile {
   onboarding_completado?: boolean;
   mascota_equipada?: string;
   mascotas_desbloqueadas?: string[];
+  tiktok_handle?: string;
+  tiktok_videos?: string[];
 }
 
 export interface OnlineUser {
@@ -47,6 +49,7 @@ export interface OnlineUser {
   last_ping: number;
   is_current_user?: boolean;
   mascota_equipada?: string;
+  tiktok_handle?: string;
 }
 
 export interface ChatMessage {
@@ -100,6 +103,7 @@ export interface LeaderboardEntry {
   role?: string;
   is_current_user?: boolean;
   mascota_equipada?: string;
+  tiktok_handle?: string;
 }
 
 export interface CrashHistoryItem {

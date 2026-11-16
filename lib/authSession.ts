@@ -27,6 +27,8 @@ interface StoredLocalAccount {
   sound_enabled?: boolean;
   notifications_enabled?: boolean;
   created_at: string;
+  tiktok_handle?: string;
+  tiktok_videos?: string[];
 }
 
 const SYSTEM_PEPPER = 'smr2_salt_pepper_v2_2026';
@@ -221,6 +223,8 @@ export function updateUserProfileSession(updates: Partial<UserProfile>): UserPro
         if (updates.avatar_color) accounts[idx].avatar_color = updates.avatar_color;
         if (updates.sound_enabled !== undefined) accounts[idx].sound_enabled = updates.sound_enabled;
         if (updates.notifications_enabled !== undefined) accounts[idx].notifications_enabled = updates.notifications_enabled;
+        if (updates.tiktok_handle !== undefined) accounts[idx].tiktok_handle = updates.tiktok_handle;
+        if (updates.tiktok_videos !== undefined) accounts[idx].tiktok_videos = updates.tiktok_videos;
         saveLocalAccounts(accounts);
       }
     } catch {}
@@ -506,6 +510,8 @@ export async function loginLocalUser(
     games_won: account.games_won || 0,
     sound_enabled: account.sound_enabled !== undefined ? account.sound_enabled : true,
     notifications_enabled: account.notifications_enabled !== undefined ? account.notifications_enabled : true,
+    tiktok_handle: account.tiktok_handle,
+    tiktok_videos: account.tiktok_videos,
     created_at: account.created_at,
     auth_provider: 'local',
   };

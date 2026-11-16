@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 let SERVER_BOOT_TIME = Date.now();
-let CURRENT_APP_VERSION = '2.5.0';
+let CURRENT_APP_VERSION = '2.6.0';
 let LAST_BROADCAST_TIME = Date.now();
 
 interface ChangelogEntry {
@@ -18,6 +18,21 @@ interface ChangelogEntry {
 }
 
 const APP_CHANGELOG_HISTORY: ChangelogEntry[] = [
+  {
+    version: '2.6.0',
+    title: 'SMR2 v2.6.0 · Tu TikTok en El Botellón: vídeos propios y sincronización',
+    badge: 'NOVEDAD',
+    date: 'Lunes, 16 de Noviembre, 2026',
+    description:
+      'El sistema de TikTok en El Botellón se renueva por completo: ahora tu cuenta de TikTok se sincroniza con tu perfil de clase, puedes añadir tus propios vídeos o TikToks guardados y tu @ de TikTok aparece en tu Carnet de Estudiante.',
+    changes: [
+      'Mis TikToks en El Botellón: nueva pestaña para añadir los enlaces de tus propios vídeos de TikTok o de tus creadores favoritos y reproducirlos cómodamente en el panel.',
+      'Sincronización con tu cuenta SMR2: al conectar tu cuenta de TikTok, se guarda en tu perfil en la nube para acompañarte en cualquier ordenador del aula.',
+      'Insignia en tu Carnet de Estudiante: los compañeros pueden ver tu @ de TikTok en tu ficha oficial y visitar tu perfil con un solo toque.',
+      'Reproductor rápido: pestaña «Pegar» para ver cualquier vídeo de TikTok al vuelo pegando el enlace directo.',
+      'Gestión de cuenta en ajustes: consulta y modifica tu usuario de TikTok directamente desde los ajustes de tu perfil.',
+    ],
+  },
   {
     version: '2.5.0',
     title: 'SMR2 v2.5.0 · Monedas que funcionan: fuera las propinas',

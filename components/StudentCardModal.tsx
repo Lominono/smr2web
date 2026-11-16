@@ -385,8 +385,24 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                 <div className="text-xl font-bold tracking-tight text-white">
                   {displayName}
                 </div>
-                <div className="text-xs text-neutral-400 font-mono">
-                  @{displayUsername}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="text-xs text-neutral-400 font-mono">
+                    @{displayUsername}
+                  </div>
+                  {displayUser.tiktok_handle && (
+                    <a
+                      href={`https://www.tiktok.com/@${displayUser.tiktok_handle.replace(/^@/, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-900 border border-neutral-700 hover:border-neutral-500 text-[10px] font-mono text-neutral-200 transition-colors"
+                      title={`TikTok de @${displayUsername}`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-[#ff0050]" aria-hidden="true">
+                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1Z" />
+                      </svg>
+                      <span>@{displayUser.tiktok_handle.replace(/^@/, '')}</span>
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -541,6 +557,20 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                     <User className="w-3.5 h-3.5" />
                     <span>Copiar @{displayUsername}</span>
                   </button>
+
+                  {displayUser.tiktok_handle && (
+                    <a
+                      href={`https://www.tiktok.com/@${displayUser.tiktok_handle.replace(/^@/, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-xs text-neutral-200 transition-colors flex items-center gap-1.5 cursor-pointer font-mono"
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-[#ff0050]" aria-hidden="true">
+                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1Z" />
+                      </svg>
+                      <span>TikTok (@{displayUser.tiktok_handle.replace(/^@/, '')})</span>
+                    </a>
+                  )}
 
                   {displayUser.student_number && (
                     <button
