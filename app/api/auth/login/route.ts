@@ -276,15 +276,25 @@ export async function POST(req: NextRequest) {
       targetEmail,
     });
 
-    // Configurar cookies con persistencia de 2 años (63072000 segundos)
+    // Configurar cookies con duración de sesión lectiva (12 horas) para evitar secuestro en PCs de aula
+    const SESSION_DURATION_SECONDS = 60 * 60 * 12; // 12 horas
     const cookieOptions = {
       path: '/',
       sameSite: 'lax' as const,
-      maxAge: 60 * 60 * 24 * 730,
+      maxAge: SESSION_DURATION_SECONDS,
       secure: process.env.NODE_ENV === 'production',
     };
 
-    response.cookies.set('smr2_user_session', JSON.stringify(userProfile), cookieOptions);
+    // Para la cookie cliente, omitir datos sensibles (NIA/correo) para que no queden expuestos en document.cookie
+    const clientSafeProfile = {
+      id: userProfile.id,
+      username: userProfile.username,
+      avatar_color: userProfile.avatar_color,
+      role: userProfile.role,
+      coins: userProfile.coins,
+    };
+
+    response.cookies.set('smr2_user_session', JSON.stringify(clientSafeProfile), cookieOptions);
     response.cookies.set('smr2_remember_me', 'true', cookieOptions);
     response.cookies.set('smr2_last_user', targetEmail, cookieOptions);
 

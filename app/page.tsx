@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, Download, Sun, Moon, Clock, MapPin, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { Calendar, Download, Sun, Moon, Clock, MapPin, AlertTriangle, Shield } from 'lucide-react';
 
 interface TimeSlot {
   index: number;
@@ -304,8 +305,17 @@ export default function HomePage() {
             <p className="text-sm sm:text-base text-foreground-muted leading-relaxed max-w-2xl">
               Se han clausurado los minijuegos, las apuestas de fichas, el feed y el chat.
               Hay exámenes, prácticas y entregas pendientes: menos distracciones y más apuntes.
-              Solo queda accesible el horario lectivo oficial del curso.
+              Solo queda accesible el horario lectivo oficial del curso y el laboratorio didáctico de Seguridad Informática.
             </p>
+            <div className="pt-2">
+              <Link
+                href="/lab"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 font-mono text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>Laboratorio Interactivo de Ciberseguridad (Retos CTF) →</span>
+              </Link>
+            </div>
           </div>
         </header>
 

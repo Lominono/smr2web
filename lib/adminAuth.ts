@@ -28,6 +28,10 @@ export function getServerSigningSecret(): string {
   // Semilla criptográfica generada en tiempo de ejecución para el ciclo de vida del servidor
   if (!_runtimeEphemeralSecret) {
     _runtimeEphemeralSecret = crypto.randomBytes(32).toString('hex');
+    console.warn(
+      '⚠️ AVISO DE SEGURIDAD: ADMIN_SECRET_KEY no está configurada en las variables de entorno. ' +
+      'Se está usando una semilla efímera en memoria. En entornos serverless como Vercel, esto invalidará sesiones entre instancias.'
+    );
   }
   return _runtimeEphemeralSecret;
 }

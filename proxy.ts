@@ -21,8 +21,11 @@ function isSameOrigin(request: NextRequest): boolean {
     return false;
   }
 
-  const origin = request.headers.get('origin');
-  if (!origin) return true;
+  const origin = request.headers.get('origin') || request.headers.get('referer');
+  if (!origin) {
+    // Si no hay Origin ni Referer en método mutante, solo permitir si sec-fetch-site es explícitamente same-origin o none
+    return secFetchSite === 'same-origin' || secFetchSite === 'none';
+  }
 
   try {
     const originHost = new URL(origin).host;
