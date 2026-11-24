@@ -24,6 +24,7 @@ import {
 import { LAB_LEVELS } from '@/lib/lab/levelsData';
 import { LevelId, LabProgress } from '@/lib/lab/types';
 import { LabTerminal } from '@/components/lab/LabTerminal';
+import { VirtualDevTools } from '@/components/lab/VirtualDevTools';
 import { EthicalNoticeModal } from '@/components/lab/EthicalNoticeModal';
 import { LevelChallenges } from '@/components/lab/LevelChallenges';
 
@@ -46,9 +47,22 @@ export default function LabPage() {
   const [flagStatus, setFlagStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [flagMsg, setFlagMsg] = useState('');
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
   const [initialTerminalCmd, setInitialTerminalCmd] = useState<string | null>(null);
   const [isEthicsOpen, setIsEthicsOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Capturar F12 o Ctrl+Shift+I para usuarios en PWA instalada o móvil
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i'))) {
+        e.preventDefault();
+        setIsDevToolsOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Sincronizar tema oscuro / claro
   useEffect(() => {
@@ -269,6 +283,21 @@ export default function LabPage() {
               title={isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            {/* Botón de Inspeccionar / DevTools (ideal para PWA instalada) */}
+            <button
+              onClick={() => setIsDevToolsOpen(!isDevToolsOpen)}
+              type="button"
+              className={`px-3 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                isDevToolsOpen
+                  ? 'bg-cyan-600 text-white dark:bg-cyan-500 dark:text-neutral-950 border-cyan-500'
+                  : 'bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-cyan-700 dark:text-cyan-400 border-neutral-200 dark:border-neutral-800'
+              }`}
+              title="Abrir DevTools integradas (Atajo: F12)"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              <span>Inspeccionar (F12)</span>
             </button>
 
             {/* Botón de Terminal */}
@@ -741,6 +770,13 @@ export default function LabPage() {
         onClose={() => setIsTerminalOpen(false)}
         initialCommand={initialTerminalCmd}
         onClearInitialCommand={() => setInitialTerminalCmd(null)}
+      />
+
+      {/* DevTools Integradas (Modo Inspeccionar para PWA instalada y móvil) */}
+      <VirtualDevTools
+        isOpen={isDevToolsOpen}
+        onClose={() => setIsDevToolsOpen(false)}
+        currentLevelId={activeLevel.id}
       />
     </main>
   );
