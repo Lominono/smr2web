@@ -14,8 +14,14 @@ export interface LevelData {
   points: number;
   objective: string;
   lesson: {
+    cwe?: string;
     overview: string;
     howItWorks: string;
+    kaliToolSection?: {
+      toolName: string;
+      commandExample: string;
+      explanation: string;
+    };
     vulnerableCodeExample: string;
     vulnerableCodeLang: string;
     whyItHappens: string;

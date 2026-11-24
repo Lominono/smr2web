@@ -12,7 +12,12 @@ import {
   Trash2,
 } from 'lucide-react';
 import { TerminalEntry } from '@/lib/lab/types';
-import { MOCK_FILESYSTEM, MOCK_DIRECTORIES, mockApiRouter } from '@/lib/lab/mockEngine';
+import {
+  MOCK_FILESYSTEM,
+  MOCK_DIRECTORIES,
+  mockApiRouter,
+  runKaliToolSimulation,
+} from '@/lib/lab/mockEngine';
 
 interface LabTerminalProps {
   currentLevelId: number;
@@ -26,6 +31,12 @@ interface LabTerminalProps {
 
 const AVAILABLE_COMMANDS = [
   'help',
+  'nmap',
+  'gobuster',
+  'dirb',
+  'nikto',
+  'sqlmap',
+  'hydra',
   'ls',
   'cd',
   'pwd',
@@ -59,9 +70,10 @@ export const LabTerminal: React.FC<LabTerminalProps> = ({
     {
       id: 'init-1',
       type: 'system',
-      content: `CYBERLAB LINUX TERMINAL [Sandbox Aislado v2.5]
-Escribe "help" para ver los comandos disponibles.
-Nivel activo: Nivel ${currentLevelId}. Puedes usar "curl", "cat", "base64", "grep" o "submit <FLAG{...}>".`,
+      content: `KALI GNU/LINUX // SMR2 CYBERLAB [Sandbox Aislado]
+Escribe "help" para ver los comandos y herramientas de auditoría.
+Herramientas: nmap, gobuster, nikto, sqlmap, hydra, curl, cat, grep, base64.
+Nivel activo: Nivel ${currentLevelId}. Usa "submit <FLAG{...}>" para validar banderas.`,
     },
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -142,15 +154,22 @@ Nivel activo: Nivel ${currentLevelId}. Puedes usar "curl", "cat", "base64", "gre
       switch (command) {
         case 'help':
           outputEntry.content = [
-            'SISTEMA DE COMANDOS DEL SANDBOX:',
-            '  Archivos y Navegación:',
+            'SISTEMA DE AUDITORÍA Y HERRAMIENTAS KALI / UBUNTU:',
+            '  Auditoría y Escaneo Perimetral:',
+            '    nmap [host]            Escaneo de puertos y servicios activos (ej. nmap localhost)',
+            '    gobuster / dirb        Fuzzing de rutas con diccionarios (ej. gobuster dir -u http://localhost)',
+            '    nikto [-h host]        Escaneo de vulnerabilidades y malas configuraciones web',
+            '    sqlmap [url]           Detección y explotación automatizada de SQL Injection',
+            '    hydra -l user -P list  Fuerza bruta contra formularios de login',
+            '',
+            '  Archivos y Navegación del Sistema:',
             '    ls [ruta]              Lista archivos del directorio',
             '    cd [ruta]              Cambia de directorio (p. ej. cd /var/www/html)',
             '    pwd                    Muestra la ruta actual de trabajo',
-            '    cat <archivo>          Muestra el contenido de un archivo',
+            '    cat <archivo>          Muestra el contenido de un archivo (ej. cat /var/www/html/robots.txt)',
             '    grep [-i] <patrón> <f> Busca texto dentro de un archivo',
             '',
-            '  Red y Peticiones Web:',
+            '  Peticiones de Red HTTP:',
             '    curl [opciones] URL    Lanza peticiones HTTP simuladas en memoria',
             '                           Ejemplos:',
             '                             curl /lab/robots.txt',
@@ -158,18 +177,18 @@ Nivel activo: Nivel ${currentLevelId}. Puedes usar "curl", "cat", "base64", "gre
             '                             curl -X POST /api/mock/auth -d "user=admin&pass=hunter2"',
             '                             curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" /api/mock/admin/flag',
             '',
-            '  Codificación y Cripto:',
+            '  Criptografía y Codificación:',
             '    base64 [-d] <cadena>   Codifica o decodifica en Base64',
             '    b64 [-d] <cadena>      Alias corto para base64',
             '',
-            '  Utilidades y CTF:',
+            '  Utilidades del Laboratorio:',
             '    submit <FLAG{...}>     Envía y valida la bandera del nivel activo',
             '    hint                   Muestra pistas del nivel activo',
-            '    whoami, id, uname      Información de usuario y sistema',
+            '    whoami, id, uname      Información del usuario y kernel',
             '    echo <texto>           Imprime texto en la terminal',
             '    date                   Fecha y hora del sistema',
-            '    history                Historial de comandos',
-            '    clear                  Limpia la consola',
+            '    history                Historial de comandos ejecutados',
+            '    clear                  Limpia la pantalla',
           ].join('\n');
           break;
 
@@ -421,6 +440,22 @@ Nivel activo: Nivel ${currentLevelId}. Puedes usar "curl", "cat", "base64", "gre
             history.map((h, idx) => `  ${idx + 1}  ${h}`).join('\n') || 'Historial vacío';
           break;
 
+        case 'nmap':
+        case 'gobuster':
+        case 'dirb':
+        case 'nikto':
+        case 'sqlmap':
+        case 'hydra': {
+          const sim = runKaliToolSimulation(command, args);
+          outputEntry.type = sim.type;
+          outputEntry.content = sim.content;
+          const flagMatch = sim.content.match(/FLAG\{[A-Z0-9_]+\}/);
+          if (flagMatch) {
+            outputEntry.content += `\n\n🎉 [FLAG DETECTADA]: ${flagMatch[0]} (puedes copiarla o usar "submit ${flagMatch[0]}")`;
+          }
+          break;
+        }
+
         default:
           outputEntry.type = 'error';
           outputEntry.content = `bash: comando no encontrado: "${command}". Escribe "help" para ver los comandos permitidos.`;
@@ -458,10 +493,21 @@ Nivel activo: Nivel ${currentLevelId}. Puedes usar "curl", "cat", "base64", "gre
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      const current = inputValue.trim().toLowerCase();
-      if (current) {
-        const match = AVAILABLE_COMMANDS.find((cmd) => cmd.startsWith(current));
+      const current = inputValue.trim();
+      if (!current) return;
+
+      const parts = current.split(/\s+/);
+      if (parts.length === 1) {
+        const match = AVAILABLE_COMMANDS.find((cmd) => cmd.startsWith(current.toLowerCase()));
         if (match) setInputValue(match + ' ');
+      } else {
+        const lastPart = parts[parts.length - 1];
+        const allPaths = [...Object.keys(MOCK_FILESYSTEM), ...MOCK_DIRECTORIES];
+        const match = allPaths.find((p) => p.startsWith(lastPart) || p.endsWith('/' + lastPart));
+        if (match) {
+          parts[parts.length - 1] = match;
+          setInputValue(parts.join(' ') + ' ');
+        }
       }
     }
   };

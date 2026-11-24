@@ -42,7 +42,12 @@ export const LevelChallenges: React.FC<ChallengeProps> = ({
         />
       );
     case 2:
-      return <Level2Challenge onFlagDiscovered={onFlagDiscovered} />;
+      return (
+        <Level2Challenge
+          onFlagDiscovered={onFlagDiscovered}
+          openTerminalWithCommand={openTerminalWithCommand}
+        />
+      );
     case 3:
       return (
         <Level3Challenge
@@ -58,7 +63,12 @@ export const LevelChallenges: React.FC<ChallengeProps> = ({
         />
       );
     case 5:
-      return <Level5Challenge onFlagDiscovered={onFlagDiscovered} />;
+      return (
+        <Level5Challenge
+          onFlagDiscovered={onFlagDiscovered}
+          openTerminalWithCommand={openTerminalWithCommand}
+        />
+      );
     case 6:
       return (
         <Level6Challenge
@@ -169,8 +179,45 @@ function Level1Challenge({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-mono text-xs transition-colors cursor-pointer"
             >
               <Terminal className="w-3.5 h-3.5" />
-              <span>Ejecutar en terminal: curl /lab/robots.txt</span>
+              <span>curl /lab/robots.txt</span>
             </button>
+          </div>
+
+          {/* Botones rápidos de herramientas Kali Linux */}
+          <div className="p-3 bg-neutral-100/70 dark:bg-neutral-950/70 rounded-lg border border-neutral-200 dark:border-neutral-800 space-y-1.5">
+            <span className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400 uppercase font-bold block">
+              Herramientas de Reconocimiento Kali Linux:
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
+              <button
+                onClick={() => openTerminalWithCommand('nmap localhost')}
+                type="button"
+                className="px-2.5 py-1 rounded bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-emerald-500 cursor-pointer text-[11px] inline-flex items-center gap-1"
+              >
+                <Terminal className="w-3 h-3 text-emerald-500" />
+                <span>&gt; nmap localhost</span>
+              </button>
+              <button
+                onClick={() =>
+                  openTerminalWithCommand(
+                    'gobuster dir -u http://localhost -w /usr/share/wordlists/dirb/common.txt'
+                  )
+                }
+                type="button"
+                className="px-2.5 py-1 rounded bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-emerald-500 cursor-pointer text-[11px] inline-flex items-center gap-1"
+              >
+                <Terminal className="w-3 h-3 text-emerald-500" />
+                <span>&gt; gobuster (fuzzing)</span>
+              </button>
+              <button
+                onClick={() => openTerminalWithCommand('nikto -h http://localhost')}
+                type="button"
+                className="px-2.5 py-1 rounded bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-emerald-500 cursor-pointer text-[11px] inline-flex items-center gap-1"
+              >
+                <Terminal className="w-3 h-3 text-emerald-500" />
+                <span>&gt; nikto -h localhost</span>
+              </button>
+            </div>
           </div>
 
           {showSourceCode && (
@@ -203,8 +250,10 @@ function Level1Challenge({
 // ==========================================
 function Level2Challenge({
   onFlagDiscovered,
+  openTerminalWithCommand,
 }: {
   onFlagDiscovered: (f: string) => void;
+  openTerminalWithCommand: (cmd: string) => void;
 }) {
   const [balance, setBalance] = useState(0);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
@@ -358,17 +407,31 @@ function Level2Challenge({
           </div>
         </div>
 
-        <div className="pt-1 flex items-center justify-between text-[11px] text-neutral-500">
+        <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-500">
           <span>
             sessionStorage: <code>lab_user_balance = &quot;{balance}&quot;</code>
           </span>
-          <button
-            type="button"
-            onClick={() => handleUpdateSessionStorage(balance === 0 ? 1000 : 0)}
-            className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-          >
-            {balance === 0 ? 'Inyectar 1000 € en sessionStorage' : 'Restablecer saldo a 0 €'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleUpdateSessionStorage(balance === 0 ? 1000 : 0)}
+              className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+            >
+              {balance === 0 ? 'Inyectar 1000 € en sessionStorage' : 'Restablecer saldo a 0 €'}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                openTerminalWithCommand(
+                  'curl -X POST /api/checkout -d "price=0&itemId=cert-sec-01"'
+                )
+              }
+              className="px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:border-emerald-500 cursor-pointer font-mono inline-flex items-center gap-1"
+            >
+              <Terminal className="w-3 h-3 text-emerald-500" />
+              <span>&gt; curl (bypass frontend)</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -526,7 +589,16 @@ function Level3Challenge({
             className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Decodificar en terminal (base64 -d)</span>
+            <span>&gt; base64 -d (decodificar)</span>
+          </button>
+
+          <button
+            onClick={() => openTerminalWithCommand('base64 "{\\"user\\":\\"student\\",\\"role\\":\\"admin\\"}"')}
+            type="button"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+            <span>&gt; base64 (codificar admin)</span>
           </button>
         </div>
       </div>
@@ -659,8 +731,10 @@ function Level4Challenge({
 // ==========================================
 function Level5Challenge({
   onFlagDiscovered,
+  openTerminalWithCommand,
 }: {
   onFlagDiscovered: (f: string) => void;
+  openTerminalWithCommand: (cmd: string) => void;
 }) {
   const [username, setUsername] = useState("' OR '1'='1' --");
   const [password, setPassword] = useState('x');
@@ -770,6 +844,15 @@ function Level5Challenge({
             className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs cursor-pointer"
           >
             Insertar payload booleano
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openTerminalWithCommand('sqlmap -u "http://localhost/login" --batch')}
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+            <span>&gt; sqlmap (Kali Linux)</span>
           </button>
         </div>
       </form>
@@ -958,6 +1041,15 @@ function Level6Challenge({
           </button>
 
           <button
+            onClick={() => openTerminalWithCommand('hydra -l admin -P /opt/wordlists/passwords.txt')}
+            type="button"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+            <span>&gt; hydra (Kali Linux)</span>
+          </button>
+
+          <button
             onClick={() => openTerminalWithCommand('cat /opt/wordlists/passwords.txt')}
             type="button"
             className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
@@ -1132,6 +1224,15 @@ function Level7Challenge({
           </button>
 
           <button
+            onClick={() => openTerminalWithCommand('curl /api/mock/staff?dept=security')}
+            type="button"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 text-xs cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors inline-flex items-center gap-1.5"
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+            <span>&gt; curl /api/mock/staff</span>
+          </button>
+
+          <button
             onClick={() =>
               openTerminalWithCommand(
                 'curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" /api/mock/admin/flag'
@@ -1141,7 +1242,7 @@ function Level7Challenge({
             className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 text-xs cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors inline-flex items-center gap-1.5"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Ejecutar con curl en terminal</span>
+            <span>&gt; curl (cadena final)</span>
           </button>
         </div>
       </form>

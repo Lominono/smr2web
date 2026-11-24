@@ -531,26 +531,86 @@ export default function LabPage() {
               </div>
             )}
 
-            {/* PESTAÑA 2: LECCIÓN TEÓRICA */}
+            {/* PESTAÑA 2: LECCIÓN TEÓRICA / CLASE MAGISTRAL */}
             {activeTab === 'lesson' && (
-              <div className="p-5 sm:p-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-4 text-xs sm:text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed font-sans">
-                <div className="space-y-2">
-                  <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100">
-                    ¿Qué es y por qué ocurre esta vulnerabilidad?
+              <div className="p-5 sm:p-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-5 text-xs sm:text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed font-sans">
+                {/* Cabecera académica de la clase */}
+                <div className="space-y-2 border-b border-neutral-200 dark:border-neutral-800 pb-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-mono text-[11px] font-bold">
+                      2º SMR · SEGURIDAD INFORMÁTICA
+                    </span>
+                    {activeLevel.lesson.cwe && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 font-mono text-[11px]">
+                        {activeLevel.lesson.cwe}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-neutral-100">
+                    Clase Magistral: {activeLevel.title}
                   </h3>
-                  <p>{activeLevel.lesson.overview}</p>
+                  <p className="text-neutral-600 dark:text-neutral-400">
+                    {activeLevel.lesson.overview}
+                  </p>
                 </div>
 
+                {/* Fundamento Técnico del Protocolo */}
                 <div className="space-y-2">
-                  <h4 className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase">
-                    Mecánica del Ataque
+                  <h4 className="font-mono text-xs font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wide flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Fundamento Técnico y Mecánica de la Vulnerabilidad</span>
                   </h4>
-                  <p>{activeLevel.lesson.howItWorks}</p>
+                  <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed">
+                    {activeLevel.lesson.howItWorks}
+                  </p>
                 </div>
+
+                {/* Sección de Herramientas Kali Linux / Ubuntu */}
+                {activeLevel.lesson.kaliToolSection && (
+                  <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-200 space-y-3 font-mono">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 pb-2">
+                      <div className="flex items-center gap-2">
+                        <TerminalIcon className="w-4 h-4 text-emerald-400" />
+                        <span className="text-xs font-bold text-emerald-400">
+                          {activeLevel.lesson.kaliToolSection.toolName}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-neutral-500">
+                        Entorno: Kali GNU/Linux (Terminal)
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-neutral-400 font-sans leading-relaxed">
+                      {activeLevel.lesson.kaliToolSection.explanation}
+                    </p>
+
+                    <div className="p-3 bg-black/70 rounded-lg border border-neutral-800/80 text-xs text-emerald-300 select-all overflow-x-auto whitespace-pre-wrap">
+                      {activeLevel.lesson.kaliToolSection.commandExample}
+                    </div>
+
+                    <div className="pt-1 flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] text-neutral-500 uppercase">
+                        Probar en terminal:
+                      </span>
+                      {activeLevel.lesson.kaliToolSection.commandExample
+                        .split('\n')
+                        .map((cmdLine, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => openTerminalWithCommand(cmdLine.trim())}
+                            type="button"
+                            className="px-2.5 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-mono cursor-pointer transition-colors inline-flex items-center gap-1"
+                          >
+                            <span>&gt; {cmdLine.trim().split(' ')[0]}</span>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Código vulnerable de ejemplo */}
                 <div className="space-y-1.5">
-                  <span className="font-mono text-[11px] text-rose-600 dark:text-rose-400 font-bold uppercase">
+                  <span className="font-mono text-[11px] text-rose-600 dark:text-rose-400 font-bold uppercase block">
                     Ejemplo de Código Vulnerable en Producción:
                   </span>
                   <div className="p-3.5 bg-neutral-950 rounded-xl border border-neutral-800 overflow-x-auto font-mono text-xs text-rose-300">
@@ -558,20 +618,21 @@ export default function LabPage() {
                   </div>
                 </div>
 
+                {/* Tarjetas de Causa Raíz e Impacto */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div className="p-3.5 rounded-xl bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
-                    <strong className="text-neutral-900 dark:text-neutral-200 block mb-1">
-                      Causa Raíz:
+                    <strong className="text-neutral-900 dark:text-neutral-200 block mb-1 font-mono text-xs uppercase">
+                      Causa Raíz en Ingeniería:
                     </strong>
-                    <span className="text-neutral-600 dark:text-neutral-400 text-xs">
+                    <span className="text-neutral-600 dark:text-neutral-400 text-xs leading-relaxed block">
                       {activeLevel.lesson.whyItHappens}
                     </span>
                   </div>
                   <div className="p-3.5 rounded-xl bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
-                    <strong className="text-neutral-900 dark:text-neutral-200 block mb-1">
-                      Impacto Real:
+                    <strong className="text-neutral-900 dark:text-neutral-200 block mb-1 font-mono text-xs uppercase">
+                      Impacto Real en la Organización:
                     </strong>
-                    <span className="text-neutral-600 dark:text-neutral-400 text-xs">
+                    <span className="text-neutral-600 dark:text-neutral-400 text-xs leading-relaxed block">
                       {activeLevel.lesson.realWorldImpact}
                     </span>
                   </div>

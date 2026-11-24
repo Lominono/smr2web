@@ -12,19 +12,30 @@ export const MOCK_DIRECTORIES: string[] = [
   '/opt',
   '/opt/wordlists',
   '/backup',
+  '/usr',
+  '/usr/share',
+  '/usr/share/wordlists',
+  '/usr/share/wordlists/dirb',
 ];
 
 export const MOCK_FILESYSTEM: Record<string, MockFile> = {
   '/home/student/readme.txt': {
     name: 'readme.txt',
     path: '/home/student/readme.txt',
-    content: `CYBERLAB TERMINAL v2.5 [Debian GNU/Linux 12 - SMR2]
+    content: `KALI GNU/LINUX (SMR2 CYBERLAB EDITION)
 -------------------------------------------------------------
-Entorno emulado seguro para prácticas de Seguridad Informática.
-Comandos permitidos:
-  - help, ls, cd, pwd, cat, grep, curl, base64, whoami, id, history, clear, date, hint, submit
+Entorno de auditoría técnica y seguridad informática.
+Herramientas instaladas en el sistema:
+  - Red y Escaneo:     nmap, curl
+  - Fuzzing Web:       gobuster, dirb, nikto
+  - Inyecciones y DB:  sqlmap
+  - Fuerza Bruta:      hydra, base64
+  - Utilidades Linux:  cat, grep, ls, cd, pwd, whoami, id, uname, clear
 
-Todo el sistema corre 100% aislado dentro de tu navegador.`,
+Diccionarios disponibles en:
+  /usr/share/wordlists/dirb/common.txt
+  /usr/share/wordlists/rockyou.txt
+  /opt/wordlists/passwords.txt`,
   },
   '/var/www/html/robots.txt': {
     name: 'robots.txt',
@@ -61,6 +72,39 @@ Disallow: /api/internal/
 - El portal interno de facturación tiene IDOR pendiente de parchear en /api/mock/invoices.
 - No compartir las claves de emergencia.
 - Flag de contingencia: FLAG{DOM_C0MM3NTS_4ND_R0B0TS}`,
+  },
+  '/usr/share/wordlists/dirb/common.txt': {
+    name: 'common.txt',
+    path: '/usr/share/wordlists/dirb/common.txt',
+    content: `admin
+api
+backup
+config
+database
+images
+invoices
+login
+robots.txt
+server-status
+staff
+test`,
+  },
+  '/usr/share/wordlists/rockyou.txt': {
+    name: 'rockyou.txt',
+    path: '/usr/share/wordlists/rockyou.txt',
+    content: `123456
+password
+12345678
+qwerty
+12345
+123456789
+football
+iloveyou
+admin
+welcome
+hunter2
+security2026
+masterkey`,
   },
   '/opt/wordlists/passwords.txt': {
     name: 'passwords.txt',
@@ -199,7 +243,6 @@ export function mockApiRouter(
       };
     }
 
-    // Parse URL-encoded or JSON body
     let user = '';
     let pass = '';
 
@@ -318,7 +361,6 @@ export function evaluateMockSqlInjection(usernameInput: string, passwordInput: s
 } {
   const query = `SELECT * FROM users WHERE username = '${usernameInput}' AND password = '${passwordInput}';`;
   
-  // Detección de patrones booleanos clásicos de SQLi
   const sqliPatterns = [
     /'\s*or\s*'1'\s*=\s*'1/i,
     /'\s*or\s*1\s*=\s*1/i,
@@ -355,4 +397,120 @@ export function evaluateMockSqlInjection(usernameInput: string, passwordInput: s
     query,
     message: 'Consulta ejecutada sin coincidencias: 0 filas devueltas (Acceso denegado).',
   };
+}
+
+/**
+ * Simulador de herramientas profesionales de Kali Linux / Ubuntu
+ */
+export function runKaliToolSimulation(tool: string, args: string[]): {
+  type: 'output' | 'error' | 'success';
+  content: string;
+} {
+  switch (tool) {
+    case 'nmap': {
+      const target = args.find(a => !a.startsWith('-')) || 'localhost';
+      return {
+        type: 'output',
+        content: `Starting Nmap 7.94 ( https://nmap.org ) at 2026-11-24 13:25 CET
+Nmap scan report for ${target} (127.0.0.1)
+Host is up (0.00038s latency).
+Not shown: 996 closed tcp ports (reset)
+PORT     STATE SERVICE VERSION
+22/tcp   open  ssh     OpenSSH 9.2p1 Debian 2+deb12u2 (protocol 2.0)
+80/tcp   open  http    nginx 1.24.0 (Debian)
+8080/tcp open  http    Node.js / Next.js Server
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Nmap done: 1 IP address (1 host up) scanned in 0.42 seconds`,
+      };
+    }
+
+    case 'gobuster':
+    case 'dirb': {
+      return {
+        type: 'output',
+        content: `===============================================================
+Gobuster v3.6 - Auditing Web Enumeration Tool
+===============================================================
+[+] Target URL:   http://localhost/
+[+] Wordlist:     /usr/share/wordlists/dirb/common.txt
+[+] Status Codes: 200, 301, 302, 307, 401, 403
+===============================================================
+/robots.txt           (Status: 200) [Size: 184]
+/backup               (Status: 301) [Size: 169] --> /backup/staff_notes.txt
+/api/mock/invoices    (Status: 400) [Size: 62]  --> Requiere ?id=...
+/api/mock/auth        (Status: 405) [Size: 58]  --> Endpoint POST
+/api/mock/staff       (Status: 200) [Size: 154]
+===============================================================
+Fuzzing completado: 5 rutas relevantes descubiertas.`,
+      };
+    }
+
+    case 'nikto': {
+      return {
+        type: 'output',
+        content: `- Nikto v2.5.0
+---------------------------------------------------------------------------
++ Target IP:          127.0.0.1
++ Target Hostname:    localhost
++ Target Port:        80
+---------------------------------------------------------------------------
++ Server: nginx/1.24.0 (Debian)
++ [!] Entry in robots.txt: /backup/
++ [!] Entry in robots.txt: /admin-panel-hidden/
++ [!] Information disclosure: /backup/staff_notes.txt visible en servidor
++ [!] Cookie lab_session creada sin flag HttpOnly (vulnerable a XSS/robo)
++ [!] IDOR potencial detectado en /api/mock/invoices
+---------------------------------------------------------------------------
++ 5 posibles vulnerabilidades y hallazgos reportados.`,
+      };
+    }
+
+    case 'sqlmap': {
+      const urlArg = args.join(' ');
+      return {
+        type: 'output',
+        content: `        ___
+       __H__
+ ___ ___["]_____ ___ ___  {1.7.11#stable}
+|_ -| . [']     | .'| . |
+|___|_  [.]_|_|_|__,|  _|
+      |_|V...       |_|   https://sqlmap.org
+
+[*] Analizando objetivo de inyección SQL...
+[INFO] Comprobando parámetro en formulario de inicio de sesión: 'username'
+[INFO] El parámetro 'username' es vulnerable a SQL Injection de tipo boolean-based blind / OR condition
+[INFO] Payload verificado: ' OR '1'='1' --
+[+] Servidor vulnerable confirmado: La base de datos aceptó la derivación de autenticación.
+[+] Flag de prueba obtenida: FLAG{S4N1T1Z3_Y0UR_1NPUTS_SQL1}`,
+      };
+    }
+
+    case 'hydra': {
+      return {
+        type: 'output',
+        content: `Hydra v9.5 (c) 2023 by van Hauser / THC & David Maciejak
+[DATA] Atacando formulario HTTP-POST en http://localhost:8080/api/mock/auth
+[ATTEMPT] Usuario: "admin" | Probando 10 contraseñas de /opt/wordlists/passwords.txt...
+[ATTEMPT] Intento 1/10: "123456"    -> 401 Unauthorized
+[ATTEMPT] Intento 2/10: "password"  -> 401 Unauthorized
+[ATTEMPT] Intento 3/10: "admin123"  -> 401 Unauthorized
+[ATTEMPT] Intento 4/10: "qwerty"    -> 401 Unauthorized
+[ATTEMPT] Intento 5/10: "letmein"   -> 401 Unauthorized
+[ATTEMPT] Intento 6/10: "football"  -> 401 Unauthorized
+[ATTEMPT] Intento 7/10: "iloveyou"  -> 401 Unauthorized
+[ATTEMPT] Intento 8/10: "hunter2"   -> 200 OK [TOKEN EMITIDO]
+
+[+] [8080][http-post-form] host: localhost   login: admin   password: hunter2
+[+] 1 contraseña válida encontrada con éxito.
+[+] Flag capturada: FLAG{BR0K3N_4UTH_JWT_N0N3}`,
+      };
+    }
+
+    default:
+      return {
+        type: 'error',
+        content: `Herramienta "${tool}" no reconocida.`,
+      };
+  }
 }

