@@ -27,6 +27,7 @@ import { LabTerminal } from '@/components/lab/LabTerminal';
 import { VirtualDevTools } from '@/components/lab/VirtualDevTools';
 import { EthicalNoticeModal } from '@/components/lab/EthicalNoticeModal';
 import { LevelChallenges } from '@/components/lab/LevelChallenges';
+import { PutoIsaacLabTutor } from '@/components/lab/PutoIsaacLabTutor';
 
 const STORAGE_KEY = 'smr2_ctf_lab_v1';
 
@@ -51,6 +52,8 @@ export default function LabPage() {
   const [initialTerminalCmd, setInitialTerminalCmd] = useState<string | null>(null);
   const [isEthicsOpen, setIsEthicsOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState<Record<number, number>>({});
+  const [recentTerminalCmds, setRecentTerminalCmds] = useState<string[]>([]);
 
   // Capturar F12 o Ctrl+Shift+I para usuarios en PWA instalada o móvil
   useEffect(() => {
@@ -181,6 +184,10 @@ export default function LabPage() {
     } else {
       setFlagStatus('error');
       setFlagMsg('Bandera incorrecta. Vuelve a comprobar el objetivo o solicita una pista.');
+      setFailedAttempts((prev) => ({
+        ...prev,
+        [activeLevel.id]: (prev[activeLevel.id] || 0) + 1,
+      }));
     }
   };
 
@@ -223,6 +230,7 @@ export default function LabPage() {
   };
 
   const openTerminalWithCommand = (cmd: string) => {
+    setRecentTerminalCmds((prev) => [...prev.slice(-4), cmd]);
     setInitialTerminalCmd(cmd);
     setIsTerminalOpen(true);
   };
@@ -838,6 +846,19 @@ export default function LabPage() {
         isOpen={isDevToolsOpen}
         onClose={() => setIsDevToolsOpen(false)}
         currentLevelId={activeLevel.id}
+      />
+
+      {/* Tutor Inteligente PutoIsaac (Aparece automáticamente cuando estás muy estancado) */}
+      <PutoIsaacLabTutor
+        currentLevelId={activeLevel.id}
+        levelTitle={activeLevel.title}
+        failedAttempts={failedAttempts[activeLevel.id] || 0}
+        activeTab={activeTab}
+        isDevToolsOpen={isDevToolsOpen}
+        isTerminalOpen={isTerminalOpen}
+        recentTerminalCmds={recentTerminalCmds}
+        onExecuteCommand={openTerminalWithCommand}
+        isLevelCompleted={isLevelCompleted(activeLevel.id)}
       />
     </main>
   );
