@@ -1,30 +1,98 @@
 import { MockFile } from './types';
 
+export const MOCK_DIRECTORIES: string[] = [
+  '/',
+  '/home',
+  '/home/student',
+  '/var',
+  '/var/www',
+  '/var/www/html',
+  '/etc',
+  '/etc/config',
+  '/opt',
+  '/opt/wordlists',
+  '/backup',
+];
+
 export const MOCK_FILESYSTEM: Record<string, MockFile> = {
   '/home/student/readme.txt': {
     name: 'readme.txt',
     path: '/home/student/readme.txt',
-    content: 'Bienvenido a la terminal interactiva del Cyber Lab de SMR2.\nUsa "help" para ver los comandos disponibles.\nTodas las herramientas corren de forma aislada en tu navegador.',
+    content: `CYBERLAB TERMINAL v2.5 [Debian GNU/Linux 12 - SMR2]
+-------------------------------------------------------------
+Entorno emulado seguro para prácticas de Seguridad Informática.
+Comandos permitidos:
+  - help, ls, cd, pwd, cat, grep, curl, base64, whoami, id, history, clear, date, hint, submit
+
+Todo el sistema corre 100% aislado dentro de tu navegador.`,
   },
   '/var/www/html/robots.txt': {
     name: 'robots.txt',
     path: '/var/www/html/robots.txt',
-    content: `# SecureCorp IT Robots Exclusion File\nUser-agent: *\nDisallow: /admin-panel-hidden/\nDisallow: /backup/\nDisallow: /internal-api/\n# Staff flag: FLAG{DOM_C0MM3NTS_4ND_R0B0TS}`,
+    content: `# SecureCorp IT Robots Exclusion Protocol
+User-agent: *
+Disallow: /admin-panel-hidden/
+Disallow: /backup/
+Disallow: /api/internal/
+# Staff flag: FLAG{DOM_C0MM3NTS_4ND_R0B0TS}`,
+  },
+  '/var/www/html/index.html': {
+    name: 'index.html',
+    path: '/var/www/html/index.html',
+    content: `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>SecureCorp IT Services</title>
+</head>
+<body>
+  <h1>SecureCorp // Cloud Defense</h1>
+  <p>Infraestructura perimetral y auditoría continua.</p>
+  <!-- TODO: Quitar antes de producción. Los logs y el robots.txt están en /lab/robots.txt y /backup/staff_notes.txt -->
+  <!-- Flag del equipo de infraestructura: FLAG{DOM_C0MM3NTS_4ND_R0B0TS} -->
+  <footer>© 2026 SecureCorp IT Solutions.</footer>
+</body>
+</html>`,
   },
   '/backup/staff_notes.txt': {
     name: 'staff_notes.txt',
     path: '/backup/staff_notes.txt',
-    content: `NOTAS INTERNAS DE INFRAESTRUCTURA (AULA 35):\n- El portal interno de facturación tiene IDOR pendiente de parchear en /api/mock/invoices.\n- No compartir las claves de emergencia.\n- Flag de contingencia: FLAG{DOM_C0MM3NTS_4ND_R0B0TS}`,
+    content: `NOTAS INTERNAS DE INFRAESTRUCTURA (AULA 35):
+- El portal interno de facturación tiene IDOR pendiente de parchear en /api/mock/invoices.
+- No compartir las claves de emergencia.
+- Flag de contingencia: FLAG{DOM_C0MM3NTS_4ND_R0B0TS}`,
   },
   '/opt/wordlists/passwords.txt': {
     name: 'passwords.txt',
     path: '/opt/wordlists/passwords.txt',
-    content: `123456\npassword\nadmin123\nqwerty\nletmein\nfootball\niloveyou\nhunter2\nsecurity2026\nmasterkey`,
+    content: `123456
+password
+admin123
+qwerty
+letmein
+football
+iloveyou
+hunter2
+security2026
+masterkey`,
   },
   '/etc/config/auth.json': {
     name: 'auth.json',
     path: '/etc/config/auth.json',
-    content: `{\n  "auth_service": "MockAuth v1.4",\n  "allowed_algorithms": ["HS256", "none"],\n  "warning": "alg: none debe deshabilitarse en produccion",\n  "admin_user": "admin"\n}`,
+    content: `{
+  "auth_service": "MockAuth v1.4",
+  "allowed_algorithms": ["HS256", "none"],
+  "warning": "alg: none debe deshabilitarse en produccion",
+  "admin_user": "admin"
+}`,
+  },
+  '/etc/passwd': {
+    name: 'passwd',
+    path: '/etc/passwd',
+    content: `root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+student:x:1000:1000:Student SMR2:/home/student:/bin/bash`,
   },
 };
 
@@ -53,7 +121,10 @@ export function mockApiRouter(
     return {
       status: 200,
       statusText: 'OK',
-      headers: { 'Content-Type': 'text/plain' },
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Server': 'nginx/1.24.0 (Debian)',
+      },
       body: MOCK_FILESYSTEM['/var/www/html/robots.txt'].content,
     };
   }
@@ -74,7 +145,10 @@ export function mockApiRouter(
       return {
         status: 200,
         statusText: 'OK',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Security-Audit': 'IDOR Vulnerable - No ownership check',
+        },
         body: JSON.stringify({
           invoice_id: 1042,
           cliente: 'Alumno 2º SMR',
@@ -90,7 +164,10 @@ export function mockApiRouter(
       return {
         status: 200,
         statusText: 'OK',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Vulnerability': 'IDOR Broken Access Control (CWE-639)',
+        },
         body: JSON.stringify({
           invoice_id: 1001,
           cliente: 'DIRECCIÓN GENERAL DE SISTEMAS',
@@ -117,7 +194,7 @@ export function mockApiRouter(
       return {
         status: 405,
         statusText: 'Method Not Allowed',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Allow': 'POST' },
         body: JSON.stringify({ error: 'Usa el método POST para autenticarte.' }, null, 2),
       };
     }
@@ -142,7 +219,10 @@ export function mockApiRouter(
       return {
         status: 200,
         statusText: 'OK',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Set-Cookie': 'session_token=eyJhbGciOiJub25lIn0...; Path=/',
+        },
         body: JSON.stringify({
           success: true,
           token: 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTcwMDAwMDAwMH0.',

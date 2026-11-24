@@ -11,38 +11,68 @@ import {
   FileText,
   AlertTriangle,
   CheckCircle,
-  ExternalLink,
   Code,
   Terminal,
+  ExternalLink,
+  Eye,
+  RefreshCw,
+  Play,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { evaluateMockSqlInjection, mockApiRouter } from '@/lib/lab/mockEngine';
 
 interface ChallengeProps {
   levelId: number;
   onFlagDiscovered: (flag: string) => void;
-  openTerminal: () => void;
+  openTerminalWithCommand: (cmd: string) => void;
 }
 
 export const LevelChallenges: React.FC<ChallengeProps> = ({
   levelId,
   onFlagDiscovered,
-  openTerminal,
+  openTerminalWithCommand,
 }) => {
   switch (levelId) {
     case 1:
-      return <Level1Challenge onFlagDiscovered={onFlagDiscovered} openTerminal={openTerminal} />;
+      return (
+        <Level1Challenge
+          onFlagDiscovered={onFlagDiscovered}
+          openTerminalWithCommand={openTerminalWithCommand}
+        />
+      );
     case 2:
       return <Level2Challenge onFlagDiscovered={onFlagDiscovered} />;
     case 3:
-      return <Level3Challenge onFlagDiscovered={onFlagDiscovered} />;
+      return (
+        <Level3Challenge
+          onFlagDiscovered={onFlagDiscovered}
+          openTerminalWithCommand={openTerminalWithCommand}
+        />
+      );
     case 4:
-      return <Level4Challenge onFlagDiscovered={onFlagDiscovered} openTerminal={openTerminal} />;
+      return (
+        <Level4Challenge
+          onFlagDiscovered={onFlagDiscovered}
+          openTerminalWithCommand={openTerminalWithCommand}
+        />
+      );
     case 5:
       return <Level5Challenge onFlagDiscovered={onFlagDiscovered} />;
     case 6:
-      return <Level6Challenge onFlagDiscovered={onFlagDiscovered} openTerminal={openTerminal} />;
+      return (
+        <Level6Challenge
+          onFlagDiscovered={onFlagDiscovered}
+          openTerminalWithCommand={openTerminalWithCommand}
+        />
+      );
     case 7:
-      return <Level7Challenge onFlagDiscovered={onFlagDiscovered} openTerminal={openTerminal} />;
+      return (
+        <Level7Challenge
+          onFlagDiscovered={onFlagDiscovered}
+          openTerminalWithCommand={openTerminalWithCommand}
+        />
+      );
     default:
       return null;
   }
@@ -53,73 +83,115 @@ export const LevelChallenges: React.FC<ChallengeProps> = ({
 // ==========================================
 function Level1Challenge({
   onFlagDiscovered,
-  openTerminal,
+  openTerminalWithCommand,
 }: {
   onFlagDiscovered: (f: string) => void;
-  openTerminal: () => void;
+  openTerminalWithCommand: (cmd: string) => void;
 }) {
+  const [showSourceCode, setShowSourceCode] = useState(false);
+
   return (
     <div className="space-y-4">
-      <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-900/60 space-y-3 font-sans">
-        <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+      <div className="p-4 sm:p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-emerald-400" />
-            <span className="font-bold text-sm text-neutral-200">
+            <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-bold text-sm text-neutral-800 dark:text-neutral-200">
               Portal Simulado: SecureCorp IT Services
             </span>
           </div>
-          <span className="text-[10px] font-mono text-neutral-500 uppercase">
-            Entorno de pruebas #01
+          <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+            Reto #01 · Reconocimiento
           </span>
         </div>
 
-        <p className="text-xs text-neutral-400">
-          Este portal corporativo contiene fugas de información dejadas por desarrolladores en el código fuente. Usa <strong>Inspeccionar elemento (F12)</strong> sobre el portal o utiliza la <strong>Terminal</strong> del lab para encontrar la ruta a <code>robots.txt</code> o a las notas de backup.
+        <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+          Los desarrolladores de SecureCorp han dejado comentarios en el código HTML con rutas a
+          archivos confidenciales y copias de seguridad. Usa <strong>Inspeccionar elemento (F12)</strong> en
+          tu navegador, consulta el visor de código o lanza un comando en la <strong>Terminal</strong>.
         </p>
 
-        {/* Portal simulado en el DOM */}
-        <div className="p-4 rounded border border-neutral-800 bg-neutral-950 space-y-4 select-text">
+        {/* Portal simulado en el DOM con comentario deliberado */}
+        <div className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-4 select-text">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-emerald-400 font-mono">SECURECORP // CLOUD DEFENSE</span>
-            <span className="text-neutral-500">v1.2.0-beta</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono tracking-wider">
+              SECURECORP // CLOUD DEFENSE
+            </span>
+            <span className="font-mono text-neutral-500 text-[11px]">v1.2.0-beta</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="p-3 bg-neutral-900/80 rounded border border-neutral-800">
-              <span className="text-neutral-300 font-semibold">Infraestructura Crítica</span>
-              <p className="text-neutral-500 text-[11px] mt-1">Servidores perimetrales protegidos con cortafuegos de nueva generación.</p>
+            <div className="p-3 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 shadow-sm">
+              <span className="text-neutral-900 dark:text-neutral-200 font-semibold block">
+                Infraestructura Perimetral
+              </span>
+              <p className="text-neutral-500 text-[11px] mt-1">
+                Servidores dedicados y cortafuegos de inspección profunda.
+              </p>
             </div>
-            <div className="p-3 bg-neutral-900/80 rounded border border-neutral-800">
-              <span className="text-neutral-300 font-semibold">Monitorización 24/7</span>
-              <p className="text-neutral-500 text-[11px] mt-1">Detección de intrusiones activa y auditoría de eventos en tiempo real.</p>
+            <div className="p-3 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 shadow-sm">
+              <span className="text-neutral-900 dark:text-neutral-200 font-semibold block">
+                Monitorización 24/7
+              </span>
+              <p className="text-neutral-500 text-[11px] mt-1">
+                Detección de intrusiones activa y auditoría de eventos.
+              </p>
             </div>
           </div>
 
-          {/* Pie de página con comentario HTML deliberado en el DOM */}
-          <div className="pt-3 border-t border-neutral-800 flex items-center justify-between text-[11px] text-neutral-500 font-mono">
+          <div className="pt-3 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-[11px] text-neutral-500 font-mono">
             <span>© 2026 SecureCorp IT Solutions. Todos los derechos reservados.</span>
-            <span className="text-[10px] text-neutral-600">Confidencial</span>
+            <span className="text-[10px]">Confidencial</span>
           </div>
           {/* 
-            TODO DE DESARROLLO (QUITAR EN PRODUCCIÓN):
+            TODO DE DESARROLLO (QUITAR ANTES DE PRODUCCIÓN):
             - Fichero de exclusión de robots disponible en: /lab/robots.txt
             - Copia de seguridad de notas de contingencia: /backup/staff_notes.txt
             - Flag del equipo de infraestructura: FLAG{DOM_C0MM3NTS_4ND_R0B0TS}
           */}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 pt-2">
-          <button
-            onClick={openTerminal}
-            type="button"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono text-xs cursor-pointer transition-colors"
-          >
-            <Terminal className="w-3.5 h-3.5" />
-            <span>Abrir terminal y consultar robots.txt</span>
-          </button>
-          <span className="text-xs text-neutral-500">
-            Pista en terminal: <code>curl /lab/robots.txt</code>
-          </span>
+        {/* Acciones directas e inspector de código */}
+        <div className="space-y-3 pt-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowSourceCode(!showSourceCode)}
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 font-mono text-xs hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
+            >
+              <Code className="w-3.5 h-3.5 text-neutral-500" />
+              <span>{showSourceCode ? 'Ocultar código HTML' : 'Ver código fuente del portal'}</span>
+            </button>
+
+            <button
+              onClick={() => openTerminalWithCommand('curl /lab/robots.txt')}
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-mono text-xs transition-colors cursor-pointer"
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              <span>Ejecutar en terminal: curl /lab/robots.txt</span>
+            </button>
+          </div>
+
+          {showSourceCode && (
+            <div className="p-3.5 rounded-lg bg-neutral-900 border border-neutral-800 font-mono text-xs text-neutral-300 overflow-x-auto leading-relaxed">
+              <span className="text-neutral-500 text-[10px] uppercase block mb-1">
+                // Árbol DOM del portal con comentarios sin minificar:
+              </span>
+              <pre className="text-[11px] text-neutral-300">{`<!-- SecureCorp Frontend Source -->
+<div class="portal-root">
+  <div class="portal-header">SECURECORP // CLOUD DEFENSE</div>
+  <div class="portal-body">...</div>
+  <!--
+    TODO DE DESARROLLO (QUITAR ANTES DE PRODUCCIÓN):
+    - Fichero de exclusión de robots disponible en: /lab/robots.txt
+    - Copia de seguridad de notas de contingencia: /backup/staff_notes.txt
+    - Flag del equipo de infraestructura: FLAG{DOM_C0MM3NTS_4ND_R0B0TS}
+  -->
+  <footer>© 2026 SecureCorp IT Solutions.</footer>
+</div>`}</pre>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -137,6 +209,8 @@ function Level2Challenge({
   const [balance, setBalance] = useState(0);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [domPrice, setDomPrice] = useState(500);
+  const [isButtonDisabled, setIsButtonDisabled] = useState(true);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -149,85 +223,154 @@ function Level2Challenge({
     }
   }, []);
 
-  const handleBuy = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleBuy = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    const priceInput = form.querySelector('#checkoutPrice') as HTMLInputElement | null;
-    const priceVal = priceInput ? Number(priceInput.value) : 500;
-
     const currentSessionBal = Number(sessionStorage.getItem('lab_user_balance') || 0);
 
-    // Si el usuario alteró el DOM para poner precio 0 o si aumentó su saldo en sessionStorage
-    if (priceVal <= 0 || currentSessionBal >= 500) {
+    if (domPrice <= 0 || currentSessionBal >= 500) {
       setPurchaseSuccess(true);
       setErrorMsg('');
       onFlagDiscovered('FLAG{N3V3R_TRUST_CL13NT_S1D3}');
     } else {
-      setErrorMsg('Error: Saldo insuficiente (0 €) para abonar 500 €. Modifica el precio en el DOM a 0 o altera sessionStorage.');
+      setErrorMsg(
+        'Error: Saldo insuficiente (0 €) para abonar 500 €. Modifica el precio a 0 € o aumenta sessionStorage.'
+      );
     }
   };
 
+  const handleUpdateSessionStorage = (newBal: number) => {
+    sessionStorage.setItem('lab_user_balance', String(newBal));
+    setBalance(newBal);
+  };
+
   return (
-    <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-900/60 space-y-4 font-sans">
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+    <div className="p-4 sm:p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
         <div className="flex items-center gap-2">
-          <ShoppingCart className="w-4 h-4 text-emerald-400" />
-          <span className="font-bold text-sm text-neutral-200">
+          <ShoppingCart className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="font-bold text-sm text-neutral-800 dark:text-neutral-200">
             Pasarela de Certificación Oficial
           </span>
         </div>
-        <span className="text-xs font-mono text-amber-400 font-semibold">
-          Tu Saldo: {balance} €
+        <span className="text-xs font-mono text-amber-600 dark:text-amber-400 font-semibold">
+          Tu Saldo en Sesión: {balance} €
         </span>
       </div>
 
-      <p className="text-xs text-neutral-400">
-        El botón de compra está protegido con el atributo <code>disabled</code> y el formulario contiene un campo oculto <code>price=500</code>. Usa <strong>Inspeccionar elemento (F12)</strong> para borrar el atributo <code>disabled</code> del botón y cambiar el valor del input <code>#checkoutPrice</code> a <code>0</code>, o abre la consola y ejecuta <code>sessionStorage.setItem("lab_user_balance", "1000")</code>.
+      <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        El botón está bloqueado con <code>disabled</code> y el precio es de 500 €. Puedes
+        resolverlo usando <strong>F12</strong> en la página real, o probando el simulador de
+        manipulación de atributos DOM y de <code>sessionStorage</code> que se muestra a continuación.
       </p>
 
-      <form onSubmit={handleBuy} className="p-4 rounded border border-neutral-800 bg-neutral-950 space-y-3">
+      {/* Formulario de compra */}
+      <form
+        onSubmit={handleBuy}
+        className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-3 font-sans"
+      >
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="font-semibold text-sm text-neutral-200">Certificación SMR2 Ciberseguridad Web</h4>
-            <span className="text-xs text-neutral-500">Expedición digital con sello oficial</span>
+            <h4 className="font-semibold text-sm text-neutral-900 dark:text-neutral-200">
+              Certificación SMR2 Ciberseguridad Web
+            </h4>
+            <span className="text-xs text-neutral-500">Expedición oficial y diploma digital</span>
           </div>
-          <span className="font-mono text-sm font-bold text-neutral-200">500.00 €</span>
+          <span className="font-mono text-sm font-bold text-neutral-900 dark:text-neutral-200">
+            {domPrice}.00 €
+          </span>
         </div>
 
-        {/* Campo oculto que el cliente no debería poder dictar */}
-        <input type="hidden" id="checkoutPrice" name="price" defaultValue="500" />
-
         {errorMsg && (
-          <div className="p-2.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
+          <div className="p-2.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {purchaseSuccess && (
-          <div className="p-3 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs space-y-1">
-            <div className="flex items-center gap-2 font-bold">
+          <div className="p-3.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs space-y-1">
+            <div className="flex items-center gap-2 font-bold text-sm">
               <CheckCircle className="w-4 h-4" />
-              <span>¡Compra procesada con éxito a 0.00 €!</span>
+              <span>¡Compra confirmada a {domPrice}.00 €!</span>
             </div>
-            <p className="font-mono text-neutral-200">
-              Flag capturada: <strong>FLAG&#123;N3V3R_TRUST_CL13NT_S1D3&#125;</strong>
+            <p className="font-mono text-neutral-800 dark:text-neutral-200 text-xs">
+              Bandera capturada: <strong>FLAG&#123;N3V3R_TRUST_CL13NT_S1D3&#125;</strong>
             </p>
           </div>
         )}
 
         <div className="pt-2">
-          {/* Botón inicialmente disabled en el DOM */}
           <button
             id="btnBuy"
             type="submit"
-            disabled={true}
-            className="w-full py-2 px-3 rounded bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-emerald-500 hover:enabled:text-neutral-950 font-mono text-xs font-semibold text-neutral-300 transition-colors cursor-pointer"
+            disabled={isButtonDisabled}
+            className="w-full py-2 px-3 rounded-lg bg-neutral-900 text-white dark:bg-neutral-800 dark:text-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-emerald-600 dark:hover:enabled:bg-emerald-500 hover:enabled:text-white dark:hover:enabled:text-neutral-950 font-mono text-xs font-semibold transition-colors cursor-pointer"
           >
-            Adquirir Certificación (500 €)
+            {isButtonDisabled ? 'Saldo insuficiente (Botón bloqueado)' : `Comprar por ${domPrice} €`}
           </button>
         </div>
       </form>
+
+      {/* Editor visual de atributos DOM y Storage (Ideal para móviles o práctica guiada) */}
+      <div className="p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900/40 space-y-3 font-mono text-xs">
+        <span className="font-bold text-neutral-700 dark:text-neutral-300 uppercase text-[11px] block">
+          Inspector / Manipulador de Atributos del Reto:
+        </span>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="space-y-1.5 p-2.5 bg-white dark:bg-neutral-950 rounded border border-neutral-200 dark:border-neutral-800">
+            <span className="text-neutral-500 text-[10px] uppercase">
+              1. Atributo disabled de &lt;button id=&quot;btnBuy&quot;&gt;:
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsButtonDisabled(!isButtonDisabled)}
+                className="px-2 py-1 rounded border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-xs cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-700"
+              >
+                {isButtonDisabled ? 'Quitar disabled (Habilitar)' : 'Poner disabled'}
+              </button>
+              <span className="text-neutral-500 text-[11px]">
+                Estado: {isButtonDisabled ? 'disabled' : 'enabled'}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5 p-2.5 bg-white dark:bg-neutral-950 rounded border border-neutral-200 dark:border-neutral-800">
+            <span className="text-neutral-500 text-[10px] uppercase">
+              2. Valor de &lt;input type=&quot;hidden&quot; id=&quot;checkoutPrice&quot;&gt;:
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={domPrice}
+                onChange={(e) => setDomPrice(Number(e.target.value))}
+                className="w-20 px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
+              />
+              <button
+                type="button"
+                onClick={() => setDomPrice(0)}
+                className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs cursor-pointer hover:bg-emerald-500/20"
+              >
+                Fijar en 0 €
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-1 flex items-center justify-between text-[11px] text-neutral-500">
+          <span>
+            sessionStorage: <code>lab_user_balance = &quot;{balance}&quot;</code>
+          </span>
+          <button
+            type="button"
+            onClick={() => handleUpdateSessionStorage(balance === 0 ? 1000 : 0)}
+            className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+          >
+            {balance === 0 ? 'Inyectar 1000 € en sessionStorage' : 'Restablecer saldo a 0 €'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -237,24 +380,28 @@ function Level2Challenge({
 // ==========================================
 function Level3Challenge({
   onFlagDiscovered,
+  openTerminalWithCommand,
 }: {
   onFlagDiscovered: (f: string) => void;
+  openTerminalWithCommand: (cmd: string) => void;
 }) {
   const [currentRole, setCurrentRole] = useState<'guest' | 'admin' | 'unknown'>('guest');
   const [rawCookie, setRawCookie] = useState('');
+  const [decodedJson, setDecodedJson] = useState('{"user":"student","role":"guest"}');
   const [isVerified, setIsVerified] = useState(false);
 
   useEffect(() => {
-    // Al montar, asegura que exista la cookie de sesión del reto
     if (typeof document !== 'undefined') {
       const match = document.cookie.match(/lab_session=([^;]+)/);
       if (!match) {
-        // {"user":"student","role":"guest"}
         const defaultVal = btoa(JSON.stringify({ user: 'student', role: 'guest' }));
         document.cookie = `lab_session=${defaultVal}; path=/; SameSite=Lax`;
         setRawCookie(defaultVal);
       } else {
         setRawCookie(match[1]);
+        try {
+          setDecodedJson(atob(match[1]));
+        } catch {}
       }
     }
   }, []);
@@ -271,6 +418,7 @@ function Level3Challenge({
       const decoded = atob(match[1]);
       const parsed = JSON.parse(decoded);
       setRawCookie(match[1]);
+      setDecodedJson(decoded);
       if (parsed.role === 'admin') {
         setCurrentRole('admin');
         setIsVerified(true);
@@ -284,57 +432,101 @@ function Level3Challenge({
     }
   };
 
+  const handleApplyTamperedCookie = (newRole: 'admin' | 'guest') => {
+    const payload = JSON.stringify({ user: 'student', role: newRole });
+    const encoded = btoa(payload);
+    document.cookie = `lab_session=${encoded}; path=/; SameSite=Lax`;
+    setRawCookie(encoded);
+    setDecodedJson(payload);
+  };
+
   return (
-    <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-900/60 space-y-4 font-sans">
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+    <div className="p-4 sm:p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
         <div className="flex items-center gap-2">
-          <Key className="w-4 h-4 text-emerald-400" />
-          <span className="font-bold text-sm text-neutral-200">
+          <Key className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="font-bold text-sm text-neutral-800 dark:text-neutral-200">
             Control de Sesión Basado en Cookies
           </span>
         </div>
-        <span className="text-xs font-mono text-neutral-400">
-          Rol detectado: <strong className={currentRole === 'admin' ? 'text-emerald-400' : 'text-amber-400'}>{currentRole.toUpperCase()}</strong>
+        <span className="text-xs font-mono text-neutral-600 dark:text-neutral-400">
+          Rol detectado:{' '}
+          <strong
+            className={
+              currentRole === 'admin'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-amber-600 dark:text-amber-400'
+            }
+          >
+            {currentRole.toUpperCase()}
+          </strong>
         </span>
       </div>
 
-      <p className="text-xs text-neutral-400">
-        El panel lee la cookie <code>lab_session</code> en cada verificación. Actualmente contiene un objeto JSON codificado en Base64 con <code>&quot;role&quot;: &quot;guest&quot;</code>. Abre DevTools (pestaña Application o Console), decodifícala con <code>atob</code>, cámbiala a <code>&quot;role&quot;: &quot;admin&quot;</code>, recodifícala con <code>btoa</code> y pulsa en verificar.
+      <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        El panel lee la cookie <code>lab_session</code> en cada comprobación. Actualmente contiene un
+        JSON codificado en Base64 con <code>&quot;role&quot;: &quot;guest&quot;</code>. Puedes
+        decodificarlo en DevTools o en la terminal con <code>base64 -d</code>, cambiar el rol a{' '}
+        <code>&quot;admin&quot;</code> y volver a verificar.
       </p>
 
-      <div className="p-4 rounded border border-neutral-800 bg-neutral-950 space-y-3 font-mono text-xs">
+      <div className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-3 font-mono text-xs">
         <div className="space-y-1">
-          <span className="text-neutral-500 text-[11px]">Valor actual de document.cookie (lab_session):</span>
-          <div className="p-2 bg-neutral-900 rounded border border-neutral-800 text-cyan-300 break-all select-all">
+          <span className="text-neutral-500 text-[11px]">Valor en document.cookie (lab_session):</span>
+          <div className="p-2.5 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 text-cyan-600 dark:text-cyan-300 break-all select-all font-mono">
             {rawCookie || 'lab_session=eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9'}
           </div>
         </div>
 
+        <div className="space-y-1">
+          <span className="text-neutral-500 text-[11px]">Contenido decodificado (JSON):</span>
+          <div className="p-2.5 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 text-neutral-800 dark:text-neutral-200 font-mono text-xs">
+            {decodedJson}
+          </div>
+        </div>
+
         {isVerified && currentRole === 'admin' && (
-          <div className="p-3 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 space-y-1">
-            <div className="flex items-center gap-2 font-bold">
+          <div className="p-3.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 space-y-1">
+            <div className="flex items-center gap-2 font-bold text-sm">
               <CheckCircle className="w-4 h-4" />
-              <span>¡Sesión de Administrador verificada!</span>
+              <span>¡Sesión de Administrador verificada con éxito!</span>
             </div>
-            <p className="text-neutral-200">
-              Flag capturada: <strong>FLAG&#123;C00K13_T4MP3R1NG_SUCC3SS&#125;</strong>
+            <p className="text-neutral-800 dark:text-neutral-200 text-xs">
+              Bandera capturada: <strong>FLAG&#123;C00K13_T4MP3R1NG_SUCC3SS&#125;</strong>
             </p>
           </div>
         )}
 
         {isVerified && currentRole === 'guest' && (
-          <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
-            Sesión válida, pero con rol &quot;guest&quot;. Modifica la cookie para que el rol sea &quot;admin&quot;.
+          <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs">
+            Sesión válida pero con permisos de &quot;guest&quot;. Modifica el rol a &quot;admin&quot;.
           </div>
         )}
 
-        <div className="pt-2 flex items-center gap-3">
+        <div className="pt-2 flex flex-wrap items-center gap-2.5">
           <button
             onClick={handleVerifySession}
             type="button"
-            className="px-3 py-2 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 font-semibold cursor-pointer transition-colors"
+            className="px-3.5 py-2 rounded-lg bg-emerald-600 dark:bg-emerald-500 text-white dark:text-neutral-950 font-bold font-mono text-xs cursor-pointer hover:opacity-90 transition-opacity"
           >
             Verificar Cookie de Sesión
+          </button>
+
+          <button
+            onClick={() => handleApplyTamperedCookie('admin')}
+            type="button"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+          >
+            Inyectar rol &quot;admin&quot; en cookie
+          </button>
+
+          <button
+            onClick={() => openTerminalWithCommand('base64 -d "eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9"')}
+            type="button"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Decodificar en terminal (base64 -d)</span>
           </button>
         </div>
       </div>
@@ -347,10 +539,10 @@ function Level3Challenge({
 // ==========================================
 function Level4Challenge({
   onFlagDiscovered,
-  openTerminal,
+  openTerminalWithCommand,
 }: {
   onFlagDiscovered: (f: string) => void;
-  openTerminal: () => void;
+  openTerminalWithCommand: (cmd: string) => void;
 }) {
   const [invoiceId, setInvoiceId] = useState('1042');
   const [result, setResult] = useState<any>(null);
@@ -369,53 +561,79 @@ function Level4Challenge({
   };
 
   return (
-    <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-900/60 space-y-4 font-sans">
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+    <div className="p-4 sm:p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
         <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-emerald-400" />
-          <span className="font-bold text-sm text-neutral-200">
+          <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="font-bold text-sm text-neutral-800 dark:text-neutral-200">
             Visor de Facturación Corporativa (IDOR)
           </span>
         </div>
         <span className="text-xs font-mono text-neutral-500">
-          Endpoint: /api/mock/invoices
+          Endpoint: /api/mock/invoices?id=...
         </span>
       </div>
 
-      <p className="text-xs text-neutral-400">
-        Tu número de factura asignado es el <strong>#1042</strong>. Abre la pestaña <strong>Network (Red)</strong> en DevTools para ver cómo viajan los parámetros, o utiliza la <strong>Terminal</strong> con <code>curl</code> para consultar identificadores adyacentes hasta encontrar la factura confidencial de Dirección (#1001).
+      <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        Tu factura asignada es la <strong>#1042</strong>. Observa cómo viajan las peticiones en la
+        pestaña <strong>Network (Red)</strong> de DevTools o usa <code>curl</code> en la terminal para
+        solicitar identificadores anteriores hasta localizar la factura de Dirección (#1001).
       </p>
 
-      <div className="p-4 rounded border border-neutral-800 bg-neutral-950 space-y-3 font-mono text-xs">
-        <div className="flex items-center gap-2">
-          <label htmlFor="invIdInput" className="text-neutral-400 shrink-0">
-            Consultar ID de Factura:
+      <div className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-3 font-mono text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="invIdInput" className="text-neutral-600 dark:text-neutral-400 shrink-0">
+            ID de Factura:
           </label>
           <input
             id="invIdInput"
             type="text"
             value={invoiceId}
             onChange={(e) => setInvoiceId(e.target.value)}
-            className="w-24 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-neutral-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
+            className="w-24 px-2.5 py-1 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
           />
           <button
             onClick={() => fetchInvoice(invoiceId)}
             type="button"
-            className="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded font-semibold cursor-pointer transition-colors"
+            className="px-3 py-1 bg-emerald-600 dark:bg-emerald-500 text-white dark:text-neutral-950 rounded font-semibold cursor-pointer hover:opacity-90 transition-opacity"
           >
             Consultar Factura
+          </button>
+
+          <span className="text-neutral-400 text-xs pl-2">Accesos rápidos:</span>
+          <button
+            onClick={() => {
+              setInvoiceId('1042');
+              fetchInvoice('1042');
+            }}
+            type="button"
+            className="px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 text-[11px] hover:text-neutral-900 dark:hover:text-neutral-200"
+          >
+            #1042 (Mía)
+          </button>
+          <button
+            onClick={() => {
+              setInvoiceId('1001');
+              fetchInvoice('1001');
+            }}
+            type="button"
+            className="px-2 py-0.5 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[11px] hover:bg-rose-500/20"
+          >
+            #1001 (Dirección)
           </button>
         </div>
 
         {result && (
-          <div className="p-3 rounded bg-neutral-900 border border-neutral-800 space-y-2 select-text">
-            <span className="text-[11px] text-neutral-500 font-bold">RESPUESTA HTTP 200 OK:</span>
-            <pre className="text-xs text-neutral-300 whitespace-pre-wrap">
+          <div className="p-3.5 rounded bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 space-y-2 select-text">
+            <span className="text-[10px] text-neutral-500 uppercase font-bold">
+              Respuesta HTTP de la API:
+            </span>
+            <pre className="text-xs text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap font-mono">
               {JSON.stringify(result, null, 2)}
             </pre>
             {result.flag && (
-              <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
-                ¡Vulnerabilidad IDOR confirmada! Flag: <strong>{result.flag}</strong>
+              <div className="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                ¡Vulnerabilidad IDOR confirmada! Bandera: {result.flag}
               </div>
             )}
           </div>
@@ -423,12 +641,12 @@ function Level4Challenge({
 
         <div className="pt-2">
           <button
-            onClick={openTerminal}
+            onClick={() => openTerminalWithCommand('curl /api/mock/invoices?id=1001')}
             type="button"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 text-xs cursor-pointer transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
           >
-            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Probar en Terminal con curl: curl /api/mock/invoices?id=1001</span>
+            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Ejecutar en terminal: curl /api/mock/invoices?id=1001</span>
           </button>
         </div>
       </div>
@@ -463,50 +681,57 @@ function Level5Challenge({
   };
 
   return (
-    <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-900/60 space-y-4 font-sans">
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+    <div className="p-4 sm:p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
         <div className="flex items-center gap-2">
-          <Database className="w-4 h-4 text-emerald-400" />
-          <span className="font-bold text-sm text-neutral-200">
+          <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="font-bold text-sm text-neutral-800 dark:text-neutral-200">
             Autenticación Vulnerable a SQL Injection
           </span>
         </div>
-        <span className="text-xs font-mono text-rose-400">
+        <span className="text-xs font-mono text-rose-600 dark:text-rose-400 font-semibold">
           SELECT * FROM users
         </span>
       </div>
 
-      <p className="text-xs text-neutral-400">
-        El motor SQL concatena directamente el usuario y la contraseña. Introduce un payload clásico de inyección booleana (como <code>&apos; OR &apos;1&apos;=&apos;1&apos; --</code>) para cerrar la cadena y forzar que la condición siempre sea verdadera.
+      <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        El backend concatena directamente el usuario y la clave en la consulta SQL. Observa cómo cambia
+        la sintaxis coloreada en vivo y utiliza comillas simples con operadores lógicos (<code>&apos; OR &apos;1&apos;=&apos;1&apos; --</code>)
+        para forzar que el condicional siempre evalúe a verdadero.
       </p>
 
-      <form onSubmit={handleLogin} className="p-4 rounded border border-neutral-800 bg-neutral-950 space-y-3 font-mono text-xs">
+      <form
+        onSubmit={handleLogin}
+        className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-3 font-mono text-xs"
+      >
         <div className="space-y-1">
-          <label className="text-neutral-400">Nombre de Usuario:</label>
+          <label className="text-neutral-600 dark:text-neutral-400">Nombre de Usuario:</label>
           <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full px-2.5 py-1.5 rounded bg-neutral-900 border border-neutral-700 text-neutral-100 focus:outline-none focus:border-emerald-500"
+            className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-emerald-500 font-mono"
             placeholder="' OR '1'='1' --"
           />
         </div>
 
         <div className="space-y-1">
-          <label className="text-neutral-400">Contraseña:</label>
+          <label className="text-neutral-600 dark:text-neutral-400">Contraseña:</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-2.5 py-1.5 rounded bg-neutral-900 border border-neutral-700 text-neutral-100 focus:outline-none focus:border-emerald-500"
+            className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-emerald-500 font-mono"
             placeholder="contraseña cualquiera"
           />
         </div>
 
-        {/* Visor de la consulta generada en vivo */}
-        <div className="p-2.5 bg-neutral-900 rounded border border-neutral-800 space-y-1">
-          <span className="text-[10px] text-neutral-500 font-bold uppercase">Consulta SQL generada en el servidor:</span>
-          <code className="text-xs text-amber-300 block overflow-x-auto">
+        {/* Visor de consulta generada */}
+        <div className="p-3 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 space-y-1">
+          <span className="text-[10px] text-neutral-500 uppercase font-bold block">
+            Sentencia SQL resultante ejecutada en el servidor:
+          </span>
+          <code className="text-xs text-amber-700 dark:text-amber-300 block overflow-x-auto select-all">
             SELECT * FROM users WHERE username = &apos;{username}&apos; AND password = &apos;{password}&apos;;
           </code>
         </div>
@@ -515,47 +740,80 @@ function Level5Challenge({
           <div
             className={`p-3 rounded text-xs border ${
               success
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
             }`}
           >
-            {message}
+            <p className="font-semibold">{message}</p>
             {success && (
-              <p className="mt-1 text-neutral-200 font-bold font-mono">
-                Flag: FLAG&#123;S4N1T1Z3_Y0UR_1NPUTS_SQL1&#125;
+              <p className="mt-1 text-neutral-900 dark:text-neutral-100 font-bold font-mono">
+                Bandera: FLAG&#123;S4N1T1Z3_Y0UR_1NPUTS_SQL1&#125;
               </p>
             )}
           </div>
         )}
 
-        <button
-          type="submit"
-          className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded font-semibold cursor-pointer transition-colors"
-        >
-          Ejecutar Consulta de Autenticación
-        </button>
+        <div className="pt-1 flex flex-wrap items-center gap-2">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-emerald-600 dark:bg-emerald-500 text-white dark:text-neutral-950 font-bold rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+          >
+            Ejecutar Consulta SQL
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setUsername("' OR '1'='1' --");
+              setPassword('x');
+            }}
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs cursor-pointer"
+          >
+            Insertar payload booleano
+          </button>
+        </div>
       </form>
     </div>
   );
 }
 
 // ==========================================
-// RETO 6: AUTENTICACIÓN Y JWT
+// RETO 6: AUTENTICACIÓN Y FUERZA BRUTA
 // ==========================================
 function Level6Challenge({
   onFlagDiscovered,
-  openTerminal,
+  openTerminalWithCommand,
 }: {
   onFlagDiscovered: (f: string) => void;
-  openTerminal: () => void;
+  openTerminalWithCommand: (cmd: string) => void;
 }) {
   const [user, setUser] = useState('admin');
   const [pass, setPass] = useState('');
   const [authResponse, setAuthResponse] = useState<any>(null);
+  const [isBruteforcing, setIsBruteforcing] = useState(false);
+  const [bruteforceLog, setBruteforceLog] = useState<string[]>([]);
+
+  const wordlist = [
+    '123456',
+    'password',
+    'admin123',
+    'qwerty',
+    'letmein',
+    'football',
+    'iloveyou',
+    'hunter2',
+    'security2026',
+    'masterkey',
+  ];
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
-    const res = mockApiRouter('/api/mock/auth', 'POST', {}, JSON.stringify({ username: user, password: pass }));
+    const res = mockApiRouter(
+      '/api/mock/auth',
+      'POST',
+      {},
+      JSON.stringify({ username: user, password: pass })
+    );
     try {
       const parsed = JSON.parse(res.body);
       setAuthResponse({ status: res.status, ...parsed });
@@ -567,12 +825,43 @@ function Level6Challenge({
     }
   };
 
+  const handleSimulateBruteforce = async () => {
+    setIsBruteforcing(true);
+    setBruteforceLog([]);
+
+    for (const testPass of wordlist) {
+      await new Promise((r) => setTimeout(r, 350));
+      const res = mockApiRouter(
+        '/api/mock/auth',
+        'POST',
+        {},
+        JSON.stringify({ username: 'admin', password: testPass })
+      );
+
+      if (res.status === 200) {
+        const parsed = JSON.parse(res.body);
+        setBruteforceLog((prev) => [
+          ...prev,
+          `[+] ¡ÉXITO! Contraseña encontrada: "${testPass}" -> Token recibido`,
+        ]);
+        setPass(testPass);
+        setAuthResponse({ status: 200, ...parsed });
+        onFlagDiscovered(parsed.flag);
+        setIsBruteforcing(false);
+        return;
+      } else {
+        setBruteforceLog((prev) => [...prev, `[-] Intento con "${testPass}" -> 401 Unauthorized`]);
+      }
+    }
+    setIsBruteforcing(false);
+  };
+
   return (
-    <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-900/60 space-y-4 font-sans">
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+    <div className="p-4 sm:p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
         <div className="flex items-center gap-2">
-          <Key className="w-4 h-4 text-emerald-400" />
-          <span className="font-bold text-sm text-neutral-200">
+          <Key className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="font-bold text-sm text-neutral-800 dark:text-neutral-200">
             Ataque de Diccionario y Fuerza Bruta
           </span>
         </div>
@@ -581,29 +870,34 @@ function Level6Challenge({
         </span>
       </div>
 
-      <p className="text-xs text-neutral-400">
-        El endpoint <code>/api/mock/auth</code> no tiene rate limiting y utiliza una contraseña débil. Abre la <strong>Terminal</strong> del laboratorio y examina el archivo <code>cat /opt/wordlists/passwords.txt</code> para probar las contraseñas comunes contra el usuario <strong>admin</strong>.
+      <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        El endpoint <code>/api/mock/auth</code> carece de bloqueo de intentos y utiliza una clave común.
+        Puedes abrir la <strong>Terminal</strong> para ver el diccionario o utilizar el simulador de
+        ataque de diccionario integrado.
       </p>
 
-      <form onSubmit={handleAuth} className="p-4 rounded border border-neutral-800 bg-neutral-950 space-y-3 font-mono text-xs">
+      <form
+        onSubmit={handleAuth}
+        className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-3 font-mono text-xs"
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-neutral-400">Usuario:</label>
+            <label className="text-neutral-600 dark:text-neutral-400">Usuario:</label>
             <input
               type="text"
               value={user}
               onChange={(e) => setUser(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded bg-neutral-900 border border-neutral-700 text-neutral-100"
+              className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-neutral-400">Contraseña:</label>
+            <label className="text-neutral-600 dark:text-neutral-400">Contraseña:</label>
             <input
               type="text"
               value={pass}
               onChange={(e) => setPass(e.target.value)}
               placeholder="p. ej. hunter2"
-              className="w-full px-2.5 py-1.5 rounded bg-neutral-900 border border-neutral-700 text-neutral-100"
+              className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
             />
           </div>
         </div>
@@ -612,33 +906,64 @@ function Level6Challenge({
           <div
             className={`p-3 rounded text-xs border ${
               authResponse.status === 200
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
             }`}
           >
             <p className="font-bold">{authResponse.mensaje || authResponse.error}</p>
             {authResponse.flag && (
-              <p className="mt-1 text-neutral-200 font-mono">
-                Flag: <strong>{authResponse.flag}</strong>
+              <p className="mt-1 text-neutral-900 dark:text-neutral-100 font-mono">
+                Bandera: <strong>{authResponse.flag}</strong>
               </p>
             )}
+          </div>
+        )}
+
+        {bruteforceLog.length > 0 && (
+          <div className="p-3 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 space-y-1 max-h-36 overflow-y-auto">
+            <span className="text-[10px] text-neutral-500 uppercase font-bold block">
+              Registro del ataque de fuerza bruta simulado:
+            </span>
+            {bruteforceLog.map((line, idx) => (
+              <div
+                key={idx}
+                className={`text-[11px] ${
+                  line.startsWith('[+]')
+                    ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                    : 'text-neutral-500'
+                }`}
+              >
+                {line}
+              </div>
+            ))}
           </div>
         )}
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <button
             type="submit"
-            className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded font-semibold cursor-pointer transition-colors"
+            className="px-4 py-2 bg-emerald-600 dark:bg-emerald-500 text-white dark:text-neutral-950 font-bold rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
           >
-            Probar Autenticación
+            Probar Credencial
           </button>
+
           <button
-            onClick={openTerminal}
+            onClick={handleSimulateBruteforce}
+            disabled={isBruteforcing}
             type="button"
-            className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 rounded cursor-pointer transition-colors inline-flex items-center gap-1.5"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
           >
-            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Ver diccionario en terminal (cat /opt/wordlists/passwords.txt)</span>
+            <Play className="w-3.5 h-3.5 text-amber-500" />
+            <span>{isBruteforcing ? 'Probando diccionario...' : 'Lanzar ataque de diccionario'}</span>
+          </button>
+
+          <button
+            onClick={() => openTerminalWithCommand('cat /opt/wordlists/passwords.txt')}
+            type="button"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Ver diccionario en terminal</span>
           </button>
         </div>
       </form>
@@ -651,25 +976,29 @@ function Level6Challenge({
 // ==========================================
 function Level7Challenge({
   onFlagDiscovered,
-  openTerminal,
+  openTerminalWithCommand,
 }: {
   onFlagDiscovered: (f: string) => void;
-  openTerminal: () => void;
+  openTerminalWithCommand: (cmd: string) => void;
 }) {
   const [empId, setEmpId] = useState('sec-9902');
   const [token, setToken] = useState('emergency_override_2026');
   const [response, setResponse] = useState<any>(null);
+  const [staffInfo, setStaffInfo] = useState<any>(null);
+
+  const fetchStaffApi = () => {
+    const res = mockApiRouter('/api/mock/staff?dept=security');
+    try {
+      setStaffInfo(JSON.parse(res.body));
+    } catch {}
+  };
 
   const handleExecuteChain = (e: React.FormEvent) => {
     e.preventDefault();
-    const res = mockApiRouter(
-      '/api/mock/admin/flag',
-      'GET',
-      {
-        'X-Employee-Id': empId,
-        Authorization: `Bearer ${token}`,
-      }
-    );
+    const res = mockApiRouter('/api/mock/admin/flag', 'GET', {
+      'X-Employee-Id': empId,
+      Authorization: `Bearer ${token}`,
+    });
 
     try {
       const parsed = JSON.parse(res.body);
@@ -683,60 +1012,96 @@ function Level7Challenge({
   };
 
   return (
-    <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-900/60 space-y-4 font-sans">
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+    <div className="p-4 sm:p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
         <div className="flex items-center gap-2">
-          <Lock className="w-4 h-4 text-emerald-400" />
-          <span className="font-bold text-sm text-neutral-200">
+          <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="font-bold text-sm text-neutral-800 dark:text-neutral-200">
             Intranet Central: Mainframe Corporativo
           </span>
         </div>
-        <span className="text-xs font-mono text-purple-400 font-semibold">
-          NIVEL EXPERTO · CADENA COMPLETA
+        <span className="text-xs font-mono text-purple-600 dark:text-purple-400 font-bold uppercase">
+          Cadena Completa · Nivel Experto
         </span>
       </div>
 
-      <p className="text-xs text-neutral-400 leading-relaxed">
-        Encadena las fases: 1) Reconocimiento (busca el endpoint interno en comentarios de la intranet), 2) IDOR en la API de personal para obtener las credenciales de Elena Ramos (CISO), y 3) Envía la petición con las cabeceras HTTP requeridas para tomar control del servidor central.
+      <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        Encadena las 3 fases: <strong>1) Reconocimiento</strong> para localizar la API de personal,{' '}
+        <strong>2) IDOR</strong> para extraer el token de Elena Ramos (CISO), y{' '}
+        <strong>3) Falsificación de cabeceras HTTP</strong> para tomar el control del mainframe.
       </p>
 
-      {/* Intranet simulada con comentario oculto */}
-      <div className="p-3 bg-neutral-950 rounded border border-neutral-800 text-xs font-mono space-y-2">
-        <div className="text-neutral-500 text-[11px]">
-          [INTRANET PRIVADA · ACCESO RESTRINGIDO A STAFF AUTORIZADO]
-        </div>
-        <p className="text-neutral-400">
-          Portal de operaciones y contingencia de infraestructura crítica.
-        </p>
-        {/*
-          NOTA PARA SOPORTE:
-          Para consultar los datos y credenciales de contingencia de seguridad:
-          GET /api/mock/staff?dept=security
-        */}
-        <div className="text-[10px] text-neutral-600">
-          Usa curl en la terminal para consultar: curl /api/mock/staff?dept=security
+      {/* Checklist de fases */}
+      <div className="p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 text-xs font-mono space-y-2">
+        <span className="text-neutral-500 text-[10px] uppercase font-bold block">
+          Checklist de la Cadena de Explotación:
+        </span>
+        <div className="space-y-1.5 text-neutral-700 dark:text-neutral-300">
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+              1
+            </span>
+            <span>API descubierta en código: <code>/api/mock/staff?dept=security</code></span>
+            <button
+              onClick={fetchStaffApi}
+              type="button"
+              className="ml-auto text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+            >
+              Consultar API de personal
+            </button>
+          </div>
+
+          {staffInfo && (
+            <div className="p-2.5 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 text-[11px] select-text">
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold block mb-1">
+                Datos de personal obtenidos:
+              </span>
+              <div>Nombre: {staffInfo.jefe_departamento?.nombre}</div>
+              <div>ID Empleado: <code>{staffInfo.jefe_departamento?.emp_id}</code></div>
+              <div>Token Autorización: <code>{staffInfo.jefe_departamento?.autorizacion}</code></div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+              2
+            </span>
+            <span>Forjar cabeceras <code>X-Employee-Id</code> y <code>Authorization</code></span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+              3
+            </span>
+            <span>Solicitar la flag final a <code>/api/mock/admin/flag</code></span>
+          </div>
         </div>
       </div>
 
-      <form onSubmit={handleExecuteChain} className="p-4 rounded border border-neutral-800 bg-neutral-950 space-y-3 font-mono text-xs">
+      <form
+        onSubmit={handleExecuteChain}
+        className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-3 font-mono text-xs"
+      >
         <div className="space-y-1">
-          <label className="text-neutral-400">Cabecera X-Employee-Id:</label>
+          <label className="text-neutral-600 dark:text-neutral-400">Cabecera X-Employee-Id:</label>
           <input
             type="text"
             value={empId}
             onChange={(e) => setEmpId(e.target.value)}
-            className="w-full px-2.5 py-1.5 rounded bg-neutral-900 border border-neutral-700 text-neutral-100"
+            className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
             placeholder="sec-9902"
           />
         </div>
 
         <div className="space-y-1">
-          <label className="text-neutral-400">Cabecera Authorization (Bearer Token):</label>
+          <label className="text-neutral-600 dark:text-neutral-400">
+            Cabecera Authorization (Bearer Token):
+          </label>
           <input
             type="text"
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            className="w-full px-2.5 py-1.5 rounded bg-neutral-900 border border-neutral-700 text-neutral-100"
+            className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
             placeholder="emergency_override_2026"
           />
         </div>
@@ -745,14 +1110,14 @@ function Level7Challenge({
           <div
             className={`p-3 rounded text-xs border ${
               response.status === 200
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
             }`}
           >
             <p className="font-bold">{response.mensaje || response.error}</p>
             {response.flag && (
-              <div className="mt-2 p-2 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-sm">
-                🏆 ¡HAS COMPLETADO LA CADENA FINAL! Flag: {response.flag}
+              <div className="mt-2 p-2.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 font-mono font-bold text-sm">
+                🏆 ¡HAS COMPLETADO LA CADENA FINAL DEL LABORATORIO! Bandera: {response.flag}
               </div>
             )}
           </div>
@@ -761,17 +1126,22 @@ function Level7Challenge({
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <button
             type="submit"
-            className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 rounded font-semibold cursor-pointer transition-colors"
+            className="px-4 py-2 bg-purple-600 dark:bg-purple-500 text-white font-bold rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
           >
-            Lanzar Petición al Servidor Central
+            Enviar Petición al Mainframe
           </button>
+
           <button
-            onClick={openTerminal}
+            onClick={() =>
+              openTerminalWithCommand(
+                'curl -H "X-Employee-Id: sec-9902" -H "Authorization: Bearer emergency_override_2026" /api/mock/admin/flag'
+              )
+            }
             type="button"
-            className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 rounded cursor-pointer transition-colors inline-flex items-center gap-1.5"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 text-xs cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors inline-flex items-center gap-1.5"
           >
-            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Lanzar con curl en la terminal</span>
+            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Ejecutar con curl en terminal</span>
           </button>
         </div>
       </form>
