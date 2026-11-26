@@ -4,13 +4,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   Send,
-  Sparkles,
   Terminal,
+  Code,
   Loader2,
-  HelpCircle,
-  Minimize2,
-  Maximize2,
-  Check,
+  Sparkles,
 } from 'lucide-react';
 import { sound } from '@/lib/audio';
 
@@ -23,8 +20,57 @@ interface PutoIsaacLabTutorProps {
   isTerminalOpen: boolean;
   recentTerminalCmds: string[];
   onExecuteCommand: (cmd: string) => void;
+  onOpenDevTools?: () => void;
+  onOpenTerminal?: () => void;
+  onHighlightTarget?: (target: 'devtools' | 'terminal' | null) => void;
   isLevelCompleted: boolean;
 }
+
+// Pistas rápidas y sarcásticas locales para no gastar tokens innecesariamente
+const SARCASMIC_QUIPS_PER_LEVEL: Record<number, { text: string; target: 'devtools' | 'terminal'; cmd?: string }> = {
+  1: {
+    text: 'A ver inútil, los desarrolladores dejaron comentarios en el HTML y un robots.txt. Abre Inspeccionar (F12) o tira de curl.',
+    target: 'devtools',
+    cmd: 'curl /lab/robots.txt',
+  },
+  2: {
+    text: '¿En serio te vas a quedar mirando un botón bloqueado con disabled? Cámbialo en el inspector o pon el precio a 0 en el DOM.',
+    target: 'devtools',
+  },
+  3: {
+    text: 'Esa cookie lab_session huele a Base64 desde el pasillo. Abre la terminal, decodifícala y ponle role admin.',
+    target: 'terminal',
+    cmd: 'base64 -d "eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9"',
+  },
+  4: {
+    text: '¿No sabes lo que es un IDOR? Tu factura es la 1042... cambia el número en la terminal con curl hasta ver la de dirección.',
+    target: 'terminal',
+    cmd: 'curl /api/mock/invoices?id=1001',
+  },
+  5: {
+    text: 'Pon una comilla simple en el usuario para romper el SQL. O escribe sqlmap en la terminal si quieres ir de hacker pro.',
+    target: 'terminal',
+    cmd: 'sqlmap -u "http://localhost/login" --batch',
+  },
+  6: {
+    text: 'Esa contraseña está en el diccionario sí o sí. Usa hydra en la terminal o lee el archivo con cat.',
+    target: 'terminal',
+    cmd: 'hydra -l admin -P /opt/wordlists/passwords.txt',
+  },
+  7: {
+    text: 'Primero saca el token de Elena Ramos con la API de personal por curl, y luego manda la cabecera al mainframe.',
+    target: 'terminal',
+    cmd: 'curl /api/mock/staff?dept=security',
+  },
+};
+
+const RANDOM_IDLE_SARCASTIC = [
+  '¿Qué miras? ¿Acaso tengo monos en la cara? Ponte a hackear.',
+  '¿Te vas a quedar mirándome o vas a picar algo en la terminal?',
+  'Venga espabila, que el título de 2º SMR no te lo van a regalar.',
+  'A ver si le damos al F12 de una vez y dejamos de lloriquear.',
+  'Menos clics en mi bolita y más auditoría de seguridad.',
+];
 
 export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
   currentLevelId,
@@ -35,19 +81,23 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
   isTerminalOpen,
   recentTerminalCmds,
   onExecuteCommand,
+  onOpenDevTools,
+  onOpenTerminal,
+  onHighlightTarget,
   isLevelCompleted,
 }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(true);
+  const [isBubbleOpen, setIsBubbleOpen] = useState(false);
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSquishing, setIsSquishing] = useState(false);
   const [userQuery, setUserQuery] = useState('');
   const [pupilOffset, setPupilOffset] = useState({ x: 0, y: 0 });
   const [isBlinking, setIsBlinking] = useState(false);
   const [talkPhoneme, setTalkPhoneme] = useState(0);
-  const [extractedCommand, setExtractedCommand] = useState<string | null>(null);
+  const [suggestedTarget, setSuggestedTarget] = useState<'devtools' | 'terminal' | null>(null);
+  const [suggestedCmd, setSuggestedCmd] = useState<string | null>(null);
 
   // Control de estancamiento
   const [secondsOnLevel, setSecondsOnLevel] = useState(0);
@@ -55,7 +105,7 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
   const typewriterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mascotRef = useRef<HTMLDivElement>(null);
 
-  // Contador de tiempo en el nivel activo
+  // Contador de tiempo en el nivel
   useEffect(() => {
     setSecondsOnLevel(0);
     const interval = setInterval(() => {
@@ -80,8 +130,8 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
         const angle = Math.atan2(dy, dx);
         const dist = Math.min(Math.hypot(dx, dy) / 100, 1);
         setPupilOffset({
-          x: Math.cos(angle) * dist * 2.5,
-          y: Math.sin(angle) * dist * 2.5,
+          x: Math.cos(angle) * dist * 2.2,
+          y: Math.sin(angle) * dist * 2.2,
         });
       });
     };
@@ -102,8 +152,8 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
         setTimeout(() => {
           setIsBlinking(false);
           loopBlink();
-        }, 150);
-      }, 3500 + Math.random() * 3000);
+        }, 140);
+      }, 3000 + Math.random() * 3500);
     };
     loopBlink();
     return () => clearTimeout(timeout);
@@ -117,7 +167,7 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
     }
     const interval = setInterval(() => {
       setTalkPhoneme((p) => (p + 1) % 4);
-    }, 100);
+    }, 90);
     return () => clearInterval(interval);
   }, [isTalking]);
 
@@ -125,277 +175,254 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
   const startTypewriter = useCallback((fullText: string) => {
     if (typewriterTimeoutRef.current) clearTimeout(typewriterTimeoutRef.current);
 
-    // Extraer comando [CMD:...]
-    const cmdMatch = fullText.match(/\[CMD:([^\]]+)\]/i);
-    if (cmdMatch) {
-      setExtractedCommand(cmdMatch[1].trim());
-    } else {
-      setExtractedCommand(null);
-    }
-
-    const cleanText = fullText.replace(/\[CMD:[^\]]+\]/gi, '').trim();
-
     setDisplayedText('');
     setIsTyping(true);
     setIsTalking(true);
 
     let idx = 0;
     const typeNext = () => {
-      if (idx <= cleanText.length) {
-        setDisplayedText(cleanText.slice(0, idx));
-        const char = cleanText[idx - 1];
+      if (idx <= fullText.length) {
+        setDisplayedText(fullText.slice(0, idx));
+        const char = fullText[idx - 1];
         if (char && char.trim() !== '' && idx % 2 === 0) {
           try {
             sound.isaacChirp(char, idx);
           } catch {}
         }
         idx++;
-        const delay = char === '.' || char === '!' || char === '?' ? 60 : 20;
+        const delay = char === '.' || char === '!' || char === '?' ? 50 : 18;
         typewriterTimeoutRef.current = setTimeout(typeNext, delay);
       } else {
-        setDisplayedText(cleanText);
+        setDisplayedText(fullText);
         setIsTyping(false);
         setIsTalking(false);
       }
     };
-    typewriterTimeoutRef.current = setTimeout(typeNext, 50);
+
+    typewriterTimeoutRef.current = setTimeout(typeNext, 40);
   }, []);
 
-  // Solicitar pista a la IA (OpenCode / Isaac API)
-  const askIsaacForHint = useCallback(
-    async (promptCustom?: string) => {
-      setIsLoading(true);
-      try {
-        const res = await fetch('/api/ai/isaac', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt:
-              promptCustom ||
-              `Estoy atascado en el Nivel ${currentLevelId} (${levelTitle}). Llevo ${failedAttempts} fallos y ${secondsOnLevel} segundos intentándolo. Dame una pista sutil.`,
-            mode: 'lab',
-            context: {
-              isLab: true,
-              levelId: currentLevelId,
-              failedAttempts,
-              timeSpentSec: secondsOnLevel,
-              activeTab,
-              activeDevTab: isDevToolsOpen ? 'DevTools Abierto' : 'Cerrado',
-              recentCmds: recentTerminalCmds,
-            },
-          }),
-        });
+  // Disparar pista sarcástica
+  const deliverHint = useCallback(
+    (customText?: string, target?: 'devtools' | 'terminal' | null, cmd?: string) => {
+      setIsBubbleOpen(true);
+      const textToSay = customText || SARCASMIC_QUIPS_PER_LEVEL[currentLevelId]?.text || 'A ver socio, inspecciona bien la pantalla.';
+      const chosenTarget = target !== undefined ? target : SARCASMIC_QUIPS_PER_LEVEL[currentLevelId]?.target || null;
+      const chosenCmd = cmd !== undefined ? cmd : SARCASMIC_QUIPS_PER_LEVEL[currentLevelId]?.cmd || null;
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.reply) {
-            startTypewriter(data.reply);
-          }
-        } else {
-          startTypewriter(
-            '¡Epa socio! Parece que se me han cruzado los cables con el servidor. Revisa el código del reto o mira la pestaña de pistas mientras me recupero.'
-          );
-        }
-      } catch {
-        startTypewriter(
-          '¡Epa socio! Se me ha ido la conexión con el servidor. Pero no te rindas: inspecciona el DOM o prueba comandos con curl en la terminal.'
-        );
-      } finally {
-        setIsLoading(false);
+      setSuggestedTarget(chosenTarget);
+      setSuggestedCmd(chosenCmd);
+
+      if (chosenTarget && onHighlightTarget) {
+        onHighlightTarget(chosenTarget);
       }
+
+      startTypewriter(textToSay);
     },
-    [
-      currentLevelId,
-      levelTitle,
-      failedAttempts,
-      secondsOnLevel,
-      activeTab,
-      isDevToolsOpen,
-      recentTerminalCmds,
-      startTypewriter,
-    ]
+    [currentLevelId, onHighlightTarget, startTypewriter]
   );
 
-  // DETECCIÓN DE ESTANCAMIENTO ("APARECE DE REPENTE SOLO CUANDO ESTÁN MUY ESTANCADOS")
-  useEffect(() => {
-    if (isLevelCompleted) return;
+  // Solicitar a la IA en caso de duda personalizada
+  const askIsaacAI = async (promptQuery: string) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/ai/isaac', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: promptQuery,
+          mode: 'lab',
+          context: {
+            isLab: true,
+            levelId: currentLevelId,
+            failedAttempts,
+            timeSpentSec: secondsOnLevel,
+            activeTab,
+            activeDevTab: isDevToolsOpen ? 'DevTools Abierto' : 'Cerrado',
+            recentCmds: recentTerminalCmds,
+          },
+        }),
+      });
 
-    // Condición 1: 2 o más intentos de bandera fallidos
-    const isStuckByFailures = failedAttempts >= 2;
-    // Condición 2: Más de 75 segundos en el nivel sin resolverlo
-    const isStuckByTime = secondsOnLevel >= 75;
+      if (res.ok) {
+        const data = await res.json();
+        const reply = data.reply || 'Venga socio, no te rindas tan rápido.';
+        
+        // Detectar si sugiere DevTools o terminal
+        let target: 'devtools' | 'terminal' | null = null;
+        if (/f12|inspeccion|devtools|consola|dom|cookie/i.test(reply)) {
+          target = 'devtools';
+        } else if (/terminal|curl|nmap|gobuster|hydra|sqlmap/i.test(reply)) {
+          target = 'terminal';
+        }
 
-    const alreadyTriggeredForLevel = hasTriggeredRef.current[currentLevelId];
-
-    if ((isStuckByFailures || isStuckByTime) && !alreadyTriggeredForLevel) {
-      hasTriggeredRef.current[currentLevelId] = true;
-      setIsVisible(true);
-      setIsMinimized(false);
-
-      try {
-        sound.whoosh();
-      } catch {}
-
-      askIsaacForHint();
-    }
-  }, [
-    failedAttempts,
-    secondsOnLevel,
-    currentLevelId,
-    isLevelCompleted,
-    askIsaacForHint,
-  ]);
-
-  const handleManualOpen = () => {
-    setIsVisible(true);
-    setIsMinimized(false);
-    if (!displayedText) {
-      askIsaacForHint();
+        deliverHint(reply, target);
+      } else {
+        deliverHint('¡Epa! No me satures los tokens. Mira lo que tienes en pantalla.');
+      }
+    } catch {
+      deliverHint('Se ha caído la conexión. Espabila tú solo con el Inspector o la terminal.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDismiss = () => {
-    setIsMinimized(true);
+  // Trigger por estancamiento (aparece de repente cuando están atascados)
+  useEffect(() => {
+    if (isLevelCompleted) return;
+
+    const isStuckByFailures = failedAttempts >= 2;
+    const isStuckByTime = secondsOnLevel >= 60;
+    const alreadyTriggered = hasTriggeredRef.current[currentLevelId];
+
+    if ((isStuckByFailures || isStuckByTime) && !alreadyTriggered) {
+      hasTriggeredRef.current[currentLevelId] = true;
+      try {
+        sound.whoosh();
+      } catch {}
+      deliverHint();
+    }
+  }, [failedAttempts, secondsOnLevel, currentLevelId, isLevelCompleted, deliverHint]);
+
+  // Click en la esfera de Isaac
+  const handleBallClick = () => {
+    setIsSquishing(true);
+    try {
+      sound.isaacPop();
+    } catch {}
+    setTimeout(() => setIsSquishing(false), 450);
+
+    if (!isBubbleOpen) {
+      deliverHint();
+    } else {
+      // Si ya está abierto, decir una frase sarcástica aleatoria
+      const randomText = RANDOM_IDLE_SARCASTIC[Math.floor(Math.random() * RANDOM_IDLE_SARCASTIC.length)];
+      deliverHint(randomText, null, undefined);
+    }
+  };
+
+  const handleCloseBubble = () => {
+    setIsBubbleOpen(false);
+    if (onHighlightTarget) {
+      onHighlightTarget(null);
+    }
+  };
+
+  const handleActionClick = () => {
+    if (suggestedTarget === 'devtools' && onOpenDevTools) {
+      onOpenDevTools();
+      if (onHighlightTarget) onHighlightTarget(null);
+    } else if (suggestedTarget === 'terminal') {
+      if (suggestedCmd) {
+        onExecuteCommand(suggestedCmd);
+      } else if (onOpenTerminal) {
+        onOpenTerminal();
+      }
+      if (onHighlightTarget) onHighlightTarget(null);
+    }
+    setIsBubbleOpen(false);
   };
 
   const handleSubmitQuestion = (e: React.FormEvent) => {
     e.preventDefault();
     if (!userQuery.trim() || isLoading || isTyping) return;
-    const query = userQuery.trim();
+    const q = userQuery.trim().slice(0, 140);
     setUserQuery('');
-    askIsaacForHint(query);
+    askIsaacAI(q);
   };
 
-  if (isLevelCompleted && isMinimized) return null;
+  if (isLevelCompleted) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 select-none font-sans">
-      {/* Botón flotante minimizado de PutoIsaac */}
-      {isMinimized && (
-        <button
-          onClick={handleManualOpen}
-          type="button"
-          className="group flex items-center gap-2.5 px-3.5 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-mono text-xs font-bold shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-amber-300/40"
-          title="Pedir ayuda a PUTOISAAC (IA Tutor de 2º SMR)"
-        >
-          {/* Pequeña esfera animada */}
-          <span className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-600 shadow-inner">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-200" />
-            <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
-            </span>
-          </span>
-          <span className="tracking-tight">PUTOISAAC</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 text-amber-100 font-normal hidden sm:inline">
-            Tutor IA
-          </span>
-        </button>
-      )}
+    <div className="fixed bottom-5 right-5 z-40 select-none font-sans flex flex-col items-end pointer-events-none">
+      <style jsx>{`
+        @keyframes putoFloat {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg);
+          }
+          25% {
+            transform: translateY(-4px) rotate(1.2deg);
+          }
+          50% {
+            transform: translateY(-8px) rotate(-1deg);
+          }
+          75% {
+            transform: translateY(-3px) rotate(0.8deg);
+          }
+        }
+        @keyframes putoSquish {
+          0% {
+            transform: scale(1, 1);
+          }
+          25% {
+            transform: scale(1.28, 0.74);
+          }
+          50% {
+            transform: scale(0.88, 1.16);
+          }
+          75% {
+            transform: scale(1.06, 0.96);
+          }
+          100% {
+            transform: scale(1, 1);
+          }
+        }
+        @keyframes shadowPulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 0.35;
+          }
+          50% {
+            transform: scale(0.68);
+            opacity: 0.16;
+          }
+        }
+        @keyframes thinkPulse {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4), inset 0 2px 6px rgba(255, 255, 255, 0.8);
+          }
+          50% {
+            box-shadow: 0 0 16px 4px rgba(245, 158, 11, 0.65), inset 0 2px 6px rgba(255, 255, 255, 0.95);
+          }
+        }
+      `}</style>
 
-      {/* Tarjeta emergente interactiva de PutoIsaac ("Aparece de repente") */}
-      {!isMinimized && (
-        <div className="w-[22rem] sm:w-[26rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-amber-400/40 dark:border-amber-500/30 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl shadow-2xl p-4 text-neutral-900 dark:text-neutral-100 transition-all animate-in fade-in slide-in-from-bottom-4 duration-200 flex flex-col gap-3 font-sans">
+      {/* Bocadillo de diálogo flotando ENCIMA de la esfera con puntero triangular */}
+      {isBubbleOpen && (
+        <div className="pointer-events-auto relative mb-3 mr-1 w-72 sm:w-80 rounded-2xl border border-amber-500/40 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md shadow-2xl p-3.5 text-neutral-900 dark:text-neutral-100 animate-in fade-in zoom-in-95 duration-200">
           
-          {/* Cabecera del bocadillo de Isaac */}
-          <div className="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800 pb-2.5">
-            <div className="flex items-center gap-2.5">
-              {/* Avatar procedimental de PutoIsaac */}
-              <div
-                ref={mascotRef}
-                className="relative w-8 h-8 rounded-full bg-gradient-to-tr from-orange-600 via-amber-500 to-amber-400 shadow-md flex items-center justify-center overflow-hidden shrink-0 border border-amber-300/60"
-              >
-                {/* Ojos expresivos */}
-                <div className="absolute inset-x-1.5 top-2 flex justify-between">
-                  {/* Ojo izquierdo */}
-                  <div
-                    className={`w-1.5 h-2 rounded-full bg-neutral-950 transition-all flex items-center justify-center overflow-hidden ${
-                      isBlinking ? 'scale-y-[0.1]' : 'scale-y-100'
-                    }`}
-                  >
-                    <div
-                      className="w-0.5 h-0.5 rounded-full bg-white transition-transform"
-                      style={{
-                        transform: `translate(${pupilOffset.x}px, ${pupilOffset.y}px)`,
-                      }}
-                    />
-                  </div>
-                  {/* Ojo derecho */}
-                  <div
-                    className={`w-1.5 h-2 rounded-full bg-neutral-950 transition-all flex items-center justify-center overflow-hidden ${
-                      isBlinking ? 'scale-y-[0.1]' : 'scale-y-100'
-                    }`}
-                  >
-                    <div
-                      className="w-0.5 h-0.5 rounded-full bg-white transition-transform"
-                      style={{
-                        transform: `translate(${pupilOffset.x}px, ${pupilOffset.y}px)`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Boca animada */}
-                <div
-                  className={`absolute bottom-1.5 w-2 bg-neutral-950 rounded-full transition-all ${
-                    isTalking
-                      ? talkPhoneme === 0
-                        ? 'h-1 w-2 rounded-full'
-                        : talkPhoneme === 1
-                        ? 'h-1.5 w-1.5 rounded-full'
-                        : talkPhoneme === 2
-                        ? 'h-0.5 w-2.5'
-                        : 'h-1.5 w-2 rounded-full'
-                      : 'h-0.5 w-1.5'
-                  }`}
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-xs font-bold text-orange-600 dark:text-amber-400">
-                    PUTOISAAC
-                  </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold">
-                    Tutor SMR2
-                  </span>
-                </div>
-                <span className="text-[10px] text-neutral-500 block">
-                  Te está viendo atascado en el Nivel {currentLevelId}
-                </span>
-              </div>
+          {/* Cabecera del bocadillo */}
+          <div className="flex items-center justify-between pb-2 border-b border-neutral-200 dark:border-neutral-800">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+              <span className="font-mono text-xs font-bold text-orange-600 dark:text-amber-400">
+                PUTOISAAC
+              </span>
+              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold">
+                Tutor
+              </span>
             </div>
 
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handleDismiss}
-                type="button"
-                className="p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors cursor-pointer"
-                title="Minimizar a Isaac"
-              >
-                <Minimize2 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={handleDismiss}
-                type="button"
-                className="p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors cursor-pointer"
-                title="Cerrar pista"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            <button
+              onClick={handleCloseBubble}
+              type="button"
+              className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors cursor-pointer"
+              title="Cerrar bocadillo"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          {/* Mensaje de Isaac con efecto mecanografiado */}
-          <div className="text-xs sm:text-[13px] leading-relaxed text-neutral-800 dark:text-neutral-200 font-sans min-h-[3.5rem] bg-neutral-50 dark:bg-neutral-950/60 p-3 rounded-xl border border-neutral-200 dark:border-neutral-800/80">
+          {/* Mensaje corto y sarcástico */}
+          <div className="py-2.5 text-xs text-neutral-800 dark:text-neutral-200 leading-relaxed min-h-[2.5rem]">
             {isLoading ? (
-              <div className="flex items-center gap-2 text-neutral-500 text-xs py-2 font-mono">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
-                <span>Mirando lo que estás haciendo en pantalla...</span>
+              <div className="flex items-center gap-2 text-neutral-500 font-mono text-[11px]">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500" />
+                <span>Mirando tu pantalla con cara de desprecio...</span>
               </div>
             ) : (
-              <div className="space-y-2 select-text">
-                <p>{displayedText || '¡Epa socio! Aquí estoy por si te atascas.'}</p>
+              <div>
+                <p className="font-sans select-text">{displayedText || '¡Epa socio! Aquí estoy.'}</p>
                 {isTyping && (
                   <span className="inline-block w-1.5 h-3 bg-amber-500 animate-pulse ml-0.5 align-middle" />
                 )}
@@ -403,56 +430,183 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
             )}
           </div>
 
-          {/* Botón de acción rápida si Isaac sugiere un comando */}
-          {extractedCommand && (
-            <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono">
-              <div className="flex items-center gap-1.5 truncate text-emerald-700 dark:text-emerald-400">
-                <Terminal className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">&gt; {extractedCommand}</span>
-              </div>
+          {/* Botón de acción destacado si Isaac sugiere herramienta */}
+          {suggestedTarget && (
+            <div className="mt-1 mb-2">
               <button
-                onClick={() => onExecuteCommand(extractedCommand)}
+                onClick={handleActionClick}
                 type="button"
-                className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[11px] font-bold cursor-pointer transition-colors shrink-0 shadow-sm"
+                className="w-full py-1.5 px-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-mono text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
               >
-                Ejecutar en terminal
+                {suggestedTarget === 'devtools' ? (
+                  <>
+                    <Code className="w-3.5 h-3.5" />
+                    <span>Abrir Inspeccionar (F12) ↗</span>
+                  </>
+                ) : (
+                  <>
+                    <Terminal className="w-3.5 h-3.5" />
+                    <span>{suggestedCmd ? `Ejecutar: ${suggestedCmd}` : 'Abrir Terminal (Kali) ↗'}</span>
+                  </>
+                )}
               </button>
             </div>
           )}
 
-          {/* Pie interactivo: Pregunta directa a Isaac */}
-          <form onSubmit={handleSubmitQuestion} className="flex items-center gap-1.5 pt-0.5">
+          {/* Formulario rápido para preguntarle algo si está atascado */}
+          <form onSubmit={handleSubmitQuestion} className="flex items-center gap-1 pt-1 border-t border-neutral-100 dark:border-neutral-800">
             <input
               type="text"
               value={userQuery}
               onChange={(e) => setUserQuery(e.target.value)}
-              placeholder="¿Qué no entiendes? Pregúntale a Isaac..."
+              placeholder="¿Qué no pillas? (máx 140 c.)"
+              maxLength={140}
               disabled={isLoading || isTyping}
-              className="flex-1 px-3 py-1.5 rounded-xl bg-neutral-100 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-800 text-xs font-sans text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-amber-500"
+              className="flex-1 px-2.5 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-[11px] font-sans text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-amber-500"
             />
             <button
               type="submit"
               disabled={!userQuery.trim() || isLoading || isTyping}
-              className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:opacity-90 disabled:opacity-40 transition-opacity cursor-pointer shadow-sm"
-              title="Preguntar a Isaac"
+              className="p-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-40 transition-colors cursor-pointer"
             >
-              <Send className="w-3.5 h-3.5" />
+              <Send className="w-3 h-3" />
             </button>
           </form>
 
-          <div className="flex items-center justify-between text-[10px] text-neutral-400 font-mono pt-0.5">
-            <span>Isaac no te dará la flag directamente (regla de oro)</span>
-            <button
-              type="button"
-              onClick={() => askIsaacForHint()}
-              disabled={isLoading || isTyping}
-              className="text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
-            >
-              Pedir otra pista
-            </button>
-          </div>
+          {/* Triángulo puntero hacia la esfera de Isaac */}
+          <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-white dark:bg-neutral-900 border-r border-b border-amber-500/40 transform rotate-45" />
         </div>
       )}
+
+      {/* Mascota física esférica PUTOISAAC auténtica */}
+      <div
+        ref={mascotRef}
+        onClick={handleBallClick}
+        className="pointer-events-auto group relative flex flex-col items-center cursor-pointer select-none transition-all duration-300 active:scale-95"
+        style={{
+          animation: isSquishing
+            ? 'putoSquish 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            : 'putoFloat 4s ease-in-out infinite',
+        }}
+        title="Toca a PUTOISAAC para que te suelte una pista o una pulla"
+      >
+        {/* Cartelito minimalista superior con el nombre */}
+        <div className="mb-1 px-2 py-0.5 rounded-full bg-white/90 dark:bg-neutral-900/90 text-neutral-800 dark:text-neutral-200 border border-neutral-200/80 dark:border-neutral-800 text-[9px] font-semibold tracking-wider font-mono shadow-xs transition-all group-hover:scale-105 flex items-center gap-1 backdrop-blur-xs">
+          <span className={`w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-orange-500 animate-ping' : isTalking ? 'bg-orange-500 animate-pulse' : 'bg-orange-500'}`} />
+          <span>PUTOISAAC</span>
+        </div>
+
+        {/* Esfera física táctil de PUTOISAAC con brillo y sombra 3D */}
+        <div
+          className={`w-12 h-12 rounded-full bg-gradient-to-tr from-amber-600 via-orange-500 to-amber-400 border border-white/60 dark:border-white/20 shadow-lg shadow-orange-500/30 flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:scale-105 ${
+            isLoading ? 'ring-2 ring-orange-500/50 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950' : ''
+          }`}
+          style={{
+            boxShadow: isLoading
+              ? '0 0 20px rgba(249, 115, 22, 0.4), inset 0 2px 4px rgba(255,255,255,0.6)'
+              : '0 8px 20px rgba(249, 115, 22, 0.3), inset 0 2px 4px rgba(255,255,255,0.5)',
+            animation: isLoading ? 'thinkPulse 2s ease-in-out infinite' : undefined,
+          }}
+        >
+          {/* Brillo especular superior de vidrio */}
+          <div className="absolute top-1 left-1.5 w-3.5 h-1.5 rounded-full bg-white/55 blur-[0.3px] transform -rotate-12 pointer-events-none" />
+
+          {/* Cara expresiva de PUTOISAAC */}
+          <div className="flex flex-col items-center justify-center relative z-10 space-y-0.5 mt-0.5">
+            {/* Cejas sarcásticas reactivas */}
+            <div className="flex items-center gap-2 mb-0.5">
+              <div
+                className="w-1.5 h-[1.5px] bg-neutral-950/80 rounded-full transition-transform duration-150"
+                style={{
+                  transform: isLoading
+                    ? 'translateY(-2px) rotate(-10deg)'
+                    : isTalking && talkPhoneme % 2 === 1
+                    ? 'translateY(-1.5px) rotate(4deg)'
+                    : 'translateY(-1px) rotate(-6deg)',
+                }}
+              />
+              <div
+                className="w-1.5 h-[1.5px] bg-neutral-950/80 rounded-full transition-transform duration-150"
+                style={{
+                  transform: isLoading
+                    ? 'translateY(-3px) rotate(14deg)'
+                    : isTalking && talkPhoneme % 2 === 1
+                    ? 'translateY(-1.5px) rotate(-4deg)'
+                    : 'translateY(-2px) rotate(8deg)',
+                }}
+              />
+            </div>
+
+            {/* Ojos expresivos con seguimiento ocular de cursor y parpadeo orgánico */}
+            <div className="flex items-center gap-1.5">
+              {/* Ojo Izquierdo */}
+              <div
+                className={`w-2.5 h-3 rounded-full bg-neutral-950 transition-all duration-100 flex items-center justify-center relative overflow-hidden ${
+                  isBlinking ? '!h-[1px] !w-2.5 my-1.5 !bg-neutral-900' : ''
+                }`}
+              >
+                {!isBlinking && (
+                  <div
+                    className="w-1 h-1 rounded-full bg-white absolute transition-transform duration-75"
+                    style={{
+                      transform: isLoading
+                        ? 'translate(0.6px, -0.9px)'
+                        : `translate(${pupilOffset.x * 0.45}px, ${pupilOffset.y * 0.45}px)`,
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Ojo Derecho */}
+              <div
+                className={`w-2.5 h-3 rounded-full bg-neutral-950 transition-all duration-100 flex items-center justify-center relative overflow-hidden ${
+                  isBlinking ? '!h-[1px] !w-2.5 my-1.5 !bg-neutral-900' : ''
+                }`}
+              >
+                {!isBlinking && (
+                  <div
+                    className="w-1 h-1 rounded-full bg-white absolute transition-transform duration-75"
+                    style={{
+                      transform: isLoading
+                        ? 'translate(0.6px, -0.9px)'
+                        : `translate(${pupilOffset.x * 0.45}px, ${pupilOffset.y * 0.45}px)`,
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Boca sincronizada por fonemas y mueca sarcástica */}
+            <div className="h-2 flex items-center justify-center pt-0.5">
+              {isTalking ? (
+                <div
+                  className={`transition-all duration-75 bg-neutral-950 ${
+                    talkPhoneme === 0
+                      ? 'w-2.5 h-1.5 rounded-full'
+                      : talkPhoneme === 1
+                      ? 'w-1.5 h-2 rounded-full'
+                      : talkPhoneme === 2
+                      ? 'w-2.5 h-1 rounded-b-full'
+                      : 'w-2 h-1.5 rounded-full'
+                  }`}
+                />
+              ) : isLoading ? (
+                <div className="w-1.5 h-1.5 rounded-full border border-neutral-950 animate-pulse" />
+              ) : (
+                <div className="w-2 h-1 border-b-[1.5px] border-neutral-950 rounded-full translate-x-0.5" />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sombra de suelo dinámica */}
+        <div
+          className="w-7 h-1 rounded-full bg-black/20 dark:bg-black/50 blur-[1px] mt-1 transition-all pointer-events-none"
+          style={{
+            animation: 'shadowPulse 4s ease-in-out infinite',
+          }}
+        />
+      </div>
     </div>
   );
 };

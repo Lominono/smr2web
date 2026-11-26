@@ -98,8 +98,6 @@ function Level1Challenge({
   onFlagDiscovered: (f: string) => void;
   openTerminalWithCommand: (cmd: string) => void;
 }) {
-  const [showSourceCode, setShowSourceCode] = useState(false);
-
   return (
     <div className="space-y-4">
       <div className="p-4 sm:p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-4">
@@ -116,13 +114,18 @@ function Level1Challenge({
         </div>
 
         <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-          Los desarrolladores de SecureCorp han dejado comentarios en el código HTML con rutas a
-          archivos confidenciales y copias de seguridad. Usa <strong>Inspeccionar elemento (F12)</strong> en
-          tu navegador, consulta el visor de código o lanza un comando en la <strong>Terminal</strong>.
+          Los desarrolladores de SecureCorp han dejado rutas confidenciales y comentarios olvidados
+          en el código del portal. <strong>No hay botones trampa</strong>: debes abrir el modo{' '}
+          <strong>Inspeccionar (F12)</strong> de tu navegador (o el visor DevTools integrado) para
+          inspeccionar el árbol DOM, o usar la <strong>Terminal</strong> para consultar{' '}
+          <code>/lab/robots.txt</code>.
         </p>
 
         {/* Portal simulado en el DOM con comentario deliberado */}
-        <div className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-4 select-text">
+        <div
+          id="securecorp-portal-root"
+          className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-4 select-text"
+        >
           <div className="flex items-center justify-between text-xs">
             <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono tracking-wider">
               SECURECORP // CLOUD DEFENSE
@@ -161,84 +164,42 @@ function Level1Challenge({
           */}
         </div>
 
-        {/* Acciones directas e inspector de código */}
-        <div className="space-y-3 pt-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setShowSourceCode(!showSourceCode)}
-              type="button"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 font-mono text-xs hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
-            >
-              <Code className="w-3.5 h-3.5 text-neutral-500" />
-              <span>{showSourceCode ? 'Ocultar código HTML' : 'Ver código fuente del portal'}</span>
-            </button>
-
+        {/* Indicaciones para auditoría con Terminal de Kali Linux */}
+        <div className="p-3.5 bg-neutral-100/70 dark:bg-neutral-950/70 rounded-lg border border-neutral-200 dark:border-neutral-800 space-y-2">
+          <span className="font-mono text-[11px] text-neutral-700 dark:text-neutral-300 font-bold block flex items-center gap-1.5">
+            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Auditoría con Terminal (Comandos disponibles):</span>
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
             <button
               onClick={() => openTerminalWithCommand('curl /lab/robots.txt')}
               type="button"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-mono text-xs transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-emerald-500 cursor-pointer text-[11px] inline-flex items-center gap-1 transition-colors"
             >
-              <Terminal className="w-3.5 h-3.5" />
-              <span>curl /lab/robots.txt</span>
+              <Terminal className="w-3 h-3 text-emerald-500" />
+              <span>&gt; curl /lab/robots.txt</span>
+            </button>
+            <button
+              onClick={() => openTerminalWithCommand('nmap localhost')}
+              type="button"
+              className="px-2.5 py-1 rounded bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-emerald-500 cursor-pointer text-[11px] inline-flex items-center gap-1 transition-colors"
+            >
+              <Terminal className="w-3 h-3 text-emerald-500" />
+              <span>&gt; nmap localhost</span>
+            </button>
+            <button
+              onClick={() =>
+                openTerminalWithCommand(
+                  'gobuster dir -u http://localhost -w /usr/share/wordlists/dirb/common.txt'
+                )
+              }
+              type="button"
+              className="px-2.5 py-1 rounded bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-emerald-500 cursor-pointer text-[11px] inline-flex items-center gap-1 transition-colors"
+            >
+              <Terminal className="w-3 h-3 text-emerald-500" />
+              <span>&gt; gobuster dir</span>
             </button>
           </div>
-
-          {/* Botones rápidos de herramientas Kali Linux */}
-          <div className="p-3 bg-neutral-100/70 dark:bg-neutral-950/70 rounded-lg border border-neutral-200 dark:border-neutral-800 space-y-1.5">
-            <span className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400 uppercase font-bold block">
-              Herramientas de Reconocimiento Kali Linux:
-            </span>
-            <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
-              <button
-                onClick={() => openTerminalWithCommand('nmap localhost')}
-                type="button"
-                className="px-2.5 py-1 rounded bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-emerald-500 cursor-pointer text-[11px] inline-flex items-center gap-1"
-              >
-                <Terminal className="w-3 h-3 text-emerald-500" />
-                <span>&gt; nmap localhost</span>
-              </button>
-              <button
-                onClick={() =>
-                  openTerminalWithCommand(
-                    'gobuster dir -u http://localhost -w /usr/share/wordlists/dirb/common.txt'
-                  )
-                }
-                type="button"
-                className="px-2.5 py-1 rounded bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-emerald-500 cursor-pointer text-[11px] inline-flex items-center gap-1"
-              >
-                <Terminal className="w-3 h-3 text-emerald-500" />
-                <span>&gt; gobuster (fuzzing)</span>
-              </button>
-              <button
-                onClick={() => openTerminalWithCommand('nikto -h http://localhost')}
-                type="button"
-                className="px-2.5 py-1 rounded bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-emerald-500 cursor-pointer text-[11px] inline-flex items-center gap-1"
-              >
-                <Terminal className="w-3 h-3 text-emerald-500" />
-                <span>&gt; nikto -h localhost</span>
-              </button>
-            </div>
-          </div>
-
-          {showSourceCode && (
-            <div className="p-3.5 rounded-lg bg-neutral-900 border border-neutral-800 font-mono text-xs text-neutral-300 overflow-x-auto leading-relaxed">
-              <span className="text-neutral-500 text-[10px] uppercase block mb-1">
-                // Árbol DOM del portal con comentarios sin minificar:
-              </span>
-              <pre className="text-[11px] text-neutral-300">{`<!-- SecureCorp Frontend Source -->
-<div class="portal-root">
-  <div class="portal-header">SECURECORP // CLOUD DEFENSE</div>
-  <div class="portal-body">...</div>
-  <!--
-    TODO DE DESARROLLO (QUITAR ANTES DE PRODUCCIÓN):
-    - Fichero de exclusión de robots disponible en: /lab/robots.txt
-    - Copia de seguridad de notas de contingencia: /backup/staff_notes.txt
-    - Flag del equipo de infraestructura: FLAG{DOM_C0MM3NTS_4ND_R0B0TS}
-  -->
-  <footer>© 2026 SecureCorp IT Solutions.</footer>
-</div>`}</pre>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -261,35 +222,55 @@ function Level2Challenge({
   const [domPrice, setDomPrice] = useState(500);
   const [isButtonDisabled, setIsButtonDisabled] = useState(true);
 
+  // Sincronizar sessionStorage y observar mutaciones directas en el DOM desde DevTools
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem('lab_user_balance');
-      if (stored) {
+      if (stored !== null) {
         setBalance(Number(stored) || 0);
       } else {
         sessionStorage.setItem('lab_user_balance', '0');
+        setBalance(0);
       }
     }
+
+    // Intervalo de sincronización con la consola de DevTools
+    const interval = setInterval(() => {
+      if (typeof window !== 'undefined') {
+        const currentBal = Number(sessionStorage.getItem('lab_user_balance') || 0);
+        setBalance(currentBal);
+
+        const btn = document.getElementById('btnBuy') as HTMLButtonElement | null;
+        if (btn) {
+          setIsButtonDisabled(btn.disabled);
+        }
+
+        const inputPrice = document.getElementById('checkoutPrice') as HTMLInputElement | null;
+        if (inputPrice) {
+          const val = Number(inputPrice.value);
+          if (!isNaN(val)) setDomPrice(val);
+        }
+      }
+    }, 400);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleBuy = (e: React.FormEvent) => {
     e.preventDefault();
     const currentSessionBal = Number(sessionStorage.getItem('lab_user_balance') || 0);
+    const inputPrice = document.getElementById('checkoutPrice') as HTMLInputElement | null;
+    const currentPrice = inputPrice ? Number(inputPrice.value) : domPrice;
 
-    if (domPrice <= 0 || currentSessionBal >= 500) {
+    if (currentPrice <= 0 || currentSessionBal >= 500) {
       setPurchaseSuccess(true);
       setErrorMsg('');
       onFlagDiscovered('FLAG{N3V3R_TRUST_CL13NT_S1D3}');
     } else {
       setErrorMsg(
-        'Error: Saldo insuficiente (0 €) para abonar 500 €. Modifica el precio a 0 € o aumenta sessionStorage.'
+        `Error: Saldo insuficiente (${currentSessionBal} € en sessionStorage). El botón de compra y el precio deben modificarse mediante DevTools (Inspeccionar) o mediante la Terminal.`
       );
     }
-  };
-
-  const handleUpdateSessionStorage = (newBal: number) => {
-    sessionStorage.setItem('lab_user_balance', String(newBal));
-    setBalance(newBal);
   };
 
   return (
@@ -298,7 +279,7 @@ function Level2Challenge({
         <div className="flex items-center gap-2">
           <ShoppingCart className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           <span className="font-bold text-sm text-neutral-800 dark:text-neutral-200">
-            Pasarela de Certificación Oficial
+            Pasarela de Certificación Oficial (Validación Cliente)
           </span>
         </div>
         <span className="text-xs font-mono text-amber-600 dark:text-amber-400 font-semibold">
@@ -307,16 +288,27 @@ function Level2Challenge({
       </div>
 
       <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-        El botón está bloqueado con <code>disabled</code> y el precio es de 500 €. Puedes
-        resolverlo usando <strong>F12</strong> en la página real, o probando el simulador de
-        manipulación de atributos DOM y de <code>sessionStorage</code> que se muestra a continuación.
+        El botón de compra está bloqueado con el atributo <code>disabled</code> y el precio es de 500 €.
+        El desarrollador confió únicamente en JavaScript y atributos HTML. Para superar este reto:
       </p>
 
-      {/* Formulario de compra */}
+      <div className="p-3.5 rounded-lg bg-neutral-100/70 dark:bg-neutral-950/70 border border-neutral-200 dark:border-neutral-800 text-xs font-mono space-y-1.5 text-neutral-700 dark:text-neutral-300">
+        <div>1. Abre <strong>DevTools (F12)</strong> -&gt; Pestaña <strong>Elements</strong>.</div>
+        <div>2. Inspecciona el botón <code>id=&quot;btnBuy&quot;</code> y elimina su atributo <code>disabled</code>.</div>
+        <div>3. Modifica el campo oculto <code>id=&quot;checkoutPrice&quot;</code> a <code>value=&quot;0&quot;</code>.</div>
+        <div>4. O en la <strong>Consola</strong>: <code>sessionStorage.setItem(&apos;lab_user_balance&apos;, &apos;1000&apos;)</code>.</div>
+        <div>5. O ejecuta en la <strong>Terminal</strong>: <code>curl -X POST /api/checkout -d &quot;price=0&quot;</code>.</div>
+      </div>
+
+      {/* Formulario de compra vulnerable */}
       <form
+        id="checkoutForm"
         onSubmit={handleBuy}
         className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-3 font-sans"
       >
+        {/* Campo oculto manipulable */}
+        <input type="hidden" id="checkoutPrice" defaultValue={500} />
+
         <div className="flex items-center justify-between">
           <div>
             <h4 className="font-semibold text-sm text-neutral-900 dark:text-neutral-200">
@@ -355,84 +347,24 @@ function Level2Challenge({
             disabled={isButtonDisabled}
             className="w-full py-2 px-3 rounded-lg bg-neutral-900 text-white dark:bg-neutral-800 dark:text-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-emerald-600 dark:hover:enabled:bg-emerald-500 hover:enabled:text-white dark:hover:enabled:text-neutral-950 font-mono text-xs font-semibold transition-colors cursor-pointer"
           >
-            {isButtonDisabled ? 'Saldo insuficiente (Botón bloqueado)' : `Comprar por ${domPrice} €`}
+            {isButtonDisabled ? 'Saldo insuficiente (Botón con atributo disabled)' : `Comprar por ${domPrice} €`}
           </button>
         </div>
       </form>
 
-      {/* Editor visual de atributos DOM y Storage (Ideal para móviles o práctica guiada) */}
-      <div className="p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900/40 space-y-3 font-mono text-xs">
-        <span className="font-bold text-neutral-700 dark:text-neutral-300 uppercase text-[11px] block">
-          Inspector / Manipulador de Atributos del Reto:
-        </span>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="space-y-1.5 p-2.5 bg-white dark:bg-neutral-950 rounded border border-neutral-200 dark:border-neutral-800">
-            <span className="text-neutral-500 text-[10px] uppercase">
-              1. Atributo disabled de &lt;button id=&quot;btnBuy&quot;&gt;:
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsButtonDisabled(!isButtonDisabled)}
-                className="px-2 py-1 rounded border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-xs cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-700"
-              >
-                {isButtonDisabled ? 'Quitar disabled (Habilitar)' : 'Poner disabled'}
-              </button>
-              <span className="text-neutral-500 text-[11px]">
-                Estado: {isButtonDisabled ? 'disabled' : 'enabled'}
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-1.5 p-2.5 bg-white dark:bg-neutral-950 rounded border border-neutral-200 dark:border-neutral-800">
-            <span className="text-neutral-500 text-[10px] uppercase">
-              2. Valor de &lt;input type=&quot;hidden&quot; id=&quot;checkoutPrice&quot;&gt;:
-            </span>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={domPrice}
-                onChange={(e) => setDomPrice(Number(e.target.value))}
-                className="w-20 px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
-              />
-              <button
-                type="button"
-                onClick={() => setDomPrice(0)}
-                className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs cursor-pointer hover:bg-emerald-500/20"
-              >
-                Fijar en 0 €
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-500">
-          <span>
-            sessionStorage: <code>lab_user_balance = &quot;{balance}&quot;</code>
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleUpdateSessionStorage(balance === 0 ? 1000 : 0)}
-              className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-            >
-              {balance === 0 ? 'Inyectar 1000 € en sessionStorage' : 'Restablecer saldo a 0 €'}
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                openTerminalWithCommand(
-                  'curl -X POST /api/checkout -d "price=0&itemId=cert-sec-01"'
-                )
-              }
-              className="px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:border-emerald-500 cursor-pointer font-mono inline-flex items-center gap-1"
-            >
-              <Terminal className="w-3 h-3 text-emerald-500" />
-              <span>&gt; curl (bypass frontend)</span>
-            </button>
-          </div>
-        </div>
+      <div className="pt-1">
+        <button
+          onClick={() =>
+            openTerminalWithCommand(
+              'curl -X POST /api/checkout -d "price=0&itemId=cert-sec-01"'
+            )
+          }
+          type="button"
+          className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:border-emerald-500 text-xs font-mono inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+        >
+          <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+          <span>&gt; curl -X POST /api/checkout -d &quot;price=0&quot;</span>
+        </button>
       </div>
     </div>
   );
@@ -474,6 +406,7 @@ function Level3Challenge({
     const match = document.cookie.match(/lab_session=([^;]+)/);
     if (!match) {
       setCurrentRole('unknown');
+      setIsVerified(true);
       return;
     }
 
@@ -492,15 +425,8 @@ function Level3Challenge({
       }
     } catch {
       setCurrentRole('unknown');
+      setIsVerified(true);
     }
-  };
-
-  const handleApplyTamperedCookie = (newRole: 'admin' | 'guest') => {
-    const payload = JSON.stringify({ user: 'student', role: newRole });
-    const encoded = btoa(payload);
-    document.cookie = `lab_session=${encoded}; path=/; SameSite=Lax`;
-    setRawCookie(encoded);
-    setDecodedJson(payload);
   };
 
   return (
@@ -527,15 +453,15 @@ function Level3Challenge({
       </div>
 
       <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-        El panel lee la cookie <code>lab_session</code> en cada comprobación. Actualmente contiene un
-        JSON codificado en Base64 con <code>&quot;role&quot;: &quot;guest&quot;</code>. Puedes
-        decodificarlo en DevTools o en la terminal con <code>base64 -d</code>, cambiar el rol a{' '}
-        <code>&quot;admin&quot;</code> y volver a verificar.
+        El panel lee la cookie <code>lab_session</code> en cada comprobación. Contiene un objeto JSON
+        codificado en Base64 con <code>&quot;role&quot;: &quot;guest&quot;</code>. No hay atajos: abre{' '}
+        <strong>DevTools -&gt; Application -&gt; Cookies</strong> (o usa la <strong>Consola</strong>) para
+        editar la cookie asignando <code>role: admin</code>, o genera la cadena con la <strong>Terminal</strong>.
       </p>
 
       <div className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-3 font-mono text-xs">
         <div className="space-y-1">
-          <span className="text-neutral-500 text-[11px]">Valor en document.cookie (lab_session):</span>
+          <span className="text-neutral-500 text-[11px]">Valor actual en document.cookie (lab_session):</span>
           <div className="p-2.5 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 text-cyan-600 dark:text-cyan-300 break-all select-all font-mono">
             {rawCookie || 'lab_session=eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9'}
           </div>
@@ -562,7 +488,7 @@ function Level3Challenge({
 
         {isVerified && currentRole === 'guest' && (
           <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs">
-            Sesión válida pero con permisos de &quot;guest&quot;. Modifica el rol a &quot;admin&quot;.
+            Sesión válida pero con permisos de &quot;guest&quot;. Modifica la cookie en DevTools para ser &quot;admin&quot;.
           </div>
         )}
 
@@ -570,23 +496,15 @@ function Level3Challenge({
           <button
             onClick={handleVerifySession}
             type="button"
-            className="px-3.5 py-2 rounded-lg bg-emerald-600 dark:bg-emerald-500 text-white dark:text-neutral-950 font-bold font-mono text-xs cursor-pointer hover:opacity-90 transition-opacity"
+            className="px-4 py-2 rounded-lg bg-emerald-600 dark:bg-emerald-500 text-white dark:text-neutral-950 font-bold font-mono text-xs cursor-pointer hover:opacity-90 transition-opacity"
           >
             Verificar Cookie de Sesión
           </button>
 
           <button
-            onClick={() => handleApplyTamperedCookie('admin')}
-            type="button"
-            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
-          >
-            Inyectar rol &quot;admin&quot; en cookie
-          </button>
-
-          <button
             onClick={() => openTerminalWithCommand('base64 -d "eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9"')}
             type="button"
-            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5 transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
             <span>&gt; base64 -d (decodificar)</span>
@@ -595,7 +513,7 @@ function Level3Challenge({
           <button
             onClick={() => openTerminalWithCommand('base64 "{\\"user\\":\\"student\\",\\"role\\":\\"admin\\"}"')}
             type="button"
-            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5 transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
             <span>&gt; base64 (codificar admin)</span>
@@ -648,8 +566,8 @@ function Level4Challenge({
 
       <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
         Tu factura asignada es la <strong>#1042</strong>. Observa cómo viajan las peticiones en la
-        pestaña <strong>Network (Red)</strong> de DevTools o usa <code>curl</code> en la terminal para
-        solicitar identificadores anteriores hasta localizar la factura de Dirección (#1001).
+        pestaña <strong>Network (Red)</strong> de DevTools o usa <code>curl</code> en la terminal.
+        ¿Qué ocurre si solicitas un ID anterior sin autorización?
       </p>
 
       <div className="p-4 rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 space-y-3 font-mono text-xs">
@@ -667,31 +585,9 @@ function Level4Challenge({
           <button
             onClick={() => fetchInvoice(invoiceId)}
             type="button"
-            className="px-3 py-1 bg-emerald-600 dark:bg-emerald-500 text-white dark:text-neutral-950 rounded font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+            className="px-3.5 py-1.5 bg-emerald-600 dark:bg-emerald-500 text-white dark:text-neutral-950 rounded font-semibold cursor-pointer hover:opacity-90 transition-opacity"
           >
             Consultar Factura
-          </button>
-
-          <span className="text-neutral-400 text-xs pl-2">Accesos rápidos:</span>
-          <button
-            onClick={() => {
-              setInvoiceId('1042');
-              fetchInvoice('1042');
-            }}
-            type="button"
-            className="px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 text-[11px] hover:text-neutral-900 dark:hover:text-neutral-200"
-          >
-            #1042 (Mía)
-          </button>
-          <button
-            onClick={() => {
-              setInvoiceId('1001');
-              fetchInvoice('1001');
-            }}
-            type="button"
-            className="px-2 py-0.5 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[11px] hover:bg-rose-500/20"
-          >
-            #1001 (Dirección)
           </button>
         </div>
 
@@ -718,7 +614,7 @@ function Level4Challenge({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-xs cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Ejecutar en terminal: curl /api/mock/invoices?id=1001</span>
+            <span>&gt; curl /api/mock/invoices?id=1001</span>
           </button>
         </div>
       </div>
@@ -736,8 +632,8 @@ function Level5Challenge({
   onFlagDiscovered: (f: string) => void;
   openTerminalWithCommand: (cmd: string) => void;
 }) {
-  const [username, setUsername] = useState("' OR '1'='1' --");
-  const [password, setPassword] = useState('x');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [queryOutput, setQueryOutput] = useState('');
   const [message, setMessage] = useState('');
   const [success, setSuccess] = useState(false);
@@ -769,9 +665,9 @@ function Level5Challenge({
       </div>
 
       <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-        El backend concatena directamente el usuario y la clave en la consulta SQL. Observa cómo cambia
-        la sintaxis coloreada en vivo y utiliza comillas simples con operadores lógicos (<code>&apos; OR &apos;1&apos;=&apos;1&apos; --</code>)
-        para forzar que el condicional siempre evalúe a verdadero.
+        El backend concatena el usuario y la clave directamente en la consulta sin escapar caracteres.
+        Debes formular tu propio payload de inyección booleana (con comillas simples y comentarios) o usar{' '}
+        <code>sqlmap</code> en la terminal.
       </p>
 
       <form
@@ -785,7 +681,7 @@ function Level5Challenge({
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-emerald-500 font-mono"
-            placeholder="' OR '1'='1' --"
+            placeholder="Introduce usuario o payload..."
           />
         </div>
 
@@ -796,14 +692,14 @@ function Level5Challenge({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-emerald-500 font-mono"
-            placeholder="contraseña cualquiera"
+            placeholder="contraseña..."
           />
         </div>
 
         {/* Visor de consulta generada */}
         <div className="p-3 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 space-y-1">
           <span className="text-[10px] text-neutral-500 uppercase font-bold block">
-            Sentencia SQL resultante ejecutada en el servidor:
+            Sentencia SQL ejecutada en el servidor:
           </span>
           <code className="text-xs text-amber-700 dark:text-amber-300 block overflow-x-auto select-all">
             SELECT * FROM users WHERE username = &apos;{username}&apos; AND password = &apos;{password}&apos;;
@@ -837,19 +733,8 @@ function Level5Challenge({
 
           <button
             type="button"
-            onClick={() => {
-              setUsername("' OR '1'='1' --");
-              setPassword('x');
-            }}
-            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs cursor-pointer"
-          >
-            Insertar payload booleano
-          </button>
-
-          <button
-            type="button"
             onClick={() => openTerminalWithCommand('sqlmap -u "http://localhost/login" --batch')}
-            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs cursor-pointer inline-flex items-center gap-1.5"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs cursor-pointer inline-flex items-center gap-1.5 transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
             <span>&gt; sqlmap (Kali Linux)</span>
@@ -873,21 +758,6 @@ function Level6Challenge({
   const [user, setUser] = useState('admin');
   const [pass, setPass] = useState('');
   const [authResponse, setAuthResponse] = useState<any>(null);
-  const [isBruteforcing, setIsBruteforcing] = useState(false);
-  const [bruteforceLog, setBruteforceLog] = useState<string[]>([]);
-
-  const wordlist = [
-    '123456',
-    'password',
-    'admin123',
-    'qwerty',
-    'letmein',
-    'football',
-    'iloveyou',
-    'hunter2',
-    'security2026',
-    'masterkey',
-  ];
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
@@ -908,37 +778,6 @@ function Level6Challenge({
     }
   };
 
-  const handleSimulateBruteforce = async () => {
-    setIsBruteforcing(true);
-    setBruteforceLog([]);
-
-    for (const testPass of wordlist) {
-      await new Promise((r) => setTimeout(r, 350));
-      const res = mockApiRouter(
-        '/api/mock/auth',
-        'POST',
-        {},
-        JSON.stringify({ username: 'admin', password: testPass })
-      );
-
-      if (res.status === 200) {
-        const parsed = JSON.parse(res.body);
-        setBruteforceLog((prev) => [
-          ...prev,
-          `[+] ¡ÉXITO! Contraseña encontrada: "${testPass}" -> Token recibido`,
-        ]);
-        setPass(testPass);
-        setAuthResponse({ status: 200, ...parsed });
-        onFlagDiscovered(parsed.flag);
-        setIsBruteforcing(false);
-        return;
-      } else {
-        setBruteforceLog((prev) => [...prev, `[-] Intento con "${testPass}" -> 401 Unauthorized`]);
-      }
-    }
-    setIsBruteforcing(false);
-  };
-
   return (
     <div className="p-4 sm:p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 shadow-sm space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
@@ -954,9 +793,9 @@ function Level6Challenge({
       </div>
 
       <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-        El endpoint <code>/api/mock/auth</code> carece de bloqueo de intentos y utiliza una clave común.
-        Puedes abrir la <strong>Terminal</strong> para ver el diccionario o utilizar el simulador de
-        ataque de diccionario integrado.
+        El endpoint <code>/api/mock/auth</code> carece de bloqueo de intentos (rate limiting) y el administrador
+        utilizó una de las contraseñas más comunes del diccionario. Usa <code>hydra</code> en la terminal
+        para atacarlo o revisa el diccionario con <code>cat</code>.
       </p>
 
       <form
@@ -976,10 +815,10 @@ function Level6Challenge({
           <div className="space-y-1">
             <label className="text-neutral-600 dark:text-neutral-400">Contraseña:</label>
             <input
-              type="text"
+              type="password"
               value={pass}
               onChange={(e) => setPass(e.target.value)}
-              placeholder="p. ej. hunter2"
+              placeholder="Introduce clave descubierta..."
               className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
             />
           </div>
@@ -1002,26 +841,6 @@ function Level6Challenge({
           </div>
         )}
 
-        {bruteforceLog.length > 0 && (
-          <div className="p-3 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 space-y-1 max-h-36 overflow-y-auto">
-            <span className="text-[10px] text-neutral-500 uppercase font-bold block">
-              Registro del ataque de fuerza bruta simulado:
-            </span>
-            {bruteforceLog.map((line, idx) => (
-              <div
-                key={idx}
-                className={`text-[11px] ${
-                  line.startsWith('[+]')
-                    ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-                    : 'text-neutral-500'
-                }`}
-              >
-                {line}
-              </div>
-            ))}
-          </div>
-        )}
-
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <button
             type="submit"
@@ -1031,19 +850,9 @@ function Level6Challenge({
           </button>
 
           <button
-            onClick={handleSimulateBruteforce}
-            disabled={isBruteforcing}
-            type="button"
-            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
-          >
-            <Play className="w-3.5 h-3.5 text-amber-500" />
-            <span>{isBruteforcing ? 'Probando diccionario...' : 'Lanzar ataque de diccionario'}</span>
-          </button>
-
-          <button
             onClick={() => openTerminalWithCommand('hydra -l admin -P /opt/wordlists/passwords.txt')}
             type="button"
-            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5 transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
             <span>&gt; hydra (Kali Linux)</span>
@@ -1052,7 +861,7 @@ function Level6Challenge({
           <button
             onClick={() => openTerminalWithCommand('cat /opt/wordlists/passwords.txt')}
             type="button"
-            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5"
+            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer inline-flex items-center gap-1.5 transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
             <span>Ver diccionario en terminal</span>
@@ -1073,23 +882,15 @@ function Level7Challenge({
   onFlagDiscovered: (f: string) => void;
   openTerminalWithCommand: (cmd: string) => void;
 }) {
-  const [empId, setEmpId] = useState('sec-9902');
-  const [token, setToken] = useState('emergency_override_2026');
+  const [empId, setEmpId] = useState('');
+  const [token, setToken] = useState('');
   const [response, setResponse] = useState<any>(null);
-  const [staffInfo, setStaffInfo] = useState<any>(null);
-
-  const fetchStaffApi = () => {
-    const res = mockApiRouter('/api/mock/staff?dept=security');
-    try {
-      setStaffInfo(JSON.parse(res.body));
-    } catch {}
-  };
 
   const handleExecuteChain = (e: React.FormEvent) => {
     e.preventDefault();
     const res = mockApiRouter('/api/mock/admin/flag', 'GET', {
-      'X-Employee-Id': empId,
-      Authorization: `Bearer ${token}`,
+      'X-Employee-Id': empId.trim(),
+      Authorization: `Bearer ${token.trim()}`,
     });
 
     try {
@@ -1118,54 +919,36 @@ function Level7Challenge({
       </div>
 
       <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-        Encadena las 3 fases: <strong>1) Reconocimiento</strong> para localizar la API de personal,{' '}
-        <strong>2) IDOR</strong> para extraer el token de Elena Ramos (CISO), y{' '}
+        Encadena las 3 fases aprendidas: <strong>1) Reconocimiento</strong> para localizar el endpoint de personal,{' '}
+        <strong>2) Extracción de credenciales</strong> (Elena Ramos, CISO), y{' '}
         <strong>3) Falsificación de cabeceras HTTP</strong> para tomar el control del mainframe.
       </p>
 
       {/* Checklist de fases */}
       <div className="p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 text-xs font-mono space-y-2">
         <span className="text-neutral-500 text-[10px] uppercase font-bold block">
-          Checklist de la Cadena de Explotación:
+          Cadena de Explotación Requerida:
         </span>
         <div className="space-y-1.5 text-neutral-700 dark:text-neutral-300">
           <div className="flex items-center gap-2">
             <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold">
               1
             </span>
-            <span>API descubierta en código: <code>/api/mock/staff?dept=security</code></span>
-            <button
-              onClick={fetchStaffApi}
-              type="button"
-              className="ml-auto text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-            >
-              Consultar API de personal
-            </button>
+            <span>Descubre la API de personal con curl o en Network: <code>/api/mock/staff?dept=security</code></span>
           </div>
-
-          {staffInfo && (
-            <div className="p-2.5 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 text-[11px] select-text">
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold block mb-1">
-                Datos de personal obtenidos:
-              </span>
-              <div>Nombre: {staffInfo.jefe_departamento?.nombre}</div>
-              <div>ID Empleado: <code>{staffInfo.jefe_departamento?.emp_id}</code></div>
-              <div>Token Autorización: <code>{staffInfo.jefe_departamento?.autorizacion}</code></div>
-            </div>
-          )}
 
           <div className="flex items-center gap-2">
             <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold">
               2
             </span>
-            <span>Forjar cabeceras <code>X-Employee-Id</code> y <code>Authorization</code></span>
+            <span>Identifica el <code>emp_id</code> y el <code>token</code> de Elena Ramos</span>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold">
               3
             </span>
-            <span>Solicitar la flag final a <code>/api/mock/admin/flag</code></span>
+            <span>Envía la petición con las cabeceras forjadas a <code>/api/mock/admin/flag</code></span>
           </div>
         </div>
       </div>
@@ -1181,7 +964,7 @@ function Level7Challenge({
             value={empId}
             onChange={(e) => setEmpId(e.target.value)}
             className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
-            placeholder="sec-9902"
+            placeholder="p. ej. sec-xxxx"
           />
         </div>
 
@@ -1194,7 +977,7 @@ function Level7Challenge({
             value={token}
             onChange={(e) => setToken(e.target.value)}
             className="w-full px-2.5 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
-            placeholder="emergency_override_2026"
+            placeholder="emergency_xxxx"
           />
         </div>
 

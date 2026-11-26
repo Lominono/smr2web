@@ -28,6 +28,7 @@ import { VirtualDevTools } from '@/components/lab/VirtualDevTools';
 import { EthicalNoticeModal } from '@/components/lab/EthicalNoticeModal';
 import { LevelChallenges } from '@/components/lab/LevelChallenges';
 import { PutoIsaacLabTutor } from '@/components/lab/PutoIsaacLabTutor';
+import { LevelCompletedModal } from '@/components/lab/LevelCompletedModal';
 
 const STORAGE_KEY = 'smr2_ctf_lab_v1';
 
@@ -54,6 +55,15 @@ export default function LabPage() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState<Record<number, number>>({});
   const [recentTerminalCmds, setRecentTerminalCmds] = useState<string[]>([]);
+  const [highlightTarget, setHighlightTarget] = useState<'devtools' | 'terminal' | null>(null);
+  const [completedModalData, setCompletedModalData] = useState<{
+    isOpen: boolean;
+    levelId: number;
+    levelTitle: string;
+    pointsAwarded: number;
+    totalScore: number;
+    flagCaptured: string;
+  } | null>(null);
 
   // Capturar F12 o Ctrl+Shift+I para usuarios en PWA instalada o móvil
   useEffect(() => {
@@ -167,20 +177,33 @@ export default function LabPage() {
         `¡Excelente trabajo! Has capturado la bandera de ${activeLevel.title}. +${activeLevel.points} puntos.`
       );
 
-      if (!progress.completedLevels.includes(activeLevel.id)) {
-        const updatedCompleted = [...progress.completedLevels, activeLevel.id];
-        const nextLevelId = (activeLevel.id < 7 ? activeLevel.id + 1 : activeLevel.id) as LevelId;
+      const isFirstCompletion = !progress.completedLevels.includes(activeLevel.id);
+      const updatedScore = isFirstCompletion ? progress.score + activeLevel.points : progress.score;
+      const updatedCompleted = isFirstCompletion
+        ? [...progress.completedLevels, activeLevel.id]
+        : progress.completedLevels;
+
+      if (isFirstCompletion) {
         saveProgress({
           ...progress,
           completedLevels: updatedCompleted,
-          currentLevel: nextLevelId,
-          score: progress.score + activeLevel.points,
+          score: updatedScore,
           flagSubmissions: {
             ...progress.flagSubmissions,
             [activeLevel.id]: cleanFlag,
           },
         });
       }
+
+      // Desplegar modal de celebración de nivel
+      setCompletedModalData({
+        isOpen: true,
+        levelId: activeLevel.id,
+        levelTitle: activeLevel.title,
+        pointsAwarded: isFirstCompletion ? activeLevel.points : 0,
+        totalScore: updatedScore,
+        flagCaptured: cleanFlag,
+      });
     } else {
       setFlagStatus('error');
       setFlagMsg('Bandera incorrecta. Vuelve a comprobar el objetivo o solicita una pista.');
@@ -189,6 +212,26 @@ export default function LabPage() {
         [activeLevel.id]: (prev[activeLevel.id] || 0) + 1,
       }));
     }
+  };
+
+  const handleModalContinue = () => {
+    if (!completedModalData) return;
+    const currentId = completedModalData.levelId;
+    const nextLevelId = (currentId < 7 ? currentId + 1 : currentId) as LevelId;
+    saveProgress({
+      ...progress,
+      currentLevel: nextLevelId,
+    });
+    setCompletedModalData(null);
+    setFlagInput('');
+    setFlagStatus('idle');
+    setFlagMsg('');
+    setActiveTab('challenge');
+  };
+
+  const handleModalViewSolution = () => {
+    setCompletedModalData(null);
+    setActiveTab('solution');
   };
 
   // Desbloquear pista con penalización de puntos
@@ -295,10 +338,15 @@ export default function LabPage() {
 
             {/* Botón de Inspeccionar / DevTools (ideal para PWA instalada) */}
             <button
-              onClick={() => setIsDevToolsOpen(!isDevToolsOpen)}
+              onClick={() => {
+                setIsDevToolsOpen(!isDevToolsOpen);
+                if (highlightTarget === 'devtools') setHighlightTarget(null);
+              }}
               type="button"
-              className={`px-3 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
-                isDevToolsOpen
+              className={`px-3 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 cursor-pointer transition-all ${
+                highlightTarget === 'devtools'
+                  ? 'ring-4 ring-amber-500/80 shadow-lg shadow-amber-500/40 animate-pulse bg-amber-500 text-neutral-950 border-amber-400 scale-105'
+                  : isDevToolsOpen
                   ? 'bg-cyan-600 text-white dark:bg-cyan-500 dark:text-neutral-950 border-cyan-500'
                   : 'bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-cyan-700 dark:text-cyan-400 border-neutral-200 dark:border-neutral-800'
               }`}
@@ -306,20 +354,31 @@ export default function LabPage() {
             >
               <Code2 className="w-3.5 h-3.5" />
               <span>Inspeccionar (F12)</span>
+              {highlightTarget === 'devtools' && (
+                <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+              )}
             </button>
 
             {/* Botón de Terminal */}
             <button
-              onClick={() => setIsTerminalOpen(!isTerminalOpen)}
+              onClick={() => {
+                setIsTerminalOpen(!isTerminalOpen);
+                if (highlightTarget === 'terminal') setHighlightTarget(null);
+              }}
               type="button"
-              className={`px-3 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
-                isTerminalOpen
+              className={`px-3 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 cursor-pointer transition-all ${
+                highlightTarget === 'terminal'
+                  ? 'ring-4 ring-emerald-500/80 shadow-lg shadow-emerald-500/40 animate-pulse bg-emerald-500 text-neutral-950 border-emerald-400 scale-105'
+                  : isTerminalOpen
                   ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-neutral-950 border-emerald-500'
                   : 'bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-emerald-700 dark:text-emerald-400 border-neutral-200 dark:border-neutral-800'
               }`}
             >
               <TerminalIcon className="w-3.5 h-3.5" />
               <span>Terminal</span>
+              {highlightTarget === 'terminal' && (
+                <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+              )}
             </button>
 
             {/* Botón de reinicio */}
@@ -858,8 +917,31 @@ export default function LabPage() {
         isTerminalOpen={isTerminalOpen}
         recentTerminalCmds={recentTerminalCmds}
         onExecuteCommand={openTerminalWithCommand}
+        onOpenDevTools={() => {
+          setIsDevToolsOpen(true);
+          setHighlightTarget(null);
+        }}
+        onOpenTerminal={() => {
+          setIsTerminalOpen(true);
+          setHighlightTarget(null);
+        }}
+        onHighlightTarget={(target) => setHighlightTarget(target)}
         isLevelCompleted={isLevelCompleted(activeLevel.id)}
       />
+
+      {/* Modal de celebración y pase de nivel */}
+      {completedModalData && (
+        <LevelCompletedModal
+          isOpen={completedModalData.isOpen}
+          levelId={completedModalData.levelId}
+          levelTitle={completedModalData.levelTitle}
+          pointsAwarded={completedModalData.pointsAwarded}
+          totalScore={completedModalData.totalScore}
+          flagCaptured={completedModalData.flagCaptured}
+          onContinue={handleModalContinue}
+          onViewSolution={handleModalViewSolution}
+        />
+      )}
     </main>
   );
 }
