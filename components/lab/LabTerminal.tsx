@@ -31,6 +31,7 @@ interface LabTerminalProps {
 
 const AVAILABLE_COMMANDS = [
   'help',
+  'isaac',
   'nmap',
   'gobuster',
   'dirb',
@@ -183,7 +184,7 @@ Nivel activo: Nivel ${currentLevelId}. Usa "submit <FLAG{...}>" para validar ban
             '',
             '  Utilidades del Laboratorio:',
             '    submit <FLAG{...}>     Envía y valida la bandera del nivel activo',
-            '    hint                   Muestra pistas del nivel activo',
+            '    isaac / hint           Pide consejo sarcástico a PutoIsaac enfocado a terminal',
             '    whoami, id, uname      Información del usuario y kernel',
             '    echo <texto>           Imprime texto en la terminal',
             '    date                   Fecha y hora del sistema',
@@ -412,15 +413,29 @@ Nivel activo: Nivel ${currentLevelId}. Usa "submit <FLAG{...}>" para validar ban
           break;
         }
 
-        case 'hint':
-          if (onRequestHint) {
-            onRequestHint();
-            outputEntry.type = 'system';
-            outputEntry.content = 'Mostrando pistas para el nivel actual en la interfaz.';
-          } else {
-            outputEntry.content = 'Revisa la pestaña "Pistas" del nivel activo.';
+        case 'isaac':
+        case 'hint': {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('lab:isaac_hint', {
+                detail: { from: 'terminal', levelId: currentLevelId },
+              })
+            );
           }
+          const termHints: Record<number, string> = {
+            1: 'En la terminal de Kali puedes lanzar "curl /lab/robots.txt" o inspeccionar archivos con "cat /backup/staff_notes.txt".',
+            2: 'Envía un POST directo con "curl -X POST /api/checkout -d \\"price=0\\"" para saltarte las restricciones del navegador.',
+            3: 'Usa "base64 -d" para decodificar la cookie y genera el nuevo payload con rol "admin".',
+            4: 'Prueba "curl /api/mock/invoices?id=1001" para verificar si accedes a documentos sin autenticarte.',
+            5: 'Lanza "sqlmap -u \\"http://localhost/login\\" --batch" para auditar la inyección SQL.',
+            6: 'Revisa el diccionario con "cat /opt/wordlists/passwords.txt" o ataca con "hydra -l admin -P /opt/wordlists/passwords.txt".',
+            7: 'Extrae el token con "curl /api/mock/staff?dept=security" y forja las cabeceras HTTP hacia el mainframe.',
+          };
+          outputEntry.type = 'system';
+          outputEntry.content = `[PUTOISAAC]: "${termHints[currentLevelId] || 'Escribe help para ver las herramientas o usa curl para auditar los endpoints.'}"`;
+          if (onRequestHint) onRequestHint();
           break;
+        }
 
         case 'submit': {
           const flagCandidate = args[0];
@@ -549,6 +564,23 @@ Nivel activo: Nivel ${currentLevelId}. Usa "submit <FLAG{...}>" para validar ban
         </div>
 
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('lab:isaac_hint', {
+                    detail: { from: 'terminal', levelId: currentLevelId },
+                  })
+                );
+              }
+            }}
+            type="button"
+            className="flex items-center gap-1 px-2 py-0.5 mr-1 rounded text-[10px] font-mono font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-400/30 transition-colors cursor-pointer"
+            title="Pedir consejo sarcástico a PutoIsaac para la terminal"
+          >
+            <span>🐱</span>
+            <span className="hidden sm:inline">PutoIsaac</span>
+          </button>
           <button
             onClick={() => setEntries([])}
             type="button"

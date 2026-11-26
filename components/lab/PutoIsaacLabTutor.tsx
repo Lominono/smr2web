@@ -58,6 +58,17 @@ const SARCASMIC_QUIPS_PER_LEVEL: Record<number, { text: string; target: 'devtool
   },
 };
 
+// Pistas específicas cuando el usuario está operando en la Terminal de Kali Linux
+const TERMINAL_QUIPS_PER_LEVEL: Record<number, string> = {
+  1: 'Veo que estás en la terminal. Usa `curl /lab/robots.txt` o lee notas de backup con `cat /backup/staff_notes.txt`.',
+  2: 'Si prefieres la terminal en vez de toquetear el DOM, lanza una petición directa: `curl -X POST /api/checkout -d "price=0"`.',
+  3: 'Para auditar cookies en terminal usa `base64 -d "..."` para decodificar el payload y codificar el nuevo con role admin.',
+  4: 'Usa `curl /api/mock/invoices?id=1001` para comprobar si el backend te devuelve facturas ajenas sin validar sesión.',
+  5: 'Lanza `sqlmap -u "http://localhost/login" --batch` o prueba con `curl` inyectando comillas simples en el usuario.',
+  6: 'Tienes el diccionario en `/opt/wordlists/passwords.txt`. Míralo con `cat` o lanza `hydra -l admin -P /opt/wordlists/passwords.txt`.',
+  7: 'Usa `curl /api/mock/staff?dept=security` para extraer el token y luego manda las cabeceras a `/api/mock/admin/flag`.',
+};
+
 const RANDOM_IDLE_SARCASTIC = [
   '¿Qué miras? ¿Acaso tengo monos en la cara? Ponte a hackear.',
   '¿Te vas a quedar mirándome o vas a picar algo en la terminal?',
@@ -196,12 +207,19 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
     typewriterTimeoutRef.current = setTimeout(typeNext, 40);
   }, []);
 
-  // Disparar pista sarcástica
+  // Disparar pista sarcástica adaptada al contexto (DevTools o Terminal)
   const deliverHint = useCallback(
     (customText?: string, target?: 'devtools' | 'terminal' | null, cmd?: string) => {
       setIsBubbleOpen(true);
-      const textToSay = customText || SARCASMIC_QUIPS_PER_LEVEL[currentLevelId]?.text || 'A ver socio, inspecciona bien la pantalla.';
-      const chosenTarget = target !== undefined ? target : SARCASMIC_QUIPS_PER_LEVEL[currentLevelId]?.target || null;
+      let textToSay = customText;
+      if (!textToSay) {
+        if (isTerminalOpen && TERMINAL_QUIPS_PER_LEVEL[currentLevelId]) {
+          textToSay = TERMINAL_QUIPS_PER_LEVEL[currentLevelId];
+        } else {
+          textToSay = SARCASMIC_QUIPS_PER_LEVEL[currentLevelId]?.text || 'A ver socio, inspecciona bien la pantalla.';
+        }
+      }
+      const chosenTarget = target !== undefined ? target : (isTerminalOpen ? 'terminal' : SARCASMIC_QUIPS_PER_LEVEL[currentLevelId]?.target || null);
       const chosenCmd = cmd !== undefined ? cmd : SARCASMIC_QUIPS_PER_LEVEL[currentLevelId]?.cmd || null;
 
       setSuggestedTarget(chosenTarget);
@@ -213,8 +231,29 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
 
       startTypewriter(textToSay);
     },
-    [currentLevelId, onHighlightTarget, startTypewriter]
+    [currentLevelId, isTerminalOpen, onHighlightTarget, startTypewriter]
   );
+
+  // Escuchar llamadas de ayuda invocadas desde la terminal o UI
+  useEffect(() => {
+    const handleIsaacEvent = (e: any) => {
+      setIsSquishing(true);
+      try {
+        sound.isaacPop();
+      } catch {}
+      setTimeout(() => setIsSquishing(false), 450);
+
+      const fromTerm = isTerminalOpen || e.detail?.from === 'terminal';
+      if (fromTerm && TERMINAL_QUIPS_PER_LEVEL[currentLevelId]) {
+        deliverHint(TERMINAL_QUIPS_PER_LEVEL[currentLevelId], 'terminal');
+      } else {
+        deliverHint();
+      }
+    };
+
+    window.addEventListener('lab:isaac_hint', handleIsaacEvent);
+    return () => window.removeEventListener('lab:isaac_hint', handleIsaacEvent);
+  }, [currentLevelId, isTerminalOpen, deliverHint]);
 
   // Solicitar a la IA en caso de duda personalizada
   const askIsaacAI = async (promptQuery: string) => {
@@ -327,8 +366,14 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
 
   if (isLevelCompleted) return null;
 
+  const positionClass = isTerminalOpen
+    ? 'bottom-[21rem] md:bottom-[27.5rem] right-4 md:right-8 z-[60]'
+    : isDevToolsOpen
+    ? 'bottom-[25rem] md:bottom-[29.5rem] right-4 md:right-8 z-[60]'
+    : 'bottom-5 right-5 z-[60]';
+
   return (
-    <div className="fixed bottom-5 right-5 z-40 select-none font-sans flex flex-col items-end pointer-events-none">
+    <div className={`fixed ${positionClass} select-none font-sans flex flex-col items-end pointer-events-none transition-all duration-300`}>
       <style jsx>{`
         @keyframes putoFloat {
           0%, 100% {
@@ -388,12 +433,16 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
           {/* Cabecera del bocadillo */}
           <div className="flex items-center justify-between pb-2 border-b border-neutral-200 dark:border-neutral-800">
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+              <span className={`w-2 h-2 rounded-full ${isTerminalOpen ? 'bg-emerald-500 animate-ping' : 'bg-orange-500 animate-pulse'}`} />
               <span className="font-mono text-xs font-bold text-orange-600 dark:text-amber-400">
                 PUTOISAAC
               </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold">
-                Tutor
+              <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-semibold ${
+                isTerminalOpen
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+              }`}>
+                {isTerminalOpen ? 'Kali Terminal' : 'Tutor'}
               </span>
             </div>
 
@@ -486,8 +535,13 @@ export const PutoIsaacLabTutor: React.FC<PutoIsaacLabTutorProps> = ({
       >
         {/* Cartelito minimalista superior con el nombre */}
         <div className="mb-1 px-2 py-0.5 rounded-full bg-white/90 dark:bg-neutral-900/90 text-neutral-800 dark:text-neutral-200 border border-neutral-200/80 dark:border-neutral-800 text-[9px] font-semibold tracking-wider font-mono shadow-xs transition-all group-hover:scale-105 flex items-center gap-1 backdrop-blur-xs">
-          <span className={`w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-orange-500 animate-ping' : isTalking ? 'bg-orange-500 animate-pulse' : 'bg-orange-500'}`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-orange-500 animate-ping' : isTalking ? 'bg-orange-500 animate-pulse' : isTerminalOpen ? 'bg-emerald-500' : 'bg-orange-500'}`} />
           <span>PUTOISAAC</span>
+          {isTerminalOpen && (
+            <span className="text-[8px] font-mono text-emerald-600 dark:text-emerald-400 font-bold ml-0.5">
+              [Terminal]
+            </span>
+          )}
         </div>
 
         {/* Esfera física táctil de PUTOISAAC con brillo y sombra 3D */}

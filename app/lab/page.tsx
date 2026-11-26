@@ -511,9 +511,83 @@ export default function LabPage() {
               {activeLevel.title}
             </h1>
 
-            <div className="p-3.5 bg-neutral-100 dark:bg-neutral-950 rounded-xl border border-neutral-200 dark:border-neutral-800 text-xs sm:text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">
-              <strong className="text-neutral-900 dark:text-neutral-100 font-mono">OBJETIVO: </strong>
-              {activeLevel.objective}
+            {/* Briefing Minimalista en 3 Pilares (Misión, Concepto Técnico, Vector de Auditoría) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+              {/* Pilar 1: Misión Operativa */}
+              <div className="p-3.5 rounded-xl border border-neutral-200/80 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-950/60 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-neutral-800 dark:text-neutral-200">
+                    <span className="text-emerald-600 dark:text-emerald-400">🎯</span>
+                    <span>Misión Operativa</span>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                    {activeLevel.objective}
+                  </p>
+                </div>
+                <div className="pt-2 mt-2 border-t border-neutral-200/60 dark:border-neutral-800/80 flex items-center justify-between text-[10px] font-mono text-neutral-500">
+                  <span>Dificultad:</span>
+                  <span className="font-semibold text-neutral-700 dark:text-neutral-300">
+                    {activeLevel.difficulty}
+                  </span>
+                </div>
+              </div>
+
+              {/* Pilar 2: Concepto Técnico Real */}
+              <div className="p-3.5 rounded-xl border border-neutral-200/80 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-950/60 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-neutral-800 dark:text-neutral-200">
+                    <span className="text-cyan-600 dark:text-cyan-400">🛡️</span>
+                    <span>Concepto &amp; Estándar</span>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed line-clamp-3">
+                    {activeLevel.lesson.cwe || activeLevel.category}
+                  </p>
+                </div>
+                <div className="pt-2 mt-2 border-t border-neutral-200/60 dark:border-neutral-800/80 flex items-center justify-between text-[10px] font-mono text-neutral-500">
+                  <span>Clase Teórica:</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('lesson')}
+                    className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold cursor-pointer"
+                  >
+                    Ver explicación →
+                  </button>
+                </div>
+              </div>
+
+              {/* Pilar 3: Vectores de Auditoría */}
+              <div className="p-3.5 rounded-xl border border-neutral-200/80 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-950/60 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-neutral-800 dark:text-neutral-200">
+                    <span className="text-amber-600 dark:text-amber-400">🛠️</span>
+                    <span>Vector Recomendado</span>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                    {activeLevel.challenge.targetHint || `Inspecciona usando la pestaña ${activeLevel.challenge.devtoolsTab}.`}
+                  </p>
+                </div>
+                <div className="pt-2 mt-2 border-t border-neutral-200/60 dark:border-neutral-800/80 flex items-center justify-between text-[10px] font-mono">
+                  <span className="text-neutral-500">Herramientas:</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsDevToolsOpen(true)}
+                      className="px-1.5 py-0.5 rounded bg-neutral-200/80 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 cursor-pointer transition-colors"
+                      title="Abrir DevTools virtuales"
+                    >
+                      F12 / DevTools
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsTerminalOpen(true)}
+                      className="px-1.5 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-400 cursor-pointer transition-colors"
+                      title="Abrir Terminal de Kali Linux"
+                    >
+                      Terminal
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Pestañas de contenido */}
