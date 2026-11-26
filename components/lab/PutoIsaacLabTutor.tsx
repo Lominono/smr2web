@@ -26,41 +26,35 @@ interface PutoIsaacLabTutorProps {
   isLevelCompleted: boolean;
 }
 
-// Pistas rápidas y sarcásticas locales para no gastar tokens innecesariamente
+// Pistas desafiantes y sarcásticas: orientan a la herramienta sin regalar la solución
 const SARCASMIC_QUIPS_PER_LEVEL: Record<number, { text: string; target: 'devtools' | 'terminal'; cmd?: string }> = {
   1: {
-    text: 'A ver inútil, los desarrolladores dejaron comentarios en el HTML y un robots.txt. Abre Inspeccionar (F12) o tira de curl.',
+    text: 'A ver si usamos el modo Inspeccionar (F12) de una vez. Busca en las entrañas del HTML y rastrea ficheros de exclusión, vago.',
     target: 'devtools',
-    cmd: 'curl /lab/robots.txt',
   },
   2: {
-    text: '¿En serio te vas a quedar mirando un botón bloqueado con disabled? Cámbialo en el inspector o pon el precio a 0 en el DOM.',
+    text: '¿Te crees que un formulario web manda sobre ti? Tienes el Inspector de elementos para manipular atributos del DOM y la consola para el almacenamiento.',
     target: 'devtools',
   },
   3: {
-    text: 'Esa cookie lab_session huele a Base64 desde el pasillo. Abre la terminal, decodifícala y ponle role admin.',
-    target: 'terminal',
-    cmd: 'base64 -d "eyJ1c2VyIjoic3R1ZGVudCIsInJvbGUiOiJndWVzdCJ9"',
+    text: 'Esa cookie no se va a auditar sola. Abre la pestaña Application en DevTools o mira document.cookie en la consola. Decodifica y verás.',
+    target: 'devtools',
   },
   4: {
-    text: '¿No sabes lo que es un IDOR? Tu factura es la 1042... cambia el número en la terminal con curl hasta ver la de dirección.',
-    target: 'terminal',
-    cmd: 'curl /api/mock/invoices?id=1001',
+    text: '¿Para qué crees que existe la pestaña Network de DevTools? Pide el documento, analiza qué parámetros viajan en la petición y deduce el resto.',
+    target: 'devtools',
   },
   5: {
-    text: 'Pon una comilla simple en el usuario para romper el SQL. O escribe sqlmap en la terminal si quieres ir de hacker pro.',
-    target: 'terminal',
-    cmd: 'sqlmap -u "http://localhost/login" --batch',
+    text: 'La base de datos protesta si le metes caracteres que rompen su sintaxis SQL. Provoca un fallo y deduce la estructura de la consulta.',
+    target: 'devtools',
   },
   6: {
-    text: 'Esa contraseña está en el diccionario sí o sí. Usa hydra en la terminal o lee el archivo con cat.',
+    text: 'Nadie se inventa contraseñas complejas. Hay un diccionario en el sistema esperándote en la terminal.',
     target: 'terminal',
-    cmd: 'hydra -l admin -P /opt/wordlists/passwords.txt',
   },
   7: {
-    text: 'Primero saca el token de Elena Ramos con la API de personal por curl, y luego manda la cabecera al mainframe.',
-    target: 'terminal',
-    cmd: 'curl /api/mock/staff?dept=security',
+    text: 'Encadena todo lo que has aprendido: reconocimiento de rutas API, extracción de credenciales y forjado de cabeceras HTTP.',
+    target: 'devtools',
   },
 };
 

@@ -156,6 +156,38 @@ export function mockApiRouter(
   headers: Record<string, string> = {},
   body: string = ''
 ): MockApiResponse {
+  const res = internalMockApiRouter(path, method, headers, body);
+
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(
+        new CustomEvent('lab:network_request', {
+          detail: {
+            id: 'req-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+            method: method.toUpperCase(),
+            url: path,
+            status: res.status,
+            statusText: res.statusText,
+            headers: res.headers,
+            requestHeaders: headers,
+            requestBody: body,
+            responseBody: res.body,
+            timestamp: Date.now(),
+          },
+        })
+      );
+    } catch {}
+  }
+
+  return res;
+}
+
+function internalMockApiRouter(
+  path: string,
+  method: string = 'GET',
+  headers: Record<string, string> = {},
+  body: string = ''
+): MockApiResponse {
   const normalizedPath = path.trim().replace(/^https?:\/\/[^\/]+/, '');
   const [pathname, queryString] = normalizedPath.split('?');
   const params = new URLSearchParams(queryString || '');
